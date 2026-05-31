@@ -20,8 +20,9 @@
             </ion-button>
 
             <div class="home-container">
-                <!-- Header: date + greeting -->
+                <!-- Header: logo + date + greeting -->
                 <header class="home-header">
+                    <img src="/logo.svg" alt="Johannische Kirche" class="home-logo" />
                     <p class="home-header__date">{{ formattedDate }}</p>
                     <h1 class="home-header__greeting">
                         {{ greeting }}
@@ -232,12 +233,24 @@ function openSongOfTheWeek() {
     padding: calc(var(--spacing-2xl) + var(--spacing-md)) var(--spacing-lg) var(--spacing-xl);
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: var(--spacing-lg);
+    /* Fill the viewport and center the sparse content so it isn't stranded
+       at the top with a large empty gap below. min-height (not height) lets
+       the container grow and scroll if content ever exceeds the screen. */
+    min-height: 100%;
 }
 
 /* Header */
 .home-header {
     text-align: center;
+}
+
+.home-logo {
+    display: block;
+    width: 4.5rem;
+    height: auto;
+    margin: 0 auto var(--spacing-lg);
 }
 
 .home-header__date {
