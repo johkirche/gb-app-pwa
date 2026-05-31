@@ -37,22 +37,28 @@
                 <ion-item
                     v-for="playlist in sortedPlaylists"
                     :key="playlist.id"
+                    class="playlist-row"
                     button
-                    detail
                     v-long-press="() => showActionSheet(playlist)"
                     @click="navigateToPlaylist(playlist.id)"
                 >
-                    <div slot="start" class="playlist-emoji">
+                    <span slot="start" class="playlist-row__icon">
                         {{ playlist.emoji }}
-                    </div>
+                    </span>
                     <ion-label>
-                        <h2>{{ playlist.name }}</h2>
-                        <p>
+                        <span class="playlist-row__title">{{ playlist.name }}</span>
+                        <span class="playlist-row__meta">
                             {{ playlist.songIds.length }}
                             {{ playlist.songIds.length === 1 ? 'Lied' : 'Lieder' }}
                             · {{ formatDate(playlist.createdAt) }}
-                        </p>
+                        </span>
                     </ion-label>
+                    <ion-icon
+                        slot="end"
+                        class="playlist-row__chevron"
+                        :icon="chevronForwardOutline"
+                        aria-hidden="true"
+                    ></ion-icon>
                 </ion-item>
             </ion-list>
 
@@ -85,7 +91,13 @@ import {
     IonToolbar,
     actionSheetController,
 } from '@ionic/vue';
-import { addOutline, albumsOutline, closeOutline, trashOutline } from 'ionicons/icons';
+import {
+    addOutline,
+    albumsOutline,
+    chevronForwardOutline,
+    closeOutline,
+    trashOutline,
+} from 'ionicons/icons';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
@@ -150,18 +162,52 @@ async function deletePlaylist(playlist: Playlist) {
 .playlist-list {
     padding-top: 0;
     padding-bottom: 0;
+    background: transparent;
 }
 
-.playlist-emoji {
-    font-size: 2rem;
-    width: 48px;
-    height: 48px;
-    display: flex;
+/* Number Box style rows — matches the songs list and home screen, with the emoji in the box */
+.playlist-row {
+    --background: transparent;
+    --border-color: var(--ion-color-light-shade);
+    --padding-start: var(--spacing-xs);
+    --inner-padding-end: var(--spacing-sm);
+    --min-height: 3.5rem;
+}
+
+.playlist-row__icon {
+    flex: 0 0 auto;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--ion-color-light);
-    border-radius: 8px;
-    margin-right: 8px;
+    width: 2.75rem;
+    height: 2.5rem;
+    margin-inline-end: var(--spacing-md);
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: var(--radius-md);
+    font-size: 1.375rem;
+    line-height: 1;
+}
+
+.playlist-row__title {
+    display: block;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.playlist-row__meta {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--font-size-sm);
+    color: var(--ion-color-medium);
+}
+
+.playlist-row__chevron {
+    color: var(--ion-color-medium);
+    font-size: var(--font-size-base);
 }
 
 .state-container {

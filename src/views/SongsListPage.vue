@@ -85,11 +85,7 @@
             </div>
 
             <!-- Songs List with Sections -->
-            <ion-list
-                v-else
-                class="songs-list"
-                :class="{ 'with-index-scroll': isIndexScrollerVisible }"
-            >
+            <ion-list v-else class="songs-list">
                 <template v-for="section in sortedSections" :key="section.key">
                     <!-- Section Header (only shown when showHeaders is true) -->
                     <SongSectionHeader
@@ -99,32 +95,39 @@
                     />
 
                     <!-- Songs in this section -->
-                    <ion-item
+                    <button
                         v-for="song in section.songs"
                         :key="song.id"
-                        button
-                        detail
+                        type="button"
+                        class="song-row"
+                        :class="{ 'song-row--with-index-scroll': isIndexScrollerVisible }"
                         :data-section="section.key"
                         @click="navigateToSong(song.id)"
                         @contextmenu.prevent="openSongActions(song.id)"
                         v-long-press="() => openSongActions(song.id)"
                     >
-                        <ion-label>
-                            <h2>
-                                <span v-if="song.index" class="song-index">{{ song.index }}.</span>
-                                <span class="song-title-text">{{ song.titel }}</span>
-                            </h2>
-                            <p v-if="sortMode !== 'category' && formatCategories(song.kategorien)">
+                        <span
+                            class="song-row__number"
+                            :class="{ 'song-row__number--empty': !song.index }"
+                        >
+                            <template v-if="song.index">{{ song.index }}</template>
+                            <span v-else class="song-row__number-dot" aria-hidden="true"></span>
+                        </span>
+                        <span class="song-row__text">
+                            <span class="song-row__title">{{ song.titel }}</span>
+                            <span
+                                v-if="sortMode !== 'category' && formatCategories(song.kategorien)"
+                                class="song-row__category"
+                            >
                                 {{ formatCategories(song.kategorien) }}
-                            </p>
-                            <p v-if="song.textAutoren.length > 0" class="authors">
-                                Text: {{ formatAuthors(song.textAutoren) }}
-                            </p>
-                            <p v-if="song.melodieAutoren.length > 0" class="authors">
-                                Melodie: {{ formatAuthors(song.melodieAutoren) }}
-                            </p>
-                        </ion-label>
-                    </ion-item>
+                            </span>
+                        </span>
+                        <ion-icon
+                            class="song-row__chevron"
+                            :icon="chevronForwardOutline"
+                            aria-hidden="true"
+                        ></ion-icon>
+                    </button>
                 </template>
             </ion-list>
 
@@ -170,8 +173,6 @@ import {
     IonCardContent,
     IonContent,
     IonIcon,
-    IonItem,
-    IonLabel,
     IonList,
     IonPage,
     IonSpinner,
@@ -179,6 +180,7 @@ import {
 } from '@ionic/vue';
 import {
     checkmarkOutline,
+    chevronForwardOutline,
     heart,
     heartOutline,
     listOutline,
@@ -200,7 +202,7 @@ import SongFilterDrawer from '@/components/songlist/SongFilterDrawer.vue';
 import SongSectionHeader from '@/components/songlist/SongSectionHeader.vue';
 import SongToolbar from '@/components/songlist/SongToolbar.vue';
 
-import type { Autor, Category } from '@/db';
+import type { Category } from '@/db';
 
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
@@ -397,16 +399,6 @@ function formatCategories(categories: Category[]): string {
         .join(', ');
 }
 
-// Format authors for display
-function formatAuthors(authors: Autor[]): string {
-    return authors
-        .map((a) => {
-            const name = `${a.vorname} ${a.nachname}`;
-            return a.sterbejahr ? `${name} (†${a.sterbejahr})` : name;
-        })
-        .join(', ');
-}
-
 // Format sync time for display
 function formatSyncTime(date: Date): string {
     return new Intl.DateTimeFormat('de-DE', {
@@ -417,23 +409,106 @@ function formatSyncTime(date: Date): string {
 </script>
 
 <style scoped>
-.authors {
-    font-size: var(--font-size-sm);
+.songs-list {
+    padding-top: 0;
+    background: transparent;
+}
+
+/* Song row — mirrors the home screen's .home-nav__item button rows */
+.song-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--ion-color-light-shade);
+    padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) var(--spacing-xs);
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease;
+}
+
+.song-row:last-child {
+    border-bottom: none;
+}
+
+.song-row:active {
+    background: var(--ion-color-light);
+}
+
+.song-row:focus-visible {
+    outline: 2px solid var(--ion-color-primary);
+    outline-offset: -2px;
+    border-radius: var(--radius-md);
+}
+
+/* Reserve room on the right so text/chevron never sit under the index strip (~40px) */
+.song-row--with-index-scroll {
+    padding-inline-end: 40px;
+}
+
+/* Number box — mirrors .home-nav__icon (fixed width fits up to 3 digits) */
+.song-row__number {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.5rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--ion-color-primary);
+}
+
+/* Graceful "no number" state */
+.song-row__number--empty {
     color: var(--ion-color-medium);
 }
 
-.songs-list {
-    padding-top: 0;
+.song-row__number-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ion-color-medium);
+    transform: rotate(45deg);
 }
 
-.songs-list.with-index-scroll ion-item {
-    --inner-padding-end: 40px;
+.song-row__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.song-index {
-    font-weight: 600;
-    color: var(--ion-color-primary);
-    margin-right: 4px;
+.song-row__title {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    line-height: 1.3;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.song-row__category {
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+}
+
+.song-row__chevron {
+    flex: 0 0 auto;
+    color: var(--ion-color-medium);
+    font-size: var(--font-size-base);
 }
 
 .sync-info {
@@ -470,20 +545,5 @@ function formatSyncTime(date: Date): string {
 
 .empty-state ion-button {
     margin-top: 8px;
-}
-
-ion-item h2 {
-    display: flex;
-    align-items: start;
-    gap: 6px;
-    flex-wrap: nowrap;
-    justify-content: space-between;
-}
-
-.song-title-text {
-    flex: 1 1 auto;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    min-width: 0;
 }
 </style>
