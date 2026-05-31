@@ -12,7 +12,6 @@
                 :search-query="filters.searchQuery"
                 :selected-categories="filters.selectedCategories"
                 :has-notes="filters.hasNotes"
-                :has-melody="filters.hasMelody"
                 :has-melody-xml="filters.hasMelodyXml"
                 :filter-index-range="filters.indexRange"
                 :active-filter-count="activeFilterCount"
@@ -27,7 +26,6 @@
                 @open-sort="showSortOptions = true"
                 @toggle-category="toggleCategory"
                 @set-has-notes="setHasNotes"
-                @set-has-melody="setHasMelody"
                 @set-has-melody-xml="setHasMelodyXml"
                 @set-index-range="setIndexRange"
             />
@@ -46,7 +44,6 @@
                 :available-categories="availableCategories"
                 :selected-categories="filters.selectedCategories"
                 :has-notes="filters.hasNotes"
-                :has-melody="filters.hasMelody"
                 :has-melody-xml="filters.hasMelodyXml"
                 :filter-index-range="filters.indexRange"
                 :index-range="indexRange"
@@ -54,7 +51,6 @@
                 @close="showFilterDrawer = false"
                 @toggle-category="toggleCategory"
                 @set-has-notes="setHasNotes"
-                @set-has-melody="setHasMelody"
                 @set-has-melody-xml="setHasMelodyXml"
                 @set-index-range="setIndexRange"
                 @clear-all="clearFiltersKeepSearch"
@@ -117,13 +113,6 @@
                             <h2>
                                 <span v-if="song.index" class="song-index">{{ song.index }}.</span>
                                 <span class="song-title-text">{{ song.titel }}</span>
-                                <span v-if="hasAbcNotation(song)" class="song-tag abc-tag">
-                                    ABC
-                                </span>
-                                <span v-if="hasImageFile(song)" class="song-tag image-tag">
-                                    Bild
-                                </span>
-                                <span v-if="song.notentextMxml" class="song-tag xml-tag">XML</span>
                             </h2>
                             <p v-if="sortMode !== 'category' && formatCategories(song.kategorien)">
                                 {{ formatCategories(song.kategorien) }}
@@ -234,7 +223,6 @@ const {
     clearSearch,
     toggleCategory,
     setHasNotes,
-    setHasMelody,
     setHasMelodyXml,
     setIndexRange,
     clearAllFilters,
@@ -329,6 +317,28 @@ function onSongAddedToPlaylist(_playlistId: string) {
     // Could show a toast notification here
 }
 
+// Viewport Y just below the sticky header(s), where a scrolled-to item should
+// land. Measured from the toolbar's live rendered bottom edge so it already
+// accounts for safe-area insets (viewport-fit=cover), font scaling and device
+// differences — anything that hardcoded heights would miss.
+function getHeaderBottom(scrollEl: HTMLElement): number {
+    const GAP = 8; // small breathing room below the header
+
+    const toolbar = document.querySelector('.song-toolbar') as HTMLElement | null;
+    let headerBottom = toolbar
+        ? toolbar.getBoundingClientRect().bottom
+        : scrollEl.getBoundingClientRect().top + 56;
+
+    // In modes with headers the section divider is also sticky and stacks below
+    // the toolbar, so the item must clear it too.
+    if (showHeaders.value) {
+        const divider = document.querySelector('.section-header') as HTMLElement | null;
+        if (divider) headerBottom += divider.getBoundingClientRect().height;
+    }
+
+    return headerBottom + GAP;
+}
+
 // Scroll to a specific section - always scroll to first item in section
 async function scrollToSection(sectionKey: string) {
     if (!contentRef.value) {
@@ -336,15 +346,21 @@ async function scrollToSection(sectionKey: string) {
     }
 
     // Always find the first item in the section (works for all sort modes)
-    const firstItem = document.querySelector(`[data-section="${sectionKey}"]`) as HTMLElement;
-
-    if (firstItem) {
-        const headerOffset = 80; // Account for toolbar
-        const sectionHeaderOffset = showHeaders.value ? 40 : 0; // Account for sticky section header if shown
-        const elementTop = firstItem.offsetTop - headerOffset - sectionHeaderOffset;
-
-        await contentRef.value.$el.scrollToPoint(0, Math.max(0, elementTop), 300);
+    const firstItem = document.querySelector(
+        `[data-section="${sectionKey}"]`,
+    ) as HTMLElement | null;
+    if (!firstItem) {
+        return;
     }
+
+    // Work in viewport coordinates and scroll by a relative delta: move the item
+    // from where it currently is to just below the sticky header. This is immune
+    // to offsetParent quirks and safe-area padding inside the scroll container.
+    const scrollEl: HTMLElement = await contentRef.value.$el.getScrollElement();
+    const delta = firstItem.getBoundingClientRect().top - getHeaderBottom(scrollEl);
+    const target = scrollEl.scrollTop + delta;
+
+    await contentRef.value.$el.scrollToPoint(0, Math.max(0, target), 300);
 }
 
 // Handle scroll events to update active section
@@ -397,38 +413,6 @@ function formatSyncTime(date: Date): string {
         dateStyle: 'short',
         timeStyle: 'short',
     }).format(date);
-}
-
-// Check if song has ABC notation
-function hasAbcNotation(song: any): boolean {
-    if (!song.melodieAbc || !Array.isArray(song.melodieAbc) || song.melodieAbc.length === 0) {
-        return false;
-    }
-
-    // Find default melody or use first one
-    const defaultMelody = song.melodieAbc.find((m: any) => m.is_default) || song.melodieAbc[0];
-    let abcNotation: string | undefined = defaultMelody?.abc_notation as any;
-
-    // If abc_notation is an array, get the default or first notation
-    if (Array.isArray(abcNotation)) {
-        const notation = abcNotation.find((n: any) => n.is_default) || abcNotation[0];
-        abcNotation = notation?.abc_notation;
-    }
-
-    return !!(abcNotation && typeof abcNotation === 'string' && abcNotation.trim().length > 0);
-}
-
-// Check if song has image file
-function hasImageFile(song: any): boolean {
-    if (!song.noten || !Array.isArray(song.noten) || song.noten.length === 0) {
-        return false;
-    }
-
-    return song.noten.some((note: any) => {
-        if (!note.filename_download) return false;
-        const filename = note.filename_download.toLowerCase();
-        return filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.svg');
-    });
 }
 </script>
 
@@ -501,33 +485,5 @@ ion-item h2 {
     overflow-wrap: break-word;
     word-break: break-word;
     min-width: 0;
-}
-
-.song-tag {
-    display: inline-flex;
-    align-items: center;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    line-height: 1;
-    flex-shrink: 0;
-}
-
-.abc-tag {
-    background-color: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
-}
-
-.image-tag {
-    background-color: var(--ion-color-secondary);
-    color: var(--ion-color-secondary-contrast);
-}
-
-.xml-tag {
-    background-color: var(--ion-color-tertiary);
-    color: var(--ion-color-tertiary-contrast);
 }
 </style>

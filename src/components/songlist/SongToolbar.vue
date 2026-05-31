@@ -108,16 +108,6 @@
             </ion-chip>
 
             <ion-chip
-                v-if="hasMelody !== null"
-                color="tertiary"
-                @click="$emit('setHasMelody', null)"
-            >
-                <ion-icon :icon="musicalNoteOutline" />
-                <ion-label>{{ hasMelody ? 'Mit Melodie' : 'Ohne Melodie' }}</ion-label>
-                <ion-icon :icon="closeCircle" />
-            </ion-chip>
-
-            <ion-chip
                 v-if="hasMelodyXml !== null"
                 color="tertiary"
                 @click="$emit('setHasMelodyXml', null)"
@@ -173,7 +163,6 @@ const props = defineProps<{
     searchQuery: string;
     selectedCategories: string[];
     hasNotes: boolean | null;
-    hasMelody: boolean | null;
     hasMelodyXml: boolean | null;
     filterIndexRange: { min: number; max: number } | null;
     activeFilterCount: number;
@@ -191,7 +180,6 @@ const emit = defineEmits<{
     (e: 'openSort'): void;
     (e: 'toggleCategory', category: string): void;
     (e: 'setHasNotes', value: boolean | null): void;
-    (e: 'setHasMelody', value: boolean | null): void;
     (e: 'setHasMelodyXml', value: boolean | null): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
 }>();
@@ -227,7 +215,6 @@ const showFilterChips = computed(() => {
         props.searchQuery ||
         props.selectedCategories.length > 0 ||
         props.hasNotes !== null ||
-        props.hasMelody !== null ||
         props.hasMelodyXml !== null ||
         props.filterIndexRange !== null
     );

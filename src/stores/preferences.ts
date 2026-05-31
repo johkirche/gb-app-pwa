@@ -6,9 +6,9 @@ import { type MelodyDisplayMode, type XmlDisplaySettings, db } from '@/db';
 
 export interface PreferencesData {
     id: string;
-    notationScale: number; // Scale factor for ABC notation (0.5 - 2.0)
+    notationScale: number; // Scale factor for music notation (0.5 - 2.0)
     textSize: 'small' | 'medium' | 'large' | 'xlarge'; // Text size for song lyrics
-    melodyDisplayMode: MelodyDisplayMode; // Display mode: ABC notation, image, or MusicXML (OSMD)
+    melodyDisplayMode: MelodyDisplayMode; // Display mode: image or MusicXML (OSMD)
     xmlSettings?: XmlDisplaySettings;
 }
 
@@ -21,7 +21,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // State
     const notationScale = ref<number>(1.0); // Default scale
     const textSize = ref<'small' | 'medium' | 'large' | 'xlarge'>('medium'); // Default text size
-    const melodyDisplayMode = ref<MelodyDisplayMode>('abc'); // Default to ABC notation
+    const melodyDisplayMode = ref<MelodyDisplayMode>('xml'); // Default to MusicXML notation
     const xmlSettings = ref<XmlDisplaySettings>({ ...DEFAULT_XML_SETTINGS });
     const isLoading = ref(false);
 
@@ -35,7 +35,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
             if (prefs) {
                 notationScale.value = prefs.notationScale;
                 textSize.value = prefs.textSize;
-                melodyDisplayMode.value = prefs.melodyDisplayMode || 'abc';
+                // Migrate legacy 'abc' mode (ABC player removed) to MusicXML
+                const storedMode = prefs.melodyDisplayMode as MelodyDisplayMode | 'abc' | undefined;
+                melodyDisplayMode.value = storedMode && storedMode !== 'abc' ? storedMode : 'xml';
                 xmlSettings.value = { ...DEFAULT_XML_SETTINGS, ...(prefs.xmlSettings || {}) };
             }
         } catch (err) {

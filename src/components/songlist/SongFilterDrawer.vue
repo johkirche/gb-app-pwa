@@ -66,21 +66,6 @@
                 </div>
 
                 <div class="filter-row">
-                    <ion-label class="filter-label">Hat ABC Melodie</ion-label>
-                    <ion-segment :value="hasMelodyValue" @ionChange="onHasMelodyChange($event)">
-                        <ion-segment-button value="all">
-                            <ion-label>Alle</ion-label>
-                        </ion-segment-button>
-                        <ion-segment-button value="yes">
-                            <ion-label>Ja</ion-label>
-                        </ion-segment-button>
-                        <ion-segment-button value="no">
-                            <ion-label>Nein</ion-label>
-                        </ion-segment-button>
-                    </ion-segment>
-                </div>
-
-                <div class="filter-row">
                     <ion-label class="filter-label">Hat MusicXML</ion-label>
                     <ion-segment
                         :value="hasMelodyXmlValue"
@@ -155,7 +140,6 @@ const props = defineProps<{
     availableCategories: FilterOption[];
     selectedCategories: string[];
     hasNotes: boolean | null;
-    hasMelody: boolean | null;
     hasMelodyXml: boolean | null;
     filterIndexRange: { min: number; max: number } | null;
     indexRange: { min: number; max: number };
@@ -166,7 +150,6 @@ const emit = defineEmits<{
     (e: 'close'): void;
     (e: 'toggleCategory', category: string): void;
     (e: 'setHasNotes', value: boolean | null): void;
-    (e: 'setHasMelody', value: boolean | null): void;
     (e: 'setHasMelodyXml', value: boolean | null): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
     (e: 'clearAll'): void;
@@ -176,12 +159,6 @@ const emit = defineEmits<{
 const hasNotesValue = computed(() => {
     if (props.hasNotes === true) return 'yes';
     if (props.hasNotes === false) return 'no';
-    return 'all';
-});
-
-const hasMelodyValue = computed(() => {
-    if (props.hasMelody === true) return 'yes';
-    if (props.hasMelody === false) return 'no';
     return 'all';
 });
 
@@ -202,13 +179,6 @@ function onHasNotesChange(event: CustomEvent) {
     if (value === 'yes') emit('setHasNotes', true);
     else if (value === 'no') emit('setHasNotes', false);
     else emit('setHasNotes', null);
-}
-
-function onHasMelodyChange(event: CustomEvent) {
-    const value = event.detail.value;
-    if (value === 'yes') emit('setHasMelody', true);
-    else if (value === 'no') emit('setHasMelody', false);
-    else emit('setHasMelody', null);
 }
 
 function onHasMelodyXmlChange(event: CustomEvent) {

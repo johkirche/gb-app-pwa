@@ -176,7 +176,6 @@ export default defineConfig({
                     const n = id.replace(/\\/g, '/');
                     if (!n.includes('/node_modules/')) return;
                     if (n.includes('/node_modules/@directus/sdk/')) return 'directus-vendor';
-                    if (n.includes('/node_modules/abcjs/')) return 'abcjs-vendor';
                     if (
                         n.includes('/node_modules/@ionic/') ||
                         n.includes('/node_modules/ionicons/')

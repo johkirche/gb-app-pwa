@@ -25,7 +25,6 @@
         "@directus/sdk": "^21.3.0",
         "@ionic/vue": "^8.8.8",
         "@ionic/vue-router": "^8.8.8",
-        "abcjs": "^6.6.3",
         "dexie": "^4.4.3",
         "graphql": "^16.14.0",
         "ionicons": "^8.0.13",

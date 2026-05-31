@@ -40,7 +40,7 @@
                 </ion-item>
 
                 <!-- Melody Settings Group (only shown when relevant) -->
-                <template v-if="hasMelody || hasMelodyImage || hasMelodyXml">
+                <template v-if="hasMelodyImage || hasMelodyXml">
                     <ion-list-header>
                         <ion-label>Noten</ion-label>
                     </ion-list-header>
@@ -53,9 +53,6 @@
                             interface="popover"
                             @ionChange="$emit('update:melodyDisplayMode', $event.detail.value)"
                         >
-                            <ion-select-option value="abc" :disabled="!hasMelody">
-                                ABC
-                            </ion-select-option>
                             <ion-select-option value="image" :disabled="!hasMelodyImage">
                                 Notenbild
                             </ion-select-option>
@@ -64,12 +61,7 @@
                             </ion-select-option>
                         </ion-select>
                     </ion-item>
-                    <ion-item
-                        v-if="
-                            (melodyDisplayMode === 'abc' && hasMelody) ||
-                            (melodyDisplayMode === 'xml' && hasMelodyXml)
-                        "
-                    >
+                    <ion-item v-if="melodyDisplayMode === 'xml' && hasMelodyXml">
                         <ion-icon slot="start" :icon="musicalNoteOutline" />
                         <ion-label>
                             <p>Notengröße</p>
@@ -166,7 +158,6 @@ import type { MelodyDisplayMode, XmlDisplaySettings } from '@/db';
 defineProps<{
     songId: string;
     showControls: boolean;
-    hasMelody: boolean;
     hasMelodyImage: boolean;
     hasMelodyXml: boolean;
     melodyDisplayMode: MelodyDisplayMode;

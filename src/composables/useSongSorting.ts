@@ -111,17 +111,22 @@ export function useSongSorting(songs: Ref<Song[]>) {
 }
 
 /**
- * Group songs by index number (tenner groups: 1-9, 10-19, 20-29, etc.)
+ * Group songs by index number into blocks of NUMBER_SCROLL_GROUP_SIZE.
+ *
+ * The group key/label is the index of the FIRST song in the block, so the
+ * scroller label matches the songs it points at: e.g. with a size of 15,
+ * "300" → songs 300-314. (The very first block, 1 .. size-1, is labelled "1".)
  */
 function groupByIndex(songs: Song[]): SongSection[] {
     const sorted = [...songs].sort((a, b) => a.index - b.index);
     const groups = new Map<number, Song[]>();
 
     for (const song of sorted) {
-        // Calculate tenner group: 0 for 1-9, 10 for 10-19, etc.
-        const tenner =
-            Math.floor((song.index - 1) / NUMBER_SCROLL_GROUP_SIZE) * NUMBER_SCROLL_GROUP_SIZE;
-        const key = tenner === 0 ? 1 : tenner;
+        // Block start aligned to the group size: 0, 15, 30, ... The 0 block
+        // starts at song 1, so label it "1" rather than "0".
+        const blockStart =
+            Math.floor(song.index / NUMBER_SCROLL_GROUP_SIZE) * NUMBER_SCROLL_GROUP_SIZE;
+        const key = blockStart === 0 ? 1 : blockStart;
 
         if (!groups.has(key)) {
             groups.set(key, []);
@@ -134,7 +139,7 @@ function groupByIndex(songs: Song[]): SongSection[] {
         .sort(([a], [b]) => a - b)
         .map(([key, groupSongs]) => ({
             key: String(key),
-            label: String(key), // "1", "10", "20", etc.
+            label: String(key), // "1", "15", "30", etc.
             songs: groupSongs,
         }));
 }

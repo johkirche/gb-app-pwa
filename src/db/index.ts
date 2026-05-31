@@ -32,27 +32,12 @@ export interface Strophe {
     anmerkung?: string | null;
 }
 
-export interface AbcNotation {
-    name: string;
-    abc_notation: string;
-    is_default: boolean;
-    file_id: string;
-}
-
-export interface MelodieAbc {
-    name: string;
-    abc_notation: AbcNotation[] | string;
-    is_default: boolean;
-    file_id: string;
-}
-
 export interface Song {
     id: string;
     index: number;
     titel: string;
     strophen: Strophe[];
     textAutoren: Autor[];
-    melodieAbc: MelodieAbc[];
     melodieAutoren: Autor[];
     noten: NotenFile[];
     notentextMxml: NotenFile | null;
@@ -88,7 +73,7 @@ export interface Playlist {
 }
 
 // Preferences types
-export type MelodyDisplayMode = 'abc' | 'image' | 'xml';
+export type MelodyDisplayMode = 'image' | 'xml';
 
 export interface XmlDisplaySettings {
     showMeasureNumbers: boolean;

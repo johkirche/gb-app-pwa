@@ -5,7 +5,6 @@
         <SongMenuPopover
             v-model:show-controls="showControls"
             :song-id="songId"
-            :has-melody="hasMelody"
             :has-melody-image="hasMelodyImage"
             :has-melody-xml="hasMelodyXml"
             :melody-display-mode="melodyDisplayMode"
@@ -29,7 +28,7 @@
 
             <!-- Song Content -->
             <div v-else class="song-content" :class="`text-size-${textSize}`">
-                <!-- Melody Display: Image, MusicXML, or ABC Rendering -->
+                <!-- Melody Display: Image or MusicXML -->
                 <SongMelodyImage
                     v-if="melodyDisplayMode === 'image' && hasMelodyImage"
                     :image-url="melodyImageUrl"
@@ -50,25 +49,8 @@
                     />
                 </div>
 
-                <!-- ABC Melody Rendering -->
-                <div v-else-if="melodyDisplayMode === 'abc' && hasMelody" class="melody-section">
-                    <AbcRenderer
-                        ref="abcRendererRef"
-                        :abc="defaultMelodyAbc"
-                        :is-playing="isPlaying"
-                        :tempo="tempo"
-                        :loop="loopEnabled"
-                        :scale="notationScale"
-                        @play-started="isPlaying = true"
-                        @play-stopped="isPlaying = false"
-                    />
-                </div>
-
                 <!-- No Melody Notice -->
-                <div
-                    v-else-if="!hasMelody && !hasMelodyImage && !hasMelodyXml"
-                    class="no-melody-notice"
-                >
+                <div v-else-if="!hasMelodyImage && !hasMelodyXml" class="no-melody-notice">
                     <ion-icon :icon="musicalNotesOutline" />
                     <span>Keine Melodie verfügbar</span>
                 </div>
@@ -90,12 +72,7 @@
         </ion-content>
 
         <ion-footer
-            v-if="
-                song &&
-                showControls &&
-                ((melodyDisplayMode === 'xml' && hasMelodyXml) ||
-                    (melodyDisplayMode === 'abc' && hasMelody))
-            "
+            v-if="song && showControls && melodyDisplayMode === 'xml' && hasMelodyXml"
             class="audio-controls-footer"
         >
             <SongAudioControls
@@ -125,7 +102,6 @@ import { useSongsStore } from '@/stores/songs';
 
 import { useStoredFiles } from '@/composables/useStoredFiles';
 
-import AbcRenderer from '@/components/songview/AbcRenderer.vue';
 import OsmdRenderer from '@/components/songview/OsmdRenderer.vue';
 import SongAudioControls from '@/components/songview/SongAudioControls.vue';
 import SongAuthors from '@/components/songview/SongAuthors.vue';
@@ -151,7 +127,6 @@ const imageLoading = ref(false);
 const melodyXmlBlob = ref<Blob | null>(null);
 
 // Refs
-const abcRendererRef = ref<InstanceType<typeof AbcRenderer> | null>(null);
 const osmdRendererRef = ref<InstanceType<typeof OsmdRenderer> | null>(null);
 
 // Current song
@@ -168,32 +143,6 @@ const tempo = ref(120);
 
 // Display options
 const showControls = ref(true);
-
-// Get the default melody ABC notation
-const defaultMelodyAbc = computed(() => {
-    const melodies = song.value?.melodieAbc;
-    if (!Array.isArray(melodies) || melodies.length === 0) return '';
-    // Find default melody or use first one
-    const defaultMelody = melodies.find((m) => m.is_default) || melodies[0];
-
-    // Handle nested abc_notation structure
-    let abcNotation: string | undefined = defaultMelody?.abc_notation as any;
-
-    // If abc_notation is an array, get the default or first notation
-    if (Array.isArray(abcNotation)) {
-        const notation = abcNotation.find((n: any) => n.is_default) || abcNotation[0];
-        abcNotation = notation?.abc_notation;
-    }
-
-    if (!abcNotation || typeof abcNotation !== 'string') return '';
-    // Replace escaped newlines with actual newlines
-    return abcNotation.replace(/\\n/g, '\n');
-});
-
-// Check if song has melody
-const hasMelody = computed(() => {
-    return defaultMelodyAbc.value.trim().length > 0;
-});
 
 // Check if song has melody image
 const hasMelodyImage = computed(() => {
@@ -308,8 +257,7 @@ function togglePlay() {
 function stopPlayback() {
     isPlaying.value = false;
     hasPaused.value = false;
-    // Call the stop method on whichever renderer is active
-    abcRendererRef.value?.stop();
+    // Call the stop method on the active renderer
     osmdRendererRef.value?.stop();
 }
 

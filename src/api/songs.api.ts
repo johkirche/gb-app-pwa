@@ -41,13 +41,6 @@ interface DirectusStrophe {
     aenderungsvorschlag: string | null;
 }
 
-interface DirectusAbcMelodie {
-    name: string;
-    abc_notation: string;
-    is_default: boolean;
-    file_id: string;
-}
-
 interface DirectusGesangbuchlied {
     id: string;
     titel: string;
@@ -61,7 +54,6 @@ interface DirectusGesangbuchlied {
         autorId: DirectusAutor[];
     } | null;
     melodieId: {
-        abc_melodie: DirectusAbcMelodie[];
         autorId: DirectusAutor[];
         noten: DirectusNotenFile[];
     } | null;
@@ -74,7 +66,7 @@ interface DirectusResponse {
 
 // GraphQL query
 const SONGS_QUERY = `
-    { gesangbuchlied( filter: { bewertungKleinerKreis: { bezeichner: { _eq: "Rein" } } } limit: 5000 ) { id titel liednummer2026 notentext_mxml { id filename_download } textId { strophenEinzeln autorId { autor_id { vorname nachname sterbejahr } } } melodieId { abc_melodie autorId { autor_id { vorname nachname sterbejahr } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
+    { gesangbuchlied( filter: { bewertungKleinerKreis: { bezeichner: { _eq: "Rein" } } } limit: 5000 ) { id titel liednummer2026 notentext_mxml { id filename_download } textId { strophenEinzeln autorId { autor_id { vorname nachname sterbejahr } } } melodieId { autorId { autor_id { vorname nachname sterbejahr } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
 `;
 
 // Get current token from user store or env variable for debug mode
@@ -136,9 +128,6 @@ function transformSong(directusSong: DirectusGesangbuchlied): Song {
         aenderungsvorschlag: s.aenderungsvorschlag || null,
     }));
 
-    // Transform abc_melodie array - flatten the nested structure
-    const melodieAbc = directusSong.melodieId?.abc_melodie || [];
-
     const notentextMxml: NotenFile | null = directusSong.notentext_mxml
         ? {
               id: directusSong.notentext_mxml.id,
@@ -152,7 +141,6 @@ function transformSong(directusSong: DirectusGesangbuchlied): Song {
         titel: directusSong.titel,
         strophen,
         textAutoren,
-        melodieAbc,
         melodieAutoren,
         noten,
         notentextMxml,
