@@ -32,6 +32,7 @@
 
             <!-- Sort Options Action Sheet -->
             <ion-action-sheet
+                mode="ios"
                 :is-open="showSortOptions"
                 header="Sortierung"
                 :buttons="sortActionButtons"
@@ -147,6 +148,8 @@
 
         <!-- Song Action Sheet (long-press menu) -->
         <ion-action-sheet
+            mode="ios"
+            css-class="action-sheet-aligned"
             :is-open="showSongActions"
             header="Aktionen"
             :buttons="songActionButtons"
@@ -441,6 +444,23 @@ function formatSyncTime(date: Date): string {
     background: var(--ion-color-light);
 }
 
+/* Desktop hover — only on devices with a precise pointer, so tapping on a
+   touchscreen doesn't leave a sticky hover state behind */
+@media (hover: hover) and (pointer: fine) {
+    .song-row:hover {
+        background: var(--ion-color-light);
+    }
+
+    .song-row:hover .song-row__number {
+        border-color: var(--ion-color-primary);
+    }
+
+    .song-row:hover .song-row__chevron {
+        color: var(--ion-color-primary);
+        transform: translateX(3px);
+    }
+}
+
 .song-row:focus-visible {
     outline: 2px solid var(--ion-color-primary);
     outline-offset: -2px;
@@ -467,6 +487,7 @@ function formatSyncTime(date: Date): string {
     line-height: 1;
     font-variant-numeric: tabular-nums;
     color: var(--ion-color-primary);
+    transition: border-color 0.15s ease;
 }
 
 /* Graceful "no number" state */
@@ -509,6 +530,9 @@ function formatSyncTime(date: Date): string {
     flex: 0 0 auto;
     color: var(--ion-color-medium);
     font-size: var(--font-size-base);
+    transition:
+        color 0.15s ease,
+        transform 0.15s ease;
 }
 
 .sync-info {

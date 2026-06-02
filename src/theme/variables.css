@@ -74,6 +74,26 @@ ion-item.transparent {
     background-image: none;
 }
 
+/* Action sheet: keep the rows full-width (edge-to-edge, fully tappable) but
+   centre their icon + label as one shared block, so icons sit in a column and
+   labels share a start instead of each row centring on its own width. Each
+   row's inner content is a fixed-width block centred with auto margins; the
+   width comfortably clears the longest option label (rows still grow if a label
+   ever exceeds it). Opt-in via css-class="action-sheet-aligned"; the cancel
+   group keeps its default styling. action-sheet is a scoped (non-shadow)
+   component, so these global selectors reach its inner parts. */
+.action-sheet-aligned .action-sheet-group:not(.action-sheet-group-cancel) .action-sheet-button-inner {
+    justify-content: flex-start;
+    width: fit-content;
+    min-width: 15rem;
+    max-width: 100%;
+    margin-inline: auto;
+}
+
+.action-sheet-aligned .action-sheet-group:not(.action-sheet-group-cancel) .action-sheet-icon {
+    margin-inline-end: var(--spacing-md);
+}
+
 /* ion-header {
     --background: transparent;
 }

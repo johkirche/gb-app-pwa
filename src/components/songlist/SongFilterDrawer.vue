@@ -1,8 +1,8 @@
 <template>
     <ion-modal
         :is-open="isOpen"
-        :initial-breakpoint="0.5"
-        :breakpoints="[0, 0.25, 0.5, 0.75, 1]"
+        :initial-breakpoint="0.75"
+        :breakpoints="[0, 0.5, 0.75, 1]"
         :handle="true"
         @didDismiss="$emit('close')"
     >
@@ -18,31 +18,68 @@
             </ion-toolbar>
         </ion-header>
 
-        <ion-content class="ion-padding filter-content">
-            <!-- Categories as Chip Mosaic -->
+        <ion-content class="filter-content">
+            <!-- Categories -->
             <div class="filter-section">
-                <ion-label class="section-label">Kategorien</ion-label>
-                <div class="category-chips">
-                    <ion-chip
-                        v-for="category in availableCategories"
+                <div class="cat-sticky">
+                    <div class="section-head">
+                        <span class="section-label">Kategorien</span>
+                        <button
+                            v-if="selectedCategories.length"
+                            type="button"
+                            class="section-clear"
+                            @click="clearCategories"
+                        >
+                            {{ selectedCategories.length }} ausgewählt · zurücksetzen
+                        </button>
+                    </div>
+
+                    <div class="cat-search">
+                        <ion-icon :icon="searchOutline" class="cat-search__icon" />
+                        <input
+                            v-model="categoryQuery"
+                            type="text"
+                            class="cat-search__input"
+                            placeholder="Kategorie suchen…"
+                        />
+                        <button
+                            v-if="categoryQuery"
+                            type="button"
+                            class="cat-search__clear"
+                            aria-label="Suche löschen"
+                            @click="categoryQuery = ''"
+                        >
+                            <ion-icon :icon="closeCircle" />
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="filteredCategories.length" class="cat-chips">
+                    <button
+                        v-for="category in filteredCategories"
                         :key="category.value"
-                        :color="selectedCategories.includes(category.value) ? 'primary' : 'medium'"
-                        :outline="!selectedCategories.includes(category.value)"
+                        type="button"
+                        class="cat-chip"
+                        :class="{ 'cat-chip--selected': selectedCategories.includes(category.value) }"
+                        :aria-pressed="selectedCategories.includes(category.value)"
                         @click="$emit('toggleCategory', category.value)"
                     >
-                        <ion-label>{{ category.label }}</ion-label>
-                        <ion-badge
-                            :color="
-                                selectedCategories.includes(category.value) ? 'light' : 'medium'
-                            "
-                            class="category-count"
-                        >
-                            {{ category.count }}
-                        </ion-badge>
-                    </ion-chip>
+                        <span class="cat-chip__emoji" aria-hidden="true">
+                            {{ categoryEmoji(category.label) }}
+                        </span>
+                        <span class="cat-chip__label">{{ category.label }}</span>
+                        <span class="cat-chip__count">{{ category.count }}</span>
+                    </button>
                 </div>
-                <div v-if="availableCategories.length === 0" class="empty-state">
-                    <ion-text color="medium">Keine Kategorien verfügbar</ion-text>
+
+                <div v-else class="cat-empty">
+                    <ion-text color="medium">
+                        {{
+                            availableCategories.length
+                                ? 'Keine Kategorie gefunden'
+                                : 'Keine Kategorien verfügbar'
+                        }}
+                    </ion-text>
                 </div>
             </div>
 
@@ -112,13 +149,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import {
-    IonBadge,
     IonButton,
     IonButtons,
-    IonChip,
     IonContent,
     IonHeader,
     IonIcon,
@@ -131,7 +166,9 @@ import {
     IonTitle,
     IonToolbar,
 } from '@ionic/vue';
-import { refreshOutline } from 'ionicons/icons';
+import { closeCircle, refreshOutline, searchOutline } from 'ionicons/icons';
+
+import { categoryEmoji } from '@/utils/categoryEmoji';
 
 import type { FilterOption } from '@/composables/useSongFiltering';
 
@@ -154,6 +191,21 @@ const emit = defineEmits<{
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
     (e: 'clearAll'): void;
 }>();
+
+// Category quick-search — the main usability win with 60+ categories
+const categoryQuery = ref('');
+
+const filteredCategories = computed(() => {
+    const query = categoryQuery.value.trim().toLowerCase();
+    if (!query) return props.availableCategories;
+    return props.availableCategories.filter((c) => c.label.toLowerCase().includes(query));
+});
+
+function clearCategories() {
+    // Deselect every currently selected category (copy first — toggling mutates
+    // the parent's array via the emitted events)
+    [...props.selectedCategories].forEach((category) => emit('toggleCategory', category));
+}
 
 // Convert boolean | null to segment value
 const hasNotesValue = computed(() => {
@@ -200,57 +252,178 @@ function onRangeChange(event: CustomEvent) {
 </script>
 
 <style scoped>
+.filter-content {
+    --padding-start: 0;
+    --padding-end: 0;
+}
+
 .filter-section {
-    margin-bottom: 24px;
+    padding: 0 var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
 }
 
 .section-label {
     display: block;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     color: var(--ion-color-medium);
-    margin-bottom: 8px;
 }
 
-.category-chips {
+/* Category search + heading stay pinned while the chip cloud scrolls */
+.cat-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--ion-background-color);
+    padding: var(--spacing-md) 0 var(--spacing-sm);
+}
+
+.section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.section-clear {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: var(--font-size-xs);
+    color: var(--ion-color-primary);
+    cursor: pointer;
+}
+
+.cat-search {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: var(--ion-color-light);
+    border-radius: var(--radius-md);
+    padding: 0 var(--spacing-md);
+}
+
+.cat-search__icon {
+    flex-shrink: 0;
+    font-size: 1.125rem;
+    color: var(--ion-color-medium);
+}
+
+.cat-search__input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: var(--spacing-sm) 0;
+    font-size: var(--font-size-base);
+    color: var(--ion-text-color);
+}
+
+.cat-search__input::placeholder {
+    color: var(--ion-color-medium);
+}
+
+.cat-search__clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--ion-color-medium);
+    font-size: 1.125rem;
+}
+
+/* Chip cloud */
+.cat-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--spacing-sm);
 }
 
-.category-chips ion-chip {
-    margin: 0;
-    height: auto;
-    padding: 8px 12px;
+.cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
 }
 
-.category-count {
-    margin-left: 6px;
-    font-size: 0.75rem;
-    min-width: 24px;
+.cat-chip__emoji {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.cat-chip__label {
+    font-weight: 500;
+}
+
+.cat-chip__count {
+    font-size: var(--font-size-xs);
+    color: var(--ion-color-medium);
+    font-variant-numeric: tabular-nums;
+}
+
+.cat-chip--selected {
+    border-color: var(--ion-color-primary);
+    background: rgba(var(--ion-color-primary-rgb), 0.12);
+    color: var(--ion-color-primary);
+}
+
+.cat-chip--selected .cat-chip__count {
+    color: var(--ion-color-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .cat-chip:hover {
+        border-color: var(--ion-color-primary);
+        background: var(--ion-color-light);
+    }
+
+    .cat-chip--selected:hover {
+        background: rgba(var(--ion-color-primary-rgb), 0.2);
+    }
+}
+
+.cat-empty {
+    padding: var(--spacing-lg) 0;
     text-align: center;
 }
 
-.empty-state {
-    padding: 16px;
-    text-align: center;
-}
-
+/* Dev filters */
 .dev-section {
-    margin-top: 24px;
-    padding-top: 16px;
+    padding-top: var(--spacing-md);
     border-top: 1px solid var(--ion-color-light-shade);
 }
 
+.dev-section .section-label {
+    margin-bottom: var(--spacing-md);
+}
+
 .filter-row {
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-md);
 }
 
 .filter-label {
     display: block;
-    font-size: 0.85rem;
+    font-size: var(--font-size-sm);
     color: var(--ion-color-medium);
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-sm);
 }
 
 .filter-row ion-segment {
