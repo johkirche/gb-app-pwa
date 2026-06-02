@@ -2,206 +2,149 @@
 
 ## Overview
 
-This document outlines the backend setup required for the authentication system in the Gesangbuch Ionic app. The system uses a simplified registration flow where users provide their activation code during registration, and accounts are automatically activated if the code is valid.
+This document describes the backend setup required for the authentication / registration
+system in the Gesangbuch Ionic app. Registration is handled by a custom Directus endpoint
+extension that lives in this repository as a git submodule:
+
+```
+directus/extensions/directus-user-register-extension
+```
+
+> The extension's own `README.md` is the source of truth for its API. This guide focuses
+> on how to deploy it and configure Directus so the app's registration flow works.
 
 ## Authentication Flow
 
-1. **User Registration**: User provides email, password, and activation code
-2. **Code Validation**: Custom Directus endpoint validates the activation code
-3. **Account Creation**: If code is valid (200 response), user account is created with "activated" role
-4. **Auto-Login**: User is automatically logged in after successful registration
-5. **Data Access**: User can immediately download and access songs
+1. **User Registration**: User provides email, password, and a registration code (plus
+   optional first / last name).
+2. **Code Validation**: The extension checks the code exists in `registration_codes` with
+   status `open`.
+3. **Account Creation**: A new user is created with status `active` and the configured
+   default role; the code is marked `registered`.
+4. **Auto-Login**: The app automatically logs the user in after a successful registration
+   (`useAuth().register()` calls `login()`).
+5. **Data Access**: The user can immediately download and access songs.
 
-## Required Directus Configuration
+## Registration Endpoint
 
-### 1. User Roles
+The frontend calls the extension from [`src/composables/useAuth.ts`](../src/composables/useAuth.ts):
 
-Create two roles in Directus:
-
-#### Public Role (Default for unauthenticated users)
-
--   No permissions to access songs or files
--   Can only access registration endpoint
-
-#### Activated Role
-
--   Assigned to all registered users (via the custom registration endpoint)
--   Full permissions to read songs and files
--   Can download and sync content
-
-### 2. Custom Registration Endpoint
-
-You need to create a custom endpoint that handles registration with activation code validation.
-
-#### Registration Endpoint
-
-**Path:** `/custom/register`  
-**Method:** POST  
+**Path:** `/directus-user-register-extension/register`
+(Directus mounts endpoint extensions under their name, so `router.post('/register', …)`
+is exposed at `/<extension-name>/register`.)
+**Method:** `POST`
 **Request Body:**
 
 ```json
 {
     "email": "user@example.com",
-    "password": "securepassword",
-    "code": "XXXX-XXXX-XXXX",
+    "password": "Secret123!",
+    "registration_code": "valid-code",
     "first_name": "John",
-    "last_name": "Doe"
+    "last_name": "Doe",
+    "name": "John Doe"
 }
 ```
 
-**Success Response (200):**
+- `email`, `password`, `registration_code` are required.
+- `first_name` / `last_name` are optional. `name` is sent for backwards compatibility with
+  older extension builds that only read a single `name` field.
+
+**Success Response (201):**
 
 ```json
 {
     "success": true,
-    "message": "Account created and activated"
+    "user": { "id": "…", "email": "user@example.com", "first_name": "John", "last_name": "Doe" }
 }
 ```
 
-**Error Response (400):**
+**Error Response (400 / 409):** Directus error envelope, e.g.
 
 ```json
-{
-    "success": false,
-    "message": "Invalid activation code"
-}
+{ "errors": [{ "message": "Invalid or already used registration code", "extensions": { "code": "INVALID_PAYLOAD" } }] }
 ```
 
-**Implementation: Custom API Extension**
+Password requirements enforced by the extension (and mirrored in the UI):
 
-Create a custom endpoint extension in your Directus instance:
+- At least 8 characters
+- At least one uppercase letter
+- At least one number or special character
 
-```js
-// extensions/endpoints/register/index.js
-export default {
-    id: "register",
-    handler: (router, { services, exceptions }) => {
-        router.post("/", async (req, res) => {
-            const { email, password, code, first_name, last_name } = req.body;
-            const { UsersService } = services;
-            const { database } = req;
+## Deploying the Extension
 
-            try {
-                // Validate activation code
-                const validCode = await database("activation_codes")
-                    .where({ code, used: false })
-                    .whereRaw("(expires_at IS NULL OR expires_at > NOW())")
-                    .first();
+1. Initialize the submodule (if not already present):
 
-                if (!validCode) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Invalid or expired activation code",
-                    });
-                }
+    ```bash
+    git submodule update --init --recursive
+    ```
 
-                // Get the "activated" role UUID
-                const activatedRole = await database("directus_roles")
-                    .where({ name: "activated" })
-                    .first();
+2. Build it:
 
-                if (!activatedRole) {
-                    throw new Error("Activated role not found in Directus");
-                }
+    ```bash
+    cd directus/extensions/directus-user-register-extension
+    npm install
+    npm run build        # produces dist/index.js
+    ```
 
-                // Create user with activated role
-                const usersService = new UsersService({ schema: req.schema });
-                const newUser = await usersService.createOne({
-                    email,
-                    password,
-                    first_name,
-                    last_name,
-                    role: activatedRole.id,
-                    status: "active",
-                });
+3. Deploy `dist/` to your Directus instance as a loose extension
+   (`<directus-root>/extensions/directus-user-register-extension/`) or install the npm
+   package, then **restart Directus**. See the extension README's *Troubleshooting* section.
 
-                // Mark activation code as used
-                await database("activation_codes")
-                    .where({ id: validCode.id })
-                    .update({
-                        used: true,
-                        used_at: new Date(),
-                        used_by: newUser,
-                    });
+4. Create the `registration_codes` collection and (optionally) seed codes. The extension
+   ships helper scripts — copy `.env.example` to `.env` first and fill in
+   `DIRECTUS_URL`, `DIRECTUS_EMAIL`, `DIRECTUS_PASSWORD`:
 
-                return res.json({
-                    success: true,
-                    message: "Account created and activated",
-                });
-            } catch (error) {
-                console.error("Registration error:", error);
+    ```bash
+    npm run create-collections   # creates the registration_codes collection
+    npm run insert-codes         # optional: seeds TOTAL_CODES sample codes
+    ```
 
-                // Handle duplicate email
-                if (
-                    error.message?.includes("unique") ||
-                    error.code === "RECORD_NOT_UNIQUE"
-                ) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Email already registered",
-                    });
-                }
+## `registration_codes` Collection
 
-                return res.status(500).json({
-                    success: false,
-                    message: "Registration failed",
-                });
-            }
-        });
-    },
-};
+Created by `npm run create-collections`. Fields:
+
+- `id` (UUID, primary key)
+- `code` (string, unique, required) — the registration code
+- `status` (string, `open` | `registered`, default `open`)
+- `status_changed_at` (timestamp, nullable) — set when a code is used
+- `used_by` (UUID → `directus_users`, nullable) — who redeemed the code
+
+## Roles & Default Role
+
+The extension assigns a default role to every new user. Configure it on the **Directus
+server** via the `DIRECTUS_DEFAULT_ROLE` environment variable (a role ID **or** role name).
+If unset it falls back to a hard-coded UUID that only exists on the original author's
+instance, so **set this explicitly**:
+
+```env
+DIRECTUS_DEFAULT_ROLE=activated      # role name, or a UUID
 ```
 
-### 3. Activation Codes Collection
+Recommended role setup:
 
-Create a collection named `activation_codes` with the following fields:
+#### Public Role (unauthenticated)
 
--   `id` (UUID, Primary Key)
--   `code` (String, Unique, Required) - The activation code (e.g., "XXXX-XXXX-XXXX")
--   `used` (Boolean, Default: false) - Whether code has been used
--   `created_at` (Timestamp, Auto-generated)
--   `expires_at` (Timestamp, Optional, Nullable) - Code expiration date
--   `used_at` (Timestamp, Optional, Nullable) - When the code was used
--   `used_by` (UUID, Optional, Nullable) - Foreign key to directus_users
--   `notes` (Text, Optional) - Admin notes about the code
+- Access to the registration endpoint (handled by the extension)
+- Access to `/auth/login`, `/auth/password/request`, `/auth/password/reset` (Directus built-ins)
+- No access to any content collections
 
-**Indexes:**
+#### Default / "activated" Role (assigned on registration)
 
--   Unique index on `code`
--   Index on `used` for faster queries
+- `directus_users`: Read (own), Update (own)
+- `gesangbuchlied`: Read All
+- `directus_files`: Read All (for assets)
+- Other related collections (authors, categories, etc.): Read All
+- No access to `registration_codes`
 
-### 4. Permissions
+## CORS
 
-Configure role permissions:
+Because the app calls the endpoint from the browser, ensure the Directus instance allows the
+app origin (`CORS_ENABLED=true` and `CORS_ORIGIN` including the PWA origin).
 
-#### Public Role (Unauthenticated)
+## Email (Password Reset)
 
--   Access to `/custom/register` endpoint (handled by the extension)
--   Access to `/auth/login` (Directus built-in)
--   Access to `/auth/password/request` and `/auth/password/reset`
--   No access to any collections
-
-#### Activated Role
-
--   `directus_users`: Read (own), Update (own)
--   `gesangbuchlied`: Read All
--   `directus_files`: Read All (for assets)
--   Other related collections (authors, categories, etc.): Read All
--   No access to `activation_codes` collection
-
-### 5. Email Templates (Password Reset Only)
-
-Configure email templates in Directus Settings > Email Templates:
-
-#### Password Reset Email
-
--   Subject: "Passwort zurücksetzen - Johannisches Gesangbuch"
--   Template: Include reset link with token
--   Note: Email verification is NOT needed for registration
-
-### 6. Environment Variables
-
-Ensure your Directus instance has email configured for password reset:
+Password reset uses Directus built-ins. Configure SMTP on the Directus server:
 
 ```env
 EMAIL_FROM="noreply@yourchurch.org"
@@ -214,158 +157,41 @@ EMAIL_SMTP_PASSWORD="your-smtp-password"
 
 ## Frontend Configuration
 
-Update your `.env` file in the Ionic app:
+`.env` in the Ionic app:
 
 ```env
 VITE_BACKEND_URL=https://your-directus-instance.com
 VITE_AUTH_TOKEN=your-static-admin-token-for-fallback
+# Set to 'true' to show the "Skip (Development Mode)" button on login/register
+VITE_SHOW_DEV_SKIP=false
 ```
-
-## Activation Code Management
-
-### Generating Activation Codes
-
-You can generate activation codes in several ways:
-
-1. **Manual Entry in Directus Admin:**
-
-    - Go to Activation Codes collection
-    - Click "Create Item"
-    - Enter a unique code (e.g., "ABCD-EFGH-IJKL-MNOP")
-    - Optionally set an expiration date
-
-2. **Batch Generation Script:**
-
-```js
-// Generate 100 random activation codes
-const generateCode = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    const segments = 4;
-    const segmentLength = 4;
-
-    return Array(segments)
-        .fill()
-        .map(() =>
-            Array(segmentLength)
-                .fill()
-                .map(() => chars[Math.floor(Math.random() * chars.length)])
-                .join("")
-        )
-        .join("-");
-};
-
-// Insert into Directus via API
-for (let i = 0; i < 100; i++) {
-    await directus.items("activation_codes").createOne({
-        code: generateCode(),
-        used: false,
-        expires_at: null, // or set an expiration date
-    });
-}
-```
-
-3. **Directus Flow Automation:**
-    - Create a Flow that generates codes on demand
-    - Trigger via webhook or manual operation
 
 ## Testing
 
-### 1. Create Test Activation Code
+1. Seed a known code (or read one from the `registration_codes` collection).
+2. Open the app → **Register**, enter email, password and the code.
+3. Expected: user created with the default role, code flipped to `registered`, user logged
+   in automatically and able to access songs.
+4. Re-using the same code, or a non-existent code, returns
+   "Invalid or already used registration code".
 
-```sql
-INSERT INTO activation_codes (id, code, used, created_at)
-VALUES (
-  uuid(),
-  'TEST-CODE-1234',
-  false,
-  NOW()
-);
-```
+## Security Notes
 
-### 2. Test Registration Flow
-
-1. Open the app and navigate to Registration
-2. Enter activation code: `TEST-CODE-1234`
-3. Enter email: `test@example.com`
-4. Enter password: `Test1234!`
-5. Submit form
-
-**Expected Result:**
-
--   User account created with "activated" role
--   Code marked as used in database
--   User automatically logged in
--   Can access songs immediately
-
-### 3. Test Invalid Code
-
-1. Try registering with code: `INVALID-CODE`
-2. Should receive error: "Invalid or expired activation code"
-
-### 4. Test Used Code
-
-1. Try registering again with: `TEST-CODE-1234`
-2. Should receive error: "Invalid or expired activation code"
-
-### 5. Test Password Reset
-
-1. Click "Forgot Password" on login screen
-2. Enter email
-3. Check email for reset link
-4. Use token to reset password
-
-## Development Mode
-
-The app includes a "Skip for Now" button on login/register screens for development purposes. This bypasses authentication completely.
-
-To disable in production, remove these buttons from:
-
--   `src/views/LoginPage.vue`
--   `src/views/RegisterPage.vue`
-
-## Security Recommendations
-
-1. **Use HTTPS:** Always use HTTPS for your Directus instance
-2. **Strong Passwords:** Enforce strong password policies in Directus (min 8 characters)
-3. **Token Expiration:** Configure appropriate token expiration (default: 15 minutes)
-4. **Rate Limiting:** Enable rate limiting on registration and login endpoints
-5. **Code Complexity:** Use complex activation codes (16+ characters with 4 segments)
-6. **Code Expiration:** Set expiration dates on activation codes (e.g., 90 days)
-7. **Audit Logging:** Enable Directus activity logging to track registrations
-8. **Monitor Usage:** Regularly check for unused codes or suspicious patterns
-9. **Code Distribution:** Only share codes via secure channels
-10. **Backup Codes:** Keep a secure backup of all generated codes
+1. **Use HTTPS** for the Directus instance.
+2. **Use unguessable codes.** `insert-codes.js` currently generates *sequential, guessable*
+   codes (e.g. `1-mose-abraham-treu-1`). For production, generate random/high-entropy codes.
+3. **Rate-limit** the registration endpoint — Directus has no per-route throttling for it,
+   so codes can otherwise be brute-forced. Enable Directus rate limiting / a WAF rule.
+4. **Set `DIRECTUS_DEFAULT_ROLE`** explicitly so new users never inherit an unexpected role.
+5. Enable activity logging to audit registrations, and distribute codes via secure channels.
 
 ## Troubleshooting
 
-### Issue: "Registration failed"
-
--   **Check:** Custom `/custom/register` endpoint is properly installed
--   **Check:** Activation codes collection exists
--   **Check:** "activated" role exists in Directus
--   **Verify:** Directus logs for specific error messages
-
-### Issue: "Invalid activation code"
-
--   **Check:** Code exists in `activation_codes` table
--   **Check:** Code has `used = false`
--   **Check:** Code hasn't expired (`expires_at` is null or future date)
--   **Verify:** Code matches exactly (case-sensitive)
-
-### Issue: "Email already registered"
-
--   User tried to register with existing email
--   They should use "Forgot Password" to reset their password instead
-
-### Issue: Can't access songs after registration
-
--   **Check:** User's role is set to "activated" (not default "user")
--   **Check:** "activated" role has read permissions for songs/files
--   **Verify:** Token is valid and not expired
-
-### Issue: "Failed to fetch songs from server"
-
--   **Check:** User is logged in (token exists)
--   **Check:** Token hasn't expired
--   **Check:** GraphQL endpoint is accessible
--   **Verify:** Permissions are correctly set for activated role
+- **"Registration failed" / network error** — extension not deployed or Directus not
+  restarted; verify `GET …/directus-user-register-extension` is mounted and CORS allows the app.
+- **"Default role not found"** — set `DIRECTUS_DEFAULT_ROLE` to a valid role ID or name.
+- **"Invalid or already used registration code"** — code missing or `status != 'open'`.
+- **Can't access songs after registration** — the default role lacks read permissions on
+  `gesangbuchlied` / `directus_files`.
+</content>
+</invoke>

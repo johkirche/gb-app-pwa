@@ -18,6 +18,43 @@ export const LOGOUT_REASON_MESSAGES: Record<LogoutReason, string> = {
     invalid_credentials: 'Ungültige Anmeldedaten. Bitte melden Sie sich erneut an.',
 };
 
+/**
+ * Extract the most specific human-readable message from a Directus/SDK error.
+ *
+ * The Directus REST SDK rejects with a plain object (not an Error instance):
+ *   { message, errors: [{ message, extensions: { code, message? } }], response }
+ *
+ * Custom endpoint extensions that build errors with a *static* default message put
+ * the specific message in `errors[0].extensions.message`, while `errors[0].message`
+ * stays generic (e.g. "Invalid payload"). Prefer the most specific value available.
+ */
+export function extractDirectusErrorMessage(error: unknown): string | undefined {
+    if (!error) return undefined;
+    if (typeof error === 'string') return error;
+    if (error instanceof Error && error.message) return error.message;
+
+    if (typeof error === 'object') {
+        const errorObj = error as Record<string, unknown>;
+
+        if (Array.isArray(errorObj.errors) && errorObj.errors.length > 0) {
+            const first = errorObj.errors[0] as Record<string, unknown>;
+            const extensions = first?.extensions as Record<string, unknown> | undefined;
+            if (extensions && typeof extensions.message === 'string' && extensions.message) {
+                return extensions.message;
+            }
+            if (typeof first?.message === 'string' && first.message) {
+                return first.message;
+            }
+        }
+
+        if (typeof errorObj.message === 'string' && errorObj.message) {
+            return errorObj.message;
+        }
+    }
+
+    return undefined;
+}
+
 // Check if an error indicates invalid credentials
 export function isInvalidCredentialsError(error: unknown): boolean {
     if (!error) return false;

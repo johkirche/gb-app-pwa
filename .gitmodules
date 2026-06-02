@@ -1,0 +1,3 @@
+[submodule "directus/extensions/directus-user-register-extension"]
+	path = directus/extensions/directus-user-register-extension
+	url = git@github.com:johkirche/directus-user-register-extension.git

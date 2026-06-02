@@ -1,12 +1,23 @@
 import { computed } from 'vue';
 
-import { readMe, refresh } from '@directus/sdk';
+import { passwordRequest, passwordReset, readMe, refresh } from '@directus/sdk';
 
 import { useUserStore } from '@/stores/user';
 
 import type { UserData } from '@/db';
 import { directusClient } from '@/services/directus';
-import { handleApiError, isInvalidCredentialsError } from '@/services/errorHandler';
+import {
+    extractDirectusErrorMessage,
+    handleApiError,
+    isInvalidCredentialsError,
+} from '@/services/errorHandler';
+
+/**
+ * Endpoint path of the directus-user-register-extension.
+ * Directus mounts endpoint extensions under their name, so the route exposed by
+ * `router.post('/register', ...)` lives at `/<extension-name>/register`.
+ */
+const REGISTER_ENDPOINT = '/directus-user-register-extension/register';
 
 /**
  * Refresh auth token - exported separately for use in API modules
@@ -125,23 +136,32 @@ export function useAuth() {
             userStore.isLoading = true;
             userStore.error = null;
 
-            // Register with custom Directus extension that validates code and creates activated user
-            // This endpoint will return 200 if code is valid and user is created with activated role
-            await directusClient.request({
-                path: '/custom/register',
+            // Combined name kept for backwards compatibility with older extension builds
+            // that only read a single `name` field.
+            const name = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+            // Register via the directus-user-register-extension. It validates the
+            // registration code, creates an activated user and marks the code as used.
+            // The Directus SDK expects a *command function* returning the request
+            // options; `method` must be set explicitly (it defaults to GET otherwise)
+            // and Content-Type defaults to application/json.
+            await directusClient.request(() => ({
+                path: REGISTER_ENDPOINT,
+                method: 'POST',
                 body: JSON.stringify({
                     email,
                     password,
-                    code: activationCode,
+                    registration_code: activationCode,
                     first_name: firstName,
                     last_name: lastName,
+                    name: name || undefined,
                 }),
-            } as any);
+            }));
 
             // After successful registration with valid code, automatically log in
             return await login(email, password);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Registration failed';
+            const errorMessage = extractDirectusErrorMessage(err) ?? 'Registration failed';
             userStore.error = errorMessage;
             console.error('Registration error:', err);
             return { success: false, error: errorMessage };
@@ -150,8 +170,8 @@ export function useAuth() {
         }
     }
 
-    // Note: Activation is now handled during registration via the /custom/register endpoint
-    // No separate activation step is needed
+    // Note: Activation is handled during registration via the register extension endpoint
+    // (see REGISTER_ENDPOINT). No separate activation step is needed.
 
     // Request password reset
     async function requestPasswordReset(email: string) {
@@ -159,17 +179,13 @@ export function useAuth() {
             userStore.isLoading = true;
             userStore.error = null;
 
-            await directusClient.request({
-                path: '/auth/password/request',
-                body: JSON.stringify({
-                    email,
-                    reset_url: `${window.location.origin}/password-reset`,
-                }),
-            } as any);
+            await directusClient.request(
+                passwordRequest(email, `${window.location.origin}/password-reset`),
+            );
 
             return { success: true };
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to send reset email';
+            const errorMessage = extractDirectusErrorMessage(err) ?? 'Failed to send reset email';
             userStore.error = errorMessage;
             console.error('Password reset request error:', err);
             return { success: false, error: errorMessage };
@@ -184,17 +200,11 @@ export function useAuth() {
             userStore.isLoading = true;
             userStore.error = null;
 
-            await directusClient.request({
-                path: '/auth/password/reset',
-                body: JSON.stringify({
-                    token,
-                    password,
-                }),
-            } as any);
+            await directusClient.request(passwordReset(token, password));
 
             return { success: true };
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Password reset failed';
+            const errorMessage = extractDirectusErrorMessage(err) ?? 'Password reset failed';
             userStore.error = errorMessage;
             console.error('Password reset error:', err);
             return { success: false, error: errorMessage };
