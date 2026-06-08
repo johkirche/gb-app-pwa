@@ -3,7 +3,7 @@
         <ion-content :fullscreen="true">
             <div class="auth-container">
                 <!-- Step Indicator -->
-                <StepIndicator :current-step="currentStep" :total-steps="2" />
+                <StepIndicator :current-step="currentStep" :total-steps="2" @back="goToStep1" />
 
                 <!-- Step 1: Personal Info -->
                 <div v-if="currentStep === 1" class="step-content">
@@ -315,6 +315,10 @@ function goToStep2() {
     }
 
     currentStep.value = 2;
+}
+
+function goToStep1() {
+    currentStep.value = 1;
 }
 
 async function handleRegister() {
