@@ -49,7 +49,7 @@ export default defineConfig({
                         type: 'image/png',
                     },
                     {
-                        src: 'pwaicons/android/android-launchericon-512-512.png',
+                        src: 'pwaicons/android/maskable-512.png',
                         sizes: '512x512',
                         type: 'image/png',
                         purpose: 'maskable',
