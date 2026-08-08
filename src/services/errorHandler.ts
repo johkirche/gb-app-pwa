@@ -24,9 +24,9 @@ export const LOGOUT_REASON_MESSAGES: Record<LogoutReason, string> = {
  * The Directus REST SDK rejects with a plain object (not an Error instance):
  *   { message, errors: [{ message, extensions: { code, message? } }], response }
  *
- * Custom endpoint extensions that build errors with a *static* default message put
- * the specific message in `errors[0].extensions.message`, while `errors[0].message`
- * stays generic (e.g. "Invalid payload"). Prefer the most specific value available.
+ * The register extension builds its errors with a message *function*, so
+ * `errors[0].message` already carries the specific text. `extensions.message` is
+ * still checked first because other endpoints may only populate that.
  */
 export function extractDirectusErrorMessage(error: unknown): string | undefined {
     if (!error) return undefined;
@@ -53,6 +53,66 @@ export function extractDirectusErrorMessage(error: unknown): string | undefined 
     }
 
     return undefined;
+}
+
+/**
+ * Extract `errors[0].extensions.code` from a Directus error envelope.
+ *
+ * The register extension uses this to distinguish a duplicate account
+ * (`USER_ALREADY_REGISTERED`) from ordinary validation failures (`INVALID_PAYLOAD`).
+ */
+export function extractDirectusErrorCode(error: unknown): string | undefined {
+    if (!error || typeof error !== 'object') return undefined;
+
+    const errorObj = error as Record<string, unknown>;
+    if (!Array.isArray(errorObj.errors) || errorObj.errors.length === 0) return undefined;
+
+    const first = errorObj.errors[0] as Record<string, unknown> | undefined;
+    const extensions = first?.extensions as Record<string, unknown> | undefined;
+
+    return typeof extensions?.code === 'string' ? extensions.code : undefined;
+}
+
+/** Error code the register extension returns when the email already has an account. */
+export const USER_ALREADY_REGISTERED = 'USER_ALREADY_REGISTERED';
+
+const REGISTRATION_FALLBACK_MESSAGE =
+    'Die Registrierung ist fehlgeschlagen. Bitte versuchen Sie es später erneut.';
+
+/**
+ * Translate a registration failure into a German message for the UI.
+ *
+ * The extension replies in English and only separates the duplicate-account case by
+ * error code — every other validation failure shares `INVALID_PAYLOAD`. Those are told
+ * apart by the message text, which is deliberate but brittle: rewording a message in the
+ * extension silently drops it to the generic fallback. The set below covers every message
+ * the extension can currently produce, so the fallback should stay a genuine last resort.
+ */
+export function translateRegistrationError(error: unknown): string {
+    if (extractDirectusErrorCode(error) === USER_ALREADY_REGISTERED) {
+        return 'Für diese E-Mail-Adresse besteht bereits ein Konto. Bitte melden Sie sich an.';
+    }
+
+    const message = extractDirectusErrorMessage(error);
+    if (!message) return REGISTRATION_FALLBACK_MESSAGE;
+
+    if (message.includes('registration code')) {
+        return 'Dieser Aktivierungscode ist ungültig oder wurde bereits verwendet.';
+    }
+
+    if (message.startsWith('Password must contain')) {
+        return 'Das Passwort erfüllt nicht die Anforderungen: mindestens 8 Zeichen, ein Großbuchstabe und eine Zahl oder ein Sonderzeichen.';
+    }
+
+    if (message.startsWith('Missing required fields')) {
+        return 'Bitte füllen Sie E-Mail-Adresse, Passwort und Aktivierungscode aus.';
+    }
+
+    if (message.startsWith('Default role not found')) {
+        return 'Die Registrierung ist serverseitig nicht korrekt konfiguriert. Bitte wenden Sie sich an den Support.';
+    }
+
+    return REGISTRATION_FALLBACK_MESSAGE;
 }
 
 // Check if an error indicates invalid credentials

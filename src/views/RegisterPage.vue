@@ -156,6 +156,12 @@
                             </Transition>
                         </div>
 
+                        <!-- Errors that point at a step 1 field (e.g. the email is already
+                             taken) are raised on submit in step 2 and shown here -->
+                        <ion-text v-if="error" color="danger" class="ion-margin-top">
+                            <p class="error-message">{{ error }}</p>
+                        </ion-text>
+
                         <ion-button
                             expand="block"
                             type="submit"
@@ -269,8 +275,10 @@ import { useAuth } from '@/composables/useAuth';
 
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
+import { USER_ALREADY_REGISTERED } from '@/services/errorHandler';
+
 const router = useRouter();
-const { register, setSkipAuth, isLoading, error } = useAuth();
+const { register, setSkipAuth, clearError, isLoading, error } = useAuth();
 
 // Show dev skip button only if env var is set
 const showDevSkip = import.meta.env.VITE_SHOW_DEV_SKIP === 'true';
@@ -293,7 +301,10 @@ const showConfirmPassword = ref(false);
 // Password validation rules
 const hasMinLength = computed(() => password.value.length >= 8);
 const hasUppercase = computed(() => /[A-Z]/.test(password.value));
-const hasNumberOrSpecial = computed(() => /[0-9!@#$%^&*(),.?":{}|<>]/.test(password.value));
+// Mirrors the extension's rule exactly: any digit, or any non-alphanumeric
+// non-whitespace character. A narrower list here would reject passwords the
+// backend accepts (e.g. "Passwort_x").
+const hasNumberOrSpecial = computed(() => /[0-9]|[^A-Za-z0-9\s]/.test(password.value));
 const passwordsMatch = computed(() => {
     return confirmPassword.value.length > 0 && password.value === confirmPassword.value;
 });
@@ -314,10 +325,12 @@ function goToStep2() {
         return;
     }
 
+    clearError();
     currentStep.value = 2;
 }
 
 function goToStep1() {
+    clearError();
     currentStep.value = 1;
 }
 
@@ -337,6 +350,13 @@ async function handleRegister() {
     if (result.success) {
         // Navigate to onboarding after successful registration
         router.push('/onboarding');
+        return;
+    }
+
+    // The email lives on step 1, so send the user back to the field they must fix
+    // instead of leaving the message on the activation-code step.
+    if (result.code === USER_ALREADY_REGISTERED) {
+        currentStep.value = 1;
     }
 }
 

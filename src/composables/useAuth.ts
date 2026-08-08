@@ -7,9 +7,11 @@ import { useUserStore } from '@/stores/user';
 import type { UserData } from '@/db';
 import { directusClient } from '@/services/directus';
 import {
+    extractDirectusErrorCode,
     extractDirectusErrorMessage,
     handleApiError,
     isInvalidCredentialsError,
+    translateRegistrationError,
 } from '@/services/errorHandler';
 
 /**
@@ -18,6 +20,17 @@ import {
  * `router.post('/register', ...)` lives at `/<extension-name>/register`.
  */
 const REGISTER_ENDPOINT = '/directus-user-register-extension/register';
+
+/** Result of {@link useAuth().login}. */
+export type AuthResult = { success: true; user: UserData } | { success: false; error: string };
+
+/**
+ * Result of {@link useAuth().register}. `error` is already translated for display;
+ * `code` is the raw extension error code, for callers that branch on the cause.
+ */
+export type RegisterResult =
+    | { success: true; user: UserData }
+    | { success: false; error: string; code?: string };
 
 /**
  * Refresh auth token - exported separately for use in API modules
@@ -70,7 +83,7 @@ export function useAuth() {
     const error = computed(() => userStore.error);
 
     // Login function
-    async function login(email: string, password: string) {
+    async function login(email: string, password: string): Promise<AuthResult> {
         try {
             userStore.isLoading = true;
             userStore.error = null;
@@ -124,21 +137,19 @@ export function useAuth() {
         }
     }
 
-    // Register function - includes activation code validation
+    // Register function - includes activation code validation.
+    // On failure `code` carries the extension's error code (see USER_ALREADY_REGISTERED)
+    // so the caller can react to *which* field was rejected, not just show the message.
     async function register(
         email: string,
         password: string,
         activationCode: string,
         firstName?: string,
         lastName?: string,
-    ) {
+    ): Promise<RegisterResult> {
         try {
             userStore.isLoading = true;
             userStore.error = null;
-
-            // Combined name kept for backwards compatibility with older extension builds
-            // that only read a single `name` field.
-            const name = [firstName, lastName].filter(Boolean).join(' ').trim();
 
             // Register via the directus-user-register-extension. It validates the
             // registration code, creates an activated user and marks the code as used.
@@ -154,20 +165,25 @@ export function useAuth() {
                     registration_code: activationCode,
                     first_name: firstName,
                     last_name: lastName,
-                    name: name || undefined,
                 }),
             }));
 
             // After successful registration with valid code, automatically log in
             return await login(email, password);
         } catch (err) {
-            const errorMessage = extractDirectusErrorMessage(err) ?? 'Registration failed';
+            const errorMessage = translateRegistrationError(err);
             userStore.error = errorMessage;
             console.error('Registration error:', err);
-            return { success: false, error: errorMessage };
+            return { success: false, error: errorMessage, code: extractDirectusErrorCode(err) };
         } finally {
             userStore.isLoading = false;
         }
+    }
+
+    // Clear the current error message, e.g. when moving between form steps so a stale
+    // failure from a previous attempt is not shown against the new input.
+    function clearError() {
+        userStore.error = null;
     }
 
     // Note: Activation is handled during registration via the register extension endpoint
@@ -264,6 +280,7 @@ export function useAuth() {
         // Methods
         login,
         register,
+        clearError,
         logout,
         requestPasswordReset,
         resetPassword,

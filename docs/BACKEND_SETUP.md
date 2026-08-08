@@ -4,11 +4,14 @@
 
 This document describes the backend setup required for the authentication / registration
 system in the Gesangbuch Ionic app. Registration is handled by a custom Directus endpoint
-extension that lives in this repository as a git submodule:
+extension that lives in its own (private) repository and is deployed separately:
 
 ```
-directus/extensions/directus-user-register-extension
+git@github.com:johkirche/directus-user-register-extension.git
 ```
+
+It used to be a git submodule here; that was removed because Cloudflare Workers Builds
+cannot clone the private repo. The frontend only calls its HTTP endpoint at runtime.
 
 > The extension's own `README.md` is the source of truth for its API. This guide focuses
 > on how to deploy it and configure Directus so the app's registration flow works.
@@ -41,14 +44,13 @@ is exposed at `/<extension-name>/register`.)
     "password": "Secret123!",
     "registration_code": "valid-code",
     "first_name": "John",
-    "last_name": "Doe",
-    "name": "John Doe"
+    "last_name": "Doe"
 }
 ```
 
 - `email`, `password`, `registration_code` are required.
-- `first_name` / `last_name` are optional. `name` is sent for backwards compatibility with
-  older extension builds that only read a single `name` field.
+- `first_name` / `last_name` are optional. The extension also accepts a single `name`
+  field as a fallback (split on the first space), which the app does not use.
 
 **Success Response (201):**
 
@@ -65,6 +67,17 @@ is exposed at `/<extension-name>/register`.)
 { "errors": [{ "message": "Invalid or already used registration code", "extensions": { "code": "INVALID_PAYLOAD" } }] }
 ```
 
+Error codes:
+
+| Code | Status | Cause |
+| --- | --- | --- |
+| `USER_ALREADY_REGISTERED` | 409 | An account already exists for that email |
+| `INVALID_PAYLOAD` | 400 | Missing fields, weak password, or an invalid / used code |
+
+Only the duplicate-account case has its own code; the other causes are distinguished by
+message text in [`translateRegistrationError`](../src/services/errorHandler.ts), which maps
+the extension's English messages to the German strings shown in the UI.
+
 Password requirements enforced by the extension (and mirrored in the UI):
 
 - At least 8 characters
@@ -73,16 +86,16 @@ Password requirements enforced by the extension (and mirrored in the UI):
 
 ## Deploying the Extension
 
-1. Initialize the submodule (if not already present):
+1. Clone the extension (outside this repository):
 
     ```bash
-    git submodule update --init --recursive
+    git clone git@github.com:johkirche/directus-user-register-extension.git
     ```
 
 2. Build it:
 
     ```bash
-    cd directus/extensions/directus-user-register-extension
+    cd directus-user-register-extension
     npm install
     npm run build        # produces dist/index.js
     ```
