@@ -33,9 +33,18 @@ export type RegisterResult =
     | { success: false; error: string; code?: string };
 
 /**
- * Refresh auth token - exported separately for use in API modules
+ * The single in-flight refresh, or null when none is running.
+ *
+ * Directus rotates refresh tokens: the first `/auth/refresh` invalidates the token it
+ * was called with. The download loop fetches files in batches of 5 concurrently, and
+ * every one of them would otherwise call `refreshAuthToken()` with the *same* stored
+ * refresh token — one wins and the other four get INVALID_CREDENTIALS, which used to
+ * take the whole offline library down with it. Sharing one promise makes the refresh
+ * happen exactly once no matter how many callers race for it.
  */
-export async function refreshAuthToken(): Promise<boolean> {
+let inFlightRefresh: Promise<boolean> | null = null;
+
+async function performRefresh(): Promise<boolean> {
     try {
         const userStore = useUserStore();
         const refreshToken = userStore.authData?.refreshToken;
@@ -61,7 +70,8 @@ export async function refreshAuthToken(): Promise<boolean> {
     } catch (error) {
         console.error('Error refreshing token:', error);
 
-        // Check for invalid credentials error (user account deleted)
+        // A failed refresh means this session is over — it does NOT mean the account was
+        // deleted, so this must not destroy the user's downloaded songs or playlists.
         if (isInvalidCredentialsError(error)) {
             await handleApiError(error);
             return false;
@@ -69,6 +79,24 @@ export async function refreshAuthToken(): Promise<boolean> {
 
         return false;
     }
+}
+
+/**
+ * Refresh auth token - exported separately for use in API modules.
+ *
+ * Concurrent callers share a single network refresh; all of them resolve with the
+ * result of that one request.
+ */
+export async function refreshAuthToken(): Promise<boolean> {
+    if (inFlightRefresh) {
+        return inFlightRefresh;
+    }
+
+    inFlightRefresh = performRefresh().finally(() => {
+        inFlightRefresh = null;
+    });
+
+    return inFlightRefresh;
 }
 
 export function useAuth() {
