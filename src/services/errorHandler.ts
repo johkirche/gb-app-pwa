@@ -175,55 +175,89 @@ export function isInvalidCredentialsError(error: unknown): boolean {
 }
 
 /**
- * Clear all local user data from IndexedDB
- * This removes songs, files, playlists, preferences, auth, and user data
+ * Clear only the session: auth tokens and the cached user record.
+ *
+ * Songs, files, playlists, favorites and preferences are deliberately kept. An expired
+ * or rotated-away token says nothing about whether the account still exists, and the
+ * user's downloaded hymnal and their hand-made playlists must survive a re-login.
  */
-export async function clearAllLocalData(): Promise<void> {
-    console.log('Clearing all local data due to invalid credentials...');
-
+export async function clearSessionData(): Promise<void> {
     try {
-        // Clear all tables in a transaction
-        await db.transaction(
-            'rw',
-            [db.auth, db.users, db.songs, db.files, db.playlists, db.preferences],
-            async () => {
-                await db.auth.clear();
-                await db.users.clear();
-                await db.songs.clear();
-                await db.files.clear();
-                await db.playlists.clear();
-                await db.preferences.clear();
-            },
-        );
-
-        console.log('All local data cleared successfully');
+        await db.transaction('rw', [db.auth, db.users], async () => {
+            await db.auth.clear();
+            await db.users.clear();
+        });
     } catch (error) {
-        console.error('Error clearing local data:', error);
-        // Even if transaction fails, try to clear tables individually
+        console.error('Error clearing session data:', error);
         try {
             await db.auth.clear();
             await db.users.clear();
-            await db.songs.clear();
-            await db.files.clear();
-            await db.playlists.clear();
-            await db.preferences.clear();
         } catch (innerError) {
-            console.error('Error clearing individual tables:', innerError);
+            console.error('Error clearing session tables individually:', innerError);
         }
     }
 }
 
 /**
- * Handle invalid credentials error
- * Clears all local data and redirects to login page with reason
+ * Clear all local user data from IndexedDB.
+ *
+ * This removes songs, files, playlists, favorites, preferences, auth and user data, and
+ * is destructive and irreversible — playlists, favorites and preferences exist only on
+ * this device and cannot be restored from the server. Only call this when the account is
+ * genuinely known to be gone; for an ordinary expired session use
+ * {@link clearSessionData} instead.
+ */
+export async function clearAllLocalData(): Promise<void> {
+    const tables = [
+        db.auth,
+        db.users,
+        db.songs,
+        db.files,
+        db.playlists,
+        db.preferences,
+        db.favorites,
+    ];
+
+    try {
+        // Clear all tables in a transaction
+        await db.transaction('rw', tables, async () => {
+            for (const table of tables) {
+                await table.clear();
+            }
+        });
+    } catch (error) {
+        console.error('Error clearing local data:', error);
+        // Even if transaction fails, try to clear tables individually
+        for (const table of tables) {
+            try {
+                await table.clear();
+            } catch (innerError) {
+                console.error(`Error clearing table ${table.name}:`, innerError);
+            }
+        }
+    }
+}
+
+/**
+ * Log the user out and send them to the login page with an explanation.
+ *
+ * The reason decides how much is deleted:
+ *   - `account_deleted` clears everything, including the downloaded hymnal and playlists.
+ *   - every other reason clears only the session and leaves local content untouched.
+ *
+ * The default is `session_expired` on purpose. A 401 from Directus is ambiguous — an
+ * expired refresh token, a revoked session and a deleted account all look alike from the
+ * client — so the non-destructive reading is the only safe one. Pass `account_deleted`
+ * explicitly, and only where the deletion is actually known.
  */
 export async function handleInvalidCredentials(
-    reason: LogoutReason = 'account_deleted',
+    reason: LogoutReason = 'session_expired',
 ): Promise<void> {
-    console.warn('Invalid credentials detected - user account may have been deleted');
-
-    // Clear all local data
-    await clearAllLocalData();
+    if (reason === 'account_deleted') {
+        await clearAllLocalData();
+    } else {
+        await clearSessionData();
+    }
 
     // Redirect to login page with reason query parameter
     // Use window.location to force a full page reload and clear any cached state
@@ -236,7 +270,8 @@ export async function handleInvalidCredentials(
  */
 export async function handleApiError(error: unknown): Promise<boolean> {
     if (isInvalidCredentialsError(error)) {
-        await handleInvalidCredentials();
+        // Ambiguous 401 -> treat as an expired session and keep the user's local content.
+        await handleInvalidCredentials('session_expired');
         return true; // Error was handled
     }
     return false; // Error was not handled
