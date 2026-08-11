@@ -69,14 +69,14 @@ const SONGS_QUERY = `
     { gesangbuchlied( filter: { bewertungKleinerKreis: { bezeichner: { _eq: "Rein" } } } limit: 5000 ) { id titel liednummer2026 notentext_mxml { id filename_download } textId { strophenEinzeln autorId { autor_id { vorname nachname sterbejahr } } } melodieId { autorId { autor_id { vorname nachname sterbejahr } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
 `;
 
-// Get current token from user store or env variable for debug mode
+// Get current token from the user store.
+//
+// There is deliberately no static fallback token: the logged-in Directus session
+// is the only source of authority. In dev-bypass mode there is no session, so this
+// returns null and the request goes out unauthenticated (only already-downloaded
+// songs remain browsable, which is the honest behaviour).
 async function getCurrentToken(): Promise<string | null> {
     const userStore = useUserStore();
-
-    // If skipAuth is enabled (debug mode), use the environment variable token
-    if (userStore.skipAuth) {
-        return import.meta.env.VITE_AUTH_TOKEN || null;
-    }
 
     const token = userStore.authData?.accessToken || null;
     if (!token) return null;
