@@ -6,8 +6,8 @@
 
         <h1 class="onboarding-title">Inhalte herunterladen</h1>
         <p class="onboarding-description">
-            Laden Sie alle Lieder und Noten herunter, um das Gesangbuch auch ohne Internetverbindung
-            nutzen zu können.
+            Das Gesangbuch wird jetzt einmalig heruntergeladen (ca. 15&nbsp;MB), damit alle Lieder
+            und Noten auch ohne Internetverbindung verfügbar sind.
         </p>
 
         <div class="download-info">
@@ -22,6 +22,13 @@
             <div class="info-item">
                 <ion-icon :icon="wifiOutline"></ion-icon>
                 <span>WLAN-Verbindung empfohlen</span>
+            </div>
+            <div v-if="storageEstimate" class="info-item">
+                <ion-icon :icon="serverOutline"></ion-icon>
+                <span>
+                    Freier Speicher:
+                    {{ formatBytes(storageEstimate.quota - storageEstimate.usage) }}
+                </span>
             </div>
         </div>
 
@@ -40,39 +47,46 @@
         </div>
 
         <!-- Download Complete -->
-        <div v-if="downloadComplete" class="download-complete">
+        <div v-if="downloadComplete && failedCount === 0" class="download-complete">
             <ion-icon :icon="checkmarkCircleOutline" color="success"></ion-icon>
             <p>Alle Inhalte wurden erfolgreich heruntergeladen!</p>
         </div>
 
-        <!-- Error -->
-        <div v-if="syncError" class="download-error">
+        <!-- Partial Failure -->
+        <div v-if="!isSyncing && failedCount > 0" class="download-error">
+            <ion-icon :icon="alertCircleOutline" color="danger"></ion-icon>
+            <p>
+                {{ failedCount }} Dateien konnten nicht heruntergeladen werden. Sie können den
+                Download der fehlenden Dateien erneut versuchen.
+            </p>
+            <ion-button fill="clear" @click="$emit('retry')">Erneut versuchen</ion-button>
+        </div>
+
+        <!-- Error (hidden while the partial-failure block above offers the
+             targeted retry — two same-labeled buttons would be ambiguous) -->
+        <div v-if="syncError && failedCount === 0" class="download-error">
             <ion-icon :icon="alertCircleOutline" color="danger"></ion-icon>
             <p>{{ syncError }}</p>
             <ion-button fill="clear" @click="$emit('download')">Erneut versuchen</ion-button>
         </div>
 
         <div class="step-actions">
-            <ion-button
-                v-if="!isSyncing && !downloadComplete"
-                expand="block"
-                @click="$emit('download')"
-            >
-                <ion-icon slot="start" :icon="cloudDownloadOutline"></ion-icon>
-                Jetzt herunterladen
-            </ion-button>
+            <!-- The download starts automatically (see OnboardingPage); buttons only
+                 appear once there is a result to act on. -->
             <ion-button v-if="downloadComplete" expand="block" @click="$emit('finish')">
                 Fertig
                 <ion-icon slot="end" :icon="checkmarkOutline"></ion-icon>
             </ion-button>
+            <!-- Escape hatch when the automatic download failed (e.g. offline):
+                 never trap the user in onboarding. -->
             <ion-button
-                v-if="!isSyncing"
+                v-if="!isSyncing && !downloadComplete && (syncError || failedCount > 0)"
                 expand="block"
                 fill="clear"
                 color="medium"
                 @click="$emit('skip')"
             >
-                {{ downloadComplete ? 'Zum Gesangbuch' : 'Später herunterladen' }}
+                Später fortfahren
             </ion-button>
         </div>
     </div>
@@ -87,8 +101,11 @@ import {
     cloudDownloadOutline,
     imageOutline,
     musicalNotesOutline,
+    serverOutline,
     wifiOutline,
 } from 'ionicons/icons';
+
+import { formatBytes } from '@/services/storage';
 
 // Props
 defineProps<{
@@ -100,11 +117,14 @@ defineProps<{
         total: number;
     };
     downloadComplete: boolean;
+    failedCount: number;
+    storageEstimate: { usage: number; quota: number } | null;
 }>();
 
 // Emits
 defineEmits<{
     download: [];
+    retry: [];
     finish: [];
     skip: [];
 }>();
