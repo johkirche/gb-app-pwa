@@ -1,248 +1,234 @@
 <template>
-    <ion-page>
-        <ion-header :translucent="true">
-            <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-button @click="$router.back()">
-                        <ion-icon slot="icon-only" :icon="arrowBackOutline"></ion-icon>
-                    </ion-button>
-                </ion-buttons>
-                <ion-title>Synchronisieren</ion-title>
-            </ion-toolbar>
-        </ion-header>
+    <div class="flex h-full flex-col bg-background">
+        <AppPageHeader title="Synchronisieren">
+            <template #leading>
+                <BackButton default-href="/tabs/einstellungen" />
+            </template>
+        </AppPageHeader>
 
-        <ion-content :fullscreen="true">
-            <div class="content-container card-stack">
-                <!-- Sync Status Card -->
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Synchronisierungsstatus</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <ion-list class="transparent">
-                            <ion-item class="transparent">
-                                <ion-icon :icon="musicalNotesOutline" slot="start"></ion-icon>
-                                <ion-label>
-                                    <h3>Lieder</h3>
-                                    <p>{{ songsCount }} Lieder gespeichert</p>
-                                </ion-label>
-                            </ion-item>
-                            <ion-item class="transparent">
-                                <ion-icon :icon="imageOutline" slot="start"></ion-icon>
-                                <ion-label>
-                                    <h3>Notendateien (PNG)</h3>
-                                    <p>{{ filesCount }} Dateien gespeichert</p>
-                                </ion-label>
-                            </ion-item>
-                            <ion-item v-if="storage" class="transparent">
-                                <ion-icon :icon="serverOutline" slot="start"></ion-icon>
-                                <ion-label>
-                                    <h3>Speicherplatz</h3>
-                                    <p>
-                                        {{ formatBytes(storage.usage) }} von
-                                        {{ formatBytes(storage.quota) }} belegt
-                                    </p>
-                                </ion-label>
-                            </ion-item>
-                            <ion-item v-if="lastSyncTime" class="transparent">
-                                <ion-icon :icon="timeOutline" slot="start"></ion-icon>
-                                <ion-label>
-                                    <h3>Letzte Synchronisierung</h3>
-                                    <p>{{ formatSyncTime(lastSyncTime) }}</p>
-                                </ion-label>
-                            </ion-item>
-                            <ion-item v-if="updatesAvailable === true" class="transparent">
-                                <ion-icon
-                                    :icon="syncOutline"
-                                    slot="start"
-                                    color="warning"
-                                ></ion-icon>
-                                <ion-label class="ion-text-wrap">
-                                    <p>Neue Inhalte verfügbar. Bitte synchronisieren Sie erneut.</p>
-                                </ion-label>
-                            </ion-item>
-                        </ion-list>
-                    </ion-card-content>
-                </ion-card>
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+                class="mx-auto w-full max-w-md space-y-10 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6"
+            >
+                <!-- Sync Status -->
+                <section>
+                    <div class="flex items-center gap-3 px-2">
+                        <h2 class="label-micro shrink-0 text-gold">Synchronisierungsstatus</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <ul class="mt-1 divide-y divide-border">
+                        <li class="flex items-center gap-4 px-2 py-3">
+                            <Music
+                                class="size-5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <div class="min-w-0">
+                                <p class="text-[15px]">Lieder</p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ songsCount }} Lieder gespeichert
+                                </p>
+                            </div>
+                        </li>
+                        <li class="flex items-center gap-4 px-2 py-3">
+                            <Image
+                                class="size-5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <div class="min-w-0">
+                                <p class="text-[15px]">Notendateien (PNG)</p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ filesCount }} Dateien gespeichert
+                                </p>
+                            </div>
+                        </li>
+                        <li v-if="storage" class="flex items-center gap-4 px-2 py-3">
+                            <Server
+                                class="size-5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <div class="min-w-0">
+                                <p class="text-[15px]">Speicherplatz</p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ formatBytes(storage.usage) }} von
+                                    {{ formatBytes(storage.quota) }} belegt
+                                </p>
+                            </div>
+                        </li>
+                        <li v-if="lastSyncTime" class="flex items-center gap-4 px-2 py-3">
+                            <Clock
+                                class="size-5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <div class="min-w-0">
+                                <p class="text-[15px]">Letzte Synchronisierung</p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ formatSyncTime(lastSyncTime) }}
+                                </p>
+                            </div>
+                        </li>
+                        <li
+                            v-if="updatesAvailable === true"
+                            class="flex items-center gap-4 px-2 py-3"
+                        >
+                            <RefreshCw class="size-5 shrink-0 text-gold" aria-hidden="true" />
+                            <p class="text-sm leading-relaxed text-muted-foreground">
+                                Neue Inhalte verfügbar. Bitte synchronisieren Sie erneut.
+                            </p>
+                        </li>
+                    </ul>
+                    <Separator />
+                </section>
 
-                <!-- Sync Actions Card -->
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Synchronisierung</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <p class="sync-description">
+                <!-- Sync Action -->
+                <section>
+                    <div class="flex items-center gap-3 px-2">
+                        <h2 class="label-micro shrink-0 text-gold">Synchronisierung</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-4 px-2">
+                        <p class="text-sm leading-relaxed text-muted-foreground">
                             Lädt alle Lieder und Notendateien vom Server herunter und speichert sie
                             lokal für die Offline-Nutzung.
                         </p>
-                        <p v-if="storage" class="sync-description">
+                        <p
+                            v-if="storage"
+                            class="mt-2 text-sm leading-relaxed text-muted-foreground"
+                        >
                             Geschätzte Downloadgröße: ca.
                             {{ formatBytes(ESTIMATED_SYNC_BYTES) }} &ndash; Freier Speicher:
                             {{ formatBytes(freeSpace) }}
                         </p>
-
-                        <ion-button
-                            expand="block"
-                            color="primary"
-                            @click="handleSync"
+                        <Button
+                            type="button"
+                            size="lg"
+                            class="mt-5 w-full"
                             :disabled="isSyncing"
-                            size="large"
+                            @click="handleSync"
                         >
-                            <ion-icon slot="start" :icon="syncOutline"></ion-icon>
+                            <RefreshCw aria-hidden="true" />
                             Jetzt synchronisieren
-                        </ion-button>
-                    </ion-card-content>
-                </ion-card>
+                        </Button>
+                    </div>
+                </section>
 
-                <!-- Progress Card (shown during sync) -->
-                <ion-card v-if="isSyncing">
-                    <ion-card-header>
-                        <ion-card-title>Wird synchronisiert...</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <div class="state-container--inline">
-                            <ion-spinner name="crescent"></ion-spinner>
-                            <p
-                                v-if="syncProgress.phase === 'songs'"
-                                class="ion-no-margin ion-text-center"
-                            >
-                                Lieder werden geladen...
-                            </p>
-                            <p
-                                v-else-if="syncProgress.phase === 'files' && syncProgress.total > 0"
-                                class="ion-no-margin ion-text-center"
-                            >
-                                {{ syncProgress.current }} von {{ syncProgress.total }} Dateien
-                                heruntergeladen
-                            </p>
-                            <p v-else class="ion-no-margin ion-text-center">
-                                Daten werden geladen...
-                            </p>
-                            <ion-progress-bar
-                                v-if="syncProgress.phase === 'files' && syncProgress.total > 0"
-                                :value="syncProgress.current / syncProgress.total"
-                            ></ion-progress-bar>
-                        </div>
-                    </ion-card-content>
-                </ion-card>
-
-                <!-- Partial Failure Card -->
-                <ion-card v-if="!isSyncing && failedFiles.length > 0" color="warning">
-                    <ion-card-header>
-                        <ion-card-title>Unvollständige Synchronisierung</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <p class="failed-description">
-                            {{ failedFiles.length }} Dateien konnten nicht heruntergeladen werden.
-                            Diese Noten sind offline nicht verfügbar.
+                <!-- Progress (shown during sync) -->
+                <section v-if="isSyncing">
+                    <div class="flex items-center gap-3 px-2">
+                        <h2 class="label-micro shrink-0 text-gold">Wird synchronisiert...</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-4 rounded-lg bg-muted px-6 py-6 text-center">
+                        <Spinner class="mx-auto" />
+                        <p
+                            v-if="syncProgress.phase === 'songs'"
+                            class="mt-3 text-sm text-muted-foreground"
+                        >
+                            Lieder werden geladen...
                         </p>
-                        <ion-button expand="block" @click="handleRetryFailed">
-                            Fehlgeschlagene erneut laden
-                        </ion-button>
-                    </ion-card-content>
-                </ion-card>
+                        <p
+                            v-else-if="syncProgress.phase === 'files' && syncProgress.total > 0"
+                            class="mt-3 text-sm tabular-nums text-muted-foreground"
+                        >
+                            {{ syncProgress.current }} von {{ syncProgress.total }} Dateien
+                            heruntergeladen
+                        </p>
+                        <p v-else class="mt-3 text-sm text-muted-foreground">
+                            Daten werden geladen...
+                        </p>
+                        <Progress
+                            v-if="syncProgress.phase === 'files' && syncProgress.total > 0"
+                            :model-value="syncProgress.current / syncProgress.total"
+                            class="mt-4"
+                        />
+                    </div>
+                </section>
 
-                <!-- Error Card -->
-                <ion-card v-if="error" color="danger">
-                    <ion-card-header>
-                        <ion-card-title>Fehler</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <p>{{ error }}</p>
-                    </ion-card-content>
-                </ion-card>
+                <!-- Partial Failure -->
+                <section
+                    v-if="!isSyncing && failedFiles.length > 0"
+                    class="rounded-lg border-l-4 border-gold bg-gold/10 px-4 py-4"
+                >
+                    <h2 class="font-medium">Unvollständige Synchronisierung</h2>
+                    <p class="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        {{ failedFiles.length }} Dateien konnten nicht heruntergeladen werden. Diese
+                        Noten sind offline nicht verfügbar.
+                    </p>
+                    <Button type="button" class="mt-3 w-full" @click="handleRetryFailed">
+                        Fehlgeschlagene erneut laden
+                    </Button>
+                </section>
 
-                <!-- Info Card -->
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Hinweise</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <ion-list class="transparent">
-                            <ion-item lines="none" class="transparent">
-                                <ion-icon
-                                    :icon="wifiOutline"
-                                    slot="start"
-                                    color="warning"
-                                ></ion-icon>
-                                <ion-label class="ion-text-wrap">
-                                    <p>
-                                        Für die Synchronisierung wird eine Internetverbindung
-                                        benötigt. Der Download kann je nach Verbindung einige
-                                        Minuten dauern.
-                                    </p>
-                                </ion-label>
-                            </ion-item>
-                        </ion-list>
-                    </ion-card-content>
-                </ion-card>
+                <!-- Error -->
+                <section
+                    v-if="error"
+                    class="rounded-lg border-l-4 border-destructive bg-destructive/10 px-4 py-4"
+                >
+                    <h2 class="font-medium text-destructive">Fehler</h2>
+                    <p class="mt-1 text-sm leading-relaxed text-destructive">{{ error }}</p>
+                </section>
 
-                <!-- Delete Data Card -->
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Daten löschen</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <p class="sync-description">
+                <!-- Hints -->
+                <section>
+                    <div class="flex items-center gap-3 px-2">
+                        <h2 class="label-micro shrink-0 text-gold">Hinweise</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-3 flex items-start gap-4 px-2">
+                        <Wifi class="mt-0.5 size-5 shrink-0 text-gold" aria-hidden="true" />
+                        <p class="text-sm leading-relaxed text-muted-foreground">
+                            Für die Synchronisierung wird eine Internetverbindung benötigt. Der
+                            Download kann je nach Verbindung einige Minuten dauern.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Delete Data -->
+                <section>
+                    <div class="flex items-center gap-3 px-2">
+                        <h2 class="label-micro shrink-0 text-gold">Daten löschen</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-4 px-2">
+                        <p class="text-sm leading-relaxed text-muted-foreground">
                             Löscht alle lokal gespeicherten Lieder und Notendateien. Diese können
                             jederzeit erneut synchronisiert werden.
                         </p>
-
-                        <ion-button
-                            expand="block"
-                            color="danger"
-                            @click="handleDelete"
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="lg"
+                            class="mt-5 w-full"
                             :disabled="
                                 isSyncing || isDeleting || (songsCount === 0 && filesCount === 0)
                             "
-                            size="large"
+                            @click="handleDelete"
                         >
-                            <ion-icon slot="start" :icon="trashOutline"></ion-icon>
+                            <Trash2 aria-hidden="true" />
                             Alle Daten löschen
-                        </ion-button>
-                    </ion-card-content>
-                </ion-card>
+                        </Button>
+                    </div>
+                </section>
             </div>
-        </ion-content>
-    </ion-page>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 
-import {
-    IonButton,
-    IonButtons,
-    IonCard,
-    IonCardContent,
-    IonCardHeader,
-    IonCardTitle,
-    IonContent,
-    IonHeader,
-    IonIcon,
-    IonItem,
-    IonLabel,
-    IonList,
-    IonPage,
-    IonProgressBar,
-    IonSpinner,
-    IonTitle,
-    IonToolbar,
-    alertController,
-} from '@ionic/vue';
-import {
-    arrowBackOutline,
-    imageOutline,
-    musicalNotesOutline,
-    serverOutline,
-    syncOutline,
-    timeOutline,
-    trashOutline,
-    wifiOutline,
-} from 'ionicons/icons';
+import { Clock, Image, Music, RefreshCw, Server, Trash2, Wifi } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 
 import { useSongsStore } from '@/stores/songs';
+
+import { useConfirm } from '@/composables/useConfirm';
+
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import BackButton from '@/components/shell/BackButton.vue';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 
 import {
     ESTIMATED_SYNC_BYTES,
@@ -254,6 +240,7 @@ import {
 const songsStore = useSongsStore();
 const { isSyncing, error, lastSyncTime, syncProgress, songs, failedFiles } =
     storeToRefs(songsStore);
+const { confirm } = useConfirm();
 
 const songsCount = computed(() => songs.value.length);
 const filesCount = ref(0);
@@ -281,28 +268,15 @@ async function refreshStorageEstimate() {
 }
 
 // Warn before syncing when the estimated download clearly exceeds the free space
-async function confirmLowStorage(): Promise<boolean> {
-    const alert = await alertController.create({
-        header: 'Wenig Speicherplatz',
+function confirmLowStorage(): Promise<boolean> {
+    return confirm({
+        title: 'Wenig Speicherplatz',
         message:
             `Der Download benötigt schätzungsweise ${formatBytes(ESTIMATED_SYNC_BYTES)}, ` +
             `es sind aber nur noch ${formatBytes(freeSpace.value)} frei. Die Synchronisierung ` +
             'wird möglicherweise nicht vollständig abgeschlossen. Möchten Sie trotzdem fortfahren?',
-        buttons: [
-            {
-                text: 'Abbrechen',
-                role: 'cancel',
-            },
-            {
-                text: 'Trotzdem fortfahren',
-                role: 'confirm',
-            },
-        ],
+        confirmText: 'Trotzdem fortfahren',
     });
-    await alert.present();
-
-    const { role } = await alert.onDidDismiss();
-    return role === 'confirm';
 }
 
 async function handleSync() {
@@ -337,25 +311,14 @@ async function handleRetryFailed() {
 }
 
 async function handleDelete() {
-    const alert = await alertController.create({
-        header: 'Daten löschen',
+    const proceed = await confirm({
+        title: 'Daten löschen',
         message: 'Möchten Sie wirklich alle lokal gespeicherten Lieder und Notendateien löschen?',
-        buttons: [
-            {
-                text: 'Abbrechen',
-                role: 'cancel',
-            },
-            {
-                text: 'Löschen',
-                role: 'destructive',
-            },
-        ],
+        confirmText: 'Löschen',
+        destructive: true,
     });
-    await alert.present();
 
-    const { role } = await alert.onDidDismiss();
-
-    if (role === 'destructive') {
+    if (proceed) {
         isDeleting.value = true;
         try {
             await songsStore.clearAllData();
@@ -376,16 +339,3 @@ function formatSyncTime(date: Date): string {
     }).format(date);
 }
 </script>
-
-<style scoped>
-.sync-description {
-    color: var(--ion-color-medium);
-    line-height: 1.6;
-    margin-bottom: var(--spacing-md);
-}
-
-.failed-description {
-    line-height: 1.6;
-    margin-bottom: var(--spacing-md);
-}
-</style>
