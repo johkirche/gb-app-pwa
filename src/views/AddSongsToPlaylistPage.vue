@@ -28,7 +28,7 @@
             </ion-toolbar>
         </ion-header>
 
-        <ion-content :fullscreen="true">
+        <ion-content :fullscreen="true" :class="{ 'has-selection-footer': selectedSongs.size > 0 }">
             <!-- Loading State -->
             <div v-if="isLoading" class="state-container">
                 <ion-spinner name="crescent"></ion-spinner>
@@ -44,40 +44,42 @@
 
             <!-- Songs List with Checkboxes -->
             <ion-list v-else>
-                <ion-item v-for="song in filteredSongs" :key="song.id" @click="toggleSong(song.id)">
+                <ion-item v-for="song in filteredSongs" :key="song.id">
                     <ion-checkbox
-                        slot="start"
                         class="ion-item-checklist"
                         :checked="selectedSongs.has(song.id)"
                         @ionChange="toggleSong(song.id)"
-                    ></ion-checkbox>
-                    <ion-label>
-                        <h2>
-                            <span v-if="song.index" class="song-index">{{ song.index }}.</span>
-                            {{ song.titel }}
-                        </h2>
-                        <p v-if="song.kategorien.length > 0">
-                            {{ formatCategories(song.kategorien) }}
-                        </p>
-                        <p v-if="isInPlaylist(song.id)" class="already-added">
-                            <ion-icon :icon="checkmarkCircle"></ion-icon>
-                            Bereits in Playlist
-                        </p>
-                    </ion-label>
+                        label-placement="end"
+                        justify="start"
+                    >
+                        <ion-label class="ion-text-wrap">
+                            <h2>
+                                <span v-if="song.index" class="song-index">{{ song.index }}.</span>
+                                {{ song.titel }}
+                            </h2>
+                            <p v-if="song.kategorien.length > 0">
+                                {{ formatCategories(song.kategorien) }}
+                            </p>
+                            <p v-if="isInPlaylist(song.id)" class="already-added">
+                                <ion-icon :icon="checkmarkCircle"></ion-icon>
+                                Bereits in Playlist
+                            </p>
+                        </ion-label>
+                    </ion-checkbox>
                 </ion-item>
             </ion-list>
-
-            <!-- Selection Summary Footer -->
-            <ion-footer v-if="selectedSongs.size > 0">
-                <ion-toolbar>
-                    <ion-button expand="block" @click="addSelectedSongs">
-                        <ion-icon slot="start" :icon="addOutline"></ion-icon>
-                        {{ selectedSongs.size }}
-                        {{ selectedSongs.size === 1 ? 'Lied' : 'Lieder' }} hinzufügen
-                    </ion-button>
-                </ion-toolbar>
-            </ion-footer>
         </ion-content>
+
+        <!-- Selection Summary Footer -->
+        <ion-footer v-if="selectedSongs.size > 0">
+            <ion-toolbar>
+                <ion-button expand="block" @click="addSelectedSongs">
+                    <ion-icon slot="start" :icon="addOutline"></ion-icon>
+                    {{ selectedSongs.size }}
+                    {{ selectedSongs.size === 1 ? 'Lied' : 'Lieder' }} hinzufügen
+                </ion-button>
+            </ion-toolbar>
+        </ion-footer>
     </ion-page>
 </template>
 
@@ -226,6 +228,10 @@ function formatCategories(categories: Category[]): string {
 .state-container p {
     margin: 0;
     color: var(--ion-color-medium);
+}
+
+ion-content.has-selection-footer {
+    --padding-bottom: 72px;
 }
 
 ion-footer ion-toolbar {
