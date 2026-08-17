@@ -1,176 +1,180 @@
 <template>
-    <ion-modal
-        :is-open="isOpen"
-        :initial-breakpoint="0.75"
-        :breakpoints="[0, 0.5, 0.75, 1]"
-        :handle="true"
-        @didDismiss="$emit('close')"
+    <Drawer
+        :open="isOpen"
+        :snap-points="[0.5, 0.75, 1]"
+        :active-snap-point="activeSnapPoint"
+        @update:active-snap-point="activeSnapPoint = $event"
+        @update:open="onOpenUpdate"
     >
-        <ion-header>
-            <ion-toolbar>
-                <ion-title>Filter</ion-title>
-                <ion-buttons slot="end">
-                    <ion-button v-if="hasActiveFilters" fill="clear" @click="$emit('clearAll')">
-                        <ion-icon slot="start" :icon="refreshOutline" />
-                        Zurücksetzen
-                    </ion-button>
-                </ion-buttons>
-            </ion-toolbar>
-        </ion-header>
+        <DrawerContent class="h-full max-h-full">
+            <!-- Sheet header: pinned while the body scrolls underneath -->
+            <div
+                class="sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 bg-popover px-4"
+            >
+                <DrawerTitle>Filter</DrawerTitle>
+                <Button
+                    v-if="hasActiveFilters"
+                    variant="ghost"
+                    size="sm"
+                    class="-mr-2 text-primary"
+                    @click="$emit('clearAll')"
+                >
+                    <RotateCcw aria-hidden="true" />
+                    Zurücksetzen
+                </Button>
+            </div>
 
-        <ion-content class="filter-content">
             <!-- Categories -->
-            <div class="filter-section">
-                <div class="cat-sticky">
-                    <div class="section-head">
-                        <span class="section-label">Kategorien</span>
+            <div class="px-4 pb-8">
+                <!-- Section head + quick-search stay pinned (below the sheet header)
+                     while the chip cloud scrolls -->
+                <div class="cat-sticky sticky top-12 z-10 bg-popover pb-3 pt-1">
+                    <div class="mb-2 flex items-baseline justify-between gap-2">
+                        <span class="label-micro text-gold">Kategorien</span>
                         <button
                             v-if="selectedCategories.length"
                             type="button"
-                            class="section-clear"
+                            class="shrink-0 text-xs text-primary"
                             @click="clearCategories"
                         >
                             {{ selectedCategories.length }} ausgewählt · zurücksetzen
                         </button>
                     </div>
 
-                    <div class="cat-search">
-                        <ion-icon :icon="searchOutline" class="cat-search__icon" />
+                    <div class="flex items-center gap-2 rounded-lg bg-muted px-3">
+                        <Search class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                         <input
                             v-model="categoryQuery"
                             type="text"
-                            class="cat-search__input"
+                            class="min-w-0 flex-1 bg-transparent py-2 text-[16px] text-foreground outline-none placeholder:text-muted-foreground"
                             placeholder="Kategorie suchen…"
                         />
                         <button
                             v-if="categoryQuery"
                             type="button"
-                            class="cat-search__clear"
+                            class="inline-flex shrink-0 text-muted-foreground"
                             aria-label="Suche löschen"
                             @click="categoryQuery = ''"
                         >
-                            <ion-icon :icon="closeCircle" />
+                            <CircleX class="h-4 w-4" aria-hidden="true" />
                         </button>
                     </div>
                 </div>
 
-                <div v-if="filteredCategories.length" class="cat-chips">
+                <div v-if="filteredCategories.length" class="flex flex-wrap gap-2">
                     <button
                         v-for="category in filteredCategories"
                         :key="category.value"
                         type="button"
-                        class="cat-chip"
-                        :class="{ 'cat-chip--selected': selectedCategories.includes(category.value) }"
+                        class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm leading-tight transition-colors"
+                        :class="
+                            selectedCategories.includes(category.value)
+                                ? 'border-primary/50 bg-accent font-medium text-accent-foreground'
+                                : 'border-border bg-transparent text-foreground hover:border-primary/40 hover:bg-muted'
+                        "
                         :aria-pressed="selectedCategories.includes(category.value)"
                         @click="$emit('toggleCategory', category.value)"
                     >
-                        <span class="cat-chip__emoji" aria-hidden="true">
-                            {{ categoryEmoji(category.label) }}
+                        <span aria-hidden="true">{{ categoryEmoji(category.label) }}</span>
+                        <span class="font-medium">{{ category.label }}</span>
+                        <span
+                            class="text-xs tabular-nums"
+                            :class="
+                                selectedCategories.includes(category.value)
+                                    ? 'text-accent-foreground/70'
+                                    : 'text-muted-foreground'
+                            "
+                        >
+                            {{ category.count }}
                         </span>
-                        <span class="cat-chip__label">{{ category.label }}</span>
-                        <span class="cat-chip__count">{{ category.count }}</span>
                     </button>
                 </div>
 
-                <div v-else class="cat-empty">
-                    <ion-text color="medium">
-                        {{
-                            availableCategories.length
-                                ? 'Keine Kategorie gefunden'
-                                : 'Keine Kategorien verfügbar'
-                        }}
-                    </ion-text>
-                </div>
+                <p v-else class="py-6 text-center text-sm text-muted-foreground">
+                    {{
+                        availableCategories.length
+                            ? 'Keine Kategorie gefunden'
+                            : 'Keine Kategorien verfügbar'
+                    }}
+                </p>
             </div>
 
             <!-- Dev Filters (may be removed later) -->
-            <div class="filter-section dev-section">
-                <ion-label class="section-label">Dev Filter</ion-label>
+            <div class="border-t border-border px-4 pb-10 pt-4">
+                <p class="label-micro mb-4 text-gold">Dev Filter</p>
 
-                <div class="filter-row">
-                    <ion-label class="filter-label">Hat Noten (PDF)</ion-label>
-                    <ion-segment :value="hasNotesValue" @ionChange="onHasNotesChange($event)">
-                        <ion-segment-button value="all">
-                            <ion-label>Alle</ion-label>
-                        </ion-segment-button>
-                        <ion-segment-button value="yes">
-                            <ion-label>Ja</ion-label>
-                        </ion-segment-button>
-                        <ion-segment-button value="no">
-                            <ion-label>Nein</ion-label>
-                        </ion-segment-button>
-                    </ion-segment>
-                </div>
-
-                <div class="filter-row">
-                    <ion-label class="filter-label">Hat MusicXML</ion-label>
-                    <ion-segment
-                        :value="hasMelodyXmlValue"
-                        @ionChange="onHasMelodyXmlChange($event)"
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <span class="text-sm text-muted-foreground">Hat Noten (PDF)</span>
+                    <ToggleGroup
+                        type="single"
+                        aria-label="Hat Noten (PDF)"
+                        :model-value="hasNotesValue"
+                        @update:model-value="onHasNotesChange"
                     >
-                        <ion-segment-button value="all">
-                            <ion-label>Alle</ion-label>
-                        </ion-segment-button>
-                        <ion-segment-button value="yes">
-                            <ion-label>Ja</ion-label>
-                        </ion-segment-button>
-                        <ion-segment-button value="no">
-                            <ion-label>Nein</ion-label>
-                        </ion-segment-button>
-                    </ion-segment>
+                        <ToggleGroupItem value="all">Alle</ToggleGroupItem>
+                        <ToggleGroupItem value="yes">Ja</ToggleGroupItem>
+                        <ToggleGroupItem value="no">Nein</ToggleGroupItem>
+                    </ToggleGroup>
                 </div>
 
-                <div class="filter-row">
-                    <ion-label class="filter-label">
-                        Liedernummer: {{ currentMin }} - {{ currentMax }}
-                    </ion-label>
-                    <ion-range
-                        :dual-knobs="true"
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <span class="text-sm text-muted-foreground">Hat MusicXML</span>
+                    <ToggleGroup
+                        type="single"
+                        aria-label="Hat MusicXML"
+                        :model-value="hasMelodyXmlValue"
+                        @update:model-value="onHasMelodyXmlChange"
+                    >
+                        <ToggleGroupItem value="all">Alle</ToggleGroupItem>
+                        <ToggleGroupItem value="yes">Ja</ToggleGroupItem>
+                        <ToggleGroupItem value="no">Nein</ToggleGroupItem>
+                    </ToggleGroup>
+                </div>
+
+                <div class="space-y-3">
+                    <p class="text-sm text-muted-foreground">
+                        Liedernummer:
+                        <span class="number-display text-base">
+                            {{ currentMin }} - {{ currentMax }}
+                        </span>
+                    </p>
+                    <Slider
+                        :model-value="[currentMin, currentMax]"
                         :min="indexRange.min"
                         :max="indexRange.max"
-                        :value="{ lower: currentMin, upper: currentMax }"
-                        :pin="true"
-                        :snaps="false"
-                        @ionChange="onRangeChange($event)"
+                        :step="1"
+                        aria-label="Liedernummer"
+                        @update:model-value="onRangeUpdate"
                     />
-                    <ion-button
+                    <Button
                         v-if="isRangeActive"
-                        fill="clear"
-                        size="small"
-                        expand="block"
+                        variant="ghost"
+                        size="sm"
+                        class="w-full text-primary"
                         @click="$emit('setIndexRange', null)"
                     >
                         Bereich zurücksetzen
-                    </ion-button>
+                    </Button>
                 </div>
             </div>
-        </ion-content>
-    </ion-modal>
+        </DrawerContent>
+    </Drawer>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
-import {
-    IonButton,
-    IonButtons,
-    IonContent,
-    IonHeader,
-    IonIcon,
-    IonLabel,
-    IonModal,
-    IonRange,
-    IonSegment,
-    IonSegmentButton,
-    IonText,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
-import { closeCircle, refreshOutline, searchOutline } from 'ionicons/icons';
-
-import { categoryEmoji } from '@/utils/categoryEmoji';
+import { CircleX, RotateCcw, Search } from 'lucide-vue-next';
+import type { AcceptableValue } from 'reka-ui';
 
 import type { FilterOption } from '@/composables/useSongFiltering';
+
+import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
+import { Slider } from '@/components/ui/slider';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+
+import { categoryEmoji } from '@/utils/categoryEmoji';
 
 const props = defineProps<{
     isOpen: boolean;
@@ -191,6 +195,21 @@ const emit = defineEmits<{
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
     (e: 'clearAll'): void;
 }>();
+
+// Sheet snap points mirror the old ion-modal breakpoints ([0, 0.5, 0.75, 1],
+// initial 0.75; drag below the lowest snap point dismisses).
+const activeSnapPoint = ref<number | string | null>(0.75);
+
+watch(
+    () => props.isOpen,
+    (open) => {
+        if (open) activeSnapPoint.value = 0.75;
+    },
+);
+
+function onOpenUpdate(open: boolean) {
+    if (!open) emit('close');
+}
 
 // Category quick-search — the main usability win with 60+ categories
 const categoryQuery = ref('');
@@ -226,23 +245,25 @@ const currentMax = computed(() => props.filterIndexRange?.max ?? props.indexRang
 
 const isRangeActive = computed(() => props.filterIndexRange !== null);
 
-function onHasNotesChange(event: CustomEvent) {
-    const value = event.detail.value;
+// The kit ToggleGroup never emits an empty value (prevent-deselect is its default),
+// so the tri-state can only ever be 'all' | 'yes' | 'no'.
+function onHasNotesChange(value: AcceptableValue | AcceptableValue[]) {
     if (value === 'yes') emit('setHasNotes', true);
     else if (value === 'no') emit('setHasNotes', false);
-    else emit('setHasNotes', null);
+    else if (value === 'all') emit('setHasNotes', null);
 }
 
-function onHasMelodyXmlChange(event: CustomEvent) {
-    const value = event.detail.value;
+function onHasMelodyXmlChange(value: AcceptableValue | AcceptableValue[]) {
     if (value === 'yes') emit('setHasMelodyXml', true);
     else if (value === 'no') emit('setHasMelodyXml', false);
-    else emit('setHasMelodyXml', null);
+    else if (value === 'all') emit('setHasMelodyXml', null);
 }
 
-function onRangeChange(event: CustomEvent) {
-    const { lower, upper } = event.detail.value;
-    // Only emit if actually different from full range
+function onRangeUpdate(value: number[] | undefined) {
+    if (!value || value.length < 2) return;
+    const [lower, upper] = value;
+    // Only emit a range when it differs from the full range (a full-range
+    // selection is a no-op and must not count as an active filter)
     if (lower !== props.indexRange.min || upper !== props.indexRange.max) {
         emit('setIndexRange', { min: lower, max: upper });
     } else {
@@ -250,187 +271,3 @@ function onRangeChange(event: CustomEvent) {
     }
 }
 </script>
-
-<style scoped>
-.filter-content {
-    --padding-start: 0;
-    --padding-end: 0;
-}
-
-.filter-section {
-    padding: 0 var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-}
-
-.section-label {
-    display: block;
-    font-weight: 600;
-    font-size: var(--font-size-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--ion-color-medium);
-}
-
-/* Category search + heading stay pinned while the chip cloud scrolls */
-.cat-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--ion-background-color);
-    padding: var(--spacing-md) 0 var(--spacing-sm);
-}
-
-.section-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-}
-
-.section-clear {
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: var(--font-size-xs);
-    color: var(--ion-color-primary);
-    cursor: pointer;
-}
-
-.cat-search {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    background: var(--ion-color-light);
-    border-radius: var(--radius-md);
-    padding: 0 var(--spacing-md);
-}
-
-.cat-search__icon {
-    flex-shrink: 0;
-    font-size: 1.125rem;
-    color: var(--ion-color-medium);
-}
-
-.cat-search__input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    background: transparent;
-    outline: none;
-    padding: var(--spacing-sm) 0;
-    font-size: var(--font-size-base);
-    color: var(--ion-text-color);
-}
-
-.cat-search__input::placeholder {
-    color: var(--ion-color-medium);
-}
-
-.cat-search__clear {
-    display: inline-flex;
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    color: var(--ion-color-medium);
-    font-size: 1.125rem;
-}
-
-/* Chip cloud */
-.cat-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-}
-
-.cat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: 0.4rem 0.75rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: 999px;
-    background: transparent;
-    color: inherit;
-    font-size: var(--font-size-sm);
-    line-height: 1.2;
-    cursor: pointer;
-    transition:
-        background 0.15s ease,
-        border-color 0.15s ease,
-        color 0.15s ease;
-}
-
-.cat-chip__emoji {
-    font-size: 1rem;
-    line-height: 1;
-}
-
-.cat-chip__label {
-    font-weight: 500;
-}
-
-.cat-chip__count {
-    font-size: var(--font-size-xs);
-    color: var(--ion-color-medium);
-    font-variant-numeric: tabular-nums;
-}
-
-.cat-chip--selected {
-    border-color: var(--ion-color-primary);
-    background: rgba(var(--ion-color-primary-rgb), 0.12);
-    color: var(--ion-color-primary);
-}
-
-.cat-chip--selected .cat-chip__count {
-    color: var(--ion-color-primary);
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .cat-chip:hover {
-        border-color: var(--ion-color-primary);
-        background: var(--ion-color-light);
-    }
-
-    .cat-chip--selected:hover {
-        background: rgba(var(--ion-color-primary-rgb), 0.2);
-    }
-}
-
-.cat-empty {
-    padding: var(--spacing-lg) 0;
-    text-align: center;
-}
-
-/* Dev filters */
-.dev-section {
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--ion-color-light-shade);
-}
-
-.dev-section .section-label {
-    margin-bottom: var(--spacing-md);
-}
-
-.filter-row {
-    margin-bottom: var(--spacing-md);
-}
-
-.filter-label {
-    display: block;
-    font-size: var(--font-size-sm);
-    color: var(--ion-color-medium);
-    margin-bottom: var(--spacing-sm);
-}
-
-.filter-row ion-segment {
-    width: 100%;
-}
-
-.filter-row ion-range {
-    padding: 0;
-}
-</style>

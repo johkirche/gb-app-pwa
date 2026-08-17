@@ -233,7 +233,7 @@ function onItemClick(key: string) {
     align-items: center;
     z-index: 1000;
     padding: 8px 4px;
-    background: rgba(var(--ion-background-color-rgb), 0.9);
+    background: color-mix(in srgb, var(--background) 90%, transparent);
     border-radius: 12px;
     backdrop-filter: blur(8px);
     user-select: none;
@@ -261,12 +261,12 @@ function onItemClick(key: string) {
 }
 
 .index-item:hover {
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .index-item.active {
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
+    background: var(--primary);
+    color: var(--primary-foreground);
 }
 
 .index-label {
@@ -282,8 +282,8 @@ function onItemClick(key: string) {
 .drag-indicator {
     position: absolute;
     right: 48px;
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
+    background: var(--primary);
+    color: var(--primary-foreground);
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 18px;
