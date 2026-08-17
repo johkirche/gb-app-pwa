@@ -27,6 +27,7 @@ import '@ionic/vue/css/typography.css';
 import { createPinia } from 'pinia';
 
 import App from './App.vue';
+import { useAppUpdate } from './composables/useAppUpdate';
 import { usePWA } from './composables/usePWA';
 import { longPressDirective } from './directives/longPress';
 import router from './router';
@@ -38,6 +39,10 @@ const pinia = createPinia();
 // Initialize PWA listeners early to capture beforeinstallprompt event
 const { initPWAListeners } = usePWA();
 initPWAListeners();
+
+// Register the service worker and show an update toast when a new version is deployed
+const { initUpdatePrompt } = useAppUpdate();
+initUpdatePrompt();
 
 const app = createApp(App).use(IonicVue).use(pinia).use(router);
 

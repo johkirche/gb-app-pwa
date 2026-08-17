@@ -40,7 +40,7 @@ is exposed at `/<extension-name>/register`.)
 
 ```json
 {
-    "email": "user@example.com",
+    "email": "mitglied@beispiel.de",
     "password": "Secret123!",
     "registration_code": "valid-code",
     "first_name": "John",
@@ -57,7 +57,7 @@ is exposed at `/<extension-name>/register`.)
 ```json
 {
     "success": true,
-    "user": { "id": "…", "email": "user@example.com", "first_name": "John", "last_name": "Doe" }
+    "user": { "id": "…", "email": "mitglied@beispiel.de", "first_name": "John", "last_name": "Doe" }
 }
 ```
 
@@ -170,14 +170,34 @@ EMAIL_SMTP_PASSWORD="your-smtp-password"
 
 ## Frontend Configuration
 
-`.env` in the Ionic app:
+Authentication is **session-only**: the app logs the user in via Directus
+(`/auth/login`) and works with the resulting access + refresh tokens. There is
+deliberately **no static API token** — every `VITE_*` value is inlined verbatim into the
+public JS bundle, so env vars must never hold a secret.
+
+The app reads exactly two variables:
 
 ```env
 VITE_BACKEND_URL=https://your-directus-instance.com
-VITE_AUTH_TOKEN=your-static-admin-token-for-fallback
-# Set to 'true' to show the "Skip (Development Mode)" button on login/register
+# Set to 'true' to show the "Skip (Development Mode)" button on login/register.
+# Must stay 'false' for anything that gets deployed.
 VITE_SHOW_DEV_SKIP=false
 ```
+
+Note that the env flag is not what keeps the bypass out of production: the skip button
+lives in a dev-only async component behind an `import.meta.env.DEV`-guarded dynamic
+import (its chunk is never emitted in a production build), and the router-guard bypass
+sits behind the same statically replaced `import.meta.env.DEV` check, so it is
+dead-code-eliminated there. Production builds therefore contain no bypass code
+regardless of the flag; `VITE_SHOW_DEV_SKIP` only opts the button in during `pnpm dev`.
+
+For local development, copy `.env.example` to `.env` and adjust the values.
+
+Production builds use the **committed** `.env.production` file, which contains the
+public production values (backend URL, `VITE_SHOW_DEV_SKIP=false`). Vite loads it
+automatically for `pnpm build:prod` (mode `production`). Precedence note: mode files
+win over the plain `.env` (`.env.production` > `.env` for shared keys), and an
+untracked `.env.production.local` would win over `.env.production`.
 
 ## Testing
 
@@ -206,5 +226,3 @@ VITE_SHOW_DEV_SKIP=false
 - **"Invalid or already used registration code"** — code missing or `status != 'open'`.
 - **Can't access songs after registration** — the default role lacks read permissions on
   `gesangbuchlied` / `directus_files`.
-</content>
-</invoke>
