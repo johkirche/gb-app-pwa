@@ -1,6 +1,7 @@
 <template>
     <Toaster
-        v-bind="props"
+        :theme="theme"
+        :position="position"
         :toast-options="{
             classes: {
                 toast: 'gb-toast',
@@ -12,9 +13,21 @@
 <script setup lang="ts">
 import { Toaster } from 'vue-sonner';
 
-type ToasterProps = InstanceType<typeof Toaster>['$props'];
+interface Props {
+    theme?: 'light' | 'dark' | 'system';
+    position?:
+        | 'top-left'
+        | 'top-center'
+        | 'top-right'
+        | 'bottom-left'
+        | 'bottom-center'
+        | 'bottom-right';
+}
 
-const props = defineProps<ToasterProps>();
+withDefaults(defineProps<Props>(), {
+    theme: 'system',
+    position: 'bottom-center',
+});
 </script>
 
 <style>
