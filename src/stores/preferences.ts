@@ -101,6 +101,17 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
+    // table alone is not enough: loadPreferences only overwrites state when a record
+    // exists, so the previous user's settings would survive in memory.
+    async function resetToDefaults(): Promise<void> {
+        await db.preferences.delete('default');
+        notationScale.value = 1.0;
+        textSize.value = 'medium';
+        melodyDisplayMode.value = 'xml';
+        xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
+    }
+
     // Initialize store on creation
     const initPromise = loadPreferences();
 
@@ -118,6 +129,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setTextSize,
         setMelodyDisplayMode,
         setXmlSetting,
+        resetToDefaults,
 
         // Initialization promise
         initPromise,

@@ -9,13 +9,19 @@ import { db } from '@/db';
  */
 
 // Logout reasons that can be passed to the login page
-export type LogoutReason = 'account_deleted' | 'session_expired' | 'invalid_credentials';
+export type LogoutReason =
+    | 'account_deleted'
+    | 'session_expired'
+    | 'invalid_credentials'
+    | 'registration_login_failed';
 
 // Human-readable messages for each logout reason (German)
 export const LOGOUT_REASON_MESSAGES: Record<LogoutReason, string> = {
     account_deleted: 'Ihr Konto wurde gelöscht. Alle lokalen Daten wurden entfernt.',
     session_expired: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
     invalid_credentials: 'Ungültige Anmeldedaten. Bitte melden Sie sich erneut an.',
+    registration_login_failed:
+        'Ihr Konto wurde erfolgreich erstellt. Die automatische Anmeldung ist fehlgeschlagen – bitte melden Sie sich mit Ihrer E-Mail-Adresse und Ihrem Passwort an.',
 };
 
 /**
@@ -75,6 +81,15 @@ export function extractDirectusErrorCode(error: unknown): string | undefined {
 
 /** Error code the register extension returns when the email already has an account. */
 export const USER_ALREADY_REGISTERED = 'USER_ALREADY_REGISTERED';
+
+/**
+ * Synthetic code for "the account was created, but the automatic login failed".
+ * Not a server code: the extension consumed the one-time activation code, so the
+ * registration itself succeeded and must not be reported as failed — the caller
+ * routes to the login page instead of letting the user retry the registration
+ * (which could only yield USER_ALREADY_REGISTERED).
+ */
+export const REGISTRATION_LOGIN_FAILED = 'REGISTRATION_LOGIN_FAILED';
 
 const REGISTRATION_FALLBACK_MESSAGE =
     'Die Registrierung ist fehlgeschlagen. Bitte versuchen Sie es später erneut.';
@@ -174,6 +189,47 @@ export function isInvalidCredentialsError(error: unknown): boolean {
     return false;
 }
 
+/** German message shown when a request failed because the server was unreachable. */
+export const NETWORK_ERROR_MESSAGE =
+    'Keine Verbindung zum Server. Bitte prüfen Sie Ihre Internetverbindung.';
+
+/**
+ * Detect a network-level failure (offline, DNS, refused connection, CORS).
+ *
+ * `fetch()` rejects those as a `TypeError` whose message differs per browser
+ * ("Failed to fetch" in Chromium, "NetworkError when attempting to fetch a
+ * resource." in Firefox, "Load failed" in Safari), so the TypeError check does the
+ * heavy lifting and the message checks catch wrapped/re-thrown variants.
+ */
+export function isNetworkError(error: unknown): boolean {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return true;
+    }
+    if (error instanceof TypeError) {
+        return true;
+    }
+    const message = extractDirectusErrorMessage(error);
+    return !!message && (message.includes('Failed to fetch') || message.includes('NetworkError'));
+}
+
+/**
+ * Translate a login failure into a German message for the UI.
+ *
+ * The Directus SDK rejects with a plain error envelope (not an `Error`), so showing
+ * `err.message` would surface English server text — or nothing at all. The generic
+ * fallback deliberately does not echo `extractDirectusErrorMessage`, which would also
+ * be English.
+ */
+export function translateLoginError(error: unknown): string {
+    if (isInvalidCredentialsError(error)) {
+        return 'E-Mail-Adresse oder Passwort ist falsch.';
+    }
+    if (isNetworkError(error)) {
+        return NETWORK_ERROR_MESSAGE;
+    }
+    return 'Die Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es später erneut.';
+}
+
 /**
  * Clear only the session: auth tokens and the cached user record.
  *
@@ -199,12 +255,42 @@ export async function clearSessionData(): Promise<void> {
 }
 
 /**
+ * Clear everything that belongs to the signed-in account, for an explicit logout.
+ *
+ * Songs and files are deliberately kept — they are shared hymnal content, identical for
+ * every account and expensive to re-download. Playlists, favorites and preferences are
+ * personal data that exist only on this device; they must not leak to the next account
+ * that signs in on a shared device, so they go together with the session.
+ */
+export async function clearUserScopedData(): Promise<void> {
+    const tables = [db.auth, db.users, db.playlists, db.preferences, db.favorites];
+
+    try {
+        await db.transaction('rw', tables, async () => {
+            for (const table of tables) {
+                await table.clear();
+            }
+        });
+    } catch (error) {
+        console.error('Error clearing user-scoped data:', error);
+        // Even if the transaction fails, try to clear the tables individually
+        for (const table of tables) {
+            try {
+                await table.clear();
+            } catch (innerError) {
+                console.error(`Error clearing table ${table.name}:`, innerError);
+            }
+        }
+    }
+}
+
+/**
  * Clear all local user data from IndexedDB.
  *
- * This removes songs, files, playlists, favorites, preferences, auth and user data, and
- * is destructive and irreversible — playlists, favorites and preferences exist only on
- * this device and cannot be restored from the server. Only call this when the account is
- * genuinely known to be gone; for an ordinary expired session use
+ * This removes songs, files, playlists, favorites, preferences, sync metadata, auth and
+ * user data, and is destructive and irreversible — playlists, favorites and preferences
+ * exist only on this device and cannot be restored from the server. Only call this when
+ * the account is genuinely known to be gone; for an ordinary expired session use
  * {@link clearSessionData} instead.
  */
 export async function clearAllLocalData(): Promise<void> {
@@ -216,6 +302,7 @@ export async function clearAllLocalData(): Promise<void> {
         db.playlists,
         db.preferences,
         db.favorites,
+        db.meta,
     ];
 
     try {
@@ -235,6 +322,18 @@ export async function clearAllLocalData(): Promise<void> {
                 console.error(`Error clearing table ${table.name}:`, innerError);
             }
         }
+    }
+
+    // localStorage belongs to the full wipe too: the Datenschutz page promises that a
+    // deleted account removes "sämtliche lokal gespeicherten Daten", and a leftover
+    // onboarding.inProgress would strand the next user in the previous account's
+    // onboarding.
+    try {
+        localStorage.removeItem('onboarding.inProgress');
+        localStorage.removeItem('onboarding.currentStep');
+        localStorage.removeItem('settings.theme');
+    } catch {
+        // ignore storage errors
     }
 }
 

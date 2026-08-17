@@ -82,26 +82,25 @@
                         Neues Konto erstellen
                     </ion-button>
 
-                    <ion-button
-                        v-if="showDevSkip"
-                        expand="block"
-                        fill="clear"
-                        @click="handleSkip"
-                        :disabled="isLoading"
-                        size="small"
-                        color="medium"
-                        class="ion-margin-top"
-                    >
-                        Überspringen (Entwicklermodus)
-                    </ion-button>
+                    <component :is="DevSkipButton" v-if="DevSkipButton" :disabled="isLoading" />
                 </form>
+
+                <div class="legal-links">
+                    <ion-button fill="clear" size="small" color="medium" router-link="/impressum">
+                        Impressum
+                    </ion-button>
+                    <span class="legal-links__separator">·</span>
+                    <ion-button fill="clear" size="small" color="medium" router-link="/datenschutz">
+                        Datenschutz
+                    </ion-button>
+                </div>
             </div>
         </ion-content>
     </ion-page>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { defineAsyncComponent, onMounted, ref, watch } from 'vue';
 
 import {
     IonButton,
@@ -124,23 +123,43 @@ import { LOGOUT_REASON_MESSAGES, type LogoutReason } from '@/services/errorHandl
 
 const router = useRouter();
 const route = useRoute();
-const { login, setSkipAuth, isLoading, error } = useAuth();
+const { login, isLoading, error } = useAuth();
 const songsStore = useSongsStore();
 
 const email = ref('');
 const password = ref('');
 
-// Show dev skip button only if env var is set
-const showDevSkip = import.meta.env.VITE_SHOW_DEV_SKIP === 'true';
+// Dev-only skip button, loaded via a DEV-guarded dynamic import so production
+// builds emit neither the chunk nor its strings (a plain v-if compiles to an
+// unref() call that terser cannot fold away).
+const DevSkipButton =
+    import.meta.env.DEV && import.meta.env.VITE_SHOW_DEV_SKIP === 'true'
+        ? defineAsyncComponent(() => import('@/components/dev/DevSkipButton.vue'))
+        : null;
 
-// Get logout reason from query parameter
-const logoutMessage = computed(() => {
-    const reason = route.query.reason as LogoutReason | undefined;
-    if (reason && LOGOUT_REASON_MESSAGES[reason]) {
-        return LOGOUT_REASON_MESSAGES[reason];
-    }
-    return null;
-});
+function resolveLogoutMessage(reason: unknown): string | null {
+    if (typeof reason !== 'string') return null;
+    const message = LOGOUT_REASON_MESSAGES[reason as LogoutReason];
+    return typeof message === 'string' ? message : null;
+}
+
+// The reason banner must survive the URL cleanup below, so the message is latched
+// into a ref: captured once at setup (covers fresh mounts, e.g. the hard redirect
+// to /login?reason=account_deleted) and updated whenever a NEW reason arrives on
+// the route (covers Ionic reusing this page instance, e.g. the push to
+// /login?reason=registration_login_failed from the register page). A computed over
+// the live route would blank the banner the moment the query is stripped.
+const logoutMessage = ref<string | null>(resolveLogoutMessage(route.query.reason));
+
+watch(
+    () => route.query.reason,
+    (reason) => {
+        const message = resolveLogoutMessage(reason);
+        if (message) {
+            logoutMessage.value = message;
+        }
+    },
+);
 
 // Clear the reason from URL after displaying (optional, for cleaner URL)
 onMounted(() => {
@@ -163,18 +182,13 @@ async function handleLogin() {
         // Check if user has downloaded data
         const hasData = songsStore.songs.length > 0;
 
-        // If no data, go to onboarding; otherwise go to home
+        // If no data, go to onboarding; otherwise go to the songs tab
         if (!hasData) {
             router.push('/onboarding');
         } else {
-            router.push('/home');
+            router.push('/tabs/lieder');
         }
     }
-}
-
-async function handleSkip() {
-    await setSkipAuth(true);
-    router.push('/home');
 }
 </script>
 
@@ -219,5 +233,22 @@ async function handleSkip() {
 .error-banner ion-text {
     flex: 1;
     color: var(--ion-color-danger);
+}
+
+.legal-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.legal-links ion-button {
+    font-size: 0.75rem;
+    text-transform: none;
+}
+
+.legal-links__separator {
+    color: var(--ion-color-medium);
+    font-size: 0.75rem;
 }
 </style>

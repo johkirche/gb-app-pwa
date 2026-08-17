@@ -11,10 +11,21 @@ export const useUserStore = defineStore('user', () => {
     const isLoading = ref(false);
     const error = ref<string | null>(null);
 
+    // Dev-only auth bypass. Deliberately a plain in-memory ref, never written to
+    // Dexie: a persisted flag from a dev session would survive into later production
+    // builds. The router guard additionally gates on import.meta.env.DEV, so the
+    // bypass is dead code in production bundles.
+    const devSkipAuth = ref(false);
+
     // Computed
-    const isLoggedIn = computed(() => !!user.value);
+    //
+    // Logged in = a cached user AND session tokens. Requiring both is defense-in-depth
+    // against a hand-inserted db.users row granting access to requiresAuth routes — it
+    // is NOT real authorization: client-side storage can always be forged, and every
+    // server request still needs valid tokens. Login sets both (setUser), logout and
+    // clearSessionData clear both, so legitimate sessions are unaffected.
+    const isLoggedIn = computed(() => !!user.value && !!authData.value);
     const isActivated = computed(() => user.value?.activated || user.value?.role === 'activated');
-    const skipAuth = computed(() => user.value?.skipAuth || false);
 
     // Check if token is expired (with 5 minute buffer)
     const isTokenExpired = computed(() => {
@@ -115,21 +126,8 @@ export const useUserStore = defineStore('user', () => {
         });
     }
 
-    async function setSkipAuth(skip: boolean) {
-        if (user.value) {
-            const updatedUser = { ...user.value, skipAuth: skip };
-            await saveUserData(updatedUser);
-        } else {
-            // Create a temporary user with skip flag
-            const tempUser: UserData = {
-                id: 'guest',
-                email: 'guest@local',
-                role: 'guest',
-                activated: false,
-                skipAuth: skip,
-            };
-            await saveUserData(tempUser);
-        }
+    function setDevSkipAuth(skip: boolean) {
+        devSkipAuth.value = skip;
     }
 
     async function logout() {
@@ -166,15 +164,17 @@ export const useUserStore = defineStore('user', () => {
         // Computed
         isLoggedIn,
         isActivated,
-        skipAuth,
         isTokenExpired,
+
+        // Dev-only, in-memory
+        devSkipAuth,
 
         // Actions
         loadUserFromDB,
         setUser,
         updateUserRole,
         updateTokens,
-        setSkipAuth,
+        setDevSkipAuth,
         logout,
 
         // Initialization promise
