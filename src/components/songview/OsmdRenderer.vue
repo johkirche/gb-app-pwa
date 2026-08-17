@@ -30,6 +30,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'playStarted'): void;
     (e: 'playStopped'): void;
+    (e: 'rendered', payload: { lyricsRendered: boolean }): void;
+    (e: 'renderFailed', reason: 'corrupt' | 'engine'): void;
 }>();
 
 defineExpose({ stop: stopPlayback });
@@ -42,6 +44,13 @@ let osmd: OSMDType | null = null;
 let playbackEngine: PlaybackEngineType | null = null;
 let isInitialized = false;
 let themeObserver: MutationObserver | null = null;
+// In-flight guard for the lazy (multi-second) engine construction: without
+// it, play→pause→play during init would build two engines that both play,
+// with the first one unstoppable.
+let initPromise: Promise<void> | null = null;
+// Monotonic token so only the latest play request actually starts playback
+// after the shared init finishes — earlier awaiters must not call play() too.
+let playRequestToken = 0;
 
 const isDarkMode = ref(false);
 
@@ -89,7 +98,12 @@ async function initOsmd() {
             detectDarkMode();
             if (wasDark !== isDarkMode.value && osmd) {
                 (osmd as any).setOptions(getOsmdOptions());
-                osmd.render();
+                try {
+                    osmd.render();
+                } catch {
+                    // No sheet loaded (blob missing/failed) — OSMD 1.9.9
+                    // render() throws without a sheet; nothing to re-render.
+                }
             }
         });
         themeObserver.observe(document.documentElement, {
@@ -99,7 +113,32 @@ async function initOsmd() {
     } catch (error) {
         console.error('Failed to load OSMD:', error);
         renderError.value = 'Notation konnte nicht geladen werden';
+        emit('renderFailed', 'engine');
     }
+}
+
+// Walk the loaded sheet for ANY lyrics entry (OSMD 1.9.9 object model).
+// StaffEntries is a sparse array — undefined slots must be skipped.
+function sheetHasLyrics(): boolean {
+    if (!osmd?.Sheet) return false;
+    for (const m of osmd.Sheet.SourceMeasures) {
+        for (const c of m.VerticalSourceStaffEntryContainers) {
+            for (const se of c.StaffEntries) {
+                if (!se) continue;
+                for (const ve of se.VoiceEntries) {
+                    if (ve.LyricsEntries.size() > 0) return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// Whether the just-finished render actually drew lyrics under the notes:
+// requires both the setting to be on AND the sheet to contain lyrics.
+function computeLyricsRendered(): boolean {
+    const drawLyrics = props.settings?.showLyrics ?? true;
+    return drawLyrics && sheetHasLyrics();
 }
 
 // Tighten OSMD's default page/system margins for a denser hymnal layout.
@@ -153,11 +192,23 @@ async function loadAndRender() {
         applyScale();
         osmd.render();
 
-        // (Re)initialize audio playback engine
-        await initPlayback();
+        emit('rendered', { lyricsRendered: computeLyricsRendered() });
+
+        // Invalidate any engine built for a previous sheet — playback is
+        // constructed lazily on the first play tap (see startPlayback), so the
+        // soundfont is never fetched just because a song was opened.
+        if (playbackEngine) {
+            try {
+                await playbackEngine.stop();
+            } catch {
+                // ignore
+            }
+            playbackEngine = null;
+        }
     } catch (error) {
         console.error('Failed to render MusicXML:', error);
         renderError.value = 'Fehler beim Rendern der Noten';
+        emit('renderFailed', 'corrupt');
     }
 }
 
@@ -175,9 +226,12 @@ async function initPlayback() {
     }
 
     try {
-        const PlaybackEngineModule = await import('osmd-audio-player');
-        const PlaybackEngine = PlaybackEngineModule.default;
-        playbackEngine = new PlaybackEngine();
+        const { default: PlaybackEngine } = await import('osmd-audio-player');
+        const { AudioContext } = await import('standardized-audio-context');
+        const { LocalSoundfontPlayer } = await import('@/services/localSoundfontPlayer');
+        // Local instrument player: soundfonts come precached from the app's
+        // own origin (public/soundfonts/) — no gleitz.github.io request.
+        playbackEngine = new PlaybackEngine(new AudioContext(), new LocalSoundfontPlayer());
         await playbackEngine.loadScore(osmd as any);
         if (props.tempo) {
             playbackEngine.setBpm(props.tempo);
@@ -195,10 +249,29 @@ function applyScale() {
 }
 
 async function startPlayback() {
+    const token = ++playRequestToken;
     if (!playbackEngine) {
-        await initPlayback();
+        // Lazy engine construction on the first play tap — inside the user
+        // gesture, which also satisfies the browser autoplay policy.
+        // Concurrent callers share one in-flight init instead of each
+        // building their own engine.
+        initPromise ??= initPlayback().finally(() => {
+            initPromise = null;
+        });
+        await initPromise;
     }
-    if (!playbackEngine) return;
+    if (!playbackEngine) {
+        // Engine could not be built — tell the parent so the play button
+        // does not stay stuck in the "pause" state.
+        emit('playStopped');
+        return;
+    }
+    // The user may have tapped pause (or play again) while the engine was
+    // still initializing — only the latest request with play still active
+    // may start playback.
+    if (token !== playRequestToken || !props.isPlaying) {
+        return;
+    }
     try {
         await playbackEngine.play();
         emit('playStarted');
@@ -241,7 +314,12 @@ watch(
     () => {
         if (osmd && isInitialized) {
             applyScale();
-            osmd.render();
+            try {
+                osmd.render();
+            } catch {
+                // No sheet loaded (blob missing/failed) — OSMD 1.9.9
+                // render() throws without a sheet; nothing to re-render.
+            }
         }
     },
 );
@@ -253,7 +331,18 @@ watch(
             // setOptions accepts a partial options object
             (osmd as any).setOptions(getOsmdOptions());
             applyEngravingTweaks();
-            osmd.render();
+            try {
+                osmd.render();
+            } catch {
+                // No sheet loaded (blob missing/failed) — nothing re-rendered,
+                // so there is no state change to announce.
+                return;
+            }
+            // Re-emit after every settings re-render: toggling showLyrics
+            // changes lyricsRendered and the parent must not keep a stale value.
+            if (osmd.Sheet) {
+                emit('rendered', { lyricsRendered: computeLyricsRendered() });
+            }
         }
     },
     { deep: true },
