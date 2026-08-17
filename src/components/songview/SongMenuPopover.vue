@@ -21,6 +21,7 @@
                     <ion-select
                         slot="end"
                         :value="songFontSize"
+                        interface="popover"
                         @ionChange="$emit('update:songFontSize', $event.detail.value)"
                     >
                         <ion-select-option value="small">Klein</ion-select-option>

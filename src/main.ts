@@ -44,7 +44,10 @@ initPWAListeners();
 const { initUpdatePrompt } = useAppUpdate();
 initUpdatePrompt();
 
-const app = createApp(App).use(IonicVue).use(pinia).use(router);
+// One consistent look on every device: without an explicit mode, Ionic renders
+// Material on Android/desktop and iOS style on Apple devices — the congregation
+// would see two different apps.
+const app = createApp(App).use(IonicVue, { mode: 'ios' }).use(pinia).use(router);
 
 // Register custom directives
 app.directive('long-press', longPressDirective);

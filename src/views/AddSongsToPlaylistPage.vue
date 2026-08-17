@@ -214,7 +214,7 @@ function formatCategories(categories: Category[]): string {
     min-height: 50vh;
 }
 
-.state-container ion-icon {
+.state-container > ion-icon {
     font-size: 64px;
     color: var(--ion-color-medium);
     margin-bottom: 16px;

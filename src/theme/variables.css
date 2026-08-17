@@ -389,3 +389,25 @@ ion-toolbar {
     max-width: var(--container-md);
     margin: 0 auto;
 }
+
+/* ============================================
+   Buttons: calm typography in every mode
+   ============================================
+   Ionic's Material mode shouts (UPPERCASE + letter-spacing) while iOS mode
+   does not, so the app looked different — and worse — in desktop browsers
+   and on Android. Neutral typography in both modes gives one consistent,
+   modern look everywhere. */
+
+ion-button {
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 500;
+    --border-radius: 10px;
+}
+
+/* Alert/action-sheet buttons are separate elements and uppercase in MD too. */
+ion-alert .alert-button,
+ion-action-sheet .action-sheet-button {
+    text-transform: none;
+    letter-spacing: normal;
+}

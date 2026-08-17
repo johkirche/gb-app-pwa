@@ -24,12 +24,6 @@
                             <span class="playlist-row__title">Favoriten</span>
                             <span class="playlist-row__meta">{{ favoriteCountLabel }}</span>
                         </ion-label>
-                        <ion-icon
-                            slot="end"
-                            class="playlist-row__chevron"
-                            :icon="chevronForwardOutline"
-                            aria-hidden="true"
-                        ></ion-icon>
                     </ion-item>
                 </ion-list>
 
@@ -70,12 +64,6 @@
                                 · {{ formatDate(playlist.createdAt) }}
                             </span>
                         </ion-label>
-                        <ion-icon
-                            slot="end"
-                            class="playlist-row__chevron"
-                            :icon="chevronForwardOutline"
-                            aria-hidden="true"
-                        ></ion-icon>
                     </ion-item>
                 </ion-list>
             </template>
@@ -109,14 +97,7 @@ import {
     IonToolbar,
     actionSheetController,
 } from '@ionic/vue';
-import {
-    addOutline,
-    albumsOutline,
-    chevronForwardOutline,
-    closeOutline,
-    heart,
-    trashOutline,
-} from 'ionicons/icons';
+import { addOutline, albumsOutline, closeOutline, heart, trashOutline } from 'ionicons/icons';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
@@ -241,11 +222,6 @@ async function deletePlaylist(playlist: Playlist) {
     color: var(--ion-color-medium);
 }
 
-.playlist-row__chevron {
-    color: var(--ion-color-medium);
-    font-size: var(--font-size-base);
-}
-
 .state-container {
     display: flex;
     flex-direction: column;
@@ -256,7 +232,7 @@ async function deletePlaylist(playlist: Playlist) {
     min-height: 60vh;
 }
 
-.state-container ion-icon {
+.state-container > ion-icon {
     font-size: 64px;
     color: var(--ion-color-medium);
 }
