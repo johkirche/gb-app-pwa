@@ -4,7 +4,13 @@ import Dexie, { Table } from 'dexie';
 export interface Autor {
     vorname: string;
     nachname: string;
-    sterbejahr?: number;
+    sterbejahr?: number | null;
+    geburtsjahr?: number | null;
+    geburtsjahrePrefix?: string | null;
+    sterbejahrPrefix?: string | null;
+    autorPrefix?: string | null;
+    autorSuffix?: string | null;
+    ursprungsAutorObj?: Autor | null;
 }
 
 export interface NotenFile {
@@ -42,6 +48,13 @@ export interface Song {
     noten: NotenFile[];
     notentextMxml: NotenFile | null;
     kategorien: Category[];
+    // Urheberangaben (Dashboard-kompatibel, Issue #18) — optional, damit vor
+    // dem nächsten Sync gespeicherte Lieder weiterhin gültig bleiben.
+    copyright?: string | null;
+    textCopyright?: string | null;
+    melodieCopyright?: string | null;
+    textAutorExtraSuffix?: string | null;
+    melodieAutorExtraSuffix?: string | null;
 }
 
 // Auth related types
@@ -59,7 +72,12 @@ export interface UserData {
     lastName?: string;
     role: string;
     activated: boolean;
-    skipAuth: boolean; // Dev flag to skip auth checks
+}
+
+// Sync/app metadata as simple key-value rows (e.g. lastSyncTime, lastServerUpdate)
+export interface MetaEntry {
+    key: string;
+    value: string;
 }
 
 // Playlist types
@@ -103,6 +121,7 @@ export class GesangbuchDatabase extends Dexie {
     playlists!: Table<Playlist, string>;
     preferences!: Table<PreferencesData, string>;
     favorites!: Table<Favorite, string>;
+    meta!: Table<MetaEntry, string>;
 
     constructor() {
         super('GesangbuchDB');
@@ -149,6 +168,26 @@ export class GesangbuchDatabase extends Dexie {
             preferences: 'id',
             favorites: 'id, createdAt',
         });
+
+        // Version 6: Add meta table; purge persisted dev skip-auth records
+        // (the dev bypass is in-memory only now and must not survive in IndexedDB)
+        this.version(6)
+            .stores({
+                songs: 'id, titel',
+                files: 'id, filename',
+                auth: 'id',
+                users: 'id, email, role',
+                playlists: 'id, name, createdAt',
+                preferences: 'id',
+                favorites: 'id, createdAt',
+                meta: 'key',
+            })
+            .upgrade((tx) =>
+                tx
+                    .table('users')
+                    .filter((u) => u.skipAuth === true || u.id === 'guest')
+                    .delete(),
+            );
     }
 }
 

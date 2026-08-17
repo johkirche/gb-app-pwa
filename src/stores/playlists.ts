@@ -223,6 +223,13 @@ export const usePlaylistsStore = defineStore('playlists', () => {
         return playlists.value.find((p) => p.id === id);
     }
 
+    // Remove all playlists from Dexie and memory (used on logout — playlists are
+    // user data and must not leak to the next account on a shared device).
+    async function clearAll(): Promise<void> {
+        await db.playlists.clear();
+        playlists.value = [];
+    }
+
     // Initialize on store creation
     loadPlaylists();
 
@@ -244,5 +251,6 @@ export const usePlaylistsStore = defineStore('playlists', () => {
         removeSongFromPlaylist,
         reorderSongs,
         getPlaylistById,
+        clearAll,
     };
 });

@@ -3,7 +3,7 @@
         <ion-header :translucent="true">
             <ion-toolbar>
                 <ion-buttons slot="start">
-                    <ion-back-button default-href="/home" text=""></ion-back-button>
+                    <ion-back-button default-href="/tabs/playlisten" text=""></ion-back-button>
                 </ion-buttons>
                 <ion-title>Favoriten</ion-title>
             </ion-toolbar>
@@ -17,7 +17,7 @@
                 <p>
                     Tippe auf das Herz-Symbol in einem Lied, um es zu deinen Favoriten hinzuzufügen.
                 </p>
-                <ion-button fill="outline" @click="router.push('/songs')">
+                <ion-button fill="outline" @click="router.push('/tabs/lieder')">
                     Lieder durchsuchen
                 </ion-button>
             </div>

@@ -87,7 +87,40 @@
                             autocomplete="new-password"
                             fill="outline"
                             :disabled="isLoading"
+                            @ionFocus="passwordFocused = true"
                         ></ion-input>
+
+                        <!-- Password Requirements (same rules as registration) -->
+                        <Transition name="slide-fade">
+                            <div v-show="passwordFocused" class="password-rules">
+                                <div class="rule" :class="{ valid: hasMinLength }">
+                                    <ion-icon
+                                        :icon="
+                                            hasMinLength ? checkmarkCircleOutline : ellipseOutline
+                                        "
+                                    ></ion-icon>
+                                    <span>Mindestens 8 Zeichen</span>
+                                </div>
+                                <div class="rule" :class="{ valid: hasUppercase }">
+                                    <ion-icon
+                                        :icon="
+                                            hasUppercase ? checkmarkCircleOutline : ellipseOutline
+                                        "
+                                    ></ion-icon>
+                                    <span>Mindestens ein Großbuchstabe</span>
+                                </div>
+                                <div class="rule" :class="{ valid: hasNumberOrSpecial }">
+                                    <ion-icon
+                                        :icon="
+                                            hasNumberOrSpecial
+                                                ? checkmarkCircleOutline
+                                                : ellipseOutline
+                                        "
+                                    ></ion-icon>
+                                    <span>Mindestens eine Zahl oder Sonderzeichen</span>
+                                </div>
+                            </div>
+                        </Transition>
 
                         <ion-input
                             v-model="confirmPassword"
@@ -98,7 +131,22 @@
                             autocomplete="new-password"
                             fill="outline"
                             :disabled="isLoading"
+                            @ionFocus="confirmPasswordFocused = true"
                         ></ion-input>
+
+                        <!-- Password Match -->
+                        <Transition name="slide-fade">
+                            <div v-show="confirmPasswordFocused" class="password-rules">
+                                <div class="rule" :class="{ valid: passwordsMatch }">
+                                    <ion-icon
+                                        :icon="
+                                            passwordsMatch ? checkmarkCircleOutline : ellipseOutline
+                                        "
+                                    ></ion-icon>
+                                    <span>Passwörter stimmen überein</span>
+                                </div>
+                            </div>
+                        </Transition>
                     </div>
 
                     <ion-text v-if="passwordError" color="danger" class="ion-margin-top">
@@ -151,13 +199,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import { IonButton, IonContent, IonIcon, IonInput, IonPage, IonSpinner, IonText } from '@ionic/vue';
-import { arrowBackOutline, checkmarkCircleOutline, keyOutline } from 'ionicons/icons';
+import {
+    arrowBackOutline,
+    checkmarkCircleOutline,
+    ellipseOutline,
+    keyOutline,
+} from 'ionicons/icons';
 import { useRoute } from 'vue-router';
 
 import { useAuth } from '@/composables/useAuth';
+import { usePasswordRules } from '@/composables/usePasswordRules';
 
 const route = useRoute();
 const { requestPasswordReset, resetPassword, isLoading, error } = useAuth();
@@ -169,15 +223,14 @@ const confirmPassword = ref('');
 const passwordError = ref('');
 const emailSent = ref(false);
 const resetSuccess = ref(false);
+const passwordFocused = ref(false);
+const confirmPasswordFocused = ref(false);
 
-const isPasswordValid = computed(() => {
-    return (
-        newPassword.value &&
-        confirmPassword.value &&
-        newPassword.value === confirmPassword.value &&
-        newPassword.value.length >= 8
-    );
-});
+// Same rules as registration — the extension enforces them server-side only at
+// registration, but a reset password weaker than the registration rules would be
+// confusing and defeat their purpose.
+const { hasMinLength, hasUppercase, hasNumberOrSpecial, passwordsMatch, isPasswordValid } =
+    usePasswordRules(newPassword, confirmPassword);
 
 onMounted(() => {
     // Check if there's a token in the URL query params
@@ -197,8 +250,9 @@ async function handleRequestReset() {
 async function handleResetPassword() {
     passwordError.value = '';
 
-    if (newPassword.value.length < 8) {
-        passwordError.value = 'Passwort muss mindestens 8 Zeichen lang sein';
+    if (!hasMinLength.value || !hasUppercase.value || !hasNumberOrSpecial.value) {
+        passwordError.value =
+            'Das Passwort erfüllt nicht die Anforderungen: mindestens 8 Zeichen, ein Großbuchstabe und eine Zahl oder ein Sonderzeichen.';
         return;
     }
 
@@ -223,5 +277,61 @@ async function handleResetPassword() {
 /* PasswordResetPage - uses global result-box classes from variables.css */
 .back-link {
     text-align: center;
+}
+
+/* Password Rules (mirrors RegisterPage) */
+.password-rules {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) 0;
+}
+
+.rule {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--ion-color-medium);
+    transition: color 0.2s ease;
+}
+
+.rule ion-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.rule.valid {
+    color: var(--ion-color-success);
+}
+
+.rule.valid ion-icon {
+    color: var(--ion-color-success);
+}
+
+/* Slide-fade transition */
+.slide-fade-enter-active {
+    transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+    transition: all 0.2s ease-in;
+}
+
+.slide-fade-enter-from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+}
+
+.slide-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.slide-fade-enter-to,
+.slide-fade-leave-from {
+    opacity: 1;
+    transform: translateY(0);
 }
 </style>

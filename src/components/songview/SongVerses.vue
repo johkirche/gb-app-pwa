@@ -4,7 +4,10 @@
             <template v-for="(strophe, idx) in strophes" :key="idx">
                 <div v-if="!(skipFirst && idx === 0)" class="verse">
                     <span class="verse-number">{{ idx + 1 }}.</span>
-                    <p class="verse-text" v-html="formatVerse(getStropheText(strophe))"></p>
+                    <div class="verse-body">
+                        <p class="verse-text" v-html="formatVerse(getStropheText(strophe))"></p>
+                        <p v-if="strophe.anmerkung" class="verse-note">{{ strophe.anmerkung }}</p>
+                    </div>
                 </div>
             </template>
         </div>
@@ -15,6 +18,7 @@
 interface Strophe {
     text?: string | { strophe?: string };
     strophe?: string;
+    anmerkung?: string | null;
 }
 
 defineProps<{
@@ -66,10 +70,24 @@ function formatVerse(text: string | null | undefined): string {
     line-height: var(--verse-line-height, 1.6);
 }
 
+.verse-body {
+    display: flex;
+    flex-direction: column;
+}
+
 .verse-text {
     margin: 0;
     font-size: var(--verse-font-size, var(--font-size-base));
     line-height: var(--verse-line-height, 1.6);
     color: var(--ion-color-dark);
+}
+
+/* Per-verse note (anmerkung): muted, italic, slightly smaller than the verse */
+.verse-note {
+    margin: var(--spacing-xs) 0 0;
+    font-size: calc(var(--verse-font-size, var(--font-size-base)) * 0.85);
+    line-height: var(--verse-line-height, 1.6);
+    font-style: italic;
+    color: var(--ion-color-medium);
 }
 </style>

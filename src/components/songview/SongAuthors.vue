@@ -1,41 +1,54 @@
 <template>
-    <div class="authors-section">
-        <div v-if="textAuthors.length > 0" class="author-row">
-            <ion-icon :icon="documentTextOutline" />
-            <div class="author-info">
-                <span class="author-label">Text:</span>
-                <span class="author-names">{{ formatAuthors(textAuthors) }}</span>
-            </div>
-        </div>
-        <div v-if="melodyAuthors.length > 0" class="author-row">
-            <ion-icon :icon="musicalNoteOutline" />
-            <div class="author-info">
-                <span class="author-label">Melodie:</span>
-                <span class="author-names">{{ formatAuthors(melodyAuthors) }}</span>
-            </div>
+    <div v-if="footerLines.length > 0" class="authors-section">
+        <div v-for="(line, idx) in footerLines" :key="idx" class="author-row">
+            <ion-icon v-if="line.icon" :icon="line.icon" />
+            <span class="author-line" :class="{ 'copyright-line': line.isCopyright }">
+                {{ line.text }}
+            </span>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import { IonIcon } from '@ionic/vue';
 import { documentTextOutline, musicalNoteOutline } from 'ionicons/icons';
 
-import type { Autor } from '@/db';
+import type { Song } from '@/db';
+import { buildFooter } from '@/utils/authorFormat';
 
-defineProps<{
-    textAuthors: Autor[];
-    melodyAuthors: Autor[];
+const props = defineProps<{
+    song: Song;
 }>();
 
-function formatAuthors(authors: Autor[]): string {
-    return authors
-        .map((a) => {
-            const name = `${a.vorname} ${a.nachname}`;
-            return a.sterbejahr ? `${name} (†${a.sterbejahr})` : name;
-        })
-        .join(', ');
+function lineIcon(line: string): string | null {
+    if (line.startsWith('Text:')) return documentTextOutline;
+    if (line.startsWith('Melodie:') || line.startsWith('Text und Melodie:')) {
+        return musicalNoteOutline;
+    }
+    // Copyright lines ("© …") get a plain muted row without icon
+    return null;
 }
+
+// Canonical footer grammar shared with the dashboard (utils/authorFormat):
+//   Text: … / Melodie: … / "Text und Melodie: …" when identical, then "© …".
+const footerLines = computed(() =>
+    buildFooter({
+        copyright: props.song.copyright,
+        textAutorExtraSuffix: props.song.textAutorExtraSuffix,
+        melodieAutorExtraSuffix: props.song.melodieAutorExtraSuffix,
+        text: { authors: props.song.textAutoren, copyright: props.song.textCopyright },
+        melodie: { authors: props.song.melodieAutoren, copyright: props.song.melodieCopyright },
+    })
+        .split('\n')
+        .filter(Boolean)
+        .map((text) => ({
+            text,
+            icon: lineIcon(text),
+            isCopyright: text.startsWith('©'),
+        })),
+);
 </script>
 
 <style scoped>
@@ -47,7 +60,7 @@ function formatAuthors(authors: Autor[]): string {
 
 .author-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--spacing-sm);
     margin-bottom: var(--spacing-sm);
     color: var(--ion-color-medium);
@@ -59,18 +72,12 @@ function formatAuthors(authors: Autor[]): string {
     font-size: 18px;
 }
 
-.author-info {
-    display: flex;
-    flex-wrap: wrap;
-    padding-top: 4px;
-    gap: var(--spacing-xs);
-}
-
-.author-label {
-    font-weight: 500;
-}
-
-.author-names {
+.author-line {
     color: var(--ion-color-dark);
+}
+
+.copyright-line {
+    color: var(--ion-color-medium);
+    font-size: var(--font-size-sm);
 }
 </style>

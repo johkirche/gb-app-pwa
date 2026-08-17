@@ -11,10 +11,14 @@ export function useStoredFiles() {
     /**
      * Get a blob URL for a stored file
      * @param fileId The Directus file ID
+     * @param filename The real download filename, stored alongside an
+     *                 on-demand-fetched blob (instead of '<id>.bin')
      * @returns A blob URL that can be used in img src, or null if not found
      */
-    async function getFileUrl(fileId: string): Promise<string | null> {
-        const blob = await songsStore.getFileBlob(fileId);
+    async function getFileUrl(fileId: string, filename?: string): Promise<string | null> {
+        // On-demand network fallback included: a locally missing file is
+        // fetched once and persisted back into Dexie.
+        const blob = await songsStore.getOrFetchFileBlob(fileId, filename);
         if (!blob) return null;
         return URL.createObjectURL(blob);
     }

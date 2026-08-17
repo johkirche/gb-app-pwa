@@ -46,7 +46,20 @@
                         :tempo="tempo"
                         @play-started="isPlaying = true"
                         @play-stopped="isPlaying = false"
+                        @rendered="onNotationRendered"
+                        @render-failed="onNotationRenderFailed"
                     />
+                    <div v-if="notationState === 'blob-missing-offline'" class="no-melody-notice">
+                        <ion-icon :icon="musicalNotesOutline" />
+                        <span>
+                            Noten sind offline nicht verfügbar. Stellen Sie eine Internetverbindung
+                            her und laden Sie das Lied erneut.
+                        </span>
+                    </div>
+                    <div v-else-if="notationState === 'blob-fetch-failed'" class="no-melody-notice">
+                        <ion-icon :icon="musicalNotesOutline" />
+                        <span>Noten konnten nicht geladen werden.</span>
+                    </div>
                 </div>
 
                 <!-- No Melody Notice -->
@@ -55,24 +68,26 @@
                     <span>Keine Melodie verfügbar</span>
                 </div>
 
-                <!-- Song Verses (skip first strophe when XML mode shows lyrics under notes) -->
+                <!-- Song Verses: verse 1 is only skipped when the notation
+                     actually rendered lyrics under the notes -->
                 <SongVerses
                     :strophes="song.strophen"
-                    :skip-first="
-                        melodyDisplayMode === 'xml' && hasMelodyXml && xmlSettings.showLyrics
-                    "
+                    :skip-first="melodyDisplayMode === 'xml' && lyricsInNotation"
                 />
 
                 <!-- Authors Section -->
-                <SongAuthors
-                    :text-authors="song.textAutoren"
-                    :melody-authors="song.melodieAutoren"
-                />
+                <SongAuthors :song="song" />
             </div>
         </ion-content>
 
         <ion-footer
-            v-if="song && showControls && melodyDisplayMode === 'xml' && hasMelodyXml"
+            v-if="
+                song &&
+                showControls &&
+                melodyDisplayMode === 'xml' &&
+                hasMelodyXml &&
+                notationState === 'ready'
+            "
             class="audio-controls-footer"
         >
             <SongAudioControls
@@ -126,6 +141,15 @@ const melodyImageUrl = ref<string | null>(null);
 const imageLoading = ref(false);
 const melodyXmlBlob = ref<Blob | null>(null);
 
+// Notation lifecycle: distinguishes a missing blob (offline vs. fetch error)
+// from a failed render — each shows its own notice.
+const notationState = ref<
+    'loading' | 'ready' | 'blob-missing-offline' | 'blob-fetch-failed' | 'render-failed'
+>('loading');
+// True only after a successful render that actually drew lyrics under the
+// notes — the sole condition under which verse 1 may be hidden.
+const lyricsInNotation = ref(false);
+
 // Refs
 const osmdRendererRef = ref<InstanceType<typeof OsmdRenderer> | null>(null);
 
@@ -157,18 +181,41 @@ const hasMelodyImage = computed(() => {
 // Check if song has MusicXML notation (.mxl or .musicxml)
 const hasMelodyXml = computed(() => !!song.value?.notentextMxml);
 
-// Load MusicXML blob from stored files (lazily — only when xml mode is active)
+// Load MusicXML blob from stored files (lazily — only when xml mode is active).
+// Falls back to an on-demand network fetch (stored back into Dexie) when the
+// blob is missing locally.
 async function loadMelodyXml() {
     if (!song.value?.notentextMxml) {
         melodyXmlBlob.value = null;
         return;
     }
+    notationState.value = 'loading';
+    lyricsInNotation.value = false;
     try {
-        melodyXmlBlob.value = (await songsStore.getFileBlob(song.value.notentextMxml.id)) || null;
+        const blob = await songsStore.getOrFetchFileBlob(
+            song.value.notentextMxml.id,
+            song.value.notentextMxml.filename_download,
+        );
+        melodyXmlBlob.value = blob;
+        if (!blob) {
+            notationState.value = navigator.onLine ? 'blob-fetch-failed' : 'blob-missing-offline';
+        }
     } catch (err) {
         console.error('Error loading MusicXML blob:', err);
         melodyXmlBlob.value = null;
+        notationState.value = navigator.onLine ? 'blob-fetch-failed' : 'blob-missing-offline';
     }
+}
+
+// Outcome of the actual OSMD render — only a real render may flip these.
+function onNotationRendered(payload: { lyricsRendered: boolean }) {
+    lyricsInNotation.value = payload.lyricsRendered;
+    notationState.value = 'ready';
+}
+
+function onNotationRenderFailed() {
+    notationState.value = 'render-failed';
+    lyricsInNotation.value = false;
 }
 
 // Load melody image from stored files
@@ -184,12 +231,15 @@ async function loadMelodyImage() {
         const imageFile = song.value.noten.find((note) => {
             const filename = note.filename_download.toLowerCase();
             return (
-                filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.svg')
+                filename.endsWith('.png') ||
+                filename.endsWith('.jpg') ||
+                filename.endsWith('.jpeg') ||
+                filename.endsWith('.svg')
             );
         });
 
         if (imageFile) {
-            const url = await getFileUrl(imageFile.id);
+            const url = await getFileUrl(imageFile.id, imageFile.filename_download);
             melodyImageUrl.value = url;
         } else {
             melodyImageUrl.value = null;
@@ -207,9 +257,22 @@ function loadSong() {
     const songId = route.params.id as string;
     if (songId) {
         song.value = songs.value.find((s) => s.id === songId) || null;
-        // Load melody assets when song is loaded
-        loadMelodyImage();
-        loadMelodyXml();
+        // Reset notation outcome before loading the next song's assets
+        notationState.value = 'loading';
+        lyricsInNotation.value = false;
+        // Load only the active display mode's asset — getOrFetchFileBlob has a
+        // network fallback, so eagerly loading both would spend bandwidth and
+        // quota on the asset the current mode never shows. The
+        // melodyDisplayMode watcher loads the other asset on switch.
+        // Drop the inactive mode's stale asset so a later switch cannot
+        // briefly show the previous song's melody.
+        if (melodyDisplayMode.value === 'xml') {
+            melodyImageUrl.value = null;
+            loadMelodyXml();
+        } else {
+            melodyXmlBlob.value = null;
+            loadMelodyImage();
+        }
     }
     console.log('Loaded song:', song.value);
 }
@@ -238,6 +301,8 @@ watch(
 
 // Reload assets when display mode changes
 watch(melodyDisplayMode, () => {
+    notationState.value = 'loading';
+    lyricsInNotation.value = false;
     if (melodyDisplayMode.value === 'image') {
         loadMelodyImage();
     } else if (melodyDisplayMode.value === 'xml') {

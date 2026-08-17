@@ -17,10 +17,9 @@ $RECYCLE.BIN/
 log.txt
 npm-debug.log*
 
-# Environment variables
+# Environment variables (.env.production is committed on purpose — public values only)
 .env
 .env.local
-.env.production
 .env.staging
 
 /.idea

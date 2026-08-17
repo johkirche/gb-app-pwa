@@ -353,7 +353,10 @@ ion-toolbar {
     align-items: center;
     justify-content: center;
     gap: var(--spacing-md);
-    height: calc(100vh - 80px);
+    /* min-height instead of a hard 100vh-based height: inside the tab layout the
+       container sits below a toolbar and above the tab bar, and a fixed viewport
+       height overflows that space and produces a scrollbar on empty pages. */
+    min-height: 55vh;
 }
 
 .state-container--inline {

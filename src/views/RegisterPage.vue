@@ -231,24 +231,13 @@
                             <span v-else>Konto erstellen</span>
                         </ion-button>
 
-                        <ion-button
-                            v-if="showDevSkip"
-                            expand="block"
-                            fill="clear"
-                            @click="handleSkip"
-                            :disabled="isLoading"
-                            size="small"
-                            color="medium"
-                            class="ion-margin-top"
-                        >
-                            Überspringen (Entwicklermodus)
-                        </ion-button>
+                        <component :is="DevSkipButton" v-if="DevSkipButton" :disabled="isLoading" />
                     </form>
 
                     <div class="section-footer">
                         <ion-text color="medium">
                             Keinen Code erhalten?
-                            <a href="mailto:support@example.com">Kontaktieren Sie uns</a>
+                            <a :href="`mailto:${SUPPORT_EMAIL}`">Kontaktieren Sie uns</a>
                         </ion-text>
                     </div>
                 </div>
@@ -258,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 
 import { IonButton, IonContent, IonIcon, IonInput, IonPage, IonSpinner, IonText } from '@ionic/vue';
 import {
@@ -272,16 +261,23 @@ import {
 import { useRouter } from 'vue-router';
 
 import { useAuth } from '@/composables/useAuth';
+import { usePasswordRules } from '@/composables/usePasswordRules';
 
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
-import { USER_ALREADY_REGISTERED } from '@/services/errorHandler';
+import { SUPPORT_EMAIL } from '@/config/support';
+import { REGISTRATION_LOGIN_FAILED, USER_ALREADY_REGISTERED } from '@/services/errorHandler';
 
 const router = useRouter();
-const { register, setSkipAuth, clearError, isLoading, error } = useAuth();
+const { register, clearError, isLoading, error } = useAuth();
 
-// Show dev skip button only if env var is set
-const showDevSkip = import.meta.env.VITE_SHOW_DEV_SKIP === 'true';
+// Dev-only skip button, loaded via a DEV-guarded dynamic import so production
+// builds emit neither the chunk nor its strings (a plain v-if compiles to an
+// unref() call that terser cannot fold away).
+const DevSkipButton =
+    import.meta.env.DEV && import.meta.env.VITE_SHOW_DEV_SKIP === 'true'
+        ? defineAsyncComponent(() => import('@/components/dev/DevSkipButton.vue'))
+        : null;
 
 // Step management
 const currentStep = ref(1);
@@ -298,30 +294,17 @@ const confirmPasswordFocused = ref(false);
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
-// Password validation rules
-const hasMinLength = computed(() => password.value.length >= 8);
-const hasUppercase = computed(() => /[A-Z]/.test(password.value));
-// Mirrors the extension's rule exactly: any digit, or any non-alphanumeric
-// non-whitespace character. A narrower list here would reject passwords the
-// backend accepts (e.g. "Passwort_x").
-const hasNumberOrSpecial = computed(() => /[0-9]|[^A-Za-z0-9\s]/.test(password.value));
-const passwordsMatch = computed(() => {
-    return confirmPassword.value.length > 0 && password.value === confirmPassword.value;
-});
+// Password validation rules (shared with PasswordResetPage; mirror the extension)
+const { hasMinLength, hasUppercase, hasNumberOrSpecial, passwordsMatch, isPasswordValid } =
+    usePasswordRules(password, confirmPassword);
 
 // Validation for Step 1
 const isStep1Valid = computed(() => {
-    return (
-        email.value &&
-        hasMinLength.value &&
-        hasUppercase.value &&
-        hasNumberOrSpecial.value &&
-        passwordsMatch.value
-    );
+    return Boolean(email.value) && isPasswordValid.value;
 });
 
 function goToStep2() {
-    if (!hasMinLength.value || !passwordsMatch.value) {
+    if (!isPasswordValid.value) {
         return;
     }
 
@@ -353,16 +336,20 @@ async function handleRegister() {
         return;
     }
 
+    // The account WAS created but the automatic login failed (the extension already
+    // consumed the one-time activation code, so retrying the registration could only
+    // yield USER_ALREADY_REGISTERED). Send the user to the login page, where the
+    // reason banner explains what happened.
+    if (result.code === REGISTRATION_LOGIN_FAILED) {
+        router.push({ path: '/login', query: { reason: 'registration_login_failed' } });
+        return;
+    }
+
     // The email lives on step 1, so send the user back to the field they must fix
     // instead of leaving the message on the activation-code step.
     if (result.code === USER_ALREADY_REGISTERED) {
         currentStep.value = 1;
     }
-}
-
-async function handleSkip() {
-    await setSkipAuth(true);
-    router.push('/home');
 }
 </script>
 
