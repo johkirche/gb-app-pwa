@@ -29,13 +29,13 @@
                                     <h3>Name</h3>
                                     <p>{{ displayName }}</p>
                                 </ion-label>
-                                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
 
                             <ion-item
                                 v-if="isLoggedIn"
                                 class="transparent"
                                 button
+                                :detail="false"
                                 @click="handleLogout"
                             >
                                 <ion-icon
@@ -58,20 +58,33 @@
                     </ion-card-header>
                     <ion-card-content>
                         <ion-list class="transparent" lines="full">
-                            <ion-item class="transparent">
+                            <ion-item class="transparent" lines="none">
                                 <ion-icon :icon="contrastOutline" slot="start"></ion-icon>
                                 <ion-label>Farbschema</ion-label>
-                                <ion-select v-model="themeMode" @ionChange="onThemeChange">
-                                    <ion-select-option value="system">System</ion-select-option>
-                                    <ion-select-option value="light">Hell</ion-select-option>
-                                    <ion-select-option value="dark">Dunkel</ion-select-option>
-                                </ion-select>
+                            </ion-item>
+                            <ion-item class="transparent">
+                                <ion-segment v-model="themeMode" @ionChange="onThemeChange">
+                                    <ion-segment-button value="system">
+                                        <ion-label>System</ion-label>
+                                    </ion-segment-button>
+                                    <ion-segment-button value="light">
+                                        <ion-label>Hell</ion-label>
+                                    </ion-segment-button>
+                                    <ion-segment-button value="dark">
+                                        <ion-label>Dunkel</ion-label>
+                                    </ion-segment-button>
+                                </ion-segment>
                             </ion-item>
 
                             <ion-item class="transparent">
                                 <ion-icon :icon="textOutline" slot="start"></ion-icon>
                                 <ion-label>Textgröße (Lieder)</ion-label>
-                                <ion-select v-model="songFontSize">
+                                <ion-select
+                                    v-model="songFontSize"
+                                    interface="action-sheet"
+                                    cancel-text="Abbrechen"
+                                    :interface-options="{ header: 'Textgröße (Lieder)' }"
+                                >
                                     <ion-select-option value="small">Klein</ion-select-option>
                                     <ion-select-option value="medium">Normal</ion-select-option>
                                     <ion-select-option value="large">Groß</ion-select-option>
@@ -82,7 +95,12 @@
                             <ion-item class="transparent">
                                 <ion-icon :icon="imageOutline" slot="start"></ion-icon>
                                 <ion-label>Notenansicht</ion-label>
-                                <ion-select v-model="melodyDisplayMode">
+                                <ion-select
+                                    v-model="melodyDisplayMode"
+                                    interface="action-sheet"
+                                    cancel-text="Abbrechen"
+                                    :interface-options="{ header: 'Notenansicht' }"
+                                >
                                     <ion-select-option value="image">Notenbild</ion-select-option>
                                     <ion-select-option value="xml">MusicXML</ion-select-option>
                                 </ion-select>
@@ -127,7 +145,6 @@
                                     <h3>Heruntergeladene Inhalte</h3>
                                     <p>{{ songsCount }} Lieder, {{ filesCount }} Dateien</p>
                                 </ion-label>
-                                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
                             <ion-item class="transparent">
                                 <ion-icon :icon="serverOutline" slot="start"></ion-icon>
@@ -136,14 +153,24 @@
                                     <p>{{ persistedStatusText }}</p>
                                 </ion-label>
                             </ion-item>
-                            <ion-item class="transparent" button @click="handleExport">
+                            <ion-item
+                                class="transparent"
+                                button
+                                :detail="false"
+                                @click="handleExport"
+                            >
                                 <ion-icon :icon="downloadOutline" slot="start"></ion-icon>
                                 <ion-label>
                                     <h3>Daten exportieren</h3>
                                     <p>Playlists und Favoriten als Datei sichern</p>
                                 </ion-label>
                             </ion-item>
-                            <ion-item class="transparent" button @click="importInput?.click()">
+                            <ion-item
+                                class="transparent"
+                                button
+                                :detail="false"
+                                @click="importInput?.click()"
+                            >
                                 <ion-icon :icon="cloudUploadOutline" slot="start"></ion-icon>
                                 <ion-label>
                                     <h3>Daten importieren</h3>
@@ -161,7 +188,6 @@
                                     <h3>App installieren</h3>
                                     <p>Installiere die App auf deinem Gerät</p>
                                 </ion-label>
-                                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
                         </ion-list>
                         <input
@@ -210,13 +236,17 @@
                                 </ion-label>
                             </ion-item>
 
-                            <ion-item class="transparent" button :href="`mailto:${SUPPORT_EMAIL}`">
+                            <ion-item
+                                class="transparent"
+                                button
+                                :detail="false"
+                                :href="`mailto:${SUPPORT_EMAIL}`"
+                            >
                                 <ion-icon :icon="mailOutline" slot="start"></ion-icon>
                                 <ion-label>
                                     <h3>Kontakt & Hilfe</h3>
                                     <p>{{ SUPPORT_EMAIL }}</p>
                                 </ion-label>
-                                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
 
                             <ion-item class="transparent" button @click="openPrivacyPolicy">
@@ -224,7 +254,6 @@
                                 <ion-label>
                                     <h3>Datenschutz</h3>
                                 </ion-label>
-                                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
 
                             <ion-item
@@ -237,7 +266,6 @@
                                 <ion-label>
                                     <h3>Impressum</h3>
                                 </ion-label>
-                                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
                         </ion-list>
                     </ion-card-content>
@@ -264,6 +292,8 @@ import {
     IonList,
     IonPage,
     IonRange,
+    IonSegment,
+    IonSegmentButton,
     IonSelect,
     IonSelectOption,
     IonTitle,
@@ -273,7 +303,6 @@ import {
     toastController,
 } from '@ionic/vue';
 import {
-    chevronForwardOutline,
     cloudDownloadOutline,
     cloudUploadOutline,
     contrastOutline,

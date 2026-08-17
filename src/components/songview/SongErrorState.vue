@@ -22,7 +22,7 @@ import { alertCircleOutline } from 'ionicons/icons';
     text-align: center;
 }
 
-.state-container ion-icon {
+.state-container > ion-icon {
     font-size: 64px;
     color: var(--ion-color-medium);
     margin-bottom: 16px;

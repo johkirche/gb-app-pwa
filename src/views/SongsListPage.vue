@@ -662,7 +662,9 @@ function formatSyncTime(date: Date): string {
     text-align: center;
 }
 
-.state-container ion-icon {
+/* Direct child only — a descendant selector would also blow up icons
+   inside the empty-state's action button. */
+.state-container > ion-icon {
     font-size: 64px;
     color: var(--ion-color-medium);
     margin-bottom: 16px;

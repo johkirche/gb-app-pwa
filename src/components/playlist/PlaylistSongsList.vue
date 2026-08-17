@@ -26,22 +26,14 @@
                     </span>
                 </ion-label>
                 <ion-reorder v-if="reorderMode" slot="end"></ion-reorder>
-                <ion-icon
-                    v-else
-                    slot="end"
-                    class="song-row__chevron"
-                    :icon="chevronForwardOutline"
-                    aria-hidden="true"
-                ></ion-icon>
             </ion-item>
         </ion-reorder-group>
     </ion-list>
 </template>
 
 <script setup lang="ts">
-import { IonIcon, IonItem, IonLabel, IonList, IonReorder, IonReorderGroup } from '@ionic/vue';
+import { IonItem, IonLabel, IonList, IonReorder, IonReorderGroup } from '@ionic/vue';
 import type { ItemReorderEventDetail } from '@ionic/vue';
-import { chevronForwardOutline } from 'ionicons/icons';
 
 import type { Category, Song } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
