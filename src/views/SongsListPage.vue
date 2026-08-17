@@ -1,5 +1,6 @@
 <template>
-    <div class="flex h-full flex-col bg-background">
+    <!-- relative: positioning context for the absolute IndexScroll strip -->
+    <div class="relative flex h-full flex-col bg-background">
         <!-- Toolbar with Search, Filter, Sort — outside the scroll container, so
              sticky section headers inside <main> dock at top-0 -->
         <SongToolbar
@@ -233,6 +234,7 @@ import { useRouter } from 'vue-router';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useSongsStore } from '@/stores/songs';
 
+import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { useSongFiltering } from '@/composables/useSongFiltering';
 import { SORT_OPTIONS, useSongSorting } from '@/composables/useSongSorting';
 
@@ -254,6 +256,8 @@ const router = useRouter();
 
 // The page's single scroll container
 const scrollRef = ref<HTMLElement | null>(null);
+// KeepAlive resets scrollTop on re-attach; save/restore it (Ionic parity)
+useKeepAliveScroll(scrollRef);
 
 // Filtering - applied first
 const {

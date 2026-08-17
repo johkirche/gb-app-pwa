@@ -3,6 +3,9 @@
         <DialogContent class="max-w-sm">
             <DialogHeader>
                 <DialogTitle>Playlist bearbeiten</DialogTitle>
+                <DialogDescription class="sr-only">
+                    Passen Sie Name und Symbol der Playlist an.
+                </DialogDescription>
             </DialogHeader>
 
             <!-- Emoji Picker trigger -->
@@ -64,6 +67,7 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,

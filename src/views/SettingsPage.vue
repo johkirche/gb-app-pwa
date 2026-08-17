@@ -2,7 +2,7 @@
     <div class="flex h-full flex-col bg-background">
         <AppPageHeader title="Einstellungen" />
 
-        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div
                 class="mx-auto w-full max-w-xl space-y-10 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6"
             >
@@ -368,6 +368,9 @@
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Name ändern</DialogTitle>
+                    <DialogDescription class="sr-only">
+                        Ändern Sie Ihren Vor- und Nachnamen.
+                    </DialogDescription>
                 </DialogHeader>
                 <div class="space-y-4">
                     <Input
@@ -430,6 +433,7 @@ import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
 import { useConfirm } from '@/composables/useConfirm';
+import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { useTheme } from '@/composables/useTheme';
 
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
@@ -438,6 +442,7 @@ import {
     Dialog,
     DialogClose,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -462,6 +467,10 @@ import { downloadJsonFile, isPersisted } from '@/services/storage';
 const router = useRouter();
 const { user, logout, deleteAccount, isLoggedIn } = useAuth();
 const { theme, setTheme } = useTheme();
+
+// KeepAlive resets scrollTop on re-attach; save/restore it (Ionic parity)
+const scrollRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(scrollRef);
 const { confirm } = useConfirm();
 const songsStore = useSongsStore();
 const preferencesStore = usePreferencesStore();
@@ -561,8 +570,7 @@ function onThemeModeChange(value: AcceptableValue | AcceptableValue[]) {
 }
 
 function onThemeChange() {
-    // useTheme owns persistence ('settings.theme') and applies both the new
-    // `dark` class and the transitional `ion-palette-dark` class.
+    // useTheme owns persistence ('settings.theme') and applies the `dark` class.
     setTheme(themeMode.value);
 }
 

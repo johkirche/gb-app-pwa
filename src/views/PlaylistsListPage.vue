@@ -2,7 +2,7 @@
     <div class="relative flex h-full flex-col bg-background">
         <AppPageHeader title="Playlisten" />
 
-        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div class="mx-auto w-full max-w-xl px-4 pb-24">
                 <!-- Loading State -->
                 <div
@@ -125,6 +125,8 @@ import { useRouter } from 'vue-router';
 import { useFavoritesStore } from '@/stores/favorites';
 import { usePlaylistsStore } from '@/stores/playlists';
 
+import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
+
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/drawer';
@@ -135,6 +137,11 @@ import type { Playlist } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
 
 const router = useRouter();
+
+// KeepAlive resets scrollTop on re-attach; save/restore it (Ionic parity)
+const scrollRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(scrollRef);
+
 const playlistsStore = usePlaylistsStore();
 const favoritesStore = useFavoritesStore();
 const { isLoading, hasPlaylists, sortedPlaylists } = storeToRefs(playlistsStore);

@@ -3,6 +3,9 @@
         <DialogContent class="max-w-sm">
             <DialogHeader>
                 <DialogTitle>Emoji wählen</DialogTitle>
+                <DialogDescription class="sr-only">
+                    Wählen Sie ein Symbol für die Playlist.
+                </DialogDescription>
             </DialogHeader>
             <div class="-mx-2 max-h-[55vh] overflow-y-auto overscroll-contain px-2">
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(48px,1fr))] gap-2">
@@ -103,6 +106,7 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,

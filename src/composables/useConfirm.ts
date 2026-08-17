@@ -43,7 +43,19 @@ function show(request: ConfirmRequest) {
 function pump() {
     if (isOpen.value || !settled || reopenTimer !== undefined) return;
     const next = queue.shift();
-    if (!next) return;
+    if (!next) {
+        // Queue drained: clear `current` once the exit animation is done, so the
+        // NEXT confirm() (possibly minutes later) opens instantly instead of
+        // always paying the reopen delay.
+        if (current.value) {
+            reopenTimer = setTimeout(() => {
+                reopenTimer = undefined;
+                if (settled && !isOpen.value) current.value = null;
+                pump();
+            }, REOPEN_DELAY_MS);
+        }
+        return;
+    }
     if (current.value) {
         // A dialog just closed; let its exit animation finish before reopening.
         reopenTimer = setTimeout(() => {

@@ -5,7 +5,12 @@
                 <Settings class="!size-5" aria-hidden="true" />
             </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" :collision-padding="12" class="w-80 p-0">
+        <PopoverContent
+            align="end"
+            :collision-padding="12"
+            class="w-80 p-0"
+            aria-label="Einstellungen"
+        >
             <div class="max-h-[70vh] overflow-y-auto p-3">
                 <!-- Actions Group -->
                 <p class="label-micro px-1 pb-2 pt-1 text-gold">Aktionen</p>

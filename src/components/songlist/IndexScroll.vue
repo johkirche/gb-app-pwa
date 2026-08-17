@@ -224,7 +224,9 @@ function onItemClick(key: string) {
 
 <style scoped>
 .index-scroll {
-    position: fixed;
+    /* absolute (not fixed): anchors to the page column, so on desktop the strip
+       hugs the centered content column instead of the viewport edge */
+    position: absolute;
     right: 4px;
     top: 50%;
     transform: translateY(-50%);
