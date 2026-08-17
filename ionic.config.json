@@ -1,7 +1,0 @@
-{
-  "name": "Johannische-Kirche Gesangbuch",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "vue-vite"
-}

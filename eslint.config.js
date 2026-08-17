@@ -62,7 +62,6 @@ export default [
         rules: {
             'no-console': isProduction ? 'warn' : 'off',
             'no-debugger': isProduction ? 'warn' : 'off',
-            'vue/no-deprecated-slot-attribute': 'off',
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unused-vars': [
                 'error',

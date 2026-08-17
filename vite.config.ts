@@ -201,11 +201,6 @@ export default defineConfig({
                     if (!n.includes('/node_modules/')) return;
                     if (n.includes('/node_modules/@directus/sdk/')) return 'directus-vendor';
                     if (
-                        n.includes('/node_modules/@ionic/') ||
-                        n.includes('/node_modules/ionicons/')
-                    )
-                        return 'ionic-vendor';
-                    if (
                         n.includes('/node_modules/vue-router/') ||
                         n.includes('/node_modules/pinia/') ||
                         /\/node_modules\/vue\//.test(n) ||

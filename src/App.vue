@@ -1,18 +1,13 @@
 <template>
-    <!-- Transitional: <ion-app> stays as the root container while Ionic views
-         are migrated (their overlays and abs-positioned ion-pages mount against
-         it). It becomes a plain wrapper div at the end of the migration. -->
-    <ion-app>
+    <div class="h-full bg-background text-foreground">
         <router-view />
         <Toaster position="bottom-center" :theme="isDark ? 'dark' : 'light'" />
         <ConfirmHost />
-    </ion-app>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-
-import { IonApp } from '@ionic/vue';
 
 import { useTheme } from '@/composables/useTheme';
 

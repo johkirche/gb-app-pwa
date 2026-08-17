@@ -1,26 +1,7 @@
 /* ============================================================
-   Design-system entry point (Reka UI migration).
-
-   Layer order is the transition mechanism: Ionic's stylesheets are
-   imported into the lowest-priority layer, so every layered
-   Tailwind/token rule wins over Ionic while un-migrated views keep
-   rendering. The `ionic` layer (and its imports below) disappears
-   entirely when the last Ionic view is migrated.
+   Design-system entry point: Tailwind v4, tokens, fonts.
    ============================================================ */
-@layer ionic, theme, base, components, utilities;
-
-/* --- Ionic CSS (transitional; delete this block at the end) --- */
-@import '@ionic/vue/css/core.css' layer(ionic);
-@import '@ionic/vue/css/normalize.css' layer(ionic);
-@import '@ionic/vue/css/structure.css' layer(ionic);
-@import '@ionic/vue/css/typography.css' layer(ionic);
-@import '@ionic/vue/css/padding.css' layer(ionic);
-@import '@ionic/vue/css/float-elements.css' layer(ionic);
-@import '@ionic/vue/css/text-alignment.css' layer(ionic);
-@import '@ionic/vue/css/text-transformation.css' layer(ionic);
-@import '@ionic/vue/css/flex-utils.css' layer(ionic);
-@import '@ionic/vue/css/display.css' layer(ionic);
-@import '@ionic/vue/css/palettes/dark.class.css' layer(ionic);
+@layer theme, base, components, utilities;
 
 /* --- Self-hosted fonts (precached by the PWA, no external requests) --- */
 @import '@fontsource-variable/albert-sans';
@@ -194,51 +175,3 @@
     }
 }
 
-/* ============================================================
-   Transitional bridge (unlayered on purpose, so it beats the
-   ionic layer): point Ionic's own tokens at the new palette so
-   un-migrated views render on the new ground while waves run.
-   Delete together with the ionic layer.
-   ============================================================ */
-:root {
-    --ion-background-color: var(--background);
-    --ion-background-color-rgb: 250, 249, 246;
-    --ion-text-color: var(--foreground);
-    --ion-text-color-rgb: 32, 39, 65;
-    --ion-font-family: var(--font-sans);
-    --ion-color-primary: #273c77;
-    --ion-color-primary-rgb: 39, 60, 119;
-    --ion-color-primary-contrast: #ffffff;
-    --ion-color-primary-contrast-rgb: 255, 255, 255;
-    --ion-color-primary-shade: #223569;
-    --ion-color-primary-tint: #3d5085;
-}
-
-.ion-palette-dark {
-    --ion-background-color: var(--background);
-    --ion-background-color-rgb: 19, 24, 39;
-    --ion-text-color: var(--foreground);
-    --ion-text-color-rgb: 233, 231, 223;
-    --ion-color-primary: #9db0e0;
-    --ion-color-primary-rgb: 157, 176, 224;
-    --ion-color-primary-contrast: #131827;
-    --ion-color-primary-contrast-rgb: 19, 24, 39;
-    --ion-color-primary-shade: #8a9bc5;
-    --ion-color-primary-tint: #a7b8e3;
-}
-
-/* Ionic implements fill="outline"/"solid" only in MD mode; with the app forced
-   to mode:'ios' those inputs render with no field box at all (pre-existing on
-   main since the iOS-mode switch). Until the views are migrated to the kit's
-   Input, give every bare ion-input a token-styled field. */
-ion-input.sc-ion-input-ios-h {
-    --padding-start: 14px;
-    --padding-end: 14px;
-    background: var(--card);
-    border: 1px solid var(--input);
-    border-radius: var(--radius);
-}
-
-ion-input.sc-ion-input-ios-h:focus-within {
-    border-color: var(--ring);
-}

@@ -26,9 +26,6 @@ function applyTheme(preference: ThemePreference) {
     const dark = preference === 'dark' || (preference === 'system' && prefersDark);
     isDark.value = dark;
     document.documentElement.classList.toggle('dark', dark);
-    // Transitional: keep Ionic's palette class in sync until the last Ionic
-    // view is migrated (OsmdRenderer and dark.class.css still watch it).
-    document.documentElement.classList.toggle('ion-palette-dark', dark);
 }
 
 /**

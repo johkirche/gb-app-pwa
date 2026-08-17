@@ -1,9 +1,5 @@
 import { createApp } from 'vue';
 
-// Transitional: IonicVue stays installed while views are migrated wave by wave
-// to Reka UI; it is removed together with the last Ionic view. Its CSS now
-// lives in theme/main.css inside a demoted cascade layer.
-import { IonicVue } from '@ionic/vue';
 import { createPinia } from 'pinia';
 
 import App from './App.vue';
@@ -11,10 +7,8 @@ import { useAppUpdate } from './composables/useAppUpdate';
 import { usePWA } from './composables/usePWA';
 import { longPressDirective } from './directives/longPress';
 import router from './router';
-/* Design system: Tailwind v4 + tokens + fonts (+ layered Ionic CSS during migration) */
+/* Design system: Tailwind v4 + tokens + fonts */
 import './theme/main.css';
-/* Legacy tokens + utility classes still used by un-migrated views */
-import './theme/variables.css';
 
 const pinia = createPinia();
 
@@ -22,10 +16,7 @@ const pinia = createPinia();
 const { initPWAListeners } = usePWA();
 initPWAListeners();
 
-// One consistent look on every device: without an explicit mode, Ionic renders
-// Material on Android/desktop and iOS style on Apple devices — the congregation
-// would see two different apps.
-const app = createApp(App).use(IonicVue, { mode: 'ios' }).use(pinia).use(router);
+const app = createApp(App).use(pinia).use(router);
 
 // Register custom directives
 app.directive('long-press', longPressDirective);
