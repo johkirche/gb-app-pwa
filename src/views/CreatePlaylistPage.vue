@@ -3,7 +3,7 @@
         <ion-header :translucent="true">
             <ion-toolbar>
                 <ion-buttons slot="start">
-                    <ion-back-button default-href="/playlists" text=""></ion-back-button>
+                    <ion-back-button default-href="/tabs/playlisten" text=""></ion-back-button>
                 </ion-buttons>
                 <ion-title>Neue Playlist</ion-title>
                 <ion-buttons slot="end">

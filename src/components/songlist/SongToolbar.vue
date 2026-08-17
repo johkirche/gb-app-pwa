@@ -1,7 +1,7 @@
 <template>
     <div class="song-toolbar">
-        <!-- Back button -->
-        <ion-button fill="clear" class="back-button" @click="$emit('back')">
+        <!-- Back button (hidden on tab roots) -->
+        <ion-button v-if="showBack" fill="clear" class="back-button" @click="$emit('back')">
             <ion-icon slot="icon-only" :icon="arrowBackOutline" />
         </ion-button>
 
@@ -158,19 +158,25 @@ import {
 
 import type { SortMode } from '@/composables/useSongSorting';
 
-const props = defineProps<{
-    title: string;
-    searchQuery: string;
-    selectedCategories: string[];
-    hasNotes: boolean | null;
-    hasMelodyXml: boolean | null;
-    filterIndexRange: { min: number; max: number } | null;
-    activeFilterCount: number;
-    hasActiveFilters: boolean;
-    sortMode: SortMode;
-    resultCount: number;
-    totalCount: number;
-}>();
+const props = withDefaults(
+    defineProps<{
+        title: string;
+        searchQuery: string;
+        selectedCategories: string[];
+        hasNotes: boolean | null;
+        hasMelodyXml: boolean | null;
+        filterIndexRange: { min: number; max: number } | null;
+        activeFilterCount: number;
+        hasActiveFilters: boolean;
+        sortMode: SortMode;
+        resultCount: number;
+        totalCount: number;
+        showBack?: boolean;
+    }>(),
+    {
+        showBack: true,
+    },
+);
 
 const emit = defineEmits<{
     (e: 'back'): void;
@@ -281,6 +287,11 @@ function truncate(str: string, maxLength: number): string {
 .toolbar-title {
     flex: 1;
     min-width: 0;
+}
+
+/* Without the back button (tab roots) the title needs its own edge spacing */
+.song-toolbar > .toolbar-title:first-child {
+    padding-inline-start: 12px;
 }
 
 .toolbar-title h1 {

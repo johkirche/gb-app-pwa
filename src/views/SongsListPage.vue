@@ -9,6 +9,7 @@
             <!-- Toolbar with Search, Filter, Sort -->
             <SongToolbar
                 title="Gesangbuch"
+                :show-back="false"
                 :search-query="filters.searchQuery"
                 :selected-categories="filters.selectedCategories"
                 :has-notes="filters.hasNotes"
@@ -19,7 +20,6 @@
                 :sort-mode="sortMode"
                 :result-count="filteredSongs.length"
                 :total-count="songs.length"
-                @back="$router.back()"
                 @search="setSearchQuery"
                 @clear-search="clearSearch"
                 @open-filters="openFilters"
@@ -57,6 +57,21 @@
                 @clear-all="clearFiltersKeepSearch"
             />
 
+            <!-- Featured: Lied der Woche (hidden while searching/filtering) -->
+            <button
+                v-if="songOfTheWeek && !filters.searchQuery && !hasActiveFilters"
+                class="featured-card"
+                type="button"
+                @click="openSongOfTheWeek"
+            >
+                <p class="featured-card__label">Lied der Woche</p>
+                <div class="featured-card__body">
+                    <span class="featured-card__number">{{ songOfTheWeek.index }}</span>
+                    <span class="featured-card__title">{{ songOfTheWeek.titel }}</span>
+                </div>
+                <p class="featured-card__meta">{{ songOfTheWeekMeta }}</p>
+            </button>
+
             <!-- Loading State -->
             <div v-if="isLoading" class="state-container">
                 <ion-spinner name="crescent"></ion-spinner>
@@ -74,7 +89,11 @@
             <div v-else-if="!hasSongs" class="state-container empty-state">
                 <ion-icon :icon="musicalNotesOutline" size="large"></ion-icon>
                 <h2>Keine Lieder vorhanden</h2>
-                <p>Tippen Sie auf das Sync-Symbol, um Lieder zu laden.</p>
+                <p>Laden Sie das Gesangbuch einmal herunter, um es offline zu nutzen.</p>
+                <ion-button @click="router.push('/download')">
+                    <ion-icon slot="start" :icon="cloudDownloadOutline"></ion-icon>
+                    Lieder herunterladen
+                </ion-button>
             </div>
 
             <!-- No Results State (filtered to nothing) -->
@@ -184,6 +203,7 @@ import {
 import {
     checkmarkOutline,
     chevronForwardOutline,
+    cloudDownloadOutline,
     heart,
     heartOutline,
     listOutline,
@@ -251,6 +271,40 @@ const selectedSongId = ref<string>('');
 // Open filter drawer
 function openFilters() {
     showFilterDrawer.value = true;
+}
+
+// --- Lied der Woche (ported from the former home screen) ---
+const now = new Date();
+
+// ISO week number — used to pick a stable "song of the week"
+function getIsoWeek(date: Date): number {
+    const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNr = (target.getUTCDay() + 6) % 7;
+    target.setUTCDate(target.getUTCDate() - dayNr + 3);
+    const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+    const diff = target.getTime() - firstThursday.getTime();
+    return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+}
+
+const songOfTheWeek = computed(() => {
+    const songsWithIndex = songsStore.songs.filter((s) => s.index);
+    if (!songsWithIndex.length) return null;
+    const week = getIsoWeek(now);
+    return songsWithIndex[week % songsWithIndex.length] ?? null;
+});
+
+const songOfTheWeekMeta = computed(() => {
+    const song = songOfTheWeek.value;
+    if (!song) return '';
+    const category = song.kategorien?.[0]?.name ?? '';
+    const verseCount = song.strophen?.length ?? 0;
+    const verseLabel = verseCount === 1 ? '1 Strophe' : `${verseCount} Strophen`;
+    return [category, verseLabel].filter(Boolean).join(' · ').toUpperCase();
+});
+
+function openSongOfTheWeek() {
+    if (!songOfTheWeek.value) return;
+    router.push(`/songs/${songOfTheWeek.value.id}`);
 }
 
 const isIndexScrollerVisible = computed(() => {
@@ -415,6 +469,63 @@ function formatSyncTime(date: Date): string {
 .songs-list {
     padding-top: 0;
     background: transparent;
+}
+
+/* Featured card — "Lied der Woche" (ported from the former home screen, compacted) */
+.featured-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    width: calc(100% - 2 * var(--spacing-md));
+    margin: var(--spacing-xs) var(--spacing-md) var(--spacing-md);
+    text-align: left;
+    background: var(--ion-color-light);
+    border: 1px solid var(--ion-color-light-shade);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.featured-card:active {
+    transform: scale(0.99);
+}
+
+.featured-card__label {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ion-color-medium);
+}
+
+.featured-card__body {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--ion-color-light-shade);
+}
+
+.featured-card__number {
+    font-size: var(--font-size-3xl);
+    font-weight: 600;
+    line-height: 1;
+}
+
+.featured-card__title {
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.featured-card__meta {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.14em;
+    color: var(--ion-color-medium);
 }
 
 /* Song row — mirrors the home screen's .home-nav__item button rows */

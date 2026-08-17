@@ -2,9 +2,6 @@
     <ion-page>
         <ion-header :translucent="true">
             <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-back-button default-href="/home" text=""></ion-back-button>
-                </ion-buttons>
                 <ion-title>Playlisten</ion-title>
             </ion-toolbar>
         </ion-header>
@@ -16,51 +13,72 @@
                 <p>Playlisten werden geladen...</p>
             </div>
 
-            <!-- Empty State -->
-            <div v-else-if="!hasPlaylists" class="state-container empty-state">
-                <ion-icon :icon="albumsOutline" size="large"></ion-icon>
-                <h2>Keine Playlisten</h2>
-                <p>Erstellen Sie Ihre erste Playlist, um Lieder zu organisieren.</p>
-                <ion-button
-                    @click="navigateToCreate"
-                    class="create-button"
-                    size="default"
-                    fill="solid"
-                >
-                    <ion-icon slot="start" :icon="addOutline"></ion-icon>
-                    Playlist erstellen
-                </ion-button>
-            </div>
-
-            <!-- Playlists List -->
-            <ion-list v-else class="playlist-list" lines="full">
-                <ion-item
-                    v-for="playlist in sortedPlaylists"
-                    :key="playlist.id"
-                    class="playlist-row"
-                    button
-                    v-long-press="() => showActionSheet(playlist)"
-                    @click="navigateToPlaylist(playlist.id)"
-                >
-                    <span slot="start" class="playlist-row__icon">
-                        {{ playlist.emoji }}
-                    </span>
-                    <ion-label>
-                        <span class="playlist-row__title">{{ playlist.name }}</span>
-                        <span class="playlist-row__meta">
-                            {{ playlist.songIds.length }}
-                            {{ playlist.songIds.length === 1 ? 'Lied' : 'Lieder' }}
-                            · {{ formatDate(playlist.createdAt) }}
+            <template v-else>
+                <!-- Pinned Favoriten entry (always above the playlists) -->
+                <ion-list class="playlist-list" lines="full">
+                    <ion-item class="playlist-row" button @click="navigateToFavorites">
+                        <span slot="start" class="playlist-row__icon playlist-row__icon--favorites">
+                            <ion-icon :icon="heart"></ion-icon>
                         </span>
-                    </ion-label>
-                    <ion-icon
-                        slot="end"
-                        class="playlist-row__chevron"
-                        :icon="chevronForwardOutline"
-                        aria-hidden="true"
-                    ></ion-icon>
-                </ion-item>
-            </ion-list>
+                        <ion-label>
+                            <span class="playlist-row__title">Favoriten</span>
+                            <span class="playlist-row__meta">{{ favoriteCountLabel }}</span>
+                        </ion-label>
+                        <ion-icon
+                            slot="end"
+                            class="playlist-row__chevron"
+                            :icon="chevronForwardOutline"
+                            aria-hidden="true"
+                        ></ion-icon>
+                    </ion-item>
+                </ion-list>
+
+                <!-- Empty State -->
+                <div v-if="!hasPlaylists" class="state-container empty-state">
+                    <ion-icon :icon="albumsOutline" size="large"></ion-icon>
+                    <h2>Keine Playlisten</h2>
+                    <p>Erstellen Sie Ihre erste Playlist, um Lieder zu organisieren.</p>
+                    <ion-button
+                        @click="navigateToCreate"
+                        class="create-button"
+                        size="default"
+                        fill="solid"
+                    >
+                        <ion-icon slot="start" :icon="addOutline"></ion-icon>
+                        Playlist erstellen
+                    </ion-button>
+                </div>
+
+                <!-- Playlists List -->
+                <ion-list v-else class="playlist-list" lines="full">
+                    <ion-item
+                        v-for="playlist in sortedPlaylists"
+                        :key="playlist.id"
+                        class="playlist-row"
+                        button
+                        v-long-press="() => showActionSheet(playlist)"
+                        @click="navigateToPlaylist(playlist.id)"
+                    >
+                        <span slot="start" class="playlist-row__icon">
+                            {{ playlist.emoji }}
+                        </span>
+                        <ion-label>
+                            <span class="playlist-row__title">{{ playlist.name }}</span>
+                            <span class="playlist-row__meta">
+                                {{ playlist.songIds.length }}
+                                {{ playlist.songIds.length === 1 ? 'Lied' : 'Lieder' }}
+                                · {{ formatDate(playlist.createdAt) }}
+                            </span>
+                        </ion-label>
+                        <ion-icon
+                            slot="end"
+                            class="playlist-row__chevron"
+                            :icon="chevronForwardOutline"
+                            aria-hidden="true"
+                        ></ion-icon>
+                    </ion-item>
+                </ion-list>
+            </template>
 
             <!-- FAB for creating new playlist -->
             <ion-fab v-if="hasPlaylists" slot="fixed" vertical="bottom" horizontal="end">
@@ -73,10 +91,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import {
-    IonBackButton,
     IonButton,
-    IonButtons,
     IonContent,
     IonFab,
     IonFabButton,
@@ -96,11 +114,13 @@ import {
     albumsOutline,
     chevronForwardOutline,
     closeOutline,
+    heart,
     trashOutline,
 } from 'ionicons/icons';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
+import { useFavoritesStore } from '@/stores/favorites';
 import { usePlaylistsStore } from '@/stores/playlists';
 
 import type { Playlist } from '@/db';
@@ -108,7 +128,17 @@ import { longPressDirective as vLongPress } from '@/directives/longPress';
 
 const router = useRouter();
 const playlistsStore = usePlaylistsStore();
+const favoritesStore = useFavoritesStore();
 const { isLoading, hasPlaylists, sortedPlaylists } = storeToRefs(playlistsStore);
+
+const favoriteCountLabel = computed(() => {
+    const count = favoritesStore.favorites.length;
+    return count === 1 ? '1 Lied' : `${count} Lieder`;
+});
+
+function navigateToFavorites() {
+    router.push('/favorites');
+}
 
 function navigateToCreate() {
     router.push('/playlists/create');
@@ -186,6 +216,12 @@ async function deletePlaylist(playlist: Playlist) {
     border-radius: var(--radius-md);
     font-size: 1.375rem;
     line-height: 1;
+}
+
+/* Favoriten pinned entry — same box as playlist emojis, with a heart icon */
+.playlist-row__icon--favorites ion-icon {
+    font-size: 1.375rem;
+    color: var(--ion-color-danger);
 }
 
 .playlist-row__title {

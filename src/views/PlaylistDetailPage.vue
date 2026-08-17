@@ -3,7 +3,7 @@
         <ion-header :translucent="true">
             <ion-toolbar>
                 <ion-buttons slot="start">
-                    <ion-back-button default-href="/playlists" text=""></ion-back-button>
+                    <ion-back-button default-href="/tabs/playlisten" text=""></ion-back-button>
                 </ion-buttons>
                 <ion-title>
                     {{ reorderMode ? 'Reihenfolge ändern' : playlist?.name || 'Playlist' }}
@@ -49,7 +49,9 @@
             <div v-else-if="!playlist" class="state-container empty-state">
                 <ion-icon :icon="alertCircleOutline" size="large"></ion-icon>
                 <h2>Playlist nicht gefunden</h2>
-                <ion-button @click="router.push('/playlists')">Zurück zu Playlisten</ion-button>
+                <ion-button @click="router.push('/tabs/playlisten')">
+                    Zurück zu Playlisten
+                </ion-button>
             </div>
 
             <!-- Playlist Content -->
@@ -216,7 +218,7 @@ async function deletePlaylist() {
     if (!playlist.value) return;
     try {
         await playlistsStore.deletePlaylist(playlist.value.id);
-        router.replace('/playlists');
+        router.replace('/tabs/playlisten');
     } catch (error) {
         console.error('Failed to delete playlist:', error);
     }

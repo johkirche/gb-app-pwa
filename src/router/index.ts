@@ -5,9 +5,10 @@ import { useUserStore } from '@/stores/user';
 
 import AddSongsToPlaylistPage from '../views/AddSongsToPlaylistPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
+import DatenschutzPage from '../views/DatenschutzPage.vue';
 import DownloadPage from '../views/DownloadPage.vue';
 import FavoritesPage from '../views/FavoritesPage.vue';
-import HomePage from '../views/HomePage.vue';
+import ImpressumPage from '../views/ImpressumPage.vue';
 import InstallPWAPage from '../views/InstallPWAPage.vue';
 import LoginPage from '../views/LoginPage.vue';
 import OnboardingPage from '../views/OnboardingPage.vue';
@@ -18,17 +19,47 @@ import RegisterPage from '../views/RegisterPage.vue';
 import SettingsPage from '../views/SettingsPage.vue';
 import SongPage from '../views/SongPage.vue';
 import SongsListPage from '../views/SongsListPage.vue';
+import TabsPage from '../views/TabsPage.vue';
 
 const routes: Array<RouteRecordRaw> = [
     {
         path: '/',
-        redirect: '/home',
+        redirect: '/tabs/lieder',
     },
+    // Legacy bookmark redirects (pre-tab-bar URLs)
     {
         path: '/home',
-        name: 'Home',
-        component: HomePage,
+        redirect: '/tabs/lieder',
+    },
+    {
+        path: '/tabs/',
+        component: TabsPage,
         meta: { requiresAuth: true },
+        children: [
+            {
+                path: '',
+                redirect: '/tabs/lieder',
+            },
+            {
+                path: 'lieder',
+                name: 'Songs',
+                component: SongsListPage,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: 'playlisten',
+                name: 'Playlists',
+                component: PlaylistsListPage,
+                meta: { requiresAuth: true },
+            },
+            // Future tab (Gottesdienst): add its child route here
+            {
+                path: 'einstellungen',
+                name: 'Settings',
+                component: SettingsPage,
+                meta: { requiresAuth: true },
+            },
+        ],
     },
     {
         path: '/login',
@@ -54,11 +85,22 @@ const routes: Array<RouteRecordRaw> = [
         component: PasswordResetPage,
         meta: { requiresAuth: false },
     },
+    // Legal pages: public so they are reachable from the login page while logged out
+    {
+        path: '/impressum',
+        name: 'Impressum',
+        component: ImpressumPage,
+        meta: { requiresAuth: false },
+    },
+    {
+        path: '/datenschutz',
+        name: 'Datenschutz',
+        component: DatenschutzPage,
+        meta: { requiresAuth: false },
+    },
     {
         path: '/songs',
-        name: 'Songs',
-        component: SongsListPage,
-        meta: { requiresAuth: true },
+        redirect: '/tabs/lieder',
     },
     {
         path: '/songs/:id',
@@ -80,9 +122,7 @@ const routes: Array<RouteRecordRaw> = [
     },
     {
         path: '/settings',
-        name: 'Settings',
-        component: SettingsPage,
-        meta: { requiresAuth: true },
+        redirect: '/tabs/einstellungen',
     },
     {
         path: '/favorites',
@@ -92,9 +132,7 @@ const routes: Array<RouteRecordRaw> = [
     },
     {
         path: '/playlists',
-        name: 'Playlists',
-        component: PlaylistsListPage,
-        meta: { requiresAuth: true },
+        redirect: '/tabs/playlisten',
     },
     {
         path: '/playlists/create',
@@ -130,8 +168,10 @@ router.beforeEach(async (to) => {
 
     const requiresAuth = to.meta.requiresAuth;
 
-    // If skip auth is enabled, allow all navigation
-    if (userStore.skipAuth) {
+    // Dev-only auth bypass. import.meta.env.DEV is statically replaced by Vite, so
+    // production builds dead-code-eliminate this branch entirely; the flag itself is
+    // in-memory only and never persisted.
+    if (import.meta.env.DEV && userStore.devSkipAuth) {
         return true;
     }
 
@@ -141,16 +181,16 @@ router.beforeEach(async (to) => {
         return { name: 'Login' };
     }
 
-    // If user is logged in and trying to access login/register, redirect to home
+    // If user is logged in and trying to access login/register, redirect into the app
     if (userStore.isLoggedIn && (to.name === 'Login' || to.name === 'Register')) {
-        return { name: 'Home' };
+        return { path: '/tabs/lieder' };
     }
 
-    // If onboarding is in progress, keep the user on onboarding instead of landing on Home
+    // If onboarding is in progress, keep the user on onboarding instead of landing on the tabs
     // (e.g. when the PWA is installed and launched fresh)
     try {
         const onboardingInProgress = localStorage.getItem('onboarding.inProgress') === '1';
-        if (onboardingInProgress && userStore.isLoggedIn && to.name === 'Home') {
+        if (onboardingInProgress && userStore.isLoggedIn && to.path.startsWith('/tabs')) {
             return { name: 'Onboarding' };
         }
     } catch {
