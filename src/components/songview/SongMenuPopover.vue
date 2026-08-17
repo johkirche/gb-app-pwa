@@ -1,123 +1,174 @@
 <template>
-    <ion-popover ref="popoverRef" trigger="song-menu-trigger" :dismiss-on-select="false">
-        <ion-content class="menu-content">
-            <ion-list lines="none">
+    <Popover v-model:open="menuOpen">
+        <PopoverTrigger as-child>
+            <Button variant="ghost" size="icon" aria-label="Einstellungen">
+                <Settings class="!size-5" aria-hidden="true" />
+            </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" :collision-padding="12" class="w-80 p-0">
+            <div class="max-h-[70vh] overflow-y-auto p-3">
                 <!-- Actions Group -->
-                <ion-list-header>
-                    <ion-label>Aktionen</ion-label>
-                </ion-list-header>
-                <ion-item button @click="handleAddToPlaylist">
-                    <ion-icon slot="start" :icon="listOutline" />
-                    <ion-label>Zu Playlist hinzufügen</ion-label>
-                </ion-item>
+                <p class="label-micro px-1 pb-2 pt-1 text-gold">Aktionen</p>
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
+                    @click="handleAddToPlaylist"
+                >
+                    <ListMusic class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    Zu Playlist hinzufügen
+                </button>
 
                 <!-- Display Settings Group -->
-                <ion-list-header>
-                    <ion-label>Anzeige</ion-label>
-                </ion-list-header>
-                <ion-item>
-                    <ion-icon slot="start" :icon="textOutline" />
-                    <ion-label>Textgröße</ion-label>
-                    <ion-select
-                        slot="end"
-                        :value="songFontSize"
-                        interface="popover"
-                        @ionChange="$emit('update:songFontSize', $event.detail.value)"
-                    >
-                        <ion-select-option value="small">Klein</ion-select-option>
-                        <ion-select-option value="medium">Normal</ion-select-option>
-                        <ion-select-option value="large">Groß</ion-select-option>
-                        <ion-select-option value="xlarge">Sehr groß</ion-select-option>
-                    </ion-select>
-                </ion-item>
-                <ion-item>
-                    <ion-icon slot="start" :icon="musicalNotesOutline" />
-                    <ion-label>Steuerung anzeigen</ion-label>
-                    <ion-toggle
-                        slot="end"
-                        :checked="showControls"
-                        @ionChange="$emit('update:showControls', $event.detail.checked)"
-                    />
-                </ion-item>
+                <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
+                    Anzeige
+                </p>
+                <div class="space-y-4 px-1 py-1">
+                    <div class="flex items-center justify-between gap-3">
+                        <Label for="song-font-size" class="flex items-center gap-2.5">
+                            <Type
+                                class="size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            Textgröße
+                        </Label>
+                        <Select :model-value="songFontSize" @update:model-value="onFontSizeChange">
+                            <SelectTrigger id="song-font-size" class="h-9 w-32">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="small">Klein</SelectItem>
+                                <SelectItem value="medium">Normal</SelectItem>
+                                <SelectItem value="large">Groß</SelectItem>
+                                <SelectItem value="xlarge">Sehr groß</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <Label for="song-show-controls" class="flex items-center gap-2.5">
+                            <Music
+                                class="size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            Steuerung anzeigen
+                        </Label>
+                        <Switch
+                            id="song-show-controls"
+                            :model-value="showControls"
+                            @update:model-value="$emit('update:showControls', $event)"
+                        />
+                    </div>
+                </div>
 
                 <!-- Melody Settings Group (only shown when relevant) -->
                 <template v-if="hasMelodyImage || hasMelodyXml">
-                    <ion-list-header>
-                        <ion-label>Noten</ion-label>
-                    </ion-list-header>
-                    <ion-item>
-                        <ion-icon slot="start" :icon="imageOutline" />
-                        <ion-label>Notenansicht</ion-label>
-                        <ion-select
-                            slot="end"
-                            :value="melodyDisplayMode"
-                            interface="popover"
-                            @ionChange="$emit('update:melodyDisplayMode', $event.detail.value)"
+                    <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
+                        Noten
+                    </p>
+                    <div class="space-y-4 px-1 py-1">
+                        <div class="flex items-center justify-between gap-3">
+                            <Label for="song-display-mode" class="flex items-center gap-2.5">
+                                <ImageIcon
+                                    class="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                Notenansicht
+                            </Label>
+                            <Select
+                                :model-value="melodyDisplayMode"
+                                @update:model-value="onDisplayModeChange"
+                            >
+                                <SelectTrigger id="song-display-mode" class="h-9 w-32">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="image" :disabled="!hasMelodyImage">
+                                        Notenbild
+                                    </SelectItem>
+                                    <SelectItem value="xml" :disabled="!hasMelodyXml">
+                                        MusicXML
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div
+                            v-if="melodyDisplayMode === 'xml' && hasMelodyXml"
+                            class="space-y-3 pb-1"
                         >
-                            <ion-select-option value="image" :disabled="!hasMelodyImage">
-                                Notenbild
-                            </ion-select-option>
-                            <ion-select-option value="xml" :disabled="!hasMelodyXml">
-                                MusicXML
-                            </ion-select-option>
-                        </ion-select>
-                    </ion-item>
-                    <ion-item v-if="melodyDisplayMode === 'xml' && hasMelodyXml">
-                        <ion-icon slot="start" :icon="musicalNoteOutline" />
-                        <ion-label>
-                            <p>Notengröße</p>
-                            <p class="scale-value">{{ Math.round(notationScale * 100) }}%</p>
-                        </ion-label>
-                        <ion-range
-                            slot="end"
-                            :min="0.5"
-                            :max="2.0"
-                            :step="0.1"
-                            :value="notationScale"
-                            :pin="true"
-                            :pin-formatter="(value: number) => `${Math.round(value * 100)}%`"
-                            @ionInput="handleNotationScaleChange($event.detail.value)"
-                        />
-                    </ion-item>
+                            <div class="flex items-baseline justify-between gap-3">
+                                <span class="flex items-center gap-2.5 text-sm font-medium">
+                                    <Music2
+                                        class="size-4 shrink-0 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    Notengröße
+                                </span>
+                                <span class="number-display text-lg leading-none">
+                                    {{ Math.round(notationScale * 100) }}%
+                                </span>
+                            </div>
+                            <!-- Emits continuously while dragging (like ionInput
+                                 before) — OSMD re-renders live per change. -->
+                            <Slider
+                                :model-value="[notationScale]"
+                                :min="0.5"
+                                :max="2"
+                                :step="0.1"
+                                aria-label="Notengröße"
+                                @update:model-value="onScaleChange"
+                            />
+                        </div>
+                    </div>
                 </template>
 
                 <!-- MusicXML-specific Display Settings -->
                 <template v-if="melodyDisplayMode === 'xml' && hasMelodyXml && xmlSettings">
-                    <ion-list-header>
-                        <ion-label>MusicXML Anzeige</ion-label>
-                    </ion-list-header>
-                    <ion-item>
-                        <ion-icon slot="start" :icon="listOutline" />
-                        <ion-label>Taktnummern</ion-label>
-                        <ion-toggle
-                            slot="end"
-                            :checked="xmlSettings.showMeasureNumbers"
-                            @ionChange="
-                                $emit('update:xmlSetting', {
-                                    key: 'showMeasureNumbers',
-                                    value: $event.detail.checked,
-                                })
-                            "
-                        />
-                    </ion-item>
-                    <ion-item>
-                        <ion-icon slot="start" :icon="textOutline" />
-                        <ion-label>Liedtext unter Noten</ion-label>
-                        <ion-toggle
-                            slot="end"
-                            :checked="xmlSettings.showLyrics"
-                            @ionChange="
-                                $emit('update:xmlSetting', {
-                                    key: 'showLyrics',
-                                    value: $event.detail.checked,
-                                })
-                            "
-                        />
-                    </ion-item>
+                    <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
+                        MusicXML Anzeige
+                    </p>
+                    <div class="space-y-4 px-1 py-1">
+                        <div class="flex items-center justify-between gap-3">
+                            <Label for="song-measure-numbers" class="flex items-center gap-2.5">
+                                <List
+                                    class="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                Taktnummern
+                            </Label>
+                            <Switch
+                                id="song-measure-numbers"
+                                :model-value="xmlSettings.showMeasureNumbers"
+                                @update:model-value="
+                                    $emit('update:xmlSetting', {
+                                        key: 'showMeasureNumbers',
+                                        value: $event,
+                                    })
+                                "
+                            />
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <Label for="song-show-lyrics" class="flex items-center gap-2.5">
+                                <Type
+                                    class="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                Liedtext unter Noten
+                            </Label>
+                            <Switch
+                                id="song-show-lyrics"
+                                :model-value="xmlSettings.showLyrics"
+                                @update:model-value="
+                                    $emit('update:xmlSetting', {
+                                        key: 'showLyrics',
+                                        value: $event,
+                                    })
+                                "
+                            />
+                        </div>
+                    </div>
                 </template>
-            </ion-list>
-        </ion-content>
-    </ion-popover>
+            </div>
+        </PopoverContent>
+    </Popover>
 
     <!-- Playlist Select Modal -->
     <PlaylistSelectModal
@@ -129,30 +180,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 
 import {
-    IonContent,
-    IonIcon,
-    IonItem,
-    IonLabel,
-    IonList,
-    IonListHeader,
-    IonPopover,
-    IonRange,
-    IonSelect,
-    IonSelectOption,
-    IonToggle,
-} from '@ionic/vue';
-import {
-    imageOutline,
-    listOutline,
-    musicalNoteOutline,
-    musicalNotesOutline,
-    textOutline,
-} from 'ionicons/icons';
+    Image as ImageIcon,
+    List,
+    ListMusic,
+    Music,
+    Music2,
+    Settings,
+    Type,
+} from 'lucide-vue-next';
+import type { AcceptableValue } from 'reka-ui';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 
 import type { MelodyDisplayMode, XmlDisplaySettings } from '@/db';
 
@@ -180,23 +233,32 @@ const emit = defineEmits<{
     ];
 }>();
 
-type RangeValue = number | { lower: number; upper: number };
-
+const menuOpen = ref(false);
 const showPlaylistModal = ref(false);
-const popoverRef = ref<InstanceType<typeof IonPopover> | null>(null);
 
-function handleNotationScaleChange(value: RangeValue) {
-    if (typeof value === 'number') {
-        emit('update:notationScale', value);
-    } else {
-        emit('update:notationScale', value.lower);
+function onFontSizeChange(value: AcceptableValue) {
+    if (value === 'small' || value === 'medium' || value === 'large' || value === 'xlarge') {
+        emit('update:songFontSize', value);
+    }
+}
+
+function onDisplayModeChange(value: AcceptableValue) {
+    if (value === 'image' || value === 'xml') {
+        emit('update:melodyDisplayMode', value);
+    }
+}
+
+function onScaleChange(value: number[] | undefined) {
+    if (value && typeof value[0] === 'number') {
+        emit('update:notationScale', value[0]);
     }
 }
 
 async function handleAddToPlaylist() {
-    // Close the popover first
-    await popoverRef.value?.$el.dismiss();
-    // Then open the playlist modal
+    // Close the popover first, then open the playlist modal — the popover's
+    // focus trap must release before the dialog takes over.
+    menuOpen.value = false;
+    await nextTick();
     showPlaylistModal.value = true;
 }
 
@@ -205,46 +267,3 @@ function onSongAddedToPlaylist(_playlistId: string) {
     showPlaylistModal.value = false;
 }
 </script>
-
-<style scoped>
-ion-popover {
-    --width: 280px;
-}
-
-ion-popover ion-list-header {
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding-top: var(--spacing-sm);
-    padding-bottom: var(--spacing-sm);
-}
-
-ion-popover ion-list-header:not(:first-child) {
-    margin-top: var(--spacing-sm);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--ion-color-light);
-}
-
-ion-popover ion-item {
-    --padding-start: var(--spacing-md);
-    --padding-end: var(--spacing-md);
-    --inner-padding-end: 0;
-}
-
-.scale-value {
-    font-size: 0.85rem;
-    color: var(--ion-color-primary);
-    font-weight: 500;
-}
-
-ion-popover ion-range {
-    --bar-background: var(--ion-color-light);
-    --bar-background-active: var(--ion-color-primary);
-    --knob-background: var(--ion-color-primary);
-    --knob-size: 20px;
-    --pin-background: var(--ion-color-primary);
-    padding: 0 8px;
-    width: 120px;
-}
-</style>
