@@ -1,0 +1,221 @@
+/* ============================================================
+   Design-system entry point (Reka UI migration).
+
+   Layer order is the transition mechanism: Ionic's stylesheets are
+   imported into the lowest-priority layer, so every layered
+   Tailwind/token rule wins over Ionic while un-migrated views keep
+   rendering. The `ionic` layer (and its imports below) disappears
+   entirely when the last Ionic view is migrated.
+   ============================================================ */
+@layer ionic, theme, base, components, utilities;
+
+/* --- Ionic CSS (transitional; delete this block at the end) --- */
+@import '@ionic/vue/css/core.css' layer(ionic);
+@import '@ionic/vue/css/normalize.css' layer(ionic);
+@import '@ionic/vue/css/structure.css' layer(ionic);
+@import '@ionic/vue/css/typography.css' layer(ionic);
+@import '@ionic/vue/css/padding.css' layer(ionic);
+@import '@ionic/vue/css/float-elements.css' layer(ionic);
+@import '@ionic/vue/css/text-alignment.css' layer(ionic);
+@import '@ionic/vue/css/text-transformation.css' layer(ionic);
+@import '@ionic/vue/css/flex-utils.css' layer(ionic);
+@import '@ionic/vue/css/display.css' layer(ionic);
+@import '@ionic/vue/css/palettes/dark.class.css' layer(ionic);
+
+/* --- Self-hosted fonts (precached by the PWA, no external requests) --- */
+@import '@fontsource-variable/albert-sans';
+@import '@fontsource-variable/albert-sans/wght-italic.css';
+@import '@fontsource/cormorant-garamond/400.css';
+@import '@fontsource/cormorant-garamond/400-italic.css';
+@import '@fontsource/cormorant-garamond/500.css';
+@import '@fontsource/cormorant-garamond/500-italic.css';
+@import '@fontsource/cormorant-garamond/600.css';
+@import '@fontsource/cormorant-garamond/700.css';
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'vue-sonner/style.css';
+
+/* Theme is class-driven (settings.theme in localStorage), not media-query-driven */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Tokens — "Kirchenblau & Papier"
+   Anchor color: church blue rgb(39, 60, 119) = #273C77.
+   Editorial-serif direction: warm paper ground, navy ink,
+   restrained gold flourish, hairline rules instead of cards.
+   ============================================================ */
+:root {
+    --background: #faf9f6;
+    --foreground: #202741;
+    --card: #ffffff;
+    --card-foreground: #202741;
+    --popover: #ffffff;
+    --popover-foreground: #202741;
+    --primary: #273c77;
+    --primary-foreground: #f8f7f2;
+    --secondary: #efede5;
+    --secondary-foreground: #2a3350;
+    --muted: #f2f0ea;
+    --muted-foreground: #6c7183;
+    --accent: #e9edf6;
+    --accent-foreground: #273c77;
+    --destructive: #963333;
+    --destructive-foreground: #faf6f3;
+    --border: #e6e3d9;
+    --input: #dbd7cb;
+    --ring: #273c77;
+    /* Flourish color for sparse editorial details (rules, song numbers, Lied der Woche) */
+    --gold: #97783a;
+    --radius: 0.375rem;
+    --font-sans: 'Albert Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+}
+
+.dark {
+    --background: #131827;
+    --foreground: #e9e7df;
+    --card: #1b2136;
+    --card-foreground: #e9e7df;
+    --popover: #1b2136;
+    --popover-foreground: #e9e7df;
+    --primary: #9db0e0;
+    --primary-foreground: #131827;
+    --secondary: #252d47;
+    --secondary-foreground: #dfe3ef;
+    --muted: #1f2639;
+    --muted-foreground: #8f96ab;
+    --accent: #253052;
+    --accent-foreground: #c9d4f0;
+    --destructive: #b25555;
+    --destructive-foreground: #fbf1ee;
+    --border: #2a3148;
+    --input: #333b55;
+    --ring: #9db0e0;
+    --gold: #c7a967;
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-gold: var(--gold);
+
+    --font-sans: var(--font-sans);
+    --font-display: var(--font-display);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+    html,
+    body,
+    #app {
+        height: 100%;
+    }
+
+    body {
+        background-color: var(--background);
+        color: var(--foreground);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    * {
+        border-color: var(--border);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+    /* Uppercase micro-label — the editorial section/eyebrow style from the mockup */
+    .label-micro {
+        font-family: var(--font-sans);
+        font-size: 0.6875rem;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    /* Serif song/section number in the flourish color */
+    .number-display {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 500;
+        color: var(--gold);
+        font-variant-numeric: lining-nums;
+    }
+
+    /* Hairline rule with a centered diamond — the mockup's flourish divider */
+    .rule-flourish {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--gold);
+    }
+    .rule-flourish::before,
+    .rule-flourish::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: currentColor;
+        opacity: 0.35;
+    }
+}
+
+/* ============================================================
+   Transitional bridge (unlayered on purpose, so it beats the
+   ionic layer): point Ionic's own tokens at the new palette so
+   un-migrated views render on the new ground while waves run.
+   Delete together with the ionic layer.
+   ============================================================ */
+:root {
+    --ion-background-color: var(--background);
+    --ion-background-color-rgb: 250, 249, 246;
+    --ion-text-color: var(--foreground);
+    --ion-text-color-rgb: 32, 39, 65;
+    --ion-font-family: var(--font-sans);
+    --ion-color-primary: #273c77;
+    --ion-color-primary-rgb: 39, 60, 119;
+    --ion-color-primary-contrast: #ffffff;
+    --ion-color-primary-contrast-rgb: 255, 255, 255;
+    --ion-color-primary-shade: #223569;
+    --ion-color-primary-tint: #3d5085;
+}
+
+.ion-palette-dark {
+    --ion-background-color: var(--background);
+    --ion-background-color-rgb: 19, 24, 39;
+    --ion-text-color: var(--foreground);
+    --ion-text-color-rgb: 233, 231, 223;
+    --ion-color-primary: #9db0e0;
+    --ion-color-primary-rgb: 157, 176, 224;
+    --ion-color-primary-contrast: #131827;
+    --ion-color-primary-contrast-rgb: 19, 24, 39;
+    --ion-color-primary-shade: #8a9bc5;
+    --ion-color-primary-tint: #a7b8e3;
+}

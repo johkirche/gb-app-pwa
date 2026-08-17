@@ -1,49 +1,25 @@
 <template>
+    <!-- Transitional: <ion-app> stays as the root container while Ionic views
+         are migrated (their overlays and abs-positioned ion-pages mount against
+         it). It becomes a plain wrapper div at the end of the migration. -->
     <ion-app>
-        <ion-router-outlet class="mobile-container" />
+        <router-view />
+        <Toaster position="bottom-center" :theme="isDark ? 'dark' : 'light'" />
     </ion-app>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
 
-import { IonApp, IonRouterOutlet } from '@ionic/vue';
+import { IonApp } from '@ionic/vue';
 
-// Apply theme on app startup
-function applyTheme(theme: 'system' | 'light' | 'dark') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+import { useTheme } from '@/composables/useTheme';
 
-    if (theme === 'dark' || (theme === 'system' && prefersDark)) {
-        document.documentElement.classList.add('ion-palette-dark');
-    } else {
-        document.documentElement.classList.remove('ion-palette-dark');
-    }
-}
+import { Toaster } from '@/components/ui/sonner';
 
-function initializeTheme() {
-    const savedTheme = localStorage.getItem('settings.theme') as 'system' | 'light' | 'dark' | null;
-    const theme =
-        savedTheme && ['system', 'light', 'dark'].includes(savedTheme) ? savedTheme : 'system';
-    applyTheme(theme);
-
-    // Listen for system theme changes when using 'system' mode
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        const currentTheme = localStorage.getItem('settings.theme') as
-            | 'system'
-            | 'light'
-            | 'dark'
-            | null;
-        if (!currentTheme || currentTheme === 'system') {
-            applyTheme('system');
-        }
-    });
-}
+const { isDark, initTheme } = useTheme();
 
 onMounted(() => {
-    initializeTheme();
+    initTheme();
 });
 </script>
-
-<style>
-/* Mobile container styles are defined in theme/variables.css */
-</style>

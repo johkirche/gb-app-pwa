@@ -75,4 +75,11 @@ export default [
             ],
         },
     },
+    {
+        // shadcn-vue-style UI kit: primitives are idiomatically single-word (Button, Input, …)
+        files: ['src/components/ui/**/*.vue'],
+        rules: {
+            'vue/multi-word-component-names': 'off',
+        },
+    },
 ];

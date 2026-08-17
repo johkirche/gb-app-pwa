@@ -1,5 +1,4 @@
-import { createRouter, createWebHistory } from '@ionic/vue-router';
-import { RouteRecordRaw } from 'vue-router';
+import { RouteRecordRaw, createRouter, createWebHistory } from 'vue-router';
 
 import { useUserStore } from '@/stores/user';
 
@@ -152,6 +151,18 @@ const routes: Array<RouteRecordRaw> = [
         component: AddSongsToPlaylistPage,
         meta: { requiresAuth: true },
     },
+    // Dev-only design-system kitchen sink. import.meta.env.DEV is statically
+    // replaced by Vite, so production builds drop the route and its chunk.
+    ...(import.meta.env.DEV
+        ? [
+              {
+                  path: '/dev/ui',
+                  name: 'DevUi',
+                  component: () => import('../views/DevUiPage.vue'),
+                  meta: { requiresAuth: false },
+              } satisfies RouteRecordRaw,
+          ]
+        : []),
 ];
 
 const router = createRouter({

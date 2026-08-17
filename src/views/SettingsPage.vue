@@ -276,7 +276,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 
 import {
     IonButton,
@@ -299,7 +299,6 @@ import {
     IonTitle,
     IonToolbar,
     alertController,
-    onIonViewWillEnter,
     toastController,
 } from '@ionic/vue';
 import {
@@ -329,6 +328,7 @@ import { usePreferencesStore } from '@/stores/preferences';
 import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
+import { useTheme } from '@/composables/useTheme';
 
 import { SUPPORT_EMAIL } from '@/config/support';
 import { type Favorite, type Playlist, db } from '@/db';
@@ -336,6 +336,7 @@ import { downloadJsonFile, isPersisted } from '@/services/storage';
 
 const router = useRouter();
 const { user, logout, deleteAccount, isLoggedIn } = useAuth();
+const { theme, setTheme } = useTheme();
 const songsStore = useSongsStore();
 const preferencesStore = usePreferencesStore();
 const playlistsStore = usePlaylistsStore();
@@ -394,21 +395,17 @@ onMounted(async () => {
 // As a tab child this page mounts once and stays alive across tab switches, so
 // volatile values (files count after a sync, persistence state) must refresh on
 // every entry — onMounted alone would show stale data until a full reload.
-onIonViewWillEnter(async () => {
+// (onActivated replaces Ionic's onIonViewWillEnter: the new tab shell keeps
+// pages alive with <KeepAlive> instead of an ion-router-outlet.)
+onActivated(async () => {
     await updateFilesCount();
     persistentStorage.value = await isPersisted();
 });
 
 async function loadSettings() {
-    // Load theme preference
-    const savedTheme = localStorage.getItem('settings.theme');
-    if (savedTheme && ['system', 'light', 'dark'].includes(savedTheme)) {
-        themeMode.value = savedTheme as 'system' | 'light' | 'dark';
-    }
-
-    // Preferences store loads automatically, no need to load here
-    // Apply theme
-    applyTheme(themeMode.value);
+    // Mirror the persisted preference into the segment (useTheme already
+    // applied it on app startup)
+    themeMode.value = theme.value;
 }
 
 async function updateFilesCount() {
@@ -416,18 +413,9 @@ async function updateFilesCount() {
 }
 
 function onThemeChange() {
-    localStorage.setItem('settings.theme', themeMode.value);
-    applyTheme(themeMode.value);
-}
-
-function applyTheme(theme: 'system' | 'light' | 'dark') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (theme === 'dark' || (theme === 'system' && prefersDark)) {
-        document.documentElement.classList.add('ion-palette-dark');
-    } else {
-        document.documentElement.classList.remove('ion-palette-dark');
-    }
+    // useTheme owns persistence ('settings.theme') and applies both the new
+    // `dark` class and the transitional `ion-palette-dark` class.
+    setTheme(themeMode.value);
 }
 
 function navigateToDownload() {

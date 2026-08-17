@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import tailwindcss from '@tailwindcss/vite';
 import legacy from '@vitejs/plugin-legacy';
 import vue from '@vitejs/plugin-vue';
 import { createRequire } from 'node:module';
@@ -47,6 +48,7 @@ export default defineConfig({
     plugins: [
         enforceBackendUrl(),
         vue(),
+        tailwindcss(),
         legacy({
             targets: ['defaults', 'not IE 11'],
         }),
@@ -68,7 +70,7 @@ export default defineConfig({
                 name: 'Johannische Kirche Gesangbuch',
                 short_name: 'Gesangbuch',
                 description: 'Das digitale Gesangbuch der Johannischen Kirche',
-                theme_color: '#3880ff',
+                theme_color: '#273c77',
                 background_color: '#ffffff',
                 display: 'standalone',
                 orientation: 'portrait',

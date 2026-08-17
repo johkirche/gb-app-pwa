@@ -1,48 +1,39 @@
-import { toastController } from '@ionic/vue';
 import { registerSW } from 'virtual:pwa-register';
+import { toast } from 'vue-sonner';
 
 // Module-level guard so the service worker is only registered once,
 // no matter how many callers use this composable (mirrors usePWA.ts).
 let initialized = false;
 
 export function useAppUpdate() {
-    // Initialize the update prompt (call once in main.ts)
+    // Initialize the update prompt (call once after the app is mounted, so the
+    // <Toaster /> in App.vue is guaranteed to be listening)
     function initUpdatePrompt() {
         if (initialized) return;
         initialized = true;
 
         const updateSW = registerSW({
             immediate: true,
-            onNeedRefresh: async () => {
-                const toast = await toastController.create({
-                    message: 'Eine neue Version des Gesangbuchs ist verfügbar.',
-                    position: 'bottom',
-                    // Stay visible until the user acts on it
-                    duration: 0,
-                    buttons: [
-                        {
-                            text: 'Aktualisieren',
-                            role: 'confirm',
-                            handler: () => {
-                                // Activates the waiting service worker and reloads
-                                updateSW(true);
-                            },
+            onNeedRefresh: () => {
+                toast('Eine neue Version des Gesangbuchs ist verfügbar.', {
+                    // Stay visible until the user acts on it (Ionic duration 0
+                    // meant persistent; vue-sonner needs Infinity for that)
+                    duration: Infinity,
+                    action: {
+                        label: 'Aktualisieren',
+                        onClick: () => {
+                            // Activates the waiting service worker and reloads
+                            updateSW(true);
                         },
-                        {
-                            text: 'Später',
-                            role: 'cancel',
-                        },
-                    ],
+                    },
+                    cancel: {
+                        label: 'Später',
+                        onClick: () => {},
+                    },
                 });
-                await toast.present();
             },
-            onOfflineReady: async () => {
-                const toast = await toastController.create({
-                    message: 'Das Gesangbuch ist jetzt offline verfügbar.',
-                    duration: 3000,
-                    position: 'bottom',
-                });
-                await toast.present();
+            onOfflineReady: () => {
+                toast('Das Gesangbuch ist jetzt offline verfügbar.', { duration: 3000 });
             },
             onRegisteredSW: (_swUrl, registration) => {
                 if (registration) {
