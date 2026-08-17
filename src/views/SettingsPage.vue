@@ -2,11 +2,6 @@
     <ion-page>
         <ion-header :translucent="true">
             <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-button @click="$router.back()">
-                        <ion-icon slot="icon-only" :icon="arrowBackOutline"></ion-icon>
-                    </ion-button>
-                </ion-buttons>
                 <ion-title>Einstellungen</ion-title>
             </ion-toolbar>
         </ion-header>
@@ -134,6 +129,27 @@
                                 </ion-label>
                                 <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
+                            <ion-item class="transparent">
+                                <ion-icon :icon="serverOutline" slot="start"></ion-icon>
+                                <ion-label class="ion-text-wrap">
+                                    <h3>Dauerhafte Speicherung</h3>
+                                    <p>{{ persistedStatusText }}</p>
+                                </ion-label>
+                            </ion-item>
+                            <ion-item class="transparent" button @click="handleExport">
+                                <ion-icon :icon="downloadOutline" slot="start"></ion-icon>
+                                <ion-label>
+                                    <h3>Daten exportieren</h3>
+                                    <p>Playlists und Favoriten als Datei sichern</p>
+                                </ion-label>
+                            </ion-item>
+                            <ion-item class="transparent" button @click="importInput?.click()">
+                                <ion-icon :icon="cloudUploadOutline" slot="start"></ion-icon>
+                                <ion-label>
+                                    <h3>Daten importieren</h3>
+                                    <p>Aus einer Sicherungsdatei wiederherstellen</p>
+                                </ion-label>
+                            </ion-item>
                             <ion-item
                                 class="transparent"
                                 button
@@ -148,6 +164,13 @@
                                 <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
                         </ion-list>
+                        <input
+                            ref="importInput"
+                            type="file"
+                            accept="application/json,.json"
+                            style="display: none"
+                            @change="onImportFileChange"
+                        />
                     </ion-card-content>
                 </ion-card>
 
@@ -187,15 +210,11 @@
                                 </ion-label>
                             </ion-item>
 
-                            <ion-item
-                                class="transparent"
-                                button
-                                href="mailto:support@johannische-kirche.org"
-                            >
+                            <ion-item class="transparent" button :href="`mailto:${SUPPORT_EMAIL}`">
                                 <ion-icon :icon="mailOutline" slot="start"></ion-icon>
                                 <ion-label>
                                     <h3>Kontakt & Hilfe</h3>
-                                    <p>support@johannische-kirche.org</p>
+                                    <p>{{ SUPPORT_EMAIL }}</p>
                                 </ion-label>
                                 <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
@@ -204,6 +223,19 @@
                                 <ion-icon :icon="shieldCheckmarkOutline" slot="start"></ion-icon>
                                 <ion-label>
                                     <h3>Datenschutz</h3>
+                                </ion-label>
+                                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
+                            </ion-item>
+
+                            <ion-item
+                                class="transparent"
+                                button
+                                lines="none"
+                                @click="router.push('/impressum')"
+                            >
+                                <ion-icon :icon="documentTextOutline" slot="start"></ion-icon>
+                                <ion-label>
+                                    <h3>Impressum</h3>
                                 </ion-label>
                                 <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
                             </ion-item>
@@ -220,7 +252,6 @@ import { computed, onMounted, ref } from 'vue';
 
 import {
     IonButton,
-    IonButtons,
     IonCard,
     IonCardContent,
     IonCardHeader,
@@ -238,14 +269,17 @@ import {
     IonTitle,
     IonToolbar,
     alertController,
+    onIonViewWillEnter,
     toastController,
 } from '@ionic/vue';
 import {
-    arrowBackOutline,
     chevronForwardOutline,
     cloudDownloadOutline,
+    cloudUploadOutline,
     contrastOutline,
     createOutline,
+    documentTextOutline,
+    downloadOutline,
     imageOutline,
     informationCircleOutline,
     logOutOutline,
@@ -253,21 +287,33 @@ import {
     musicalNoteOutline,
     personOutline,
     phonePortraitOutline,
+    serverOutline,
     shieldCheckmarkOutline,
     textOutline,
     trashOutline,
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 
+import { useFavoritesStore } from '@/stores/favorites';
+import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
 import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
 
+import { SUPPORT_EMAIL } from '@/config/support';
+import { type Favorite, type Playlist, db } from '@/db';
+import { downloadJsonFile, isPersisted } from '@/services/storage';
+
 const router = useRouter();
-const { user, logout, isLoggedIn } = useAuth();
+const { user, logout, deleteAccount, isLoggedIn } = useAuth();
 const songsStore = useSongsStore();
 const preferencesStore = usePreferencesStore();
+const playlistsStore = usePlaylistsStore();
+const favoritesStore = useFavoritesStore();
+
+// Hidden file input for the backup import
+const importInput = ref<HTMLInputElement | null>(null);
 
 // App version - could be pulled from package.json in a real setup
 const appVersion = ref('1.0.0');
@@ -291,6 +337,18 @@ const melodyDisplayMode = computed({
 const songsCount = computed(() => songsStore.songs.length);
 const filesCount = ref(0);
 
+// Persistent-storage state: true/false from the browser, null = unsupported
+const persistentStorage = ref<boolean | null>(null);
+const persistedStatusText = computed(() => {
+    if (persistentStorage.value === true) {
+        return 'Aktiv – Ihre Daten sind vor automatischer Löschung geschützt.';
+    }
+    if (persistentStorage.value === false) {
+        return 'Nicht aktiv – der Browser kann lokale Daten bei Speicherplatzmangel entfernen.';
+    }
+    return 'Vom Browser nicht unterstützt.';
+});
+
 // Computed
 const displayName = computed(() => {
     if (user.value?.firstName || user.value?.lastName) {
@@ -302,7 +360,14 @@ const displayName = computed(() => {
 // Load settings on mount
 onMounted(async () => {
     await loadSettings();
+});
+
+// As a tab child this page mounts once and stays alive across tab switches, so
+// volatile values (files count after a sync, persistence state) must refresh on
+// every entry — onMounted alone would show stale data until a full reload.
+onIonViewWillEnter(async () => {
     await updateFilesCount();
+    persistentStorage.value = await isPersisted();
 });
 
 async function loadSettings() {
@@ -393,10 +458,111 @@ async function updateUserName(_firstName: string, _lastName: string) {
     }
 }
 
+async function showToast(message: string, color: 'success' | 'danger') {
+    const toast = await toastController.create({
+        message,
+        duration: 3000,
+        position: 'bottom',
+        color,
+    });
+    await toast.present();
+}
+
+async function handleExport() {
+    try {
+        const [playlists, favorites] = await Promise.all([
+            db.playlists.toArray(),
+            db.favorites.toArray(),
+        ]);
+        downloadJsonFile(`gesangbuch-daten-${new Date().toISOString().slice(0, 10)}.json`, {
+            app: 'gesangbuch',
+            schemaVersion: 1,
+            exportedAt: new Date().toISOString(),
+            playlists,
+            favorites,
+        });
+        await showToast('Daten wurden exportiert.', 'success');
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        await showToast('Die Daten konnten nicht exportiert werden.', 'danger');
+    }
+}
+
+// Revive a JSON-serialized Date (ISO string) back into a real Date object
+function reviveDate(value: unknown): Date {
+    const date = new Date(value as string | number | Date);
+    return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+async function onImportFileChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    try {
+        const data = JSON.parse(await file.text());
+        if (
+            data?.app !== 'gesangbuch' ||
+            !Array.isArray(data.playlists) ||
+            !Array.isArray(data.favorites)
+        ) {
+            throw new Error('invalid backup file');
+        }
+
+        const playlists: Playlist[] = data.playlists
+            .filter(
+                (p: unknown) =>
+                    p &&
+                    typeof (p as Playlist).id === 'string' &&
+                    typeof (p as Playlist).name === 'string' &&
+                    Array.isArray((p as Playlist).songIds),
+            )
+            .map((p: Playlist & { createdAt: string | Date; updatedAt: string | Date }) => ({
+                id: p.id,
+                name: p.name,
+                emoji: typeof p.emoji === 'string' ? p.emoji : '🎵',
+                songIds: p.songIds.filter((s: unknown): s is string => typeof s === 'string'),
+                createdAt: reviveDate(p.createdAt),
+                updatedAt: reviveDate(p.updatedAt),
+            }));
+
+        const favorites: Favorite[] = data.favorites
+            .filter((f: unknown) => f && typeof (f as Favorite).id === 'string')
+            .map((f: Favorite & { createdAt: string | Date }) => ({
+                id: f.id,
+                createdAt: reviveDate(f.createdAt),
+            }));
+
+        // bulkPut matches on the primary keys (playlist id = UUID, favorite id
+        // = song id), so re-importing the same backup is idempotent — existing
+        // rows are overwritten, never duplicated.
+        await db.transaction('rw', db.playlists, db.favorites, async () => {
+            await db.playlists.bulkPut(playlists);
+            await db.favorites.bulkPut(favorites);
+        });
+
+        // Both stores hydrate their refs only once at creation — reload them
+        await Promise.all([playlistsStore.loadPlaylists(), favoritesStore.loadFavorites()]);
+
+        await showToast(
+            `${playlists.length} Playlists und ${favorites.length} Favoriten importiert.`,
+            'success',
+        );
+    } catch (error) {
+        console.error('Error importing data:', error);
+        await showToast(
+            'Die Datei konnte nicht importiert werden. Bitte wählen Sie eine gültige Sicherungsdatei.',
+            'danger',
+        );
+    }
+}
+
 async function handleLogout() {
     const alert = await alertController.create({
         header: 'Abmelden',
-        message: 'Möchten Sie sich wirklich abmelden?',
+        message:
+            'Möchten Sie sich wirklich abmelden? Ihre Playlists, Favoriten und Einstellungen werden dabei von diesem Gerät gelöscht.',
         buttons: [
             {
                 text: 'Abbrechen',
@@ -428,18 +594,35 @@ async function handleDeleteAccount() {
                 text: 'Konto löschen',
                 role: 'destructive',
                 handler: async () => {
-                    try {
-                        // TODO: Implement API call to delete account on server
-                        const toast = await toastController.create({
-                            message:
-                                'Kontolöschung wird in einer zukünftigen Version verfügbar sein. Bitte kontaktieren Sie den Support.',
-                            duration: 4000,
-                            position: 'bottom',
-                            color: 'warning',
+                    const result = await deleteAccount();
+                    if (result.success) {
+                        // deleteAccount already wiped this device and is
+                        // hard-redirecting to /login — nothing left to do here.
+                        return;
+                    }
+
+                    if (result.code === 'FORBIDDEN') {
+                        // Automatic deletion is not enabled on the server (yet):
+                        // offer the honest route via the support address instead.
+                        const infoAlert = await alertController.create({
+                            header: 'Kontolöschung nicht möglich',
+                            message: result.error,
+                            buttons: [
+                                {
+                                    text: 'Schließen',
+                                    role: 'cancel',
+                                },
+                                {
+                                    text: 'E-Mail schreiben',
+                                    handler: () => {
+                                        window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Kontolöschung')}`;
+                                    },
+                                },
+                            ],
                         });
-                        await toast.present();
-                    } catch (error) {
-                        console.error('Error deleting account:', error);
+                        await infoAlert.present();
+                    } else {
+                        await showToast(result.error, 'danger');
                     }
                 },
             },
@@ -449,8 +632,7 @@ async function handleDeleteAccount() {
 }
 
 function openPrivacyPolicy() {
-    // Open privacy policy - could be an external link or internal page
-    window.open('https://johannische-kirche.org/datenschutz', '_blank');
+    router.push('/datenschutz');
 }
 </script>
 
