@@ -226,3 +226,19 @@
     --ion-color-primary-shade: #8a9bc5;
     --ion-color-primary-tint: #a7b8e3;
 }
+
+/* Ionic implements fill="outline"/"solid" only in MD mode; with the app forced
+   to mode:'ios' those inputs render with no field box at all (pre-existing on
+   main since the iOS-mode switch). Until the views are migrated to the kit's
+   Input, give every bare ion-input a token-styled field. */
+ion-input.sc-ion-input-ios-h {
+    --padding-start: 14px;
+    --padding-end: 14px;
+    background: var(--card);
+    border: 1px solid var(--input);
+    border-radius: var(--radius);
+}
+
+ion-input.sc-ion-input-ios-h:focus-within {
+    border-color: var(--ring);
+}
