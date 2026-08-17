@@ -1,25 +1,25 @@
 <template>
-    <ion-button
-        expand="block"
-        fill="clear"
-        @click="handleSkip"
+    <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="mt-4 w-full text-muted-foreground"
         :disabled="disabled"
-        size="small"
-        color="medium"
-        class="ion-margin-top"
+        @click="handleSkip"
     >
         Überspringen (Entwicklermodus)
-    </ion-button>
+    </Button>
 </template>
 
 <script setup lang="ts">
 // Dev-only auth bypass. This component is loaded exclusively via an
 // import.meta.env.DEV-guarded dynamic import, so production builds never
 // emit this chunk — neither the button markup nor the bypass handler ships.
-import { IonButton } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 
 import { useAuth } from '@/composables/useAuth';
+
+import { Button } from '@/components/ui/button';
 
 defineProps<{ disabled?: boolean }>();
 

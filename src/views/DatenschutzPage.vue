@@ -1,38 +1,44 @@
 <template>
-    <ion-page>
-        <ion-header :translucent="true">
-            <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-back-button default-href="/login" text=""></ion-back-button>
-                </ion-buttons>
-                <ion-title>Datenschutzerklärung</ion-title>
-            </ion-toolbar>
-        </ion-header>
+    <div class="flex h-full flex-col bg-background">
+        <AppPageHeader title="Datenschutzerklärung">
+            <template #leading>
+                <BackButton default-href="/login" />
+            </template>
+        </AppPageHeader>
 
-        <ion-content :fullscreen="true">
-            <div class="content-container card-stack">
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Verantwortlicher</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <p class="legal-todo">
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+                class="mx-auto w-full max-w-prose px-5 pb-[max(3rem,env(safe-area-inset-bottom))] pt-8"
+            >
+                <section>
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-display text-2xl font-semibold">Verantwortlicher</h2>
+                        <Separator class="min-w-10 flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                        <p class="italic text-gold">
                             [TODO: Von der Organisation zu ergänzen – Name und Anschrift des
                             Verantwortlichen im Sinne der DSGVO sowie ggf. Kontaktdaten des
                             Datenschutzbeauftragten.]
                         </p>
                         <p>
                             Kontakt:
-                            <a :href="`mailto:${SUPPORT_EMAIL}`">{{ SUPPORT_EMAIL }}</a>
+                            <a
+                                :href="`mailto:${SUPPORT_EMAIL}`"
+                                class="text-primary underline-offset-4 hover:underline"
+                            >
+                                {{ SUPPORT_EMAIL }}
+                            </a>
                         </p>
-                    </ion-card-content>
-                </ion-card>
+                    </div>
+                </section>
 
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Überblick</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
+                <section class="mt-12">
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-display text-2xl font-semibold">Überblick</h2>
+                        <Separator class="min-w-10 flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
                         <p>
                             Diese App ist ein digitales Gesangbuch, das nach dem Herunterladen der
                             Inhalte weitgehend offline funktioniert. Personenbezogene Daten werden
@@ -40,19 +46,22 @@
                             der Inhalte erforderlich ist. Die App setzt keine Analyse- oder
                             Tracking-Dienste ein und stellt keine Anfragen an Drittanbieter.
                         </p>
-                    </ion-card-content>
-                </ion-card>
+                    </div>
+                </section>
 
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Lokal auf Ihrem Gerät gespeicherte Daten</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
+                <section class="mt-12">
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-display text-2xl font-semibold">
+                            Lokal auf Ihrem Gerät gespeicherte Daten
+                        </h2>
+                        <Separator class="min-w-10 flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
                         <p>
                             Damit die App offline nutzbar ist, speichert sie Daten ausschließlich
                             lokal auf Ihrem Gerät:
                         </p>
-                        <ul>
+                        <ul class="list-disc space-y-1.5 pl-5">
                             <li>
                                 <strong>App-Datenbank</strong>
                                 (IndexedDB &bdquo;GesangbuchDB&ldquo;): Lieder und Notendateien
@@ -103,20 +112,21 @@
                             bei einer Kontolöschung werden sämtliche lokal gespeicherten Daten
                             gelöscht.
                         </p>
-                    </ion-card-content>
-                </ion-card>
+                    </div>
+                </section>
 
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Server-Anfragen</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
+                <section class="mt-12">
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-display text-2xl font-semibold">Server-Anfragen</h2>
+                        <Separator class="min-w-10 flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
                         <p>
                             Die App kommuniziert ausschließlich mit dem für sie konfigurierten
                             Backend der Johannischen Kirche (gb26-admin.johannische-kirche.org).
                             Dabei werden folgende Schnittstellen verwendet:
                         </p>
-                        <ul>
+                        <ul class="list-disc space-y-1.5 pl-5">
                             <li>
                                 <em>/auth/&hellip;</em>
                                 &ndash; Anmeldung, Sitzungsverlängerung, Abmeldung und Zurücksetzen
@@ -143,85 +153,51 @@
                             Anmeldungen und andere Anfragen an das Backend können dort im Rahmen der
                             üblichen serverseitigen Protokollierung erfasst werden.
                         </p>
-                    </ion-card-content>
-                </ion-card>
+                    </div>
+                </section>
 
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Keine Drittanbieter</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
+                <section class="mt-12">
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-display text-2xl font-semibold">Keine Drittanbieter</h2>
+                        <Separator class="min-w-10 flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
                         <p>
                             Die Notenwiedergabe lädt die benötigten Klangdateien (Soundfonts) von
                             derselben Quelle wie die App selbst; es finden dabei keine Anfragen an
                             Drittanbieter statt. Die App setzt keine Cookies zu Werbe- oder
                             Analysezwecken und keine Tracking-Dienste ein.
                         </p>
-                    </ion-card-content>
-                </ion-card>
+                    </div>
+                </section>
 
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>
+                <section class="mt-12">
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-display text-2xl font-semibold">
                             Rechtsgrundlagen, Speicherdauer und Ihre Rechte
-                        </ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <p class="legal-todo">
+                        </h2>
+                        <Separator class="min-w-10 flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                        <p class="italic text-gold">
                             [TODO: Von der Organisation zu ergänzen – u.&nbsp;a. Rechtsgrundlagen
                             der Verarbeitung, Speicherdauer der serverseitig gespeicherten Daten
                             sowie die Betroffenenrechte (Auskunft, Berichtigung, Löschung,
                             Einschränkung, Datenübertragbarkeit, Widerspruch und Beschwerde bei
                             einer Aufsichtsbehörde).]
                         </p>
-                        <p class="legal-todo">[TODO: Stand dieser Erklärung ergänzen]</p>
-                    </ion-card-content>
-                </ion-card>
+                        <p class="italic text-gold">[TODO: Stand dieser Erklärung ergänzen]</p>
+                    </div>
+                </section>
             </div>
-        </ion-content>
-    </ion-page>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
-import {
-    IonBackButton,
-    IonButtons,
-    IonCard,
-    IonCardContent,
-    IonCardHeader,
-    IonCardTitle,
-    IonContent,
-    IonHeader,
-    IonPage,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import BackButton from '@/components/shell/BackButton.vue';
+import { Separator } from '@/components/ui/separator';
 
 import { SUPPORT_EMAIL } from '@/config/support';
 </script>
-
-<style scoped>
-ion-card-content p,
-ion-card-content li {
-    line-height: 1.6;
-}
-
-ion-card-content p + p {
-    margin-top: var(--spacing-sm, 8px);
-}
-
-ion-card-content ul {
-    margin: var(--spacing-sm, 8px) 0;
-    padding-left: 20px;
-}
-
-ion-card-content li + li {
-    margin-top: 4px;
-}
-
-/* Placeholder entries that must be completed by the organisation before release */
-.legal-todo {
-    color: var(--ion-color-warning-shade);
-    font-style: italic;
-}
-</style>
