@@ -1,39 +1,61 @@
 <template>
-    <ion-list class="songs-list" lines="full">
-        <ion-reorder-group :disabled="!reorderMode" @ionItemReorder="handleReorder">
-            <ion-item
-                v-for="song in songs"
-                :key="song.id"
-                class="song-row"
-                :button="!reorderMode"
-                lines="full"
+    <VueDraggable
+        :model-value="songs"
+        tag="ul"
+        class="mt-4 divide-y divide-border"
+        handle="[data-drag-handle]"
+        :disabled="!reorderMode"
+        :animation="150"
+        @update:model-value="handleReorder"
+    >
+        <li v-for="song in songs" :key="song.id">
+            <component
+                :is="reorderMode ? 'div' : 'button'"
+                v-long-press="() => handleSongLongPress(song)"
+                :type="reorderMode ? undefined : 'button'"
+                class="flex w-full select-none items-center gap-4 px-2 py-2.5 text-left [-webkit-touch-callout:none]"
+                :class="
+                    reorderMode ? '' : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
+                "
                 @click="handleSongClick(song)"
                 @contextmenu.prevent="handleSongContextMenu(song)"
-                v-long-press="() => handleSongLongPress(song)"
             >
                 <span
-                    slot="start"
-                    class="song-row__number"
-                    :class="{ 'song-row__number--empty': !song.index }"
+                    class="number-display flex w-10 shrink-0 items-center justify-end text-lg leading-none"
                 >
                     <template v-if="song.index">{{ song.index }}</template>
-                    <span v-else class="song-row__number-dot" aria-hidden="true"></span>
+                    <span
+                        v-else
+                        class="inline-block h-1.5 w-1.5 rotate-45 rounded-full bg-muted-foreground"
+                        aria-hidden="true"
+                    ></span>
                 </span>
-                <ion-label>
-                    <span class="song-row__title">{{ song.titel }}</span>
-                    <span v-if="song.kategorien.length > 0" class="song-row__category">
+                <span class="min-w-0 flex-1">
+                    <span class="block break-words font-display text-[17px] leading-snug">
+                        {{ song.titel }}
+                    </span>
+                    <span
+                        v-if="song.kategorien.length > 0"
+                        class="mt-0.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground"
+                    >
                         {{ formatCategories(song.kategorien) }}
                     </span>
-                </ion-label>
-                <ion-reorder v-if="reorderMode" slot="end"></ion-reorder>
-            </ion-item>
-        </ion-reorder-group>
-    </ion-list>
+                </span>
+                <span
+                    v-if="reorderMode"
+                    data-drag-handle
+                    class="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground active:cursor-grabbing"
+                >
+                    <GripVertical class="size-5" aria-hidden="true" />
+                </span>
+            </component>
+        </li>
+    </VueDraggable>
 </template>
 
 <script setup lang="ts">
-import { IonItem, IonLabel, IonList, IonReorder, IonReorderGroup } from '@ionic/vue';
-import type { ItemReorderEventDetail } from '@ionic/vue';
+import { GripVertical } from 'lucide-vue-next';
+import { VueDraggable } from 'vue-draggable-plus';
 
 import type { Category, Song } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
@@ -46,7 +68,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     songClick: [song: Song];
     songContextMenu: [song: Song];
-    reorder: [event: CustomEvent<ItemReorderEventDetail>];
+    /** Complete reordered list of the *rendered* song ids after a drop. */
+    reorder: [songIds: string[]];
 }>();
 
 function handleSongClick(song: Song) {
@@ -67,82 +90,14 @@ function handleSongLongPress(song: Song) {
     }
 }
 
-function handleReorder(event: CustomEvent<ItemReorderEventDetail>) {
-    emit('reorder', event);
+function handleReorder(reordered: Song[]) {
+    emit(
+        'reorder',
+        reordered.map((song) => song.id),
+    );
 }
 
 function formatCategories(categories: Category[]): string {
     return categories.map((c) => c.name).join(', ');
 }
 </script>
-
-<style scoped>
-.songs-list {
-    margin-top: 1rem;
-    padding-top: 0;
-    padding-bottom: 0;
-    background: transparent;
-}
-
-/* Number Box rows — matches the songs list and home screen */
-.song-row {
-    --background: transparent;
-    --border-color: var(--ion-color-light-shade);
-    --padding-start: var(--spacing-xs);
-    --inner-padding-end: var(--spacing-sm);
-    --min-height: 3.5rem;
-}
-
-.song-row__number {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.75rem;
-    height: 2.5rem;
-    margin-inline-end: var(--spacing-md);
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-color-primary);
-}
-
-.song-row__number--empty {
-    color: var(--ion-color-medium);
-}
-
-.song-row__number-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ion-color-medium);
-    transform: rotate(45deg);
-}
-
-.song-row__title {
-    display: block;
-    font-size: var(--font-size-base);
-    font-weight: 500;
-    line-height: 1.3;
-    white-space: normal;
-    overflow-wrap: break-word;
-    word-break: break-word;
-}
-
-.song-row__category {
-    display: block;
-    margin-top: 2px;
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-}
-
-.song-row__chevron {
-    color: var(--ion-color-medium);
-    font-size: var(--font-size-base);
-}
-</style>

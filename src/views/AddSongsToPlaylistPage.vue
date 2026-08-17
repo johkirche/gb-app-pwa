@@ -1,115 +1,140 @@
 <template>
-    <ion-page>
-        <ion-header :translucent="true">
-            <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-back-button
-                        :default-href="`/playlists/${playlistId}`"
-                        text=""
-                    ></ion-back-button>
-                </ion-buttons>
-                <ion-title>Lieder hinzufügen</ion-title>
-                <ion-buttons slot="end">
-                    <ion-button :disabled="selectedSongs.size === 0" @click="addSelectedSongs">
-                        <ion-icon slot="start" :icon="checkmarkOutline"></ion-icon>
-                        {{ selectedSongs.size > 0 ? `(${selectedSongs.size})` : '' }}
-                    </ion-button>
-                </ion-buttons>
-            </ion-toolbar>
+    <div class="flex h-full flex-col bg-background">
+        <AppPageHeader title="Lieder hinzufügen">
+            <template #leading>
+                <BackButton :default-href="`/playlists/${playlistId}`" />
+            </template>
+            <template #trailing>
+                <Button
+                    variant="ghost"
+                    class="text-primary"
+                    :disabled="selectedSongs.size === 0"
+                    aria-label="Lieder hinzufügen"
+                    @click="addSelectedSongs"
+                >
+                    <Check aria-hidden="true" />
+                    <span v-if="selectedSongs.size > 0">({{ selectedSongs.size }})</span>
+                </Button>
+            </template>
+        </AppPageHeader>
 
-            <!-- Search Bar -->
-            <ion-toolbar>
-                <ion-searchbar
-                    v-model="searchQuery"
-                    placeholder="Lieder suchen..."
-                    :debounce="300"
-                    @ionClear="searchQuery = ''"
-                ></ion-searchbar>
-            </ion-toolbar>
-        </ion-header>
-
-        <ion-content :fullscreen="true" :class="{ 'has-selection-footer': selectedSongs.size > 0 }">
-            <!-- Loading State -->
-            <div v-if="isLoading" class="state-container">
-                <ion-spinner name="crescent"></ion-spinner>
+        <!-- Search Bar (sticky: sits outside the scroll container) -->
+        <div class="shrink-0 border-b border-border bg-background px-4 py-2">
+            <div class="relative mx-auto w-full max-w-xl">
+                <Search
+                    class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                />
+                <Input v-model="searchInput" placeholder="Lieder suchen..." class="pl-9 pr-10" />
+                <button
+                    v-if="searchInput"
+                    type="button"
+                    class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Eingabe löschen"
+                    @click="clearSearch"
+                >
+                    <X class="size-4" aria-hidden="true" />
+                </button>
             </div>
+        </div>
 
-            <!-- Empty Results -->
-            <div v-else-if="filteredSongs.length === 0" class="state-container empty-state">
-                <ion-icon :icon="searchOutline" size="large"></ion-icon>
-                <h2>Keine Ergebnisse</h2>
-                <p v-if="searchQuery">Keine Lieder für "{{ searchQuery }}" gefunden.</p>
-                <p v-else>Keine Lieder verfügbar.</p>
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div class="mx-auto w-full max-w-xl px-4 pb-6">
+                <!-- Loading State -->
+                <div v-if="isLoading" class="flex min-h-[50vh] items-center justify-center">
+                    <Spinner size="lg" />
+                </div>
+
+                <!-- Empty Results -->
+                <div
+                    v-else-if="filteredSongs.length === 0"
+                    class="flex min-h-[50vh] flex-col items-center justify-center px-6 py-12 text-center"
+                >
+                    <Search
+                        class="size-14 text-muted-foreground"
+                        stroke-width="1.25"
+                        aria-hidden="true"
+                    />
+                    <h2 class="mt-4 font-display text-2xl font-semibold">Keine Ergebnisse</h2>
+                    <p v-if="searchQuery" class="mt-2 text-sm text-muted-foreground">
+                        Keine Lieder für "{{ searchQuery }}" gefunden.
+                    </p>
+                    <p v-else class="mt-2 text-sm text-muted-foreground">Keine Lieder verfügbar.</p>
+                </div>
+
+                <!-- Songs List with Checkboxes -->
+                <ul v-else class="divide-y divide-border">
+                    <li v-for="song in filteredSongs" :key="song.id">
+                        <!-- The label wraps the checkbox, so the whole row text is the
+                             checkbox's accessible name and a tap anywhere toggles exactly
+                             once (the checkbox is the only event source). -->
+                        <label
+                            class="flex w-full cursor-pointer items-start gap-3 rounded-sm px-2 py-3 transition-colors hover:bg-muted"
+                        >
+                            <Checkbox
+                                class="mt-0.5 size-5"
+                                :model-value="selectedSongs.has(song.id)"
+                                @update:model-value="toggleSong(song.id)"
+                            />
+                            <span class="min-w-0 flex-1">
+                                <span class="block break-words text-[15px] leading-snug">
+                                    <span v-if="song.index" class="font-semibold text-primary">
+                                        {{ song.index }}.
+                                    </span>
+                                    {{ song.titel }}
+                                </span>
+                                <span
+                                    v-if="song.kategorien.length > 0"
+                                    class="mt-0.5 block text-sm text-muted-foreground"
+                                >
+                                    {{ formatCategories(song.kategorien) }}
+                                </span>
+                                <span
+                                    v-if="isInPlaylist(song.id)"
+                                    class="mt-0.5 flex items-center gap-1 text-[13px] text-green-600 dark:text-green-500"
+                                >
+                                    <CircleCheck class="size-4" aria-hidden="true" />
+                                    Bereits in Playlist
+                                </span>
+                            </span>
+                        </label>
+                    </li>
+                </ul>
             </div>
+        </main>
 
-            <!-- Songs List with Checkboxes -->
-            <ion-list v-else>
-                <ion-item v-for="song in filteredSongs" :key="song.id">
-                    <ion-checkbox
-                        class="ion-item-checklist"
-                        :checked="selectedSongs.has(song.id)"
-                        @ionChange="toggleSong(song.id)"
-                        label-placement="end"
-                        justify="start"
-                    >
-                        <ion-label class="ion-text-wrap">
-                            <h2>
-                                <span v-if="song.index" class="song-index">{{ song.index }}.</span>
-                                {{ song.titel }}
-                            </h2>
-                            <p v-if="song.kategorien.length > 0">
-                                {{ formatCategories(song.kategorien) }}
-                            </p>
-                            <p v-if="isInPlaylist(song.id)" class="already-added">
-                                <ion-icon :icon="checkmarkCircle"></ion-icon>
-                                Bereits in Playlist
-                            </p>
-                        </ion-label>
-                    </ion-checkbox>
-                </ion-item>
-            </ion-list>
-        </ion-content>
-
-        <!-- Selection Summary Footer -->
-        <ion-footer v-if="selectedSongs.size > 0">
-            <ion-toolbar>
-                <ion-button expand="block" @click="addSelectedSongs">
-                    <ion-icon slot="start" :icon="addOutline"></ion-icon>
+        <!-- Selection Summary Footer (docked; in flow, so the list is never covered) -->
+        <div
+            v-if="selectedSongs.size > 0"
+            class="shrink-0 border-t border-border bg-background px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2"
+        >
+            <div class="mx-auto w-full max-w-xl">
+                <Button class="w-full" size="lg" @click="addSelectedSongs">
+                    <Plus aria-hidden="true" />
                     {{ selectedSongs.size }}
                     {{ selectedSongs.size === 1 ? 'Lied' : 'Lieder' }} hinzufügen
-                </ion-button>
-            </ion-toolbar>
-        </ion-footer>
-    </ion-page>
+                </Button>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 
-import {
-    IonBackButton,
-    IonButton,
-    IonButtons,
-    IonCheckbox,
-    IonContent,
-    IonFooter,
-    IonHeader,
-    IonIcon,
-    IonItem,
-    IonLabel,
-    IonList,
-    IonPage,
-    IonSearchbar,
-    IonSpinner,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
-import { addOutline, checkmarkCircle, checkmarkOutline, searchOutline } from 'ionicons/icons';
+import { Check, CircleCheck, Plus, Search, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 
 import { usePlaylistsStore } from '@/stores/playlists';
 import { useSongsStore } from '@/stores/songs';
+
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import BackButton from '@/components/shell/BackButton.vue';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 
 import type { Category } from '@/db';
 
@@ -120,9 +145,29 @@ const songsStore = useSongsStore();
 
 const { songs: allSongs, isLoading } = storeToRefs(songsStore);
 
-// State
+// State — the raw input is debounced (300 ms, as the Ionic searchbar did)
+// into searchQuery, which drives filtering and the empty-state copy.
+const searchInput = ref('');
 const searchQuery = ref('');
 const selectedSongs = ref<Set<string>>(new Set());
+
+let searchDebounce: ReturnType<typeof setTimeout> | undefined;
+watch(searchInput, (value) => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+        searchQuery.value = value;
+    }, 300);
+});
+
+onUnmounted(() => {
+    clearTimeout(searchDebounce);
+});
+
+function clearSearch() {
+    clearTimeout(searchDebounce);
+    searchInput.value = '';
+    searchQuery.value = '';
+}
 
 // Get playlist ID from route
 const playlistId = computed(() => route.params.id as string);
@@ -180,65 +225,3 @@ function formatCategories(categories: Category[]): string {
     return categories.map((c) => c.name).join(', ');
 }
 </script>
-
-<style scoped>
-.song-index {
-    font-weight: 600;
-    color: var(--ion-color-primary);
-    margin-right: 4px;
-}
-
-.already-added {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--ion-color-success);
-    font-size: 0.85rem;
-}
-
-.already-added ion-icon {
-    font-size: 1rem;
-}
-
-.ion-item-checklist {
-    padding-left: var(--spacing-md);
-}
-
-.state-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-    text-align: center;
-    min-height: 50vh;
-}
-
-.state-container > ion-icon {
-    font-size: 64px;
-    color: var(--ion-color-medium);
-    margin-bottom: 16px;
-}
-
-.state-container h2 {
-    margin: 0 0 8px;
-    color: var(--ion-color-dark);
-}
-
-.state-container p {
-    margin: 0;
-    color: var(--ion-color-medium);
-}
-
-ion-content.has-selection-footer {
-    --padding-bottom: 72px;
-}
-
-ion-footer ion-toolbar {
-    padding: 8px 16px;
-}
-
-ion-footer ion-button {
-    margin: 0;
-}
-</style>

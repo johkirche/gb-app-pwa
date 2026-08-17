@@ -1,108 +1,114 @@
 <template>
-    <ion-modal
-        :is-open="isOpen"
-        :initial-breakpoint="0.5"
-        :breakpoints="[0, 0.5, 0.75, 1]"
-        @didDismiss="emit('close')"
+    <Drawer
+        :open="isOpen"
+        :snap-points="snapPoints"
+        v-model:active-snap-point="activeSnapPoint"
+        @update:open="onOpenChange"
     >
-        <ion-header>
-            <ion-toolbar>
-                <ion-title>Zu Playlist hinzufügen</ion-title>
-                <ion-buttons slot="end">
-                    <ion-button @click="emit('close')">Fertig</ion-button>
-                </ion-buttons>
-            </ion-toolbar>
-        </ion-header>
+        <DrawerContent class="h-full max-h-[97dvh]">
+            <div class="flex items-center justify-between gap-2 py-1 pl-4 pr-2">
+                <DrawerTitle>Zu Playlist hinzufügen</DrawerTitle>
+                <Button variant="ghost" class="text-primary" @click="emit('close')">Fertig</Button>
+            </div>
 
-        <ion-content>
             <!-- Loading State -->
-            <div v-if="isLoading" class="state-container">
-                <ion-spinner name="crescent"></ion-spinner>
+            <div v-if="isLoading" class="flex items-center justify-center p-12">
+                <Spinner size="lg" />
             </div>
 
             <!-- Empty State -->
-            <div v-else-if="!hasPlaylists" class="empty-state">
-                <ion-icon :icon="albumsOutline" size="large"></ion-icon>
-                <p>Keine Playlisten vorhanden</p>
-                <ion-button
-                    class="create-button"
-                    size="default"
-                    fill="solid"
-                    @click="navigateToCreate"
-                >
-                    <ion-icon slot="start" :icon="addOutline"></ion-icon>
+            <div
+                v-else-if="!hasPlaylists"
+                class="flex flex-col items-center justify-center px-6 py-12 text-center"
+            >
+                <Library
+                    class="size-12 text-muted-foreground"
+                    stroke-width="1.5"
+                    aria-hidden="true"
+                />
+                <p class="mt-3 text-muted-foreground">Keine Playlisten vorhanden</p>
+                <Button class="mt-4" @click="navigateToCreate">
+                    <Plus aria-hidden="true" />
                     Playlist erstellen
-                </ion-button>
+                </Button>
             </div>
 
             <!-- Playlists List -->
-            <ion-list v-else lines="full">
+            <div v-else class="px-4 pb-6">
                 <!-- Create New Option -->
-                <ion-item button :detail="true" @click.stop="navigateToCreate">
-                    <ion-icon slot="start" :icon="addCircleOutline" color="primary"></ion-icon>
-                    <ion-label color="primary">Neue Playlist erstellen</ion-label>
-                </ion-item>
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-3 rounded-sm py-3 text-left transition-colors hover:bg-muted active:bg-muted"
+                    @click.stop="navigateToCreate"
+                >
+                    <CirclePlus class="size-6 shrink-0 text-primary" aria-hidden="true" />
+                    <span class="min-w-0 flex-1 text-[15px] font-medium text-primary">
+                        Neue Playlist erstellen
+                    </span>
+                    <ChevronRight
+                        class="size-4 shrink-0 text-muted-foreground/70"
+                        aria-hidden="true"
+                    />
+                </button>
 
-                <ion-item-divider>
-                    <ion-label>Playlisten</ion-label>
-                </ion-item-divider>
+                <div class="mt-1 flex items-center gap-3">
+                    <span class="label-micro shrink-0 text-gold">Playlisten</span>
+                    <Separator class="flex-1" />
+                </div>
 
                 <!-- Existing Playlists -->
-                <ion-item
-                    v-for="playlist in sortedPlaylists"
-                    :key="playlist.id"
-                    button
-                    :disabled="isSongInPlaylist(playlist.id)"
-                    @click="addToPlaylist(playlist.id)"
-                >
-                    <div slot="start" class="playlist-emoji">
-                        {{ playlist.emoji }}
-                    </div>
-                    <ion-label>
-                        <h2>{{ playlist.name }}</h2>
-                        <p>{{ playlist.songIds.length }} Lieder</p>
-                    </ion-label>
-                    <ion-icon
-                        v-if="isSongInPlaylist(playlist.id)"
-                        slot="end"
-                        :icon="checkmarkCircle"
-                        color="success"
-                    ></ion-icon>
-                    <ion-icon
-                        v-else-if="addedToPlaylistId === playlist.id"
-                        slot="end"
-                        :icon="checkmarkCircle"
-                        color="success"
-                    ></ion-icon>
-                </ion-item>
-            </ion-list>
-        </ion-content>
-    </ion-modal>
+                <ul class="mt-1 divide-y divide-border">
+                    <li v-for="playlist in sortedPlaylists" :key="playlist.id">
+                        <button
+                            type="button"
+                            class="flex w-full items-center gap-3 rounded-sm py-2.5 text-left transition-colors hover:bg-muted active:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                            :disabled="isSongInPlaylist(playlist.id)"
+                            @click="addToPlaylist(playlist.id)"
+                        >
+                            <span
+                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-xl leading-none"
+                            >
+                                {{ playlist.emoji }}
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span
+                                    class="block break-words text-[15px] font-medium leading-tight"
+                                >
+                                    {{ playlist.name }}
+                                </span>
+                                <span class="mt-0.5 block text-sm text-muted-foreground">
+                                    {{ playlist.songIds.length }} Lieder
+                                </span>
+                            </span>
+                            <CircleCheck
+                                v-if="
+                                    isSongInPlaylist(playlist.id) ||
+                                    addedToPlaylistId === playlist.id
+                                "
+                                class="size-5 shrink-0 text-green-600 dark:text-green-500"
+                                aria-hidden="true"
+                            />
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </DrawerContent>
+    </Drawer>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
-import {
-    IonButton,
-    IonButtons,
-    IonContent,
-    IonHeader,
-    IonIcon,
-    IonItem,
-    IonItemDivider,
-    IonLabel,
-    IonList,
-    IonModal,
-    IonSpinner,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
-import { addCircleOutline, addOutline, albumsOutline, checkmarkCircle } from 'ionicons/icons';
+import { ChevronRight, CircleCheck, CirclePlus, Library, Plus } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
 import { usePlaylistsStore } from '@/stores/playlists';
+
+import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 
 const props = defineProps<{
     isOpen: boolean;
@@ -118,8 +124,24 @@ const router = useRouter();
 const playlistsStore = usePlaylistsStore();
 const { isLoading, hasPlaylists, sortedPlaylists } = storeToRefs(playlistsStore);
 
+// Sheet snap points (Ionic breakpoints [0, 0.5, 0.75, 1]: drag past the lowest point dismisses)
+const snapPoints = [0.5, 0.75, 1];
+const activeSnapPoint = ref<number | string | null>(0.5);
+
+// Always reopen at the half-height breakpoint, like the Ionic sheet did
+watch(
+    () => props.isOpen,
+    (open) => {
+        if (open) activeSnapPoint.value = 0.5;
+    },
+);
+
 // Track which playlist was just added to (for visual feedback)
 const addedToPlaylistId = ref<string | null>(null);
+
+function onOpenChange(open: boolean) {
+    if (!open) emit('close');
+}
 
 function isSongInPlaylist(playlistId: string): boolean {
     const playlist = playlistsStore.getPlaylistById(playlistId);
@@ -150,7 +172,7 @@ function navigateToCreate() {
 
     emit('close');
 
-    // Small delay to ensure modal dismisses properly on mobile before navigation
+    // Small delay to ensure the sheet dismisses properly on mobile before navigation
     setTimeout(() => {
         router.push({
             path: '/playlists/create',
@@ -162,59 +184,3 @@ function navigateToCreate() {
     }, 100);
 }
 </script>
-
-<style scoped>
-.playlist-emoji {
-    font-size: 1.5rem;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--ion-color-light);
-    border-radius: 6px;
-}
-
-.state-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-}
-
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-    text-align: center;
-}
-
-.empty-state ion-icon {
-    font-size: 48px;
-    color: var(--ion-color-medium);
-}
-
-.empty-state p {
-    margin: 0 0 16px;
-    color: var(--ion-color-medium);
-}
-
-.empty-state .create-button {
-    margin-top: 8px;
-    --padding-start: 24px;
-    --padding-end: 24px;
-    --padding-top: 12px;
-    --padding-bottom: 12px;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0.5px;
-}
-
-.empty-state .create-button ion-icon {
-    color: white;
-    margin-right: 8px;
-    font-size: 20px;
-}
-</style>

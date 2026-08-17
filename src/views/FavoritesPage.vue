@@ -1,82 +1,92 @@
 <template>
-    <ion-page>
-        <ion-header :translucent="true">
-            <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-back-button default-href="/tabs/playlisten" text=""></ion-back-button>
-                </ion-buttons>
-                <ion-title>Favoriten</ion-title>
-            </ion-toolbar>
-        </ion-header>
+    <div class="flex h-full flex-col bg-background">
+        <AppPageHeader title="Favoriten">
+            <template #leading>
+                <BackButton default-href="/tabs/playlisten" />
+            </template>
+        </AppPageHeader>
 
-        <ion-content :fullscreen="true">
-            <!-- Empty state -->
-            <div v-if="favoritedSongs.length === 0" class="state-container empty-state">
-                <ion-icon :icon="heartOutline" size="large"></ion-icon>
-                <h2>Keine Favoriten</h2>
-                <p>
-                    Tippe auf das Herz-Symbol in einem Lied, um es zu deinen Favoriten hinzuzufügen.
-                </p>
-                <ion-button fill="outline" @click="router.push('/tabs/lieder')">
-                    Lieder durchsuchen
-                </ion-button>
-            </div>
-
-            <!-- Favorites list -->
-            <ion-list v-else>
-                <ion-item
-                    v-for="song in favoritedSongs"
-                    :key="song.id"
-                    button
-                    detail
-                    @click="navigateToSong(song.id)"
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div class="mx-auto w-full max-w-xl px-4 pb-8">
+                <!-- Empty state -->
+                <div
+                    v-if="favoritedSongs.length === 0"
+                    class="flex min-h-[60vh] flex-col items-center justify-center px-6 py-12 text-center"
                 >
-                    <ion-label>
-                        <h2>
-                            <span v-if="song.index" class="song-index">{{ song.index }}.</span>
-                            <span class="song-title-text">{{ song.titel }}</span>
-                        </h2>
-                        <p v-if="formatCategories(song.kategorien)">
-                            {{ formatCategories(song.kategorien) }}
-                        </p>
-                    </ion-label>
-                    <ion-button
-                        slot="end"
-                        fill="clear"
-                        color="danger"
-                        :aria-label="`${song.titel} aus Favoriten entfernen`"
-                        @click.stop="removeFavorite(song.id)"
+                    <Heart
+                        class="size-14 text-muted-foreground"
+                        stroke-width="1.25"
+                        aria-hidden="true"
+                    />
+                    <h2 class="mt-4 font-display text-2xl font-semibold">Keine Favoriten</h2>
+                    <p class="mt-2 max-w-96 text-sm text-muted-foreground">
+                        Tippe auf das Herz-Symbol in einem Lied, um es zu deinen Favoriten
+                        hinzuzufügen.
+                    </p>
+                    <Button variant="outline" class="mt-6" @click="router.push('/tabs/lieder')">
+                        Lieder durchsuchen
+                    </Button>
+                </div>
+
+                <!-- Favorites list -->
+                <ul v-else class="mt-2 divide-y divide-border">
+                    <li
+                        v-for="song in favoritedSongs"
+                        :key="song.id"
+                        class="relative flex items-center gap-1 transition-colors hover:bg-muted"
                     >
-                        <ion-icon slot="icon-only" :icon="heart"></ion-icon>
-                    </ion-button>
-                </ion-item>
-            </ion-list>
-        </ion-content>
-    </ion-page>
+                        <!-- Stretched-link row: the after-overlay makes the whole row
+                             (chevron included) navigate; the heart sits above it. -->
+                        <button
+                            type="button"
+                            class="min-w-0 flex-1 rounded-sm py-3 pl-2 text-left after:absolute after:inset-0 after:content-['']"
+                            @click="navigateToSong(song.id)"
+                        >
+                            <span class="block break-words font-display text-[17px] leading-snug">
+                                <span v-if="song.index" class="number-display mr-0.5 text-lg">
+                                    {{ song.index }}.
+                                </span>
+                                <span>{{ song.titel }}</span>
+                            </span>
+                            <span
+                                v-if="formatCategories(song.kategorien)"
+                                class="mt-0.5 block text-sm text-muted-foreground"
+                            >
+                                {{ formatCategories(song.kategorien) }}
+                            </span>
+                        </button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="relative z-10 shrink-0 text-destructive hover:text-destructive"
+                            :aria-label="`${song.titel} aus Favoriten entfernen`"
+                            @click.stop="removeFavorite(song.id)"
+                        >
+                            <Heart class="!size-5" fill="currentColor" aria-hidden="true" />
+                        </Button>
+                        <ChevronRight
+                            class="mr-1 size-4 shrink-0 text-muted-foreground/70"
+                            aria-hidden="true"
+                        />
+                    </li>
+                </ul>
+            </div>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import {
-    IonBackButton,
-    IonButton,
-    IonButtons,
-    IonContent,
-    IonHeader,
-    IonIcon,
-    IonItem,
-    IonLabel,
-    IonList,
-    IonPage,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
-import { heart, heartOutline } from 'ionicons/icons';
+import { ChevronRight, Heart } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 
 import { useFavoritesStore } from '@/stores/favorites';
 import { useSongsStore } from '@/stores/songs';
+
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import BackButton from '@/components/shell/BackButton.vue';
+import { Button } from '@/components/ui/button';
 
 import type { Category } from '@/db';
 
@@ -107,43 +117,3 @@ function formatCategories(categories: Category[]): string {
         .join(', ');
 }
 </script>
-
-<style scoped>
-.song-index {
-    font-weight: 600;
-    color: var(--ion-color-primary);
-    margin-right: 4px;
-}
-
-.song-title-text {
-    overflow-wrap: break-word;
-    word-break: break-word;
-}
-
-.state-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: var(--spacing-2xl) var(--spacing-lg);
-    text-align: center;
-    gap: var(--spacing-sm);
-}
-
-.state-container > ion-icon {
-    font-size: 64px;
-    color: var(--ion-color-medium);
-    margin-bottom: var(--spacing-sm);
-}
-
-.state-container h2 {
-    margin: 0;
-    color: var(--ion-color-dark);
-}
-
-.state-container p {
-    margin: 0 0 var(--spacing-md);
-    color: var(--ion-color-medium);
-    max-width: 24rem;
-}
-</style>
