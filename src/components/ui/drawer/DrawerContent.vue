@@ -6,6 +6,8 @@
                 cn(
                     'fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-xl border-t bg-popover text-popover-foreground shadow-lg outline-none',
                     'pb-[env(safe-area-inset-bottom)]',
+                    // Desktop: keep the bottom sheet a centered column instead of viewport-wide
+                    'sm:mx-auto sm:w-full sm:max-w-md sm:rounded-t-xl sm:border-x',
                     props.class,
                 )
             "
