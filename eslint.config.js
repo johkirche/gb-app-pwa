@@ -15,6 +15,10 @@ export default [
             'coverage/',
             'dist/',
             'dev-dist/',
+            // Vendored assets (soundfont data files) — not our code style
+            'public/',
+            // Directus extension: deployed server-side, has its own Node context
+            'directus-extensions/',
             'ios/',
             'android/',
             '.env.local',
