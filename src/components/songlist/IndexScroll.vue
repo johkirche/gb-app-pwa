@@ -242,13 +242,11 @@ function onItemClick(key: string) {
        (dialogs/drawers z-50) — the legacy z-1000 painted over them. */
     z-index: 30;
     padding: 6px 3px;
-    /* A real surface: as a near-transparent overlay it read as stray numbers
-       bleeding into the list rather than a control sitting beside it. */
-    background: color-mix(in srgb, var(--card) 92%, transparent);
-    border: 1px solid var(--border);
+    /* No container: the rail has its own gutter, so nothing scrolls under it.
+       At full height (500+ songs it renders ~30 labels) a bordered panel reads
+       as a heavy second column — the labels alone are the right weight. */
+    background: transparent;
     border-radius: 10px;
-    box-shadow: 0 1px 6px rgb(0 0 0 / 0.06);
-    backdrop-filter: blur(8px);
     user-select: none;
     touch-action: none;
 }

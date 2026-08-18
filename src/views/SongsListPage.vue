@@ -28,7 +28,9 @@
             :class="{ 'scrollbar-none': isIndexScrollerVisible }"
             @scroll="onScroll"
         >
-            <div class="page-col pb-8">
+            <!-- The index rail overlays this column, so everything in it —
+                 Lied der Woche, states and the list — shares the same gutter. -->
+            <div class="page-col pb-8" :class="{ 'pr-12': isIndexScrollerVisible }">
                 <!-- Featured: Lied der Woche (hidden while searching/filtering) -->
                 <button
                     v-if="songOfTheWeek && !filters.searchQuery && !hasActiveFilters"
@@ -105,10 +107,7 @@
                 </div>
 
                 <!-- Songs List with Sections -->
-                <!-- Reserve the rail's gutter on the list container, so rows,
-                     hairlines and hover states end before it instead of running
-                     underneath (the strip already cost this space as padding). -->
-                <div v-else class="songs-list" :class="{ 'pr-11': isIndexScrollerVisible }">
+                <div v-else class="songs-list">
                     <template v-for="section in sortedSections" :key="section.key">
                         <!-- Section Header (only shown when showHeaders is true) -->
                         <SongSectionHeader
