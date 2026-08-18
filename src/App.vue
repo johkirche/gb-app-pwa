@@ -14,16 +14,23 @@
         </router-view>
         <Toaster position="bottom-center" :theme="isDark ? 'dark' : 'light'" />
         <ConfirmHost />
+        <component :is="DevViewportPreview" v-if="DevViewportPreview" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { defineAsyncComponent, onMounted } from 'vue';
 
 import { useTheme } from '@/composables/useTheme';
 
 import { ConfirmHost } from '@/components/ui/confirm';
 import { Toaster } from '@/components/ui/sonner';
+
+// Dev-only mobile-viewport preview; the DEV-guarded ternary keeps the chunk
+// out of production bundles entirely (same pattern as DevSkipButton).
+const DevViewportPreview = import.meta.env.DEV
+    ? defineAsyncComponent(() => import('@/components/dev/DevViewportPreview.vue'))
+    : null;
 
 const { isDark, initTheme } = useTheme();
 
