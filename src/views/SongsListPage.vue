@@ -29,6 +29,7 @@
         <main
             ref="scrollRef"
             class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            :class="{ 'scrollbar-none': isIndexScrollerVisible }"
             @scroll="onScroll"
         >
             <div class="mx-auto w-full max-w-xl px-4 pb-8">

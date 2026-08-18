@@ -137,6 +137,55 @@
         outline: 2px solid var(--ring);
         outline-offset: 2px;
     }
+
+    /* Scrollbars: slim, token-colored, floating — the OS default (a wide grey
+       bar) fights the calm editorial surfaces, especially in dark mode. */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        /* Transparent border + background-clip keeps the thumb visually thin
+           while staying a comfortable grab target. */
+        background-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+        background-clip: content-box;
+        border: 3px solid transparent;
+        border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+}
+
+@layer utilities {
+    /* Scroll without a visible bar — for containers that carry their own
+       position affordance (the A-Z/number index strip) and for the phone
+       preview, where a desktop scrollbar would break the illusion. */
+    .scrollbar-none {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .scrollbar-none::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
+    }
 }
 
 @layer components {
@@ -174,4 +223,3 @@
         opacity: 0.35;
     }
 }
-

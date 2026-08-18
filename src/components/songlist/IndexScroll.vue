@@ -233,7 +233,9 @@ function onItemClick(key: string) {
     display: flex;
     flex-direction: column;
     align-items: center;
-    z-index: 1000;
+    /* Above page chrome (sticky headers z-10, page header z-20), below overlays
+       (dialogs/drawers z-50) — the legacy z-1000 painted over them. */
+    z-index: 30;
     padding: 8px 4px;
     background: color-mix(in srgb, var(--background) 90%, transparent);
     border-radius: 12px;
