@@ -138,6 +138,37 @@
         outline-offset: 2px;
     }
 
+    /* Tailwind v4's Preflight gives buttons `cursor: default`. Nearly every
+       clickable surface here — list rows, toolbar actions, kit controls — is a
+       <button> or a Reka role-widget, so restore the pointer for all of them. */
+    button:not(:disabled):not([aria-disabled='true']),
+    [role='button']:not([aria-disabled='true']),
+    [role='option']:not([data-disabled]),
+    [role='menuitem']:not([data-disabled]),
+    [role='menuitemcheckbox']:not([data-disabled]),
+    [role='menuitemradio']:not([data-disabled]),
+    [role='tab']:not([data-disabled]),
+    label[for],
+    label:has(> input:not(:disabled)),
+    label:has(> button:not(:disabled)),
+    summary {
+        cursor: pointer;
+    }
+
+    /* Draggable affordances read as grabbable, not clickable */
+    [role='slider'] {
+        cursor: grab;
+    }
+
+    [role='slider']:active {
+        cursor: grabbing;
+    }
+
+    button:disabled,
+    [aria-disabled='true'] {
+        cursor: not-allowed;
+    }
+
     /* Scrollbars: slim, token-colored, floating — the OS default (a wide grey
        bar) fights the calm editorial surfaces, especially in dark mode. */
     * {

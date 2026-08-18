@@ -13,7 +13,7 @@
             "
         >
             <div
-                class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-muted"
+                class="mx-auto mt-3 h-1.5 w-10 shrink-0 cursor-grab rounded-full bg-muted active:cursor-grabbing"
                 aria-hidden="true"
             />
             <div class="mt-2 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">

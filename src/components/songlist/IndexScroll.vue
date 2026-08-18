@@ -2,6 +2,7 @@
     <div
         ref="containerRef"
         class="index-scroll"
+        :class="{ dragging: isDragging }"
         :style="{ maxHeight: maxHeight + 'px' }"
         @touchstart.prevent="onTouchStart"
         @touchmove.prevent="onTouchMove"
@@ -227,6 +228,8 @@ function onItemClick(key: string) {
     /* absolute (not fixed): anchors to the page column, so on desktop the strip
        hugs the centered content column instead of the viewport edge */
     position: absolute;
+    /* the whole strip is one scrub surface (tap to jump, drag to scan) */
+    cursor: grab;
     right: 4px;
     top: 50%;
     transform: translateY(-50%);
@@ -244,6 +247,10 @@ function onItemClick(key: string) {
     touch-action: none;
 }
 
+.index-scroll.dragging {
+    cursor: grabbing;
+}
+
 .index-items {
     display: flex;
     flex-direction: column;
@@ -258,7 +265,7 @@ function onItemClick(key: string) {
     min-width: 24px;
     min-height: 20px;
     padding: 3px 6px;
-    cursor: pointer;
+    cursor: inherit;
     transition: all 0.15s ease;
     border-radius: 4px;
     flex-shrink: 0;

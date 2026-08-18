@@ -30,7 +30,7 @@
                 <div
                     v-else
                     key="search"
-                    class="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-muted px-3"
+                    class="flex cursor-text min-w-0 flex-1 items-center gap-2 rounded-lg bg-muted px-3"
                 >
                     <Search class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <input

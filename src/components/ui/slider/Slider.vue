@@ -4,7 +4,7 @@
         v-bind="forwarded"
         :class="
             cn(
-                'relative flex w-full touch-none select-none items-center data-[orientation=vertical]:h-full data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
+                'relative flex w-full cursor-pointer touch-none select-none items-center data-[orientation=vertical]:h-full data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
                 props.class,
             )
         "
