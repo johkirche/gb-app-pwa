@@ -56,6 +56,11 @@
     /* Flourish color for sparse editorial details (rules, song numbers, Lied der Woche) */
     --gold: #97783a;
     --radius: 0.375rem;
+    /* Width of the shared page column (header + content + the index strip's
+       anchor). Grows with the viewport: a column frozen at 48rem looks
+       stranded on a wide screen, and hymn lines are short and pre-broken, so
+       the wider measure costs nothing in readability. */
+    --page-col-max: 48rem;
     --font-sans: 'Albert Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
 }
@@ -81,6 +86,18 @@
     --input: #333b55;
     --ring: #9db0e0;
     --gold: #c7a967;
+}
+
+@media (min-width: 1280px) {
+    :root {
+        --page-col-max: 56rem;
+    }
+}
+
+@media (min-width: 1536px) {
+    :root {
+        --page-col-max: 64rem;
+    }
 }
 
 @theme inline {
@@ -226,9 +243,7 @@
     .page-col {
         margin-inline: auto;
         width: 100%;
-        /* matches the shell's content column (max-w-3xl), so on desktop the
-           header's hairline and the content share one edge */
-        max-width: 48rem;
+        max-width: var(--page-col-max);
         padding-inline: 1rem;
     }
 

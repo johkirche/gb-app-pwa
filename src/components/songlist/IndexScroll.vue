@@ -230,7 +230,9 @@ function onItemClick(key: string) {
     position: absolute;
     /* the whole strip is one scrub surface (tap to jump, drag to scan) */
     cursor: grab;
-    right: 4px;
+    /* Hug the shared page column: the page wrapper is full-width, so offset
+       by the column's own margin instead of sticking to the viewport edge. */
+    right: calc(max(0px, (100% - var(--page-col-max)) / 2) + 4px);
     top: 50%;
     transform: translateY(-50%);
     display: flex;

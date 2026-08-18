@@ -88,7 +88,7 @@
 
         <!-- Content: centered reading column on desktop, fullscreen on mobile -->
         <div class="flex min-h-0 min-w-0 flex-1 justify-center">
-            <main class="relative h-full w-full max-w-3xl">
+            <main class="relative h-full w-full">
                 <router-view v-slot="{ Component }">
                     <!-- KeepAlive preserves tab state the way Ionic's router outlet
                          did (scroll positions via useKeepAliveScroll); pages needing
