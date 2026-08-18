@@ -2,13 +2,12 @@
     <div class="mb-8 flex justify-center">
         <div class="inline-flex flex-col items-start">
             <template v-for="(strophe, idx) in strophes" :key="idx">
-                <div v-if="!(skipFirst && idx === 0)" class="mb-6 flex items-baseline gap-3">
+                <div class="mb-6 flex items-baseline gap-3">
                     <span class="verse-number number-display min-w-6 shrink-0">{{ idx + 1 }}.</span>
                     <div class="flex flex-col">
-                        <p
-                            class="verse-text m-0 font-display text-foreground"
-                            v-html="formatVerse(getStropheText(strophe))"
-                        ></p>
+                        <p class="verse-text m-0 whitespace-pre-line font-display text-foreground">
+                            {{ verseText(strophe) }}
+                        </p>
                         <p
                             v-if="strophe.anmerkung"
                             class="verse-note mt-1 italic text-muted-foreground"
@@ -31,7 +30,6 @@ interface Strophe {
 
 defineProps<{
     strophes: Strophe[];
-    skipFirst?: boolean;
 }>();
 
 function getStropheText(strophe: Strophe): string | null | undefined {
@@ -41,11 +39,15 @@ function getStropheText(strophe: Strophe): string | null | undefined {
     return strophe.text || strophe.strophe;
 }
 
-function formatVerse(text: string | null | undefined): string {
+// The stored verses carry their own line breaks (one line per sung line),
+// which `whitespace: pre-line` on .verse-text keeps. Rendering as text rather
+// than markup means a break can never be lost to HTML collapsing, and the CMS
+// field is never interpreted as HTML.
+function verseText(strophe: Strophe): string {
+    const text = getStropheText(strophe);
     if (typeof text !== 'string') return '';
-    // remove ¬ from text
-    text = text.replace(/¬/g, '');
-    return text.replace(/\n/g, '<br>');
+    // ¬ marks a syllable break for the engraver, never for the reader
+    return text.replace(/¬/g, '').trim();
 }
 </script>
 

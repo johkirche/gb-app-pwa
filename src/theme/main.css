@@ -61,6 +61,11 @@
        stranded on a wide screen, and hymn lines are short and pre-broken, so
        the wider measure costs nothing in readability. */
     --page-col-max: 48rem;
+    /* Width the engraving is allowed to reach. A hymn system is a fixed print
+       column (~250px in the baked SVG); stretched across the desktop page column
+       it reads as a poster instead of a hymnal, so it stops near printed size.
+       On phone widths the cap never bites. */
+    --notation-max: 40rem;
     --font-sans: 'Albert Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
 }
@@ -251,6 +256,14 @@
         .page-col {
             padding-inline: 1.5rem;
         }
+    }
+
+    /* Centred column for the melody (Notenbild and MusicXML alike), narrower
+       than the page column — see --notation-max. */
+    .notation-col {
+        margin-inline: auto;
+        width: 100%;
+        max-width: var(--notation-max);
     }
 
     /* Uppercase micro-label — the editorial section/eyebrow style from the mockup */

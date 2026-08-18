@@ -35,7 +35,7 @@
                                 aria-hidden="true"
                             />
                             <div class="min-w-0">
-                                <p class="text-[15px]">Notendateien (PNG)</p>
+                                <p class="text-[15px]">Notendateien (SVG &amp; MusicXML)</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ filesCount }} Dateien gespeichert
                                 </p>

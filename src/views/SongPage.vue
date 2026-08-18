@@ -33,12 +33,16 @@
                 <!-- Melody Display: Image or MusicXML -->
                 <SongMelodyImage
                     v-if="melodyDisplayMode === 'image' && hasMelodyImage"
+                    :svg-markup="melodySvgMarkup"
                     :image-url="melodyImageUrl"
                     :is-loading="imageLoading"
                 />
 
                 <!-- MusicXML (OSMD) Rendering -->
-                <div v-else-if="melodyDisplayMode === 'xml' && hasMelodyXml" class="mb-4">
+                <div
+                    v-else-if="melodyDisplayMode === 'xml' && hasMelodyXml"
+                    class="notation-col mb-4"
+                >
                     <OsmdRenderer
                         ref="osmdRendererRef"
                         :file-blob="melodyXmlBlob"
@@ -79,12 +83,9 @@
                     <span>Keine Melodie verfügbar</span>
                 </div>
 
-                <!-- Song Verses: verse 1 is only skipped when the notation
-                     actually rendered lyrics under the notes -->
-                <SongVerses
-                    :strophes="song.strophen"
-                    :skip-first="melodyDisplayMode === 'xml' && lyricsInNotation"
-                />
+                <!-- Song Verses: every verse is listed, including the one the
+                     notation already carries under its notes -->
+                <SongVerses :strophes="song.strophen" />
 
                 <!-- Authors Section -->
                 <SongAuthors :song="song" />
@@ -139,6 +140,7 @@ import SongMenuPopover from '@/components/songview/SongMenuPopover.vue';
 import SongVerses from '@/components/songview/SongVerses.vue';
 
 import type { Song } from '@/db';
+import { sanitizeNotationSvg } from '@/utils/notationSvg';
 
 const route = useRoute();
 const songsStore = useSongsStore();
@@ -148,6 +150,7 @@ const preferencesStore = usePreferencesStore();
 const { notationScale, textSize, melodyDisplayMode, xmlSettings } = storeToRefs(preferencesStore);
 
 const { getFileUrl } = useStoredFiles();
+const melodySvgMarkup = ref<string | null>(null);
 const melodyImageUrl = ref<string | null>(null);
 const imageLoading = ref(false);
 const melodyXmlBlob = ref<Blob | null>(null);
@@ -157,9 +160,6 @@ const melodyXmlBlob = ref<Blob | null>(null);
 const notationState = ref<
     'loading' | 'ready' | 'blob-missing-offline' | 'blob-fetch-failed' | 'render-failed'
 >('loading');
-// True only after a successful render that actually drew lyrics under the
-// notes — the sole condition under which verse 1 may be hidden.
-const lyricsInNotation = ref(false);
 
 // Refs
 const osmdRendererRef = ref<InstanceType<typeof OsmdRenderer> | null>(null);
@@ -179,14 +179,11 @@ const tempo = ref(120);
 // Display options
 const showControls = ref(true);
 
-// Check if song has melody image
+// Check if song has a Notenbild: the vector engraving, or — for songs cached
+// before notentext_svg was synced — one of the legacy raster files.
 const hasMelodyImage = computed(() => {
-    if (!song.value?.noten || song.value.noten.length === 0) return false;
-    // Check if there are any PNG/JPG/SVG files
-    return song.value.noten.some((note) => {
-        const filename = note.filename_download.toLowerCase();
-        return filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.svg');
-    });
+    if (song.value?.notentextSvg) return true;
+    return !!song.value?.noten?.some((note) => hasRasterExtension(note.filename_download));
 });
 
 // Check if song has MusicXML notation (.mxl or .musicxml)
@@ -201,7 +198,6 @@ async function loadMelodyXml() {
         return;
     }
     notationState.value = 'loading';
-    lyricsInNotation.value = false;
     try {
         const blob = await songsStore.getOrFetchFileBlob(
             song.value.notentextMxml.id,
@@ -218,46 +214,52 @@ async function loadMelodyXml() {
     }
 }
 
-// Outcome of the actual OSMD render — only a real render may flip these.
-function onNotationRendered(payload: { lyricsRendered: boolean }) {
-    lyricsInNotation.value = payload.lyricsRendered;
+// Outcome of the actual OSMD render — only a real render may flip this.
+function onNotationRendered() {
     notationState.value = 'ready';
 }
 
 function onNotationRenderFailed() {
     notationState.value = 'render-failed';
-    lyricsInNotation.value = false;
 }
 
-// Load melody image from stored files
+function hasRasterExtension(filename: string): boolean {
+    const name = filename.toLowerCase();
+    return name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+}
+
+// Load the Notenbild: the vector engraving (notentext_svg) is the source, and
+// its markup is inlined so it can follow the theme. A song stored before that
+// field was synced — or an SVG that will not parse — falls back to the legacy
+// raster file, which can only be shown through <img>.
 async function loadMelodyImage() {
-    if (!song.value?.noten || song.value.noten.length === 0) {
-        melodyImageUrl.value = null;
-        return;
-    }
+    const current = song.value;
+    melodySvgMarkup.value = null;
+    melodyImageUrl.value = null;
+    if (!current) return;
 
     imageLoading.value = true;
     try {
-        // Find the first PNG/JPG/SVG file
-        const imageFile = song.value.noten.find((note) => {
-            const filename = note.filename_download.toLowerCase();
-            return (
-                filename.endsWith('.png') ||
-                filename.endsWith('.jpg') ||
-                filename.endsWith('.jpeg') ||
-                filename.endsWith('.svg')
+        if (current.notentextSvg) {
+            const blob = await songsStore.getOrFetchFileBlob(
+                current.notentextSvg.id,
+                current.notentextSvg.filename_download,
             );
-        });
+            if (blob) {
+                melodySvgMarkup.value = sanitizeNotationSvg(await blob.text());
+            }
+        }
 
-        if (imageFile) {
-            const url = await getFileUrl(imageFile.id, imageFile.filename_download);
-            melodyImageUrl.value = url;
-        } else {
-            melodyImageUrl.value = null;
+        if (!melodySvgMarkup.value) {
+            const imageFile = current.noten.find((note) =>
+                hasRasterExtension(note.filename_download),
+            );
+            if (imageFile) {
+                melodyImageUrl.value = await getFileUrl(imageFile.id, imageFile.filename_download);
+            }
         }
     } catch (err) {
-        console.error('Error loading melody image:', err);
-        melodyImageUrl.value = null;
+        console.error('Error loading Notenbild:', err);
     } finally {
         imageLoading.value = false;
     }
@@ -270,7 +272,6 @@ function loadSong() {
         song.value = songs.value.find((s) => s.id === songId) || null;
         // Reset notation outcome before loading the next song's assets
         notationState.value = 'loading';
-        lyricsInNotation.value = false;
         // Load only the active display mode's asset — getOrFetchFileBlob has a
         // network fallback, so eagerly loading both would spend bandwidth and
         // quota on the asset the current mode never shows. The
@@ -278,6 +279,7 @@ function loadSong() {
         // Drop the inactive mode's stale asset so a later switch cannot
         // briefly show the previous song's melody.
         if (melodyDisplayMode.value === 'xml') {
+            melodySvgMarkup.value = null;
             melodyImageUrl.value = null;
             loadMelodyXml();
         } else {
@@ -312,7 +314,6 @@ watch(
 // Reload assets when display mode changes
 watch(melodyDisplayMode, () => {
     notationState.value = 'loading';
-    lyricsInNotation.value = false;
     if (melodyDisplayMode.value === 'image') {
         loadMelodyImage();
     } else if (melodyDisplayMode.value === 'xml') {

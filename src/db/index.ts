@@ -47,6 +47,10 @@ export interface Song {
     melodieAutoren: Autor[];
     noten: NotenFile[];
     notentextMxml: NotenFile | null;
+    // Vector Notenbild (Directus `gesangbuchlied.notentext_svg`) — the source of
+    // the Notenbild view. Optional so songs stored before this field was synced
+    // stay valid; those fall back to the raster files in `noten`.
+    notentextSvg?: NotenFile | null;
     kategorien: Category[];
     // Urheberangaben (Dashboard-kompatibel, Issue #18) — optional, damit vor
     // dem nächsten Sync gespeicherte Lieder weiterhin gültig bleiben.

@@ -63,6 +63,10 @@ interface DirectusGesangbuchlied {
         id: string;
         filename_download: string;
     } | null;
+    notentext_svg: {
+        id: string;
+        filename_download: string;
+    } | null;
     textId: {
         copyright?: string | null;
         strophenEinzeln: DirectusStrophe[];
@@ -90,7 +94,7 @@ interface DirectusResponse {
 // ursprungsAutorObj stays null — the formatter (src/utils/authorFormat.ts)
 // already handles it and needs no change once the selection is re-added.
 const SONGS_QUERY = `
-    { gesangbuchlied( filter: { bewertungKleinerKreis: { bezeichner: { _eq: "Rein" } } } limit: 5000 ) { id titel liednummer2026 copyright textAutorExtraSuffix melodieAutorExtraSuffix notentext_mxml { id filename_download } textId { copyright strophenEinzeln autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } } melodieId { copyright autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
+    { gesangbuchlied( filter: { bewertungKleinerKreis: { bezeichner: { _eq: "Rein" } } } limit: 5000 ) { id titel liednummer2026 copyright textAutorExtraSuffix melodieAutorExtraSuffix notentext_mxml { id filename_download } notentext_svg { id filename_download } textId { copyright strophenEinzeln autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } } melodieId { copyright autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
 `;
 
 // Get current token from the user store.
@@ -176,6 +180,13 @@ function transformSong(directusSong: DirectusGesangbuchlied): Song {
           }
         : null;
 
+    const notentextSvg: NotenFile | null = directusSong.notentext_svg
+        ? {
+              id: directusSong.notentext_svg.id,
+              filename_download: directusSong.notentext_svg.filename_download,
+          }
+        : null;
+
     return {
         id: directusSong.id,
         index: directusSong.liednummer2026 ?? 0,
@@ -185,6 +196,7 @@ function transformSong(directusSong: DirectusGesangbuchlied): Song {
         melodieAutoren,
         noten,
         notentextMxml,
+        notentextSvg,
         kategorien,
         copyright: directusSong.copyright ?? null,
         textCopyright: directusSong.textId?.copyright ?? null,
@@ -256,33 +268,40 @@ export async function fetchLatestContentUpdate(): Promise<string | null> {
     }
 }
 
-// Fetch songs with their PNG files
+/**
+ * The files a full sync has to bring down: the vector Notenbild and the
+ * MusicXML behind the two melody views, nothing else.
+ *
+ * The raster images in `melodieId.noten` are deliberately NOT included. That
+ * relation is a mixed bag (PDF, MP3, MP4 alongside the PNGs) and, now that the
+ * Notenbild is rendered from `notentext_svg`, none of it is displayed — it would
+ * only be downloaded to sit unused. Songs cached before this change still fall
+ * back to their stored raster, and a missing blob is fetched on demand.
+ */
+function collectSyncFileIds(songs: Song[]): string[] {
+    const fileIds = new Set<string>();
+
+    songs.forEach((song) => {
+        if (song.notentextSvg) {
+            fileIds.add(song.notentextSvg.id);
+        }
+        if (song.notentextMxml) {
+            fileIds.add(song.notentextMxml.id);
+        }
+    });
+
+    return Array.from(fileIds);
+}
+
+// Fetch songs together with the file IDs a full sync needs
 export async function fetchSongsWithFiles(): Promise<{
     songs: Song[];
     fileIds: string[];
 }> {
     const songs = await fetchSongs();
 
-    // Collect all unique file IDs
-    const fileIds = new Set<string>();
-    songs.forEach((song) => {
-        song.noten.forEach((note) => {
-            const filename = note.filename_download.toLowerCase();
-            if (
-                filename.endsWith('.png') ||
-                filename.endsWith('.jpg') ||
-                filename.endsWith('.svg')
-            ) {
-                fileIds.add(note.id);
-            }
-        });
-        if (song.notentextMxml) {
-            fileIds.add(song.notentextMxml.id);
-        }
-    });
-
     return {
         songs,
-        fileIds: Array.from(fileIds),
+        fileIds: collectSyncFileIds(songs),
     };
 }

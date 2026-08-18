@@ -76,16 +76,13 @@ export const useSongsStore = defineStore('songs', () => {
     }
 
     function resolveFilename(fileId: string, allSongs: Song[]): string {
-        const song = allSongs.find(
-            (s) => s.noten.some((n) => n.id === fileId) || s.notentextMxml?.id === fileId,
-        );
-        return (
-            song?.noten.find((n) => n.id === fileId)?.filename_download ||
-            (song?.notentextMxml?.id === fileId
-                ? song.notentextMxml.filename_download
-                : undefined) ||
-            `${fileId}.bin`
-        );
+        for (const song of allSongs) {
+            if (song.notentextSvg?.id === fileId) return song.notentextSvg.filename_download;
+            if (song.notentextMxml?.id === fileId) return song.notentextMxml.filename_download;
+            const raster = song.noten.find((n) => n.id === fileId);
+            if (raster) return raster.filename_download;
+        }
+        return `${fileId}.bin`;
     }
 
     // Mirror the in-memory failed list into db.meta so it survives restarts.
@@ -174,7 +171,7 @@ export const useSongsStore = defineStore('songs', () => {
         try {
             // Step 1: Fetch and save songs
             syncProgress.value.phase = 'songs';
-            const { songs: fetchedSongs } = await fetchSongsWithFiles();
+            const { songs: fetchedSongs, fileIds } = await fetchSongsWithFiles();
 
             await db.transaction('rw', db.songs, async () => {
                 await db.songs.clear();
@@ -186,26 +183,7 @@ export const useSongsStore = defineStore('songs', () => {
             // Step 2: Download all files
             syncProgress.value.phase = 'files';
 
-            // Collect all unique file IDs from fetched songs
-            const fileIds = new Set<string>();
-            fetchedSongs.forEach((song) => {
-                song.noten.forEach((note) => {
-                    const filename = note.filename_download.toLowerCase();
-                    if (
-                        filename.endsWith('.png') ||
-                        filename.endsWith('.jpg') ||
-                        filename.endsWith('.jpeg') ||
-                        filename.endsWith('.svg')
-                    ) {
-                        fileIds.add(note.id);
-                    }
-                });
-                if (song.notentextMxml) {
-                    fileIds.add(song.notentextMxml.id);
-                }
-            });
-
-            await downloadFileBatch(Array.from(fileIds), fetchedSongs);
+            await downloadFileBatch(fileIds, fetchedSongs);
 
             // Only a sync without failed files may record success — a partial
             // download must not pretend the content is complete and current.

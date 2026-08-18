@@ -36,7 +36,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'playStarted'): void;
     (e: 'playStopped'): void;
-    (e: 'rendered', payload: { lyricsRendered: boolean }): void;
+    (e: 'rendered'): void;
     (e: 'renderFailed', reason: 'corrupt' | 'engine'): void;
 }>();
 
@@ -123,30 +123,6 @@ async function initOsmd() {
     }
 }
 
-// Walk the loaded sheet for ANY lyrics entry (OSMD 1.9.9 object model).
-// StaffEntries is a sparse array — undefined slots must be skipped.
-function sheetHasLyrics(): boolean {
-    if (!osmd?.Sheet) return false;
-    for (const m of osmd.Sheet.SourceMeasures) {
-        for (const c of m.VerticalSourceStaffEntryContainers) {
-            for (const se of c.StaffEntries) {
-                if (!se) continue;
-                for (const ve of se.VoiceEntries) {
-                    if (ve.LyricsEntries.size() > 0) return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-
-// Whether the just-finished render actually drew lyrics under the notes:
-// requires both the setting to be on AND the sheet to contain lyrics.
-function computeLyricsRendered(): boolean {
-    const drawLyrics = props.settings?.showLyrics ?? true;
-    return drawLyrics && sheetHasLyrics();
-}
-
 // Tighten OSMD's default page/system margins for a denser hymnal layout.
 // Also collapse the inter-system gap when lyrics are hidden — otherwise
 // OSMD leaves the space it would have used for lyrics empty.
@@ -198,7 +174,7 @@ async function loadAndRender() {
         applyScale();
         osmd.render();
 
-        emit('rendered', { lyricsRendered: computeLyricsRendered() });
+        emit('rendered');
 
         // Invalidate any engine built for a previous sheet — playback is
         // constructed lazily on the first play tap (see startPlayback), so the
@@ -344,10 +320,10 @@ watch(
                 // so there is no state change to announce.
                 return;
             }
-            // Re-emit after every settings re-render: toggling showLyrics
-            // changes lyricsRendered and the parent must not keep a stale value.
+            // Re-emit after every settings re-render so a successful
+            // re-render is reported as such.
             if (osmd.Sheet) {
-                emit('rendered', { lyricsRendered: computeLyricsRendered() });
+                emit('rendered');
             }
         }
     },
