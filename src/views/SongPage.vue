@@ -29,11 +29,7 @@
             <SongErrorState v-else-if="!song" />
 
             <!-- Song Content -->
-            <div
-                v-else
-                class="song-content mx-auto w-full max-w-2xl px-4 pb-8 pt-4"
-                :class="`text-size-${textSize}`"
-            >
+            <div v-else class="song-content page-col pb-8 pt-4" :class="`text-size-${textSize}`">
                 <!-- Melody Display: Image or MusicXML -->
                 <SongMelodyImage
                     v-if="melodyDisplayMode === 'image' && hasMelodyImage"

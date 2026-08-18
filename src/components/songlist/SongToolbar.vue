@@ -4,7 +4,7 @@
     <div
         class="song-toolbar shrink-0 border-b border-border bg-background pt-[env(safe-area-inset-top)]"
     >
-        <div class="page-col flex h-14 items-center gap-1">
+        <div class="page-col flex h-14 items-center gap-1 lg:h-auto lg:min-h-24 lg:gap-3 lg:py-6">
             <!-- Back button (hidden on tab roots) -->
             <Button
                 v-if="showBack"
@@ -25,7 +25,11 @@
                     class="min-w-0 flex-1"
                     :class="{ 'pl-2': !showBack }"
                 >
-                    <h1 class="truncate font-display text-xl font-semibold">{{ title }}</h1>
+                    <h1
+                        class="truncate font-display text-xl font-semibold lg:text-[2rem] lg:leading-tight"
+                    >
+                        {{ title }}
+                    </h1>
                 </div>
                 <div
                     v-else
