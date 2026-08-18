@@ -15,19 +15,25 @@ export interface FilterOption {
     count?: number;
 }
 
-const DEFAULT_FILTER_STATE: FilterState = {
-    searchQuery: '',
-    selectedCategories: [],
-    indexRange: null,
-    selectedAuthors: [],
-};
+// A factory, not a shared constant: toggleCategory/toggleAuthor mutate the
+// arrays in place, so handing out the same array instance would let the live
+// state pollute the defaults — and every "zurücksetzen" would restore the
+// polluted arrays instead of empty ones.
+function createDefaultFilters(): FilterState {
+    return {
+        searchQuery: '',
+        selectedCategories: [],
+        indexRange: null,
+        selectedAuthors: [],
+    };
+}
 
 /**
  * Composable for song filtering logic
  */
 export function useSongFiltering(songs: Ref<Song[]>) {
     // Filter state
-    const filters = ref<FilterState>({ ...DEFAULT_FILTER_STATE });
+    const filters = ref<FilterState>(createDefaultFilters());
 
     // Search is active when query is not empty
     const isSearchActive = computed(() => filters.value.searchQuery.trim().length > 0);
@@ -195,12 +201,12 @@ export function useSongFiltering(songs: Ref<Song[]>) {
     }
 
     function clearAllFilters() {
-        filters.value = { ...DEFAULT_FILTER_STATE };
+        filters.value = createDefaultFilters();
     }
 
     function clearFiltersKeepSearch() {
         const searchQuery = filters.value.searchQuery;
-        filters.value = { ...DEFAULT_FILTER_STATE, searchQuery };
+        filters.value = { ...createDefaultFilters(), searchQuery };
     }
 
     return {
