@@ -72,6 +72,9 @@ export const usePlaylistsStore = defineStore('playlists', () => {
             const updatedPlaylist = {
                 ...playlist,
                 ...updates,
+                // Fresh plain array: IndexedDB cannot structured-clone the
+                // reactive proxy the top-level spread would keep (DataCloneError).
+                songIds: [...playlist.songIds],
                 updatedAt: new Date(),
             };
 

@@ -1,25 +1,27 @@
 <template>
-    <ion-page>
-        <SongHeader :song-id="songId" :song-index="song?.index" :song-title="song?.titel" />
+    <div class="flex h-full flex-col bg-background">
+        <SongHeader :song-id="songId" :song-index="song?.index" :song-title="song?.titel">
+            <template #menu>
+                <SongMenuPopover
+                    v-model:show-controls="showControls"
+                    :song-id="songId"
+                    :has-melody-image="hasMelodyImage"
+                    :has-melody-xml="hasMelodyXml"
+                    :melody-display-mode="melodyDisplayMode"
+                    :notation-scale="notationScale"
+                    :song-font-size="textSize"
+                    :xml-settings="xmlSettings"
+                    @update:melody-display-mode="preferencesStore.setMelodyDisplayMode($event)"
+                    @update:notation-scale="updateNotationScale"
+                    @update:song-font-size="preferencesStore.setTextSize($event)"
+                    @update:xml-setting="
+                        preferencesStore.setXmlSetting($event.key, $event.value as boolean)
+                    "
+                />
+            </template>
+        </SongHeader>
 
-        <SongMenuPopover
-            v-model:show-controls="showControls"
-            :song-id="songId"
-            :has-melody-image="hasMelodyImage"
-            :has-melody-xml="hasMelodyXml"
-            :melody-display-mode="melodyDisplayMode"
-            :notation-scale="notationScale"
-            :song-font-size="textSize"
-            :xml-settings="xmlSettings"
-            @update:melody-display-mode="preferencesStore.setMelodyDisplayMode($event)"
-            @update:notation-scale="updateNotationScale"
-            @update:song-font-size="preferencesStore.setTextSize($event)"
-            @update:xml-setting="
-                preferencesStore.setXmlSetting($event.key, $event.value as boolean)
-            "
-        />
-
-        <ion-content :fullscreen="true">
+        <main class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
             <!-- Loading State -->
             <SongLoadingState v-if="isLoading" />
 
@@ -27,7 +29,7 @@
             <SongErrorState v-else-if="!song" />
 
             <!-- Song Content -->
-            <div v-else class="song-content" :class="`text-size-${textSize}`">
+            <div v-else class="song-content page-col pb-8 pt-4" :class="`text-size-${textSize}`">
                 <!-- Melody Display: Image or MusicXML -->
                 <SongMelodyImage
                     v-if="melodyDisplayMode === 'image' && hasMelodyImage"
@@ -36,7 +38,7 @@
                 />
 
                 <!-- MusicXML (OSMD) Rendering -->
-                <div v-else-if="melodyDisplayMode === 'xml' && hasMelodyXml" class="melody-section">
+                <div v-else-if="melodyDisplayMode === 'xml' && hasMelodyXml" class="mb-4">
                     <OsmdRenderer
                         ref="osmdRendererRef"
                         :file-blob="melodyXmlBlob"
@@ -49,22 +51,31 @@
                         @rendered="onNotationRendered"
                         @render-failed="onNotationRenderFailed"
                     />
-                    <div v-if="notationState === 'blob-missing-offline'" class="no-melody-notice">
-                        <ion-icon :icon="musicalNotesOutline" />
+                    <div
+                        v-if="notationState === 'blob-missing-offline'"
+                        class="flex items-center justify-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
+                    >
+                        <Music class="size-5 shrink-0" aria-hidden="true" />
                         <span>
                             Noten sind offline nicht verfügbar. Stellen Sie eine Internetverbindung
                             her und laden Sie das Lied erneut.
                         </span>
                     </div>
-                    <div v-else-if="notationState === 'blob-fetch-failed'" class="no-melody-notice">
-                        <ion-icon :icon="musicalNotesOutline" />
+                    <div
+                        v-else-if="notationState === 'blob-fetch-failed'"
+                        class="flex items-center justify-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
+                    >
+                        <Music class="size-5 shrink-0" aria-hidden="true" />
                         <span>Noten konnten nicht geladen werden.</span>
                     </div>
                 </div>
 
                 <!-- No Melody Notice -->
-                <div v-else-if="!hasMelodyImage && !hasMelodyXml" class="no-melody-notice">
-                    <ion-icon :icon="musicalNotesOutline" />
+                <div
+                    v-else-if="!hasMelodyImage && !hasMelodyXml"
+                    class="mb-6 flex items-center justify-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
+                >
+                    <Music class="size-5 shrink-0" aria-hidden="true" />
                     <span>Keine Melodie verfügbar</span>
                 </div>
 
@@ -78,9 +89,10 @@
                 <!-- Authors Section -->
                 <SongAuthors :song="song" />
             </div>
-        </ion-content>
+        </main>
 
-        <ion-footer
+        <!-- Docked audio transport: opaque, above the safe area -->
+        <footer
             v-if="
                 song &&
                 showControls &&
@@ -88,7 +100,7 @@
                 hasMelodyXml &&
                 notationState === 'ready'
             "
-            class="audio-controls-footer"
+            class="shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]"
         >
             <SongAudioControls
                 v-model:loop-enabled="loopEnabled"
@@ -100,15 +112,14 @@
                 @increase-tempo="increaseTempo"
                 @decrease-tempo="decreaseTempo"
             />
-        </ion-footer>
-    </ion-page>
+        </footer>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 
-import { IonContent, IonFooter, IonIcon, IonPage } from '@ionic/vue';
-import { musicalNotesOutline } from 'ionicons/icons';
+import { Music } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 
@@ -274,7 +285,6 @@ function loadSong() {
             loadMelodyImage();
         }
     }
-    console.log('Loaded song:', song.value);
 }
 
 // Load song on mount and when route changes
@@ -339,78 +349,32 @@ function decreaseTempo() {
     }
 }
 
-// Notation scale control
-function updateNotationScale(value: number | number[] | { lower: number; upper: number }) {
-    let scale: number;
-    if (typeof value === 'object' && !Array.isArray(value)) {
-        scale = value.lower; // For dual knob ranges (we don't use this)
-    } else {
-        scale = Array.isArray(value) ? value[0] : value;
-    }
-    preferencesStore.setNotationScale(scale);
+// Notation scale control (the popover already unwraps the slider's number[])
+function updateNotationScale(value: number) {
+    preferencesStore.setNotationScale(value);
 }
 </script>
 
 <style scoped>
-.song-content {
-    padding: var(--spacing-md);
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-/* Text size variations */
+/* Live text-size contract consumed by SongVerses (via --verse-font-size /
+   --verse-line-height): the popover's Textgröße select toggles these classes. */
 .song-content.text-size-small {
-    --verse-font-size: var(--font-size-sm);
+    --verse-font-size: 1rem;
     --verse-line-height: 1.5;
 }
 
 .song-content.text-size-medium {
-    --verse-font-size: var(--font-size-base);
+    --verse-font-size: 1.125rem;
     --verse-line-height: 1.6;
 }
 
 .song-content.text-size-large {
-    --verse-font-size: var(--font-size-lg);
+    --verse-font-size: 1.3125rem;
     --verse-line-height: 1.7;
 }
 
 .song-content.text-size-xlarge {
-    --verse-font-size: var(--font-size-xl);
+    --verse-font-size: 1.5rem;
     --verse-line-height: 1.8;
-}
-
-/* Melody Section */
-.melody-section {
-    margin-bottom: var(--spacing-md);
-    overflow-x: auto;
-}
-
-/* Audio controls footer: opaque background, no iOS translucency */
-.audio-controls-footer {
-    --background: var(--ion-color-light);
-    background: var(--ion-color-light);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-}
-
-.audio-controls-footer::before {
-    display: none;
-}
-
-.no-melody-notice {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-lg);
-    background: var(--ion-color-light);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--spacing-lg);
-    color: var(--ion-color-medium);
-    font-style: italic;
-}
-
-.no-melody-notice ion-icon {
-    font-size: 20px;
 }
 </style>

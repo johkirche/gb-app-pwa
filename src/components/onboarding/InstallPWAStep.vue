@@ -1,82 +1,107 @@
 <template>
-    <div class="onboarding-step">
-        <div class="step-icon">
-            <ion-icon :icon="downloadOutline"></ion-icon>
+    <div class="flex flex-1 flex-col animate-in duration-300 fade-in slide-in-from-bottom-2">
+        <div
+            class="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-primary/10"
+        >
+            <Download class="size-10 text-primary" aria-hidden="true" />
         </div>
 
-        <h1 class="onboarding-title">App installieren</h1>
-        <p class="onboarding-description">
+        <h1 class="text-center font-display text-3xl font-semibold">App installieren</h1>
+        <p class="mt-3 text-center text-[15px] leading-relaxed text-muted-foreground">
             Installieren Sie das Gesangbuch als App auf Ihrem Gerät für schnellen Zugriff und
             Offline-Nutzung.
         </p>
 
         <!-- Definitely installed: running in standalone/PWA mode -->
-        <div class="already-installed" v-if="isStandalone">
-            <div>
-                <ion-icon :icon="checkmarkCircleOutline" color="success"></ion-icon>
-                <span>App ist bereits installiert</span>
+        <div
+            v-if="isStandalone"
+            class="mt-8 flex flex-col items-center gap-2 rounded-lg border border-border bg-card px-6 py-6"
+        >
+            <div class="flex items-center gap-2">
+                <CircleCheck class="size-6 text-primary" aria-hidden="true" />
+                <span class="font-medium">App ist bereits installiert</span>
             </div>
         </div>
 
         <!-- Loading: checking installation status -->
-        <div class="checking-install" v-else-if="isCheckingInstall">
-            <ion-spinner name="crescent"></ion-spinner>
-            <span>Prüfe Installationsstatus...</span>
+        <div
+            v-else-if="isCheckingInstall"
+            class="mt-8 flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-4"
+        >
+            <Spinner size="sm" />
+            <span class="font-medium text-muted-foreground">Prüfe Installationsstatus...</span>
         </div>
 
         <template v-else>
             <!-- Heuristic: we suspect the app might be installed -->
-            <div class="suspected-installed" v-if="isSuspectedInstalled">
-                <div>
-                    <ion-icon :icon="informationCircleOutline" color="primary"></ion-icon>
-                    <span>Die App scheint bereits installiert zu sein</span>
+            <div
+                v-if="isSuspectedInstalled"
+                class="mt-8 flex flex-col items-center gap-2 rounded-lg border-l-4 border-gold bg-gold/10 px-6 py-6"
+            >
+                <div class="flex items-center gap-2">
+                    <Info class="size-6 shrink-0 text-gold" aria-hidden="true" />
+                    <span class="font-medium">Die App scheint bereits installiert zu sein</span>
                 </div>
-                <p class="suspected-hint">
+                <p class="text-center text-sm leading-relaxed text-muted-foreground">
                     Öffnen Sie die App vom Home-Bildschirm oder installieren Sie sie erneut:
                 </p>
             </div>
+
             <!-- Install Action (Android/Desktop only, if prompt is available) -->
-            <div v-if="showInstallAction" class="install-action">
-                <ion-button expand="block" @click="installPWA" class="install-button">
-                    <ion-icon slot="start" :icon="downloadOutline"></ion-icon>
+            <div v-if="showInstallAction" :class="isSuspectedInstalled ? 'mt-6' : 'mt-8'">
+                <Button type="button" size="lg" class="w-full" @click="installPWA">
+                    <Download aria-hidden="true" />
                     {{ installButtonLabel }}
-                </ion-button>
+                </Button>
             </div>
 
-            <div class="manual-install-intro">
-                <div v-if="showInstallAction" class="manual-separator">
+            <div :class="showInstallAction || isSuspectedInstalled ? 'mt-6' : 'mt-8'">
+                <div
+                    v-if="showInstallAction"
+                    class="mb-2 flex items-center gap-3 text-sm text-muted-foreground"
+                >
+                    <Separator class="flex-1" />
                     <span>oder</span>
+                    <Separator class="flex-1" />
                 </div>
-                <p class="manual-description">Manuelle Installation über den Browser:</p>
+                <p class="text-center text-sm text-muted-foreground">
+                    Manuelle Installation über den Browser:
+                </p>
             </div>
 
             <!-- iOS Instructions -->
-            <div v-if="isIOSView" class="install-instructions">
-                <div class="instruction-card">
-                    <div class="instruction-step">
+            <div v-if="isIOSView" class="mt-4">
+                <div class="divide-y divide-border rounded-lg border border-border px-4">
+                    <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
-                        <div class="instruction-content">
-                            <p>
+                        <div class="flex min-w-0 items-start justify-between gap-4">
+                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
                                 Tippen Sie auf das
                                 <strong>Teilen-Symbol</strong>
                             </p>
-                            <ion-icon :icon="shareOutline" class="instruction-icon"></ion-icon>
+                            <Share
+                                class="size-6 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
                         </div>
                     </div>
-                    <div class="instruction-step">
+                    <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
-                        <div class="instruction-content">
-                            <p>
+                        <div class="flex min-w-0 items-start justify-between gap-4">
+                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
                                 Scrollen Sie nach unten und tippen Sie auf
                                 <strong>"Zum Home-Bildschirm"</strong>
                             </p>
-                            <ion-icon :icon="addOutline" class="instruction-icon"></ion-icon>
+                            <Plus
+                                class="size-6 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
                         </div>
                     </div>
-                    <div class="instruction-step">
+                    <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">3</span>
-                        <div class="instruction-content">
-                            <p>
+                        <div class="flex min-w-0 items-start justify-between gap-4">
+                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
                                 Tippen Sie auf
                                 <strong>"Hinzufügen"</strong>
                             </p>
@@ -86,56 +111,62 @@
             </div>
 
             <!-- Android Instructions -->
-            <div v-else-if="isAndroidView" class="install-instructions">
-                <div class="instruction-card">
-                    <div class="instruction-step">
+            <div v-else-if="isAndroidView" class="mt-4">
+                <div class="divide-y divide-border rounded-lg border border-border px-4">
+                    <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
-                        <div class="instruction-content">
-                            <p>
+                        <div class="flex min-w-0 items-start justify-between gap-4">
+                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
                                 Tippen Sie auf das
                                 <strong>Menü-Symbol</strong>
                                 (drei Punkte)
                             </p>
-                            <ion-icon :icon="ellipsisVertical" class="instruction-icon"></ion-icon>
+                            <EllipsisVertical
+                                class="size-6 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
                         </div>
                     </div>
-                    <div class="instruction-step">
+                    <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
-                        <div class="instruction-content">
-                            <p>
+                        <div class="flex min-w-0 items-start justify-between gap-4">
+                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
                                 Wählen Sie
                                 <strong>"App installieren"</strong>
                                 oder
                                 <strong>"Zum Startbildschirm hinzufügen"</strong>
                             </p>
-                            <ion-icon :icon="downloadOutline" class="instruction-icon"></ion-icon>
+                            <Download
+                                class="size-6 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Desktop Instructions -->
-            <div v-else class="install-instructions">
-                <div class="instruction-card">
-                    <div class="instruction-step">
+            <div v-else class="mt-4">
+                <div class="divide-y divide-border rounded-lg border border-border px-4">
+                    <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
-                        <div class="instruction-content">
-                            <p>
+                        <div class="flex min-w-0 items-start justify-between gap-4">
+                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
                                 Klicken Sie auf das
                                 <strong>Installations-Symbol</strong>
                                 in der Adressleiste
                             </p>
                             <img
                                 :src="desktopInstallIcon"
-                                class="instruction-icon-image icon-filter-adaptive"
+                                class="size-6 shrink-0 dark:invert-[.85]"
                                 alt="Installations-Symbol"
                             />
                         </div>
                     </div>
-                    <div class="instruction-step">
+                    <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
-                        <div class="instruction-content">
-                            <p>
+                        <div class="flex min-w-0 items-start justify-between gap-4">
+                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
                                 Bestätigen Sie mit
                                 <strong>"Installieren"</strong>
                             </p>
@@ -146,34 +177,49 @@
         </template>
 
         <!-- Dev-only: preview instructions for other device types -->
-        <div v-if="isDev" class="dev-device-toggle">
-            <ion-button size="small" fill="outline" color="medium" @click="cyclePreviewDevice">
+        <div v-if="isDev" class="fixed bottom-4 right-4 z-50">
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                class="text-muted-foreground"
+                @click="cyclePreviewDevice"
+            >
                 Vorschau: {{ previewDeviceLabel }}
-            </ion-button>
+            </Button>
         </div>
 
-        <div class="step-actions">
-            <ion-button
+        <div class="mt-auto flex flex-col gap-2 pt-8">
+            <Button
                 v-if="props.mode === 'onboarding'"
-                expand="block"
+                type="button"
+                size="lg"
+                class="w-full"
                 :disabled="!canProceed"
                 @click="$emit('next')"
             >
                 Weiter
-                <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
-            </ion-button>
-            <ion-button
+                <ArrowRight aria-hidden="true" />
+            </Button>
+            <Button
                 v-if="props.mode === 'onboarding'"
-                expand="block"
-                fill="clear"
-                color="medium"
+                type="button"
+                variant="ghost"
+                size="lg"
+                class="w-full text-muted-foreground"
                 @click="$emit('next')"
             >
                 Überspringen
-            </ion-button>
-            <ion-button v-if="props.mode === 'standalone'" expand="block" @click="$emit('done')">
+            </Button>
+            <Button
+                v-if="props.mode === 'standalone'"
+                type="button"
+                size="lg"
+                class="w-full"
+                @click="$emit('done')"
+            >
                 Fertig
-            </ion-button>
+            </Button>
         </div>
     </div>
 </template>
@@ -181,20 +227,23 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { IonButton, IonIcon, IonSpinner } from '@ionic/vue';
 import {
-    addOutline,
-    arrowForwardOutline,
-    checkmarkCircleOutline,
-    downloadOutline,
-    ellipsisVertical,
-    informationCircleOutline,
-    shareOutline,
-} from 'ionicons/icons';
+    ArrowRight,
+    CircleCheck,
+    Download,
+    EllipsisVertical,
+    Info,
+    Plus,
+    Share,
+} from 'lucide-vue-next';
 
 import desktopInstallIcon from '@/assets/pwa-icons/pwa-desktop-install.png';
 
 import { usePWA } from '@/composables/usePWA';
+
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 
 // Props
 const props = withDefaults(
@@ -261,260 +310,16 @@ function cyclePreviewDevice() {
 </script>
 
 <style scoped>
-/* Step Content */
-.onboarding-step {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.step-icon {
-    width: 5rem;
-    height: 5rem;
-    border-radius: 50%;
-    background: rgba(var(--ion-color-primary-rgb), 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto var(--spacing-lg);
-}
-
-.step-icon ion-icon {
-    font-size: 2.5rem;
-    color: var(--ion-color-primary-shade);
-}
-
-.onboarding-title {
-    font-size: var(--font-size-2xl);
-    font-weight: 600;
-    text-align: center;
-    margin: 0 0 var(--spacing-sm);
-}
-
-.onboarding-description {
-    text-align: center;
-    color: var(--ion-color-medium);
-    line-height: 1.6;
-    margin: 0 0 var(--spacing-xl);
-}
-
-/* Install Instructions */
-.install-instructions {
-    margin-bottom: var(--spacing-lg);
-}
-
-.install-action {
-    margin-bottom: var(--spacing-lg);
-}
-
-.manual-install-intro {
-    margin-bottom: var(--spacing-md);
-}
-
-.manual-separator {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-    color: var(--ion-color-medium);
-    font-size: var(--font-size-sm);
-}
-
-.manual-separator::before,
-.manual-separator::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--ion-color-light-shade);
-}
-
-.manual-description {
-    margin: 0;
-    color: var(--ion-color-medium);
-    font-size: var(--font-size-sm);
-    text-align: center;
-}
-
-.instruction-card {
-    background: var(--ion-color-light);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-sm) var(--spacing-md);
-}
-
-.instruction-step {
-    display: grid;
-    grid-template-columns: 1.75rem 1fr;
-    align-items: start;
-    column-gap: var(--spacing-md);
-    padding: var(--spacing-md) 0 var(--spacing-sm) 0;
-}
-
-.instruction-step:not(:last-child) {
-    border-bottom: 1px solid var(--ion-color-light-shade);
-}
-
 .instruction-number {
+    display: flex;
     width: 1.75rem;
     height: 1.75rem;
-    border-radius: 50%;
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
-    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--font-size-sm);
+    border-radius: 9999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 0.875rem;
     font-weight: 600;
-    flex-shrink: 0;
-    align-self: start;
-    transform: translateY(-2px);
-}
-
-.instruction-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--spacing-md);
-}
-
-.instruction-content p {
-    margin: 0;
-    line-height: 1.5;
-    flex: 1;
-    min-width: 0;
-}
-
-.instruction-icon {
-    font-size: 1.5rem;
-    color: var(--ion-color-medium);
-    margin-top: 0;
-    flex-shrink: 0;
-}
-
-.instruction-icon-image {
-    width: 1.5rem;
-    height: 1.5rem;
-    margin-top: 0;
-    display: block;
-    flex-shrink: 0;
-}
-
-.install-button {
-    margin-top: var(--spacing-md);
-}
-
-.dev-device-toggle {
-    position: fixed;
-    right: var(--spacing-md);
-    bottom: var(--spacing-md);
-    z-index: 1000;
-}
-
-.already-installed {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-lg);
-    background: rgba(var(--ion-color-success-rgb), 0.1);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--spacing-lg);
-}
-
-.already-installed > div:first-child {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.already-installed ion-icon {
-    font-size: 1.5rem;
-}
-
-.already-installed span {
-    color: var(--ion-color-success);
-    font-weight: 500;
-}
-
-/* Checking install status */
-.checking-install {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background: var(--ion-color-light);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-lg);
-}
-
-.checking-install ion-spinner {
-    width: 1.25rem;
-    height: 1.25rem;
-}
-
-.checking-install span {
-    color: var(--ion-color-medium);
-    font-weight: 500;
-}
-
-/* Suspected installed hint box */
-.suspected-installed {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-lg);
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--spacing-lg);
-}
-
-.suspected-installed > div:first-child {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.suspected-installed ion-icon {
-    font-size: 1.5rem;
-}
-
-.suspected-installed span {
-    color: var(--ion-color-primary);
-    font-weight: 500;
-}
-
-.suspected-installed .suspected-hint {
-    margin: 0;
-    color: var(--ion-color-primary);
-    font-size: var(--font-size-sm);
-    text-align: center;
-    opacity: 0.8;
-}
-
-/* Step Actions */
-.step-actions {
-    margin-top: auto;
-    padding-top: var(--spacing-lg);
-}
-
-.step-actions ion-button {
-    margin-bottom: var(--spacing-sm);
 }
 </style>

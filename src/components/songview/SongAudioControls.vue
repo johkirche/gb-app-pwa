@@ -1,50 +1,66 @@
 <template>
-    <div class="audio-controls">
-        <ion-button
-            fill="clear"
-            size="small"
-            :color="loopEnabled ? 'primary' : 'medium'"
+    <div class="flex items-center justify-center gap-4 px-4 py-2">
+        <Button
+            variant="ghost"
+            size="icon"
+            :class="loopEnabled ? 'text-primary' : 'text-muted-foreground'"
+            aria-label="Wiederholung"
             @click="$emit('update:loopEnabled', !loopEnabled)"
         >
-            <ion-icon slot="icon-only" :icon="repeatOutline" />
-        </ion-button>
+            <Repeat class="!size-5" aria-hidden="true" />
+        </Button>
 
-        <ion-button fill="solid" shape="round" color="primary" @click="$emit('togglePlay')">
-            <ion-icon slot="icon-only" :icon="isPlaying ? pauseOutline : playOutline" />
-        </ion-button>
+        <Button
+            size="icon"
+            class="h-11 w-11 rounded-full"
+            :aria-label="isPlaying ? 'Pause' : 'Wiedergabe'"
+            @click="$emit('togglePlay')"
+        >
+            <Pause v-if="isPlaying" class="!size-5 fill-current" aria-hidden="true" />
+            <Play v-else class="!size-5 fill-current" aria-hidden="true" />
+        </Button>
 
-        <ion-button
-            fill="clear"
-            size="small"
-            color="medium"
+        <Button
+            variant="ghost"
+            size="icon"
+            class="text-muted-foreground"
             :disabled="!isPlaying && !hasPaused"
+            aria-label="Zum Anfang"
             @click="$emit('stop')"
         >
-            <ion-icon slot="icon-only" :icon="playSkipBackOutline" />
-        </ion-button>
+            <SkipBack class="!size-5" aria-hidden="true" />
+        </Button>
 
-        <div class="tempo-control">
-            <ion-button fill="clear" size="small" @click="$emit('decreaseTempo')">
-                <ion-icon slot="icon-only" :icon="removeOutline" />
-            </ion-button>
-            <span class="tempo-value">{{ tempo }} BPM</span>
-            <ion-button fill="clear" size="small" @click="$emit('increaseTempo')">
-                <ion-icon slot="icon-only" :icon="addOutline" />
-            </ion-button>
+        <div class="flex items-center gap-1">
+            <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Tempo verringern"
+                @click="$emit('decreaseTempo')"
+            >
+                <Minus aria-hidden="true" />
+            </Button>
+            <span
+                class="min-w-[64px] text-center text-sm font-medium tabular-nums text-muted-foreground"
+            >
+                {{ tempo }} BPM
+            </span>
+            <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Tempo erhöhen"
+                @click="$emit('increaseTempo')"
+            >
+                <Plus aria-hidden="true" />
+            </Button>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonIcon } from '@ionic/vue';
-import {
-    addOutline,
-    pauseOutline,
-    playOutline,
-    playSkipBackOutline,
-    removeOutline,
-    repeatOutline,
-} from 'ionicons/icons';
+import { Minus, Pause, Play, Plus, Repeat, SkipBack } from 'lucide-vue-next';
+
+import { Button } from '@/components/ui/button';
 
 defineProps<{
     isPlaying: boolean;
@@ -61,29 +77,3 @@ defineEmits<{
     'update:loopEnabled': [value: boolean];
 }>();
 </script>
-
-<style scoped>
-.audio-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-md);
-    background: var(--ion-color-light);
-    border-top: 1px solid var(--ion-color-light-shade);
-    padding: var(--spacing-xs) var(--spacing-md);
-}
-
-.tempo-control {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-}
-
-.tempo-value {
-    min-width: 40px;
-    text-align: center;
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--ion-color-medium);
-}
-</style>

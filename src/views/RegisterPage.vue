@@ -1,155 +1,191 @@
 <template>
-    <ion-page>
-        <ion-content :fullscreen="true">
-            <div class="auth-container">
+    <div class="flex h-full flex-col bg-background">
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+                class="mx-auto flex min-h-full w-full max-w-md flex-col px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]"
+            >
                 <!-- Step Indicator -->
                 <StepIndicator :current-step="currentStep" :total-steps="2" @back="goToStep1" />
 
                 <!-- Step 1: Personal Info -->
-                <div v-if="currentStep === 1" class="step-content">
-                    <div class="section-header">
-                        <h1 class="heading-lg">Willkommen!</h1>
-                        <p class="text-muted text-muted--relaxed">
+                <div
+                    v-if="currentStep === 1"
+                    class="step-content flex flex-1 flex-col justify-center"
+                >
+                    <header class="text-center">
+                        <h1 class="font-display text-4xl font-semibold tracking-tight">
+                            Willkommen!
+                        </h1>
+                        <p
+                            class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground"
+                        >
                             Erstellen Sie Ihr persönliches Konto, um auf das digitale Gesangbuch
                             zuzugreifen.
                         </p>
-                    </div>
+                    </header>
 
-                    <form @submit.prevent="goToStep2">
-                        <div class="form-stack">
-                            <ion-input
-                                v-model="firstName"
-                                type="text"
-                                label="Vorname (optional)"
-                                label-placement="floating"
-                                autocomplete="given-name"
-                                fill="outline"
-                                :disabled="isLoading"
-                            ></ion-input>
-
-                            <ion-input
-                                v-model="lastName"
-                                type="text"
-                                label="Nachname (optional)"
-                                label-placement="floating"
-                                autocomplete="family-name"
-                                fill="outline"
-                                :disabled="isLoading"
-                            ></ion-input>
-
-                            <ion-input
-                                v-model="email"
-                                type="email"
-                                label="E-Mail-Adresse"
-                                label-placement="floating"
-                                required
-                                autocomplete="email"
-                                fill="outline"
-                                :disabled="isLoading"
-                                helper-text="Wird für die Anmeldung und Passwort-Wiederherstellung verwendet"
-                            ></ion-input>
-
-                            <div class="password-input-wrapper">
-                                <ion-input
-                                    v-model="password"
-                                    :type="showPassword ? 'text' : 'password'"
-                                    label="Passwort"
-                                    label-placement="floating"
-                                    required
-                                    autocomplete="new-password"
-                                    fill="outline"
+                    <form class="mt-8" @submit.prevent="goToStep2">
+                        <div class="space-y-5">
+                            <div class="space-y-2">
+                                <Label for="register-first-name">Vorname (optional)</Label>
+                                <Input
+                                    id="register-first-name"
+                                    v-model="firstName"
+                                    type="text"
+                                    autocomplete="given-name"
                                     :disabled="isLoading"
-                                    @ionFocus="passwordFocused = true"
-                                ></ion-input>
-                                <ion-button
-                                    fill="clear"
-                                    class="password-toggle-button"
-                                    aria-label="Passwort anzeigen/verbergen"
-                                    @click="showPassword = !showPassword"
-                                    tabindex="-1"
-                                >
-                                    <ion-icon
-                                        slot="icon-only"
-                                        :icon="showPassword ? eyeOffOutline : eyeOutline"
-                                        aria-hidden="true"
-                                    ></ion-icon>
-                                </ion-button>
+                                />
+                            </div>
+
+                            <div class="space-y-2">
+                                <Label for="register-last-name">Nachname (optional)</Label>
+                                <Input
+                                    id="register-last-name"
+                                    v-model="lastName"
+                                    type="text"
+                                    autocomplete="family-name"
+                                    :disabled="isLoading"
+                                />
+                            </div>
+
+                            <div class="space-y-2">
+                                <Label for="register-email">E-Mail-Adresse</Label>
+                                <Input
+                                    id="register-email"
+                                    v-model="email"
+                                    type="email"
+                                    required
+                                    autocomplete="email"
+                                    :disabled="isLoading"
+                                />
+                                <p class="text-xs leading-relaxed text-muted-foreground">
+                                    Wird für die Anmeldung und Passwort-Wiederherstellung verwendet
+                                </p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <Label for="register-password">Passwort</Label>
+                                <div class="relative">
+                                    <Input
+                                        id="register-password"
+                                        v-model="password"
+                                        :type="showPassword ? 'text' : 'password'"
+                                        required
+                                        autocomplete="new-password"
+                                        class="pr-11"
+                                        :disabled="isLoading"
+                                        @focus="passwordFocused = true"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+                                        aria-label="Passwort anzeigen/verbergen"
+                                        tabindex="-1"
+                                        @click="showPassword = !showPassword"
+                                    >
+                                        <EyeOff v-if="showPassword" aria-hidden="true" />
+                                        <Eye v-else aria-hidden="true" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <!-- Password Requirements -->
                             <Transition name="slide-fade">
-                                <div v-show="passwordFocused" class="password-rules">
-                                    <div class="rule" :class="{ valid: hasMinLength }">
-                                        <ion-icon
-                                            :icon="
-                                                hasMinLength
-                                                    ? checkmarkCircleOutline
-                                                    : ellipseOutline
-                                            "
-                                        ></ion-icon>
+                                <div v-show="passwordFocused" class="space-y-1.5 py-1">
+                                    <div
+                                        class="flex items-center gap-2.5 text-sm transition-colors"
+                                        :class="
+                                            hasMinLength ? 'text-primary' : 'text-muted-foreground'
+                                        "
+                                    >
+                                        <Check
+                                            v-if="hasMinLength"
+                                            class="size-4 shrink-0"
+                                            aria-hidden="true"
+                                        />
+                                        <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                         <span>Mindestens 8 Zeichen</span>
                                     </div>
-                                    <div class="rule" :class="{ valid: hasUppercase }">
-                                        <ion-icon
-                                            :icon="
-                                                hasUppercase
-                                                    ? checkmarkCircleOutline
-                                                    : ellipseOutline
-                                            "
-                                        ></ion-icon>
+                                    <div
+                                        class="flex items-center gap-2.5 text-sm transition-colors"
+                                        :class="
+                                            hasUppercase ? 'text-primary' : 'text-muted-foreground'
+                                        "
+                                    >
+                                        <Check
+                                            v-if="hasUppercase"
+                                            class="size-4 shrink-0"
+                                            aria-hidden="true"
+                                        />
+                                        <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                         <span>Mindestens ein Großbuchstabe</span>
                                     </div>
-                                    <div class="rule" :class="{ valid: hasNumberOrSpecial }">
-                                        <ion-icon
-                                            :icon="
-                                                hasNumberOrSpecial
-                                                    ? checkmarkCircleOutline
-                                                    : ellipseOutline
-                                            "
-                                        ></ion-icon>
+                                    <div
+                                        class="flex items-center gap-2.5 text-sm transition-colors"
+                                        :class="
+                                            hasNumberOrSpecial
+                                                ? 'text-primary'
+                                                : 'text-muted-foreground'
+                                        "
+                                    >
+                                        <Check
+                                            v-if="hasNumberOrSpecial"
+                                            class="size-4 shrink-0"
+                                            aria-hidden="true"
+                                        />
+                                        <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                         <span>Mindestens eine Zahl oder Sonderzeichen</span>
                                     </div>
                                 </div>
                             </Transition>
 
-                            <div class="password-input-wrapper">
-                                <ion-input
-                                    v-model="confirmPassword"
-                                    :type="showConfirmPassword ? 'text' : 'password'"
-                                    label="Passwort bestätigen"
-                                    label-placement="floating"
-                                    required
-                                    autocomplete="new-password"
-                                    fill="outline"
-                                    :disabled="isLoading"
-                                    @ionFocus="confirmPasswordFocused = true"
-                                ></ion-input>
-                                <ion-button
-                                    fill="clear"
-                                    class="password-toggle-button"
-                                    aria-label="Passwort anzeigen/verbergen"
-                                    @click="showConfirmPassword = !showConfirmPassword"
-                                    tabindex="-1"
-                                >
-                                    <ion-icon
-                                        slot="icon-only"
-                                        :icon="showConfirmPassword ? eyeOffOutline : eyeOutline"
-                                        aria-hidden="true"
-                                    ></ion-icon>
-                                </ion-button>
+                            <div class="space-y-2">
+                                <Label for="register-confirm-password">Passwort bestätigen</Label>
+                                <div class="relative">
+                                    <Input
+                                        id="register-confirm-password"
+                                        v-model="confirmPassword"
+                                        :type="showConfirmPassword ? 'text' : 'password'"
+                                        required
+                                        autocomplete="new-password"
+                                        class="pr-11"
+                                        :disabled="isLoading"
+                                        @focus="confirmPasswordFocused = true"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+                                        aria-label="Passwort anzeigen/verbergen"
+                                        tabindex="-1"
+                                        @click="showConfirmPassword = !showConfirmPassword"
+                                    >
+                                        <EyeOff v-if="showConfirmPassword" aria-hidden="true" />
+                                        <Eye v-else aria-hidden="true" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <!-- Password Match -->
                             <Transition name="slide-fade">
-                                <div v-show="confirmPasswordFocused" class="password-rules">
-                                    <div class="rule" :class="{ valid: passwordsMatch }">
-                                        <ion-icon
-                                            :icon="
-                                                passwordsMatch
-                                                    ? checkmarkCircleOutline
-                                                    : ellipseOutline
-                                            "
-                                        ></ion-icon>
+                                <div v-show="confirmPasswordFocused" class="space-y-1.5 py-1">
+                                    <div
+                                        class="flex items-center gap-2.5 text-sm transition-colors"
+                                        :class="
+                                            passwordsMatch
+                                                ? 'text-primary'
+                                                : 'text-muted-foreground'
+                                        "
+                                    >
+                                        <Check
+                                            v-if="passwordsMatch"
+                                            class="size-4 shrink-0"
+                                            aria-hidden="true"
+                                        />
+                                        <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                         <span>Passwörter stimmen überein</span>
                                     </div>
                                 </div>
@@ -158,111 +194,121 @@
 
                         <!-- Errors that point at a step 1 field (e.g. the email is already
                              taken) are raised on submit in step 2 and shown here -->
-                        <ion-text v-if="error" color="danger" class="ion-margin-top">
-                            <p class="error-message">{{ error }}</p>
-                        </ion-text>
+                        <p v-if="error" class="mt-4 text-sm leading-relaxed text-destructive">
+                            {{ error }}
+                        </p>
 
-                        <ion-button
-                            expand="block"
+                        <Button
                             type="submit"
+                            size="lg"
+                            class="mt-6 w-full"
                             :disabled="!isStep1Valid"
-                            class="ion-margin-top"
                         >
                             Weiter
-                            <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
-                        </ion-button>
+                            <ArrowRight aria-hidden="true" />
+                        </Button>
                     </form>
 
-                    <div class="section-footer">
-                        <ion-text color="medium">
-                            Bereits ein Konto?
-                            <router-link to="/login">Anmelden</router-link>
-                        </ion-text>
-                    </div>
+                    <p class="mt-8 text-center text-sm text-muted-foreground">
+                        Bereits ein Konto?
+                        <RouterLink
+                            to="/login"
+                            class="font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                            Anmelden
+                        </RouterLink>
+                    </p>
                 </div>
 
                 <!-- Step 2: Activation Code -->
-                <div v-if="currentStep === 2" class="step-content">
-                    <div class="section-header">
-                        <h1 class="heading-lg">Aktivierungscode</h1>
-                        <p class="text-muted text-muted--relaxed">
+                <div
+                    v-if="currentStep === 2"
+                    class="step-content flex flex-1 flex-col justify-center"
+                >
+                    <header class="text-center">
+                        <h1 class="font-display text-4xl font-semibold tracking-tight">
+                            Aktivierungscode
+                        </h1>
+                        <p
+                            class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground"
+                        >
                             Geben Sie Ihren persönlichen Aktivierungscode ein. Diesen haben Sie per
                             E-Mail oder postalisch erhalten.
                         </p>
-                    </div>
+                    </header>
 
-                    <form @submit.prevent="handleRegister">
-                        <div class="form-stack">
-                            <div class="code-info-box">
-                                <ion-icon
-                                    :icon="informationCircleOutline"
-                                    class="info-icon"
-                                ></ion-icon>
-                                <p>
+                    <form class="mt-8" @submit.prevent="handleRegister">
+                        <div class="space-y-5">
+                            <div class="flex gap-3 rounded-lg bg-muted p-4">
+                                <Info
+                                    class="mt-0.5 size-5 shrink-0 text-primary"
+                                    aria-hidden="true"
+                                />
+                                <p class="text-sm leading-relaxed text-muted-foreground">
                                     Der Aktivierungscode bestätigt Ihre Berechtigung zur Nutzung des
                                     Gesangbuchs und ist nur einmal verwendbar.
                                 </p>
                             </div>
 
-                            <ion-input
-                                v-model="activationCode"
-                                type="text"
-                                label="Aktivierungscode"
-                                label-placement="floating"
-                                required
-                                :disabled="isLoading"
-                                fill="outline"
-                                placeholder="XXXX-XXXX-XXXX"
-                                class="code-input"
-                            ></ion-input>
+                            <div class="space-y-2">
+                                <Label for="register-activation-code">Aktivierungscode</Label>
+                                <Input
+                                    id="register-activation-code"
+                                    v-model="activationCode"
+                                    type="text"
+                                    required
+                                    :disabled="isLoading"
+                                    placeholder="XXXX-XXXX-XXXX"
+                                    class="font-mono tracking-[0.1em] placeholder:tracking-[0.1em]"
+                                />
+                            </div>
                         </div>
 
-                        <ion-text v-if="error" color="danger" class="ion-margin-top">
-                            <p class="error-message">{{ error }}</p>
-                        </ion-text>
+                        <p v-if="error" class="mt-4 text-sm leading-relaxed text-destructive">
+                            {{ error }}
+                        </p>
 
-                        <ion-button
-                            expand="block"
+                        <Button
                             type="submit"
+                            size="lg"
+                            class="mt-6 w-full"
                             :disabled="isLoading || !activationCode"
-                            class="ion-margin-top"
                         >
-                            <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
+                            <Spinner v-if="isLoading" size="sm" class="text-primary-foreground" />
                             <span v-else>Konto erstellen</span>
-                        </ion-button>
+                        </Button>
 
                         <component :is="DevSkipButton" v-if="DevSkipButton" :disabled="isLoading" />
                     </form>
 
-                    <div class="section-footer">
-                        <ion-text color="medium">
-                            Keinen Code erhalten?
-                            <a :href="`mailto:${SUPPORT_EMAIL}`">Kontaktieren Sie uns</a>
-                        </ion-text>
-                    </div>
+                    <p class="mt-8 text-center text-sm text-muted-foreground">
+                        Keinen Code erhalten?
+                        <a
+                            :href="`mailto:${SUPPORT_EMAIL}`"
+                            class="font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                            Kontaktieren Sie uns
+                        </a>
+                    </p>
                 </div>
             </div>
-        </ion-content>
-    </ion-page>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref } from 'vue';
 
-import { IonButton, IonContent, IonIcon, IonInput, IonPage, IonSpinner, IonText } from '@ionic/vue';
-import {
-    arrowForwardOutline,
-    checkmarkCircleOutline,
-    ellipseOutline,
-    eyeOffOutline,
-    eyeOutline,
-    informationCircleOutline,
-} from 'ionicons/icons';
-import { useRouter } from 'vue-router';
+import { ArrowRight, Check, Eye, EyeOff, Info, X } from 'lucide-vue-next';
+import { RouterLink, useRouter } from 'vue-router';
 
 import { useAuth } from '@/composables/useAuth';
 import { usePasswordRules } from '@/composables/usePasswordRules';
 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
 import { SUPPORT_EMAIL } from '@/config/support';
@@ -354,19 +400,8 @@ async function handleRegister() {
 </script>
 
 <style scoped>
-/* Auth Container */
-.auth-container {
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Step Content */
+/* Step entry animation */
 .step-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
     animation: fadeIn 0.3s ease;
 }
 
@@ -381,83 +416,7 @@ async function handleRegister() {
     }
 }
 
-/* Code Info Box */
-.code-info-box {
-    display: flex;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background: var(--ion-color-light);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-sm);
-}
-
-.code-info-box .info-icon {
-    flex-shrink: 0;
-    font-size: 1.25rem;
-    color: var(--ion-color-primary);
-}
-
-.code-info-box p {
-    margin: 0;
-    font-size: var(--font-size-sm);
-    color: var(--ion-color-medium);
-    line-height: 1.5;
-}
-
-/* Code Input */
-.code-input {
-    --placeholder-opacity: 0.5;
-    font-family: monospace;
-    letter-spacing: 0.1em;
-}
-
-/* Password Input Wrapper */
-.password-input-wrapper {
-    position: relative;
-}
-
-.password-toggle-button {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
-    margin: 0;
-    --padding-start: 8px;
-    --padding-end: 8px;
-}
-
-/* Password Rules */
-.password-rules {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm) 0;
-}
-
-.rule {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    font-size: var(--font-size-sm);
-    color: var(--ion-color-medium);
-    transition: color 0.2s ease;
-}
-
-.rule ion-icon {
-    font-size: 1rem;
-    flex-shrink: 0;
-}
-
-.rule.valid {
-    color: var(--ion-color-success);
-}
-
-.rule.valid ion-icon {
-    color: var(--ion-color-success);
-}
-
-/* Slide-fade transition */
+/* Slide-fade transition (password rules reveal) */
 .slide-fade-enter-active {
     transition: all 0.3s ease-out;
 }

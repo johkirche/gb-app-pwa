@@ -1,52 +1,41 @@
 <template>
-    <ion-modal :is-open="isOpen" @didDismiss="emit('close')">
-        <ion-header>
-            <ion-toolbar>
-                <ion-title>Emoji wählen</ion-title>
-                <ion-buttons slot="end">
-                    <ion-button @click="emit('close')">Fertig</ion-button>
-                </ion-buttons>
-            </ion-toolbar>
-        </ion-header>
-        <ion-content class="ion-padding">
-            <div class="emoji-grid">
-                <button
-                    v-for="emoji in emojis"
-                    :key="emoji"
-                    class="emoji-option"
-                    :class="{ selected: emoji === selectedEmoji }"
-                    @click="emit('select', emoji)"
-                >
-                    {{ emoji }}
-                </button>
+    <Dialog :open="isOpen" @update:open="(open) => !open && emit('close')">
+        <DialogContent class="max-w-sm">
+            <DialogHeader>
+                <DialogTitle>Emoji wählen</DialogTitle>
+                <DialogDescription class="sr-only">
+                    Wählen Sie ein Symbol für die Playlist.
+                </DialogDescription>
+            </DialogHeader>
+            <div class="-mx-2 max-h-[55vh] overflow-y-auto overscroll-contain px-2">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(48px,1fr))] gap-2">
+                    <button
+                        v-for="emoji in emojis"
+                        :key="emoji"
+                        type="button"
+                        class="flex h-12 w-12 items-center justify-center rounded-lg border text-[1.75rem] leading-none transition-colors"
+                        :class="
+                            emoji === selectedEmoji
+                                ? 'border-primary bg-primary/10'
+                                : 'border-transparent hover:bg-muted'
+                        "
+                        :aria-pressed="emoji === selectedEmoji"
+                        @click="emit('select', emoji)"
+                    >
+                        {{ emoji }}
+                    </button>
+                </div>
             </div>
-        </ion-content>
-    </ion-modal>
+            <DialogFooter>
+                <Button @click="emit('close')">Fertig</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>
 
-<script setup lang="ts">
-import {
-    IonButton,
-    IonButtons,
-    IonContent,
-    IonHeader,
-    IonModal,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
-
-defineProps<{
-    isOpen: boolean;
-    selectedEmoji?: string;
-}>();
-
-const emit = defineEmits<{
-    close: [];
-    select: [emoji: string];
-}>();
-
-// Common emojis for playlist selection
-const emojis = [
+<script lang="ts">
+/** The shared preset emoji list for playlist icons (also used by CreatePlaylistPage). */
+export const PLAYLIST_EMOJIS = [
     '🎵',
     '🎶',
     '🎼',
@@ -112,28 +101,26 @@ const emojis = [
 ];
 </script>
 
-<style scoped>
-.emoji-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-    gap: 8px;
-}
+<script setup lang="ts">
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
-.emoji-option {
-    font-size: 1.75rem;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--ion-color-light);
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-}
+defineProps<{
+    isOpen: boolean;
+    selectedEmoji?: string;
+}>();
 
-.emoji-option.selected {
-    border-color: var(--ion-color-primary);
-    background: var(--ion-color-primary-tint);
-}
-</style>
+const emit = defineEmits<{
+    close: [];
+    select: [emoji: string];
+}>();
+
+const emojis = PLAYLIST_EMOJIS;
+</script>

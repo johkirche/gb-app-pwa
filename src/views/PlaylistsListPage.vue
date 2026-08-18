@@ -1,113 +1,152 @@
 <template>
-    <ion-page>
-        <ion-header :translucent="true">
-            <ion-toolbar>
-                <ion-title>Playlisten</ion-title>
-            </ion-toolbar>
-        </ion-header>
+    <div class="relative flex h-full flex-col bg-background">
+        <AppPageHeader title="Playlisten" />
 
-        <ion-content :fullscreen="true">
-            <!-- Loading State -->
-            <div v-if="isLoading" class="state-container">
-                <ion-spinner name="crescent"></ion-spinner>
-                <p>Playlisten werden geladen...</p>
-            </div>
-
-            <template v-else>
-                <!-- Pinned Favoriten entry (always above the playlists) -->
-                <ion-list class="playlist-list" lines="full">
-                    <ion-item class="playlist-row" button @click="navigateToFavorites">
-                        <span slot="start" class="playlist-row__icon playlist-row__icon--favorites">
-                            <ion-icon :icon="heart"></ion-icon>
-                        </span>
-                        <ion-label>
-                            <span class="playlist-row__title">Favoriten</span>
-                            <span class="playlist-row__meta">{{ favoriteCountLabel }}</span>
-                        </ion-label>
-                    </ion-item>
-                </ion-list>
-
-                <!-- Empty State -->
-                <div v-if="!hasPlaylists" class="state-container empty-state">
-                    <ion-icon :icon="albumsOutline" size="large"></ion-icon>
-                    <h2>Keine Playlisten</h2>
-                    <p>Erstellen Sie Ihre erste Playlist, um Lieder zu organisieren.</p>
-                    <ion-button
-                        @click="navigateToCreate"
-                        class="create-button"
-                        size="default"
-                        fill="solid"
-                    >
-                        <ion-icon slot="start" :icon="addOutline"></ion-icon>
-                        Playlist erstellen
-                    </ion-button>
+        <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div class="page-col pb-24">
+                <!-- Loading State -->
+                <div
+                    v-if="isLoading"
+                    class="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center"
+                >
+                    <Spinner size="lg" />
+                    <p class="text-sm text-muted-foreground">Playlisten werden geladen...</p>
                 </div>
 
-                <!-- Playlists List -->
-                <ion-list v-else class="playlist-list" lines="full">
-                    <ion-item
-                        v-for="playlist in sortedPlaylists"
-                        :key="playlist.id"
-                        class="playlist-row"
-                        button
-                        v-long-press="() => showActionSheet(playlist)"
-                        @click="navigateToPlaylist(playlist.id)"
-                    >
-                        <span slot="start" class="playlist-row__icon">
-                            {{ playlist.emoji }}
-                        </span>
-                        <ion-label>
-                            <span class="playlist-row__title">{{ playlist.name }}</span>
-                            <span class="playlist-row__meta">
-                                {{ playlist.songIds.length }}
-                                {{ playlist.songIds.length === 1 ? 'Lied' : 'Lieder' }}
-                                · {{ formatDate(playlist.createdAt) }}
-                            </span>
-                        </ion-label>
-                    </ion-item>
-                </ion-list>
-            </template>
+                <template v-else>
+                    <ul class="mt-2 divide-y divide-border">
+                        <!-- Pinned Favoriten entry (always above the playlists) -->
+                        <li>
+                            <button
+                                type="button"
+                                class="flex w-full items-center gap-4 rounded-sm px-2 py-2.5 text-left transition-colors hover:bg-muted active:bg-muted"
+                                @click="navigateToFavorites"
+                            >
+                                <span
+                                    class="flex h-10 w-11 shrink-0 items-center justify-center rounded-md border border-border"
+                                >
+                                    <Heart
+                                        class="size-[1.375rem] text-destructive"
+                                        fill="currentColor"
+                                        aria-hidden="true"
+                                    />
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block text-[15px] font-medium leading-tight">
+                                        Favoriten
+                                    </span>
+                                    <span class="mt-0.5 block text-sm text-muted-foreground">
+                                        {{ favoriteCountLabel }}
+                                    </span>
+                                </span>
+                            </button>
+                        </li>
 
-            <!-- FAB for creating new playlist -->
-            <ion-fab v-if="hasPlaylists" slot="fixed" vertical="bottom" horizontal="end">
-                <ion-fab-button @click="navigateToCreate">
-                    <ion-icon :icon="addOutline"></ion-icon>
-                </ion-fab-button>
-            </ion-fab>
-        </ion-content>
-    </ion-page>
+                        <!-- Playlists -->
+                        <li v-for="playlist in sortedPlaylists" :key="playlist.id">
+                            <button
+                                v-long-press="(el: HTMLElement) => showActionSheet(playlist, el)"
+                                type="button"
+                                class="flex w-full select-none items-center gap-4 rounded-sm px-2 py-2.5 text-left transition-colors [-webkit-touch-callout:none] hover:bg-muted active:bg-muted"
+                                @click="navigateToPlaylist(playlist.id)"
+                                @contextmenu.prevent="
+                                    showActionSheet(playlist, anchorFromEvent($event))
+                                "
+                            >
+                                <span
+                                    class="flex h-10 w-11 shrink-0 items-center justify-center rounded-md border border-border text-[1.375rem] leading-none"
+                                >
+                                    {{ playlist.emoji }}
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span
+                                        class="block break-words text-[15px] font-medium leading-tight"
+                                    >
+                                        {{ playlist.name }}
+                                    </span>
+                                    <span class="mt-0.5 block text-sm text-muted-foreground">
+                                        {{ playlist.songIds.length }}
+                                        {{ playlist.songIds.length === 1 ? 'Lied' : 'Lieder' }}
+                                        · {{ formatDate(playlist.createdAt) }}
+                                    </span>
+                                </span>
+                            </button>
+                        </li>
+                    </ul>
+                    <Separator v-if="hasPlaylists" />
+
+                    <!-- Empty State -->
+                    <div
+                        v-if="!hasPlaylists"
+                        class="flex flex-col items-center border-t border-border px-6 py-16 text-center"
+                    >
+                        <Library
+                            class="size-14 text-muted-foreground"
+                            stroke-width="1.25"
+                            aria-hidden="true"
+                        />
+                        <h2 class="mt-4 font-display text-2xl font-semibold">Keine Playlisten</h2>
+                        <p class="mt-2 max-w-xs text-sm text-muted-foreground">
+                            Erstellen Sie Ihre erste Playlist, um Lieder zu organisieren.
+                        </p>
+                        <Button class="mt-6" @click="navigateToCreate">
+                            <Plus aria-hidden="true" />
+                            Playlist erstellen
+                        </Button>
+                    </div>
+                </template>
+            </div>
+        </main>
+
+        <!-- FAB for creating new playlist -->
+        <Button
+            v-if="!isLoading && hasPlaylists"
+            size="icon"
+            class="absolute bottom-5 right-5 z-10 h-14 w-14 rounded-full shadow-lg"
+            aria-label="Playlist erstellen"
+            @click="navigateToCreate"
+        >
+            <Plus class="!size-6" aria-hidden="true" />
+        </Button>
+
+        <!-- Long-press / right-click context menu -->
+        <ActionSheet
+            v-model:open="actionSheetOpen"
+            :title="actionSheetPlaylist?.name"
+            :actions="actionSheetActions"
+            :anchor="actionSheetAnchor"
+        />
+    </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
-import {
-    IonButton,
-    IonContent,
-    IonFab,
-    IonFabButton,
-    IonHeader,
-    IonIcon,
-    IonItem,
-    IonLabel,
-    IonList,
-    IonPage,
-    IonSpinner,
-    IonTitle,
-    IonToolbar,
-    actionSheetController,
-} from '@ionic/vue';
-import { addOutline, albumsOutline, closeOutline, heart, trashOutline } from 'ionicons/icons';
+import { Heart, Library, Plus, Trash2, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
 import { useFavoritesStore } from '@/stores/favorites';
 import { usePlaylistsStore } from '@/stores/playlists';
 
+import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
+
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import { Button } from '@/components/ui/button';
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+
 import type { Playlist } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
+import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 
 const router = useRouter();
+
+// KeepAlive resets scrollTop on re-attach; save/restore it (Ionic parity)
+const scrollRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(scrollRef);
+
 const playlistsStore = usePlaylistsStore();
 const favoritesStore = useFavoritesStore();
 const { isLoading, hasPlaylists, sortedPlaylists } = storeToRefs(playlistsStore);
@@ -137,27 +176,35 @@ function formatDate(date: Date): string {
     }).format(new Date(date));
 }
 
-async function showActionSheet(playlist: Playlist) {
-    const actionSheet = await actionSheetController.create({
-        header: playlist.name,
-        buttons: [
-            {
-                text: 'Löschen',
-                role: 'destructive',
-                icon: trashOutline,
-                handler: () => {
-                    deletePlaylist(playlist);
-                },
-            },
-            {
-                text: 'Abbrechen',
-                role: 'cancel',
-                icon: closeOutline,
-            },
-        ],
-    });
+// Long-press / right-click context menu (delete without confirmation, as before)
+const actionSheetOpen = ref(false);
+const actionSheetPlaylist = ref<Playlist | null>(null);
+// The row (or click point) the desktop popover form hangs off
+const actionSheetAnchor = ref<PanelAnchor>(null);
 
-    await actionSheet.present();
+const actionSheetActions = computed<ActionSheetAction[]>(() => [
+    {
+        label: 'Löschen',
+        role: 'destructive',
+        icon: Trash2,
+        handler: () => {
+            if (actionSheetPlaylist.value) {
+                deletePlaylist(actionSheetPlaylist.value);
+            }
+        },
+    },
+    {
+        label: 'Abbrechen',
+        role: 'cancel',
+        icon: X,
+    },
+]);
+
+function showActionSheet(playlist: Playlist, anchor: PanelAnchor) {
+    if (actionSheetOpen.value) return;
+    actionSheetPlaylist.value = playlist;
+    actionSheetAnchor.value = anchor;
+    actionSheetOpen.value = true;
 }
 
 async function deletePlaylist(playlist: Playlist) {
@@ -168,99 +215,3 @@ async function deletePlaylist(playlist: Playlist) {
     }
 }
 </script>
-
-<style scoped>
-.playlist-list {
-    padding-top: 0;
-    padding-bottom: 0;
-    background: transparent;
-}
-
-/* Number Box style rows — matches the songs list and home screen, with the emoji in the box */
-.playlist-row {
-    --background: transparent;
-    --border-color: var(--ion-color-light-shade);
-    --padding-start: var(--spacing-xs);
-    --inner-padding-end: var(--spacing-sm);
-    --min-height: 3.5rem;
-}
-
-.playlist-row__icon {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.75rem;
-    height: 2.5rem;
-    margin-inline-end: var(--spacing-md);
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: var(--radius-md);
-    font-size: 1.375rem;
-    line-height: 1;
-}
-
-/* Favoriten pinned entry — same box as playlist emojis, with a heart icon */
-.playlist-row__icon--favorites ion-icon {
-    font-size: 1.375rem;
-    color: var(--ion-color-danger);
-}
-
-.playlist-row__title {
-    display: block;
-    font-size: var(--font-size-base);
-    font-weight: 500;
-    line-height: 1.3;
-    white-space: normal;
-    overflow-wrap: break-word;
-    word-break: break-word;
-}
-
-.playlist-row__meta {
-    display: block;
-    margin-top: 2px;
-    font-size: var(--font-size-sm);
-    color: var(--ion-color-medium);
-}
-
-.state-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-    text-align: center;
-    min-height: 60vh;
-}
-
-.state-container > ion-icon {
-    font-size: 64px;
-    color: var(--ion-color-medium);
-}
-
-.state-container h2 {
-    margin: 0 0 8px;
-    color: var(--ion-color-dark);
-}
-
-.state-container p {
-    margin: 0 0 16px;
-    color: var(--ion-color-medium);
-}
-
-.empty-state .create-button {
-    margin-top: 24px;
-    --padding-start: 24px;
-    --padding-end: 24px;
-    --padding-top: 12px;
-    --padding-bottom: 12px;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0.5px;
-}
-
-.empty-state .create-button ion-icon {
-    color: white;
-    margin-right: 8px;
-    font-size: 20px;
-}
-</style>

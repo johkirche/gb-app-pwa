@@ -1,217 +1,241 @@
 <template>
-    <ion-page>
-        <ion-content :fullscreen="true">
-            <!-- Back button integrated into content -->
-            <ion-button
-                fill="clear"
-                class="back-button floating-button floating-button--top-left"
-                @click="$router.back()"
-            >
-                <ion-icon slot="icon-only" :icon="arrowBackOutline"></ion-icon>
-            </ion-button>
+    <div class="relative flex h-full flex-col bg-background">
+        <!-- Back button integrated into content -->
+        <div class="absolute left-2 top-[max(0.75rem,env(safe-area-inset-top))] z-10">
+            <BackButton default-href="/login" />
+        </div>
 
-            <div class="auth-container">
-                <div class="section-header">
-                    <ion-icon :icon="keyOutline" class="icon-hero"></ion-icon>
-                    <h1 class="heading-lg">Passwort zurücksetzen</h1>
-                    <p v-if="!token && !emailSent" class="text-muted text-muted--relaxed">
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+                class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(3.5rem,env(safe-area-inset-top))]"
+            >
+                <header class="text-center">
+                    <KeyRound class="mx-auto size-10 text-primary" aria-hidden="true" />
+                    <h1 class="mt-4 font-display text-4xl font-semibold tracking-tight">
+                        Passwort zurücksetzen
+                    </h1>
+                    <p
+                        v-if="!token && !emailSent"
+                        class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground"
+                    >
                         Geben Sie Ihre E-Mail-Adresse ein, um einen Link zum Zurücksetzen Ihres
                         Passworts zu erhalten
                     </p>
-                    <p v-else-if="emailSent" class="text-muted text-muted--relaxed">
+                    <p
+                        v-else-if="emailSent"
+                        class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground"
+                    >
                         Eine E-Mail mit einem Link zum Zurücksetzen wurde gesendet
                     </p>
-                    <p v-else class="text-muted text-muted--relaxed">
+                    <p
+                        v-else
+                        class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground"
+                    >
                         Geben Sie Ihr neues Passwort ein
                     </p>
-                </div>
+                </header>
 
                 <!-- Email request form (no token) -->
-                <form v-if="!token && !emailSent" @submit.prevent="handleRequestReset">
-                    <ion-input
-                        v-model="email"
-                        type="email"
-                        label="E-Mail"
-                        label-placement="floating"
-                        required
-                        autocomplete="email"
-                        fill="outline"
-                        :disabled="isLoading"
-                    ></ion-input>
+                <form v-if="!token && !emailSent" class="mt-8" @submit.prevent="handleRequestReset">
+                    <div class="space-y-2">
+                        <Label for="reset-email">E-Mail</Label>
+                        <Input
+                            id="reset-email"
+                            v-model="email"
+                            type="email"
+                            required
+                            autocomplete="email"
+                            :disabled="isLoading"
+                        />
+                    </div>
 
-                    <ion-button
-                        expand="block"
+                    <Button
                         type="submit"
+                        size="lg"
+                        class="mt-6 w-full"
                         :disabled="isLoading || !email"
-                        class="ion-margin-top"
                     >
-                        <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
+                        <Spinner v-if="isLoading" size="sm" class="text-primary-foreground" />
                         <span v-else>Link senden</span>
-                    </ion-button>
+                    </Button>
 
-                    <ion-text v-if="error" color="danger" class="ion-margin-top">
-                        <p class="error-message">{{ error }}</p>
-                    </ion-text>
+                    <p v-if="error" class="mt-4 text-sm leading-relaxed text-destructive">
+                        {{ error }}
+                    </p>
                 </form>
 
                 <!-- Success message after email sent -->
-                <div v-else-if="emailSent && !token">
-                    <ion-text color="success">
-                        <div class="result-box result-box--success">
-                            <ion-icon
-                                :icon="checkmarkCircleOutline"
-                                class="result-box__icon"
-                            ></ion-icon>
-                            <h2 class="result-box__title">E-Mail gesendet!</h2>
-                            <p class="result-box__message">
-                                Wir haben Ihnen eine E-Mail mit einem Link zum Zurücksetzen Ihres
-                                Passworts gesendet. Bitte überprüfen Sie Ihren Posteingang.
-                            </p>
-                        </div>
-                    </ion-text>
+                <div v-else-if="emailSent && !token" class="mt-8">
+                    <div class="rounded-lg border border-border bg-card px-6 py-8 text-center">
+                        <CircleCheck class="mx-auto size-10 text-primary" aria-hidden="true" />
+                        <h2 class="mt-4 font-display text-2xl font-semibold">E-Mail gesendet!</h2>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">
+                            Wir haben Ihnen eine E-Mail mit einem Link zum Zurücksetzen Ihres
+                            Passworts gesendet. Bitte überprüfen Sie Ihren Posteingang.
+                        </p>
+                    </div>
 
-                    <ion-button expand="block" router-link="/login" class="ion-margin-top">
-                        Zurück zur Anmeldung
-                    </ion-button>
+                    <Button size="lg" as-child class="mt-6 w-full">
+                        <RouterLink to="/login">Zurück zur Anmeldung</RouterLink>
+                    </Button>
                 </div>
 
                 <!-- Password reset form (with token) -->
-                <form v-else @submit.prevent="handleResetPassword">
-                    <div class="form-stack">
-                        <ion-input
-                            v-model="newPassword"
-                            type="password"
-                            label="Neues Passwort"
-                            label-placement="floating"
-                            required
-                            autocomplete="new-password"
-                            fill="outline"
-                            :disabled="isLoading"
-                            @ionFocus="passwordFocused = true"
-                        ></ion-input>
+                <form v-else class="mt-8" @submit.prevent="handleResetPassword">
+                    <div class="space-y-5">
+                        <div class="space-y-2">
+                            <Label for="reset-new-password">Neues Passwort</Label>
+                            <Input
+                                id="reset-new-password"
+                                v-model="newPassword"
+                                type="password"
+                                required
+                                autocomplete="new-password"
+                                :disabled="isLoading"
+                                @focus="passwordFocused = true"
+                            />
+                        </div>
 
                         <!-- Password Requirements (same rules as registration) -->
                         <Transition name="slide-fade">
-                            <div v-show="passwordFocused" class="password-rules">
-                                <div class="rule" :class="{ valid: hasMinLength }">
-                                    <ion-icon
-                                        :icon="
-                                            hasMinLength ? checkmarkCircleOutline : ellipseOutline
-                                        "
-                                    ></ion-icon>
+                            <div v-show="passwordFocused" class="space-y-1.5 py-1">
+                                <div
+                                    class="flex items-center gap-2.5 text-sm transition-colors"
+                                    :class="hasMinLength ? 'text-primary' : 'text-muted-foreground'"
+                                >
+                                    <Check
+                                        v-if="hasMinLength"
+                                        class="size-4 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                     <span>Mindestens 8 Zeichen</span>
                                 </div>
-                                <div class="rule" :class="{ valid: hasUppercase }">
-                                    <ion-icon
-                                        :icon="
-                                            hasUppercase ? checkmarkCircleOutline : ellipseOutline
-                                        "
-                                    ></ion-icon>
+                                <div
+                                    class="flex items-center gap-2.5 text-sm transition-colors"
+                                    :class="hasUppercase ? 'text-primary' : 'text-muted-foreground'"
+                                >
+                                    <Check
+                                        v-if="hasUppercase"
+                                        class="size-4 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                     <span>Mindestens ein Großbuchstabe</span>
                                 </div>
-                                <div class="rule" :class="{ valid: hasNumberOrSpecial }">
-                                    <ion-icon
-                                        :icon="
-                                            hasNumberOrSpecial
-                                                ? checkmarkCircleOutline
-                                                : ellipseOutline
-                                        "
-                                    ></ion-icon>
+                                <div
+                                    class="flex items-center gap-2.5 text-sm transition-colors"
+                                    :class="
+                                        hasNumberOrSpecial
+                                            ? 'text-primary'
+                                            : 'text-muted-foreground'
+                                    "
+                                >
+                                    <Check
+                                        v-if="hasNumberOrSpecial"
+                                        class="size-4 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                     <span>Mindestens eine Zahl oder Sonderzeichen</span>
                                 </div>
                             </div>
                         </Transition>
 
-                        <ion-input
-                            v-model="confirmPassword"
-                            type="password"
-                            label="Passwort bestätigen"
-                            label-placement="floating"
-                            required
-                            autocomplete="new-password"
-                            fill="outline"
-                            :disabled="isLoading"
-                            @ionFocus="confirmPasswordFocused = true"
-                        ></ion-input>
+                        <div class="space-y-2">
+                            <Label for="reset-confirm-password">Passwort bestätigen</Label>
+                            <Input
+                                id="reset-confirm-password"
+                                v-model="confirmPassword"
+                                type="password"
+                                required
+                                autocomplete="new-password"
+                                :disabled="isLoading"
+                                @focus="confirmPasswordFocused = true"
+                            />
+                        </div>
 
                         <!-- Password Match -->
                         <Transition name="slide-fade">
-                            <div v-show="confirmPasswordFocused" class="password-rules">
-                                <div class="rule" :class="{ valid: passwordsMatch }">
-                                    <ion-icon
-                                        :icon="
-                                            passwordsMatch ? checkmarkCircleOutline : ellipseOutline
-                                        "
-                                    ></ion-icon>
+                            <div v-show="confirmPasswordFocused" class="space-y-1.5 py-1">
+                                <div
+                                    class="flex items-center gap-2.5 text-sm transition-colors"
+                                    :class="
+                                        passwordsMatch ? 'text-primary' : 'text-muted-foreground'
+                                    "
+                                >
+                                    <Check
+                                        v-if="passwordsMatch"
+                                        class="size-4 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <X v-else class="size-4 shrink-0" aria-hidden="true" />
                                     <span>Passwörter stimmen überein</span>
                                 </div>
                             </div>
                         </Transition>
                     </div>
 
-                    <ion-text v-if="passwordError" color="danger" class="ion-margin-top">
-                        <p class="error-message">{{ passwordError }}</p>
-                    </ion-text>
+                    <p v-if="passwordError" class="mt-4 text-sm leading-relaxed text-destructive">
+                        {{ passwordError }}
+                    </p>
 
-                    <ion-button
-                        expand="block"
+                    <Button
                         type="submit"
+                        size="lg"
+                        class="mt-6 w-full"
                         :disabled="isLoading || !isPasswordValid"
-                        class="ion-margin-top"
                     >
-                        <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
+                        <Spinner v-if="isLoading" size="sm" class="text-primary-foreground" />
                         <span v-else>Passwort zurücksetzen</span>
-                    </ion-button>
+                    </Button>
 
-                    <ion-text v-if="error" color="danger" class="ion-margin-top">
-                        <p class="error-message">{{ error }}</p>
-                    </ion-text>
+                    <p v-if="error" class="mt-4 text-sm leading-relaxed text-destructive">
+                        {{ error }}
+                    </p>
 
-                    <ion-text v-if="resetSuccess" color="success" class="ion-margin-top">
-                        <div class="result-box result-box--success">
-                            <ion-icon
-                                :icon="checkmarkCircleOutline"
-                                class="result-box__icon"
-                            ></ion-icon>
-                            <h2 class="result-box__title">Passwort zurückgesetzt!</h2>
-                            <p class="result-box__message">
-                                Ihr Passwort wurde erfolgreich geändert.
-                            </p>
-                        </div>
-                    </ion-text>
-
-                    <ion-button
+                    <div
                         v-if="resetSuccess"
-                        expand="block"
-                        router-link="/login"
-                        class="ion-margin-top"
+                        class="mt-6 rounded-lg border border-border bg-card px-6 py-8 text-center"
                     >
-                        Zur Anmeldung
-                    </ion-button>
+                        <CircleCheck class="mx-auto size-10 text-primary" aria-hidden="true" />
+                        <h2 class="mt-4 font-display text-2xl font-semibold">
+                            Passwort zurückgesetzt!
+                        </h2>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">
+                            Ihr Passwort wurde erfolgreich geändert.
+                        </p>
+                    </div>
+
+                    <Button v-if="resetSuccess" size="lg" as-child class="mt-6 w-full">
+                        <RouterLink to="/login">Zur Anmeldung</RouterLink>
+                    </Button>
                 </form>
 
-                <div class="back-link ion-margin-top">
-                    <ion-button fill="clear" router-link="/login">Zurück zur Anmeldung</ion-button>
+                <div class="mt-6 text-center">
+                    <Button variant="ghost" size="sm" as-child>
+                        <RouterLink to="/login">Zurück zur Anmeldung</RouterLink>
+                    </Button>
                 </div>
             </div>
-        </ion-content>
-    </ion-page>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
-import { IonButton, IonContent, IonIcon, IonInput, IonPage, IonSpinner, IonText } from '@ionic/vue';
-import {
-    arrowBackOutline,
-    checkmarkCircleOutline,
-    ellipseOutline,
-    keyOutline,
-} from 'ionicons/icons';
-import { useRoute } from 'vue-router';
+import { Check, CircleCheck, KeyRound, X } from 'lucide-vue-next';
+import { RouterLink, useRoute } from 'vue-router';
 
 import { useAuth } from '@/composables/useAuth';
 import { usePasswordRules } from '@/composables/usePasswordRules';
+
+import BackButton from '@/components/shell/BackButton.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 
 const route = useRoute();
 const { requestPasswordReset, resetPassword, isLoading, error } = useAuth();
@@ -274,42 +298,7 @@ async function handleResetPassword() {
 </script>
 
 <style scoped>
-/* PasswordResetPage - uses global result-box classes from variables.css */
-.back-link {
-    text-align: center;
-}
-
-/* Password Rules (mirrors RegisterPage) */
-.password-rules {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm) 0;
-}
-
-.rule {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    font-size: var(--font-size-sm);
-    color: var(--ion-color-medium);
-    transition: color 0.2s ease;
-}
-
-.rule ion-icon {
-    font-size: 1rem;
-    flex-shrink: 0;
-}
-
-.rule.valid {
-    color: var(--ion-color-success);
-}
-
-.rule.valid ion-icon {
-    color: var(--ion-color-success);
-}
-
-/* Slide-fade transition */
+/* Slide-fade transition (password rules reveal, mirrors RegisterPage) */
 .slide-fade-enter-active {
     transition: all 0.3s ease-out;
 }

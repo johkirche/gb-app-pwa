@@ -1,49 +1,40 @@
 <template>
-    <ion-app>
-        <ion-router-outlet class="mobile-container" />
-    </ion-app>
+    <!-- Horizontal safe-area padding covers notched devices in landscape
+         (Ionic used to derive this automatically) -->
+    <div
+        class="h-full bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] text-foreground"
+    >
+        <!-- Keep the tab shell (and its inner per-tab KeepAlive) alive while
+             standalone routes like /songs/:id are open, so list state survives
+             the round trip — parity with Ionic's router outlet. -->
+        <router-view v-slot="{ Component }">
+            <keep-alive :include="['TabsPage']">
+                <component :is="Component" />
+            </keep-alive>
+        </router-view>
+        <Toaster position="bottom-center" :theme="isDark ? 'dark' : 'light'" />
+        <ConfirmHost />
+        <component :is="DevViewportPreview" v-if="DevViewportPreview" />
+    </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { defineAsyncComponent, onMounted } from 'vue';
 
-import { IonApp, IonRouterOutlet } from '@ionic/vue';
+import { useTheme } from '@/composables/useTheme';
 
-// Apply theme on app startup
-function applyTheme(theme: 'system' | 'light' | 'dark') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+import { ConfirmHost } from '@/components/ui/confirm';
+import { Toaster } from '@/components/ui/sonner';
 
-    if (theme === 'dark' || (theme === 'system' && prefersDark)) {
-        document.documentElement.classList.add('ion-palette-dark');
-    } else {
-        document.documentElement.classList.remove('ion-palette-dark');
-    }
-}
+// Dev-only mobile-viewport preview; the DEV-guarded ternary keeps the chunk
+// out of production bundles entirely (same pattern as DevSkipButton).
+const DevViewportPreview = import.meta.env.DEV
+    ? defineAsyncComponent(() => import('@/components/dev/DevViewportPreview.vue'))
+    : null;
 
-function initializeTheme() {
-    const savedTheme = localStorage.getItem('settings.theme') as 'system' | 'light' | 'dark' | null;
-    const theme =
-        savedTheme && ['system', 'light', 'dark'].includes(savedTheme) ? savedTheme : 'system';
-    applyTheme(theme);
-
-    // Listen for system theme changes when using 'system' mode
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        const currentTheme = localStorage.getItem('settings.theme') as
-            | 'system'
-            | 'light'
-            | 'dark'
-            | null;
-        if (!currentTheme || currentTheme === 'system') {
-            applyTheme('system');
-        }
-    });
-}
+const { isDark, initTheme } = useTheme();
 
 onMounted(() => {
-    initializeTheme();
+    initTheme();
 });
 </script>
-
-<style>
-/* Mobile container styles are defined in theme/variables.css */
-</style>

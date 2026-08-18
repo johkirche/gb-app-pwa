@@ -1,96 +1,93 @@
 <template>
-    <ion-page>
-        <ion-header :translucent="true">
-            <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-back-button default-href="/login" text=""></ion-back-button>
-                </ion-buttons>
-                <ion-title>Impressum</ion-title>
-            </ion-toolbar>
-        </ion-header>
+    <div class="flex h-full flex-col bg-background">
+        <AppPageHeader title="Impressum">
+            <template #leading>
+                <BackButton default-href="/login" />
+            </template>
+        </AppPageHeader>
 
-        <ion-content :fullscreen="true">
-            <div class="content-container card-stack">
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Angaben gemäß § 5 DDG</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <h3>Anbieter</h3>
-                        <p class="legal-todo">[TODO: Von der Organisation zu ergänzen]</p>
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+                class="mx-auto w-full max-w-prose px-5 pb-[max(3rem,env(safe-area-inset-bottom))] pt-8"
+            >
+                <section>
+                    <div class="flex items-center gap-4">
+                        <h2 class="shrink-0 font-display text-2xl font-semibold">
+                            Angaben gemäß § 5 DDG
+                        </h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-5 text-[15px] leading-relaxed">
+                        <div>
+                            <h3 class="text-sm font-semibold">Anbieter</h3>
+                            <p class="mt-1 italic text-gold">
+                                [TODO: Von der Organisation zu ergänzen]
+                            </p>
+                        </div>
 
-                        <h3>Anschrift</h3>
-                        <p class="legal-todo">[TODO: Von der Organisation zu ergänzen]</p>
+                        <div>
+                            <h3 class="text-sm font-semibold">Anschrift</h3>
+                            <p class="mt-1 italic text-gold">
+                                [TODO: Von der Organisation zu ergänzen]
+                            </p>
+                        </div>
 
-                        <h3>Vertretungsberechtigte</h3>
-                        <p class="legal-todo">[TODO: Von der Organisation zu ergänzen]</p>
-                    </ion-card-content>
-                </ion-card>
+                        <div>
+                            <h3 class="text-sm font-semibold">Vertretungsberechtigte</h3>
+                            <p class="mt-1 italic text-gold">
+                                [TODO: Von der Organisation zu ergänzen]
+                            </p>
+                        </div>
+                    </div>
+                </section>
 
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Kontakt</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <h3>E-Mail</h3>
-                        <p>
-                            <a :href="`mailto:${SUPPORT_EMAIL}`">{{ SUPPORT_EMAIL }}</a>
-                        </p>
+                <section class="mt-12">
+                    <div class="flex items-center gap-4">
+                        <h2 class="shrink-0 font-display text-2xl font-semibold">Kontakt</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-5 space-y-5 text-[15px] leading-relaxed">
+                        <div>
+                            <h3 class="text-sm font-semibold">E-Mail</h3>
+                            <p class="mt-1">
+                                <a
+                                    :href="`mailto:${SUPPORT_EMAIL}`"
+                                    class="text-primary underline-offset-4 hover:underline"
+                                >
+                                    {{ SUPPORT_EMAIL }}
+                                </a>
+                            </p>
+                        </div>
 
-                        <h3>Telefon</h3>
-                        <p class="legal-todo">[TODO: Von der Organisation zu ergänzen]</p>
-                    </ion-card-content>
-                </ion-card>
+                        <div>
+                            <h3 class="text-sm font-semibold">Telefon</h3>
+                            <p class="mt-1 italic text-gold">
+                                [TODO: Von der Organisation zu ergänzen]
+                            </p>
+                        </div>
+                    </div>
+                </section>
 
-                <ion-card>
-                    <ion-card-header>
-                        <ion-card-title>Verantwortlich für den Inhalt</ion-card-title>
-                    </ion-card-header>
-                    <ion-card-content>
-                        <p class="legal-todo">[TODO: Von der Organisation zu ergänzen]</p>
-                    </ion-card-content>
-                </ion-card>
+                <section class="mt-12">
+                    <div class="flex items-center gap-4">
+                        <h2 class="shrink-0 font-display text-2xl font-semibold">
+                            Verantwortlich für den Inhalt
+                        </h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-5 text-[15px] leading-relaxed">
+                        <p class="italic text-gold">[TODO: Von der Organisation zu ergänzen]</p>
+                    </div>
+                </section>
             </div>
-        </ion-content>
-    </ion-page>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
-import {
-    IonBackButton,
-    IonButtons,
-    IonCard,
-    IonCardContent,
-    IonCardHeader,
-    IonCardTitle,
-    IonContent,
-    IonHeader,
-    IonPage,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import BackButton from '@/components/shell/BackButton.vue';
+import { Separator } from '@/components/ui/separator';
 
 import { SUPPORT_EMAIL } from '@/config/support';
 </script>
-
-<style scoped>
-ion-card-content h3 {
-    font-weight: 600;
-    margin-top: var(--spacing-md, 16px);
-    margin-bottom: 4px;
-}
-
-ion-card-content h3:first-child {
-    margin-top: 0;
-}
-
-ion-card-content p {
-    line-height: 1.6;
-}
-
-/* Placeholder entries that must be completed by the organisation before release */
-.legal-todo {
-    color: var(--ion-color-warning-shade);
-    font-style: italic;
-}
-</style>

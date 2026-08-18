@@ -1,123 +1,138 @@
 <template>
-    <ion-page>
-        <ion-content :fullscreen="true">
-            <div class="auth-container auth-container--centered">
-                <div class="section-header">
-                    <ion-img src="/logo.svg" alt="Logo" class="logo logo--md" />
-                    <h1 class="heading-xl">Gesangbuch</h1>
-                    <p class="text-muted">Melden Sie sich an, um fortzufahren</p>
-                </div>
+    <div class="flex h-full flex-col bg-background">
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+                class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]"
+            >
+                <header class="text-center">
+                    <img src="/logo.svg" alt="Logo" class="mx-auto h-28 w-28" />
+                    <h1 class="mt-5 font-display text-5xl font-semibold tracking-tight">
+                        Gesangbuch
+                    </h1>
+                    <p class="mt-3 text-sm text-muted-foreground">
+                        Melden Sie sich an, um fortzufahren
+                    </p>
+                </header>
 
                 <!-- Show logout reason message if present -->
-                <div v-if="logoutMessage" class="info-banner ion-margin-bottom">
-                    <ion-icon :icon="informationCircle"></ion-icon>
-                    <ion-text>
-                        <strong>{{ logoutMessage }}</strong>
-                    </ion-text>
+                <div
+                    v-if="logoutMessage"
+                    class="mt-8 flex items-start gap-3 rounded-lg border-l-4 border-gold bg-gold/10 px-4 py-3"
+                >
+                    <Info class="mt-0.5 size-5 shrink-0 text-gold" aria-hidden="true" />
+                    <p class="text-sm leading-relaxed">
+                        <strong class="font-medium">{{ logoutMessage }}</strong>
+                    </p>
                 </div>
 
-                <form @submit.prevent="handleLogin">
-                    <div class="form-stack">
-                        <ion-input
-                            v-model="email"
-                            type="email"
-                            label="E-Mail"
-                            label-placement="floating"
-                            required
-                            autocomplete="email"
-                            fill="outline"
-                            :disabled="isLoading"
-                        ></ion-input>
+                <form class="mt-8" @submit.prevent="handleLogin">
+                    <div class="space-y-5">
+                        <div class="space-y-2">
+                            <Label for="login-email">E-Mail</Label>
+                            <Input
+                                id="login-email"
+                                v-model="email"
+                                type="email"
+                                required
+                                autocomplete="email"
+                                :disabled="isLoading"
+                            />
+                        </div>
 
-                        <ion-input
-                            v-model="password"
-                            type="password"
-                            label="Passwort"
-                            label-placement="floating"
-                            required
-                            fill="outline"
-                            autocomplete="current-password"
-                            :disabled="isLoading"
-                        ></ion-input>
+                        <div class="space-y-2">
+                            <Label for="login-password">Passwort</Label>
+                            <Input
+                                id="login-password"
+                                v-model="password"
+                                type="password"
+                                required
+                                autocomplete="current-password"
+                                :disabled="isLoading"
+                            />
+                        </div>
                     </div>
 
-                    <div v-if="error" class="error-banner ion-margin-top">
-                        <ion-icon :icon="alertCircle"></ion-icon>
-                        <ion-text>
-                            <strong>{{ error }}</strong>
-                        </ion-text>
-                    </div>
-
-                    <ion-button
-                        expand="block"
-                        type="submit"
-                        :disabled="isLoading"
-                        class="ion-margin-top"
+                    <div
+                        v-if="error"
+                        class="mt-5 flex items-start gap-3 rounded-lg border-l-4 border-destructive bg-destructive/10 px-4 py-3"
                     >
-                        <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
+                        <CircleAlert
+                            class="mt-0.5 size-5 shrink-0 text-destructive"
+                            aria-hidden="true"
+                        />
+                        <p class="text-sm leading-relaxed text-destructive">
+                            <strong class="font-medium">{{ error }}</strong>
+                        </p>
+                    </div>
+
+                    <Button type="submit" size="lg" class="mt-6 w-full" :disabled="isLoading">
+                        <Spinner v-if="isLoading" size="sm" class="text-primary-foreground" />
                         <span v-else>Anmelden</span>
-                    </ion-button>
+                    </Button>
 
-                    <ion-button
-                        expand="block"
-                        fill="clear"
-                        router-link="/password-reset"
-                        :disabled="isLoading"
-                        size="small"
-                        class="ion-margin-top"
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        as-child
+                        class="mt-3 w-full"
+                        :class="isLoading ? 'pointer-events-none opacity-50' : ''"
                     >
-                        Passwort vergessen?
-                    </ion-button>
+                        <RouterLink to="/password-reset" :aria-disabled="isLoading || undefined">
+                            Passwort vergessen?
+                        </RouterLink>
+                    </Button>
 
-                    <div class="divider-text">
-                        <span class="divider-text__text">oder</span>
+                    <div class="my-5 flex items-center gap-4" aria-hidden="true">
+                        <Separator class="flex-1" />
+                        <span class="text-xs text-muted-foreground">oder</span>
+                        <Separator class="flex-1" />
                     </div>
 
-                    <ion-button
-                        expand="block"
-                        fill="outline"
-                        router-link="/register"
-                        :disabled="isLoading"
+                    <Button
+                        variant="outline"
+                        as-child
+                        class="w-full"
+                        :class="isLoading ? 'pointer-events-none opacity-50' : ''"
                     >
-                        Neues Konto erstellen
-                    </ion-button>
+                        <RouterLink to="/register" :aria-disabled="isLoading || undefined">
+                            Neues Konto erstellen
+                        </RouterLink>
+                    </Button>
 
                     <component :is="DevSkipButton" v-if="DevSkipButton" :disabled="isLoading" />
                 </form>
 
-                <div class="legal-links">
-                    <ion-button fill="clear" size="small" color="medium" router-link="/impressum">
+                <div
+                    class="mt-10 flex items-center justify-center gap-3 text-xs text-muted-foreground"
+                >
+                    <RouterLink to="/impressum" class="transition-colors hover:text-foreground">
                         Impressum
-                    </ion-button>
-                    <span class="legal-links__separator">·</span>
-                    <ion-button fill="clear" size="small" color="medium" router-link="/datenschutz">
+                    </RouterLink>
+                    <span aria-hidden="true">·</span>
+                    <RouterLink to="/datenschutz" class="transition-colors hover:text-foreground">
                         Datenschutz
-                    </ion-button>
+                    </RouterLink>
                 </div>
             </div>
-        </ion-content>
-    </ion-page>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { defineAsyncComponent, onMounted, ref, watch } from 'vue';
 
-import {
-    IonButton,
-    IonContent,
-    IonIcon,
-    IonImg,
-    IonInput,
-    IonPage,
-    IonSpinner,
-    IonText,
-} from '@ionic/vue';
-import { alertCircle, informationCircle } from 'ionicons/icons';
-import { useRoute, useRouter } from 'vue-router';
+import { CircleAlert, Info } from 'lucide-vue-next';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 
 import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 
 import { LOGOUT_REASON_MESSAGES, type LogoutReason } from '@/services/errorHandler';
 
@@ -146,7 +161,7 @@ function resolveLogoutMessage(reason: unknown): string | null {
 // The reason banner must survive the URL cleanup below, so the message is latched
 // into a ref: captured once at setup (covers fresh mounts, e.g. the hard redirect
 // to /login?reason=account_deleted) and updated whenever a NEW reason arrives on
-// the route (covers Ionic reusing this page instance, e.g. the push to
+// the route (covers the router reusing this page instance, e.g. the push to
 // /login?reason=registration_login_failed from the register page). A computed over
 // the live route would blank the banner the moment the query is stripped.
 const logoutMessage = ref<string | null>(resolveLogoutMessage(route.query.reason));
@@ -191,64 +206,3 @@ async function handleLogin() {
     }
 }
 </script>
-
-<style scoped>
-.info-banner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: rgba(var(--ion-color-warning-rgb), 0.15);
-    border-left: 4px solid var(--ion-color-warning);
-    border-radius: 8px;
-}
-
-.info-banner ion-icon {
-    font-size: 24px;
-    flex-shrink: 0;
-    color: var(--ion-color-warning-shade);
-}
-
-.info-banner ion-text {
-    flex: 1;
-    color: var(--ion-text-color);
-}
-
-.error-banner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: rgba(var(--ion-color-danger-rgb), 0.1);
-    border-left: 4px solid var(--ion-color-danger);
-    border-radius: 8px;
-}
-
-.error-banner ion-icon {
-    font-size: 24px;
-    flex-shrink: 0;
-    color: var(--ion-color-danger);
-}
-
-.error-banner ion-text {
-    flex: 1;
-    color: var(--ion-color-danger);
-}
-
-.legal-links {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 16px;
-}
-
-.legal-links ion-button {
-    font-size: 0.75rem;
-    text-transform: none;
-}
-
-.legal-links__separator {
-    color: var(--ion-color-medium);
-    font-size: 0.75rem;
-}
-</style>

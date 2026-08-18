@@ -5,8 +5,6 @@ import type { Song } from '@/db';
 export interface FilterState {
     searchQuery: string;
     selectedCategories: string[]; // Category names
-    hasNotes: boolean | null; // null = don't filter, true = must have, false = must not have
-    hasMelodyXml: boolean | null;
     indexRange: { min: number; max: number } | null;
     selectedAuthors: string[]; // Author full names
 }
@@ -17,21 +15,25 @@ export interface FilterOption {
     count?: number;
 }
 
-const DEFAULT_FILTER_STATE: FilterState = {
-    searchQuery: '',
-    selectedCategories: [],
-    hasNotes: null,
-    hasMelodyXml: null,
-    indexRange: null,
-    selectedAuthors: [],
-};
+// A factory, not a shared constant: toggleCategory/toggleAuthor mutate the
+// arrays in place, so handing out the same array instance would let the live
+// state pollute the defaults — and every "zurücksetzen" would restore the
+// polluted arrays instead of empty ones.
+function createDefaultFilters(): FilterState {
+    return {
+        searchQuery: '',
+        selectedCategories: [],
+        indexRange: null,
+        selectedAuthors: [],
+    };
+}
 
 /**
  * Composable for song filtering logic
  */
 export function useSongFiltering(songs: Ref<Song[]>) {
     // Filter state
-    const filters = ref<FilterState>({ ...DEFAULT_FILTER_STATE });
+    const filters = ref<FilterState>(createDefaultFilters());
 
     // Search is active when query is not empty
     const isSearchActive = computed(() => filters.value.searchQuery.trim().length > 0);
@@ -40,11 +42,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
     const hasActiveFilters = computed(() => {
         const f = filters.value;
         return (
-            f.selectedCategories.length > 0 ||
-            f.hasNotes !== null ||
-            f.hasMelodyXml !== null ||
-            f.indexRange !== null ||
-            f.selectedAuthors.length > 0
+            f.selectedCategories.length > 0 || f.indexRange !== null || f.selectedAuthors.length > 0
         );
     });
 
@@ -53,8 +51,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         const f = filters.value;
         let count = 0;
         if (f.selectedCategories.length > 0) count++;
-        if (f.hasNotes !== null) count++;
-        if (f.hasMelodyXml !== null) count++;
         if (f.indexRange !== null) count++;
         if (f.selectedAuthors.length > 0) count++;
         return count;
@@ -152,20 +148,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
             );
         }
 
-        // Has notes filter
-        if (f.hasNotes === true) {
-            result = result.filter((song) => song.noten.length > 0);
-        } else if (f.hasNotes === false) {
-            result = result.filter((song) => song.noten.length === 0);
-        }
-
-        // Has MusicXML filter
-        if (f.hasMelodyXml === true) {
-            result = result.filter((song) => !!song.notentextMxml);
-        } else if (f.hasMelodyXml === false) {
-            result = result.filter((song) => !song.notentextMxml);
-        }
-
         // Index range filter
         if (f.indexRange) {
             result = result.filter(
@@ -205,14 +187,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         }
     }
 
-    function setHasNotes(value: boolean | null) {
-        filters.value.hasNotes = value;
-    }
-
-    function setHasMelodyXml(value: boolean | null) {
-        filters.value.hasMelodyXml = value;
-    }
-
     function setIndexRange(range: { min: number; max: number } | null) {
         filters.value.indexRange = range;
     }
@@ -227,12 +201,12 @@ export function useSongFiltering(songs: Ref<Song[]>) {
     }
 
     function clearAllFilters() {
-        filters.value = { ...DEFAULT_FILTER_STATE };
+        filters.value = createDefaultFilters();
     }
 
     function clearFiltersKeepSearch() {
         const searchQuery = filters.value.searchQuery;
-        filters.value = { ...DEFAULT_FILTER_STATE, searchQuery };
+        filters.value = { ...createDefaultFilters(), searchQuery };
     }
 
     return {
@@ -252,8 +226,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         setSearchQuery,
         clearSearch,
         toggleCategory,
-        setHasNotes,
-        setHasMelodyXml,
         setIndexRange,
         toggleAuthor,
         clearAllFilters,

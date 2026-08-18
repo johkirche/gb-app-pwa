@@ -1,163 +1,173 @@
 <template>
-    <ion-page>
-        <ion-content
-            ref="contentRef"
-            :fullscreen="true"
-            :scroll-events="true"
-            @ionScroll="onScroll"
+    <!-- relative: positioning context for the absolute IndexScroll strip -->
+    <div class="relative flex h-full flex-col bg-background">
+        <!-- Toolbar with Search, Filter, Sort — outside the scroll container, so
+             sticky section headers inside <main> dock at top-0 -->
+        <SongToolbar
+            title="Lieder"
+            :show-back="false"
+            :search-query="filters.searchQuery"
+            :selected-categories="filters.selectedCategories"
+            :filter-index-range="filters.indexRange"
+            :active-filter-count="activeFilterCount"
+            :has-active-filters="hasActiveFilters"
+            :sort-mode="sortMode"
+            :result-count="filteredSongs.length"
+            :total-count="songs.length"
+            @search="setSearchQuery"
+            @clear-search="clearSearch"
+            @open-filters="toggleFilters"
+            @open-sort="toggleSortOptions"
+            @toggle-category="toggleCategory"
+            @set-index-range="setIndexRange"
+        />
+
+        <main
+            ref="scrollRef"
+            class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            :class="{ 'scrollbar-none': isIndexScrollerVisible }"
+            @scroll="onScroll"
         >
-            <!-- Toolbar with Search, Filter, Sort -->
-            <SongToolbar
-                title="Gesangbuch"
-                :show-back="false"
-                :search-query="filters.searchQuery"
-                :selected-categories="filters.selectedCategories"
-                :has-notes="filters.hasNotes"
-                :has-melody-xml="filters.hasMelodyXml"
-                :filter-index-range="filters.indexRange"
-                :active-filter-count="activeFilterCount"
-                :has-active-filters="hasActiveFilters"
-                :sort-mode="sortMode"
-                :result-count="filteredSongs.length"
-                :total-count="songs.length"
-                @search="setSearchQuery"
-                @clear-search="clearSearch"
-                @open-filters="openFilters"
-                @open-sort="showSortOptions = true"
-                @toggle-category="toggleCategory"
-                @set-has-notes="setHasNotes"
-                @set-has-melody-xml="setHasMelodyXml"
-                @set-index-range="setIndexRange"
-            />
-
-            <!-- Sort Options Action Sheet -->
-            <ion-action-sheet
-                mode="ios"
-                :is-open="showSortOptions"
-                header="Sortierung"
-                :buttons="sortActionButtons"
-                @didDismiss="showSortOptions = false"
-            />
-
-            <!-- Filter Bottom Drawer -->
-            <SongFilterDrawer
-                :is-open="showFilterDrawer"
-                :available-categories="availableCategories"
-                :selected-categories="filters.selectedCategories"
-                :has-notes="filters.hasNotes"
-                :has-melody-xml="filters.hasMelodyXml"
-                :filter-index-range="filters.indexRange"
-                :index-range="indexRange"
-                :has-active-filters="hasActiveFilters"
-                @close="showFilterDrawer = false"
-                @toggle-category="toggleCategory"
-                @set-has-notes="setHasNotes"
-                @set-has-melody-xml="setHasMelodyXml"
-                @set-index-range="setIndexRange"
-                @clear-all="clearFiltersKeepSearch"
-            />
-
-            <!-- Featured: Lied der Woche (hidden while searching/filtering) -->
-            <button
-                v-if="songOfTheWeek && !filters.searchQuery && !hasActiveFilters"
-                class="featured-card"
-                type="button"
-                @click="openSongOfTheWeek"
-            >
-                <p class="featured-card__label">Lied der Woche</p>
-                <div class="featured-card__body">
-                    <span class="featured-card__number">{{ songOfTheWeek.index }}</span>
-                    <span class="featured-card__title">{{ songOfTheWeek.titel }}</span>
-                </div>
-                <p class="featured-card__meta">{{ songOfTheWeekMeta }}</p>
-            </button>
-
-            <!-- Loading State -->
-            <div v-if="isLoading" class="state-container">
-                <ion-spinner name="crescent"></ion-spinner>
-                <p>Lieder werden synchronisiert...</p>
-            </div>
-
-            <!-- Error State -->
-            <ion-card v-else-if="error" color="danger" class="ion-margin">
-                <ion-card-content>
-                    <p>{{ error }}</p>
-                </ion-card-content>
-            </ion-card>
-
-            <!-- Empty State (no songs at all) -->
-            <div v-else-if="!hasSongs" class="state-container empty-state">
-                <ion-icon :icon="musicalNotesOutline" size="large"></ion-icon>
-                <h2>Keine Lieder vorhanden</h2>
-                <p>Laden Sie das Gesangbuch einmal herunter, um es offline zu nutzen.</p>
-                <ion-button @click="router.push('/download')">
-                    <ion-icon slot="start" :icon="cloudDownloadOutline"></ion-icon>
-                    Lieder herunterladen
-                </ion-button>
-            </div>
-
-            <!-- No Results State (filtered to nothing) -->
-            <div v-else-if="sortedSections.length === 0" class="state-container empty-state">
-                <ion-icon :icon="searchOutline" size="large"></ion-icon>
-                <h2>Keine Ergebnisse</h2>
-                <p>Keine Lieder entsprechen den Filterkriterien.</p>
-                <ion-button fill="outline" @click="clearAllFilters">Filter zurücksetzen</ion-button>
-            </div>
-
-            <!-- Songs List with Sections -->
-            <ion-list v-else class="songs-list">
-                <template v-for="section in sortedSections" :key="section.key">
-                    <!-- Section Header (only shown when showHeaders is true) -->
-                    <SongSectionHeader
-                        v-if="showHeaders"
-                        :section-key="section.key"
-                        :label="section.label"
-                    />
-
-                    <!-- Songs in this section -->
-                    <button
-                        v-for="song in section.songs"
-                        :key="song.id"
-                        type="button"
-                        class="song-row"
-                        :class="{ 'song-row--with-index-scroll': isIndexScrollerVisible }"
-                        :data-section="section.key"
-                        @click="navigateToSong(song.id)"
-                        @contextmenu.prevent="openSongActions(song.id)"
-                        v-long-press="() => openSongActions(song.id)"
-                    >
-                        <span
-                            class="song-row__number"
-                            :class="{ 'song-row__number--empty': !song.index }"
-                        >
-                            <template v-if="song.index">{{ song.index }}</template>
-                            <span v-else class="song-row__number-dot" aria-hidden="true"></span>
+            <!-- The index rail overlays this column, so everything in it —
+                 Lied der Woche, states and the list — shares the same gutter. -->
+            <div class="page-col pb-8" :class="{ 'pr-12': isIndexScrollerVisible }">
+                <!-- Featured: Lied der Woche (hidden while searching/filtering) -->
+                <button
+                    v-if="songOfTheWeek && !filters.searchQuery && !hasActiveFilters"
+                    type="button"
+                    class="mb-2 mt-4 w-full rounded-lg border bg-card text-left text-card-foreground shadow-sm transition hover:border-primary/40 active:scale-[0.99]"
+                    @click="openSongOfTheWeek"
+                >
+                    <span class="flex items-center gap-6 p-6">
+                        <span class="number-display shrink-0 text-6xl leading-none">
+                            {{ songOfTheWeek.index }}
                         </span>
-                        <span class="song-row__text">
-                            <span class="song-row__title">{{ song.titel }}</span>
+                        <span class="block min-w-0">
+                            <span class="label-micro block text-gold">Lied der Woche</span>
                             <span
-                                v-if="sortMode !== 'category' && formatCategories(song.kategorien)"
-                                class="song-row__category"
+                                class="mt-1.5 block font-display text-2xl font-semibold leading-tight"
                             >
-                                {{ formatCategories(song.kategorien) }}
+                                {{ songOfTheWeek.titel }}
+                            </span>
+                            <span
+                                class="mt-1.5 block text-[11px] tracking-[0.14em] text-muted-foreground"
+                            >
+                                {{ songOfTheWeekMeta }}
                             </span>
                         </span>
-                        <ion-icon
-                            class="song-row__chevron"
-                            :icon="chevronForwardOutline"
-                            aria-hidden="true"
-                        ></ion-icon>
-                    </button>
-                </template>
-            </ion-list>
+                    </span>
+                </button>
 
-            <!-- Last Sync Info -->
-            <div v-if="lastSyncTime" class="sync-info">
-                <p>Zuletzt synchronisiert: {{ formatSyncTime(lastSyncTime) }}</p>
+                <!-- Loading State -->
+                <div
+                    v-if="isLoading"
+                    class="flex flex-col items-center justify-center px-6 py-12 text-center"
+                >
+                    <Spinner size="lg" />
+                    <p class="mt-4 text-muted-foreground">Lieder werden synchronisiert...</p>
+                </div>
+
+                <!-- Error State -->
+                <div
+                    v-else-if="error"
+                    class="my-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive"
+                >
+                    <p>{{ error }}</p>
+                </div>
+
+                <!-- Empty State (no songs at all) -->
+                <div
+                    v-else-if="!hasSongs"
+                    class="flex flex-col items-center justify-center px-6 py-12 text-center"
+                >
+                    <Music class="h-14 w-14 text-muted-foreground/50" aria-hidden="true" />
+                    <h2 class="mt-5 font-display text-2xl font-semibold">Keine Lieder vorhanden</h2>
+                    <p class="mt-2 text-muted-foreground">
+                        Laden Sie das Gesangbuch einmal herunter, um es offline zu nutzen.
+                    </p>
+                    <Button class="mt-6" @click="router.push('/download')">
+                        <CloudDownload aria-hidden="true" />
+                        Lieder herunterladen
+                    </Button>
+                </div>
+
+                <!-- No Results State (filtered to nothing) -->
+                <div
+                    v-else-if="sortedSections.length === 0"
+                    class="flex flex-col items-center justify-center px-6 py-12 text-center"
+                >
+                    <Search class="h-14 w-14 text-muted-foreground/50" aria-hidden="true" />
+                    <h2 class="mt-5 font-display text-2xl font-semibold">Keine Ergebnisse</h2>
+                    <p class="mt-2 text-muted-foreground">
+                        Keine Lieder entsprechen den Filterkriterien.
+                    </p>
+                    <Button variant="outline" class="mt-6" @click="clearAllFilters">
+                        Filter zurücksetzen
+                    </Button>
+                </div>
+
+                <!-- Songs List with Sections -->
+                <div v-else class="songs-list">
+                    <template v-for="section in sortedSections" :key="section.key">
+                        <!-- Section Header (only shown when showHeaders is true) -->
+                        <SongSectionHeader
+                            v-if="showHeaders"
+                            :section-key="section.key"
+                            :label="section.label"
+                        />
+
+                        <!-- Songs in this section -->
+                        <button
+                            v-for="song in section.songs"
+                            :key="song.id"
+                            v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
+                            type="button"
+                            class="song-row group flex w-full select-none items-baseline gap-4 border-b border-border py-3.5 pl-2 pr-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] last:border-b-0 hover:bg-muted active:bg-muted"
+                            :data-section="section.key"
+                            @click="navigateToSong(song.id)"
+                            @contextmenu.prevent="openSongActions(song.id, anchorFromEvent($event))"
+                        >
+                            <span
+                                class="number-display w-10 shrink-0 text-right text-lg leading-none"
+                            >
+                                <template v-if="song.index">{{ song.index }}</template>
+                                <span
+                                    v-else
+                                    class="inline-block h-1.5 w-1.5 rotate-45 bg-muted-foreground/60"
+                                    aria-hidden="true"
+                                ></span>
+                            </span>
+                            <span class="flex min-w-0 flex-1 flex-col gap-1">
+                                <span
+                                    class="font-display text-[17px] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
+                                >
+                                    {{ song.titel }}
+                                </span>
+                                <span
+                                    v-if="
+                                        sortMode !== 'category' && formatCategories(song.kategorien)
+                                    "
+                                    class="label-micro text-muted-foreground"
+                                >
+                                    {{ formatCategories(song.kategorien) }}
+                                </span>
+                            </span>
+                            <ChevronRight
+                                class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:translate-x-[3px] group-hover:text-primary"
+                                aria-hidden="true"
+                            />
+                        </button>
+                    </template>
+                </div>
+
+                <!-- Last Sync Info -->
+                <div v-if="lastSyncTime" class="py-6 text-center text-[13px] text-muted-foreground">
+                    <p>Zuletzt synchronisiert: {{ formatSyncTime(lastSyncTime) }}</p>
+                </div>
             </div>
-        </ion-content>
+        </main>
 
-        <!-- Index Scroll Sidebar -->
+        <!-- Index Scroll Sidebar (fixed overlay — must stay outside the scroll container) -->
         <IndexScroll
             v-if="isIndexScrollerVisible"
             :items="indexItems"
@@ -165,75 +175,93 @@
             @select="scrollToSection"
         />
 
-        <!-- Song Action Sheet (long-press menu) -->
-        <ion-action-sheet
-            mode="ios"
-            css-class="action-sheet-aligned"
-            :is-open="showSongActions"
-            header="Aktionen"
-            :buttons="songActionButtons"
-            @didDismiss="closeSongActions"
+        <!-- Filter panel: popover from lg up, bottom sheet below -->
+        <SongFilterPanel
+            :is-open="showFilters"
+            :anchor="filterAnchor"
+            :available-categories="availableCategories"
+            :selected-categories="filters.selectedCategories"
+            :filter-index-range="filters.indexRange"
+            :index-range="indexRange"
+            :has-active-filters="hasActiveFilters"
+            @close="showFilters = false"
+            @toggle-category="toggleCategory"
+            @set-index-range="setIndexRange"
+            @clear-all="clearFiltersKeepSearch"
         />
 
-        <!-- Playlist Select Modal -->
+        <!-- Sort Options -->
+        <ActionSheet
+            v-model:open="showSortOptions"
+            title="Sortierung"
+            :actions="sortSheetActions"
+            :anchor="sortAnchor"
+            align="end"
+        />
+
+        <!-- Song actions (long-press / right-click menu) -->
+        <ActionSheet
+            v-model:open="showSongActions"
+            title="Aktionen"
+            :actions="songSheetActions"
+            :anchor="songAnchor"
+        />
+
+        <!-- Playlist Select -->
         <PlaylistSelectModal
             :is-open="showPlaylistModal"
             :song-id="selectedSongId"
+            :anchor="songAnchor"
             @close="showPlaylistModal = false"
             @added="onSongAddedToPlaylist"
         />
-    </ion-page>
+    </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, h, ref } from 'vue';
+import type { FunctionalComponent } from 'vue';
 
 import {
-    IonActionSheet,
-    IonButton,
-    IonCard,
-    IonCardContent,
-    IonContent,
-    IonIcon,
-    IonList,
-    IonPage,
-    IonSpinner,
-    type ScrollDetail,
-} from '@ionic/vue';
-import {
-    checkmarkOutline,
-    chevronForwardOutline,
-    cloudDownloadOutline,
-    heart,
-    heartOutline,
-    listOutline,
-    musicalNotesOutline,
-    searchOutline,
-} from 'ionicons/icons';
+    Check,
+    ChevronRight,
+    CloudDownload,
+    Heart,
+    ListMusic,
+    Music,
+    Search,
+} from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
 import { useFavoritesStore } from '@/stores/favorites';
 import { useSongsStore } from '@/stores/songs';
 
+import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { useSongFiltering } from '@/composables/useSongFiltering';
 import { SORT_OPTIONS, useSongSorting } from '@/composables/useSongSorting';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
 import IndexScroll from '@/components/songlist/IndexScroll.vue';
-import SongFilterDrawer from '@/components/songlist/SongFilterDrawer.vue';
+import SongFilterPanel from '@/components/songlist/SongFilterPanel.vue';
 import SongSectionHeader from '@/components/songlist/SongSectionHeader.vue';
 import SongToolbar from '@/components/songlist/SongToolbar.vue';
+import { Button } from '@/components/ui/button';
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
+import { Spinner } from '@/components/ui/spinner';
 
 import type { Category } from '@/db';
+import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
 const { songs, isLoading, error, lastSyncTime, hasSongs } = storeToRefs(songsStore);
 const router = useRouter();
 
-// Content ref for scroll operations
-const contentRef = ref<InstanceType<typeof IonContent> | null>(null);
+// The page's single scroll container
+const scrollRef = ref<HTMLElement | null>(null);
+// KeepAlive resets scrollTop on re-attach; save/restore it (Ionic parity)
+useKeepAliveScroll(scrollRef);
 
 // Filtering - applied first
 const {
@@ -247,8 +275,6 @@ const {
     setSearchQuery,
     clearSearch,
     toggleCategory,
-    setHasNotes,
-    setHasMelodyXml,
     setIndexRange,
     clearAllFilters,
     clearFiltersKeepSearch,
@@ -258,19 +284,29 @@ const {
 const { sortMode, showHeaders, showIndexScroll, sortedSections, indexItems } =
     useSongSorting(filteredSongs);
 
-// UI State
+// UI State. Each panel keeps the element (or click point) it was opened from —
+// that is what its desktop popover form hangs off.
 const showSortOptions = ref(false);
-const showFilterDrawer = ref(false);
+const sortAnchor = ref<PanelAnchor>(null);
+const showFilters = ref(false);
+const filterAnchor = ref<PanelAnchor>(null);
 const activeSection = ref<string>('');
 
 // Long-press / Song Actions State
 const showSongActions = ref(false);
+const songAnchor = ref<PanelAnchor>(null);
 const showPlaylistModal = ref(false);
 const selectedSongId = ref<string>('');
 
-// Open filter drawer
-function openFilters() {
-    showFilterDrawer.value = true;
+// Toolbar buttons toggle their panel, so a second click closes it again
+function toggleFilters(anchor: PanelAnchor) {
+    filterAnchor.value = anchor;
+    showFilters.value = !showFilters.value;
+}
+
+function toggleSortOptions(anchor: PanelAnchor) {
+    sortAnchor.value = anchor;
+    showSortOptions.value = !showSortOptions.value;
 }
 
 // --- Lied der Woche (ported from the former home screen) ---
@@ -316,11 +352,14 @@ const isIndexScrollerVisible = computed(() => {
     );
 });
 
-// Action sheet buttons for sort options
-const sortActionButtons = computed(() => [
+// Filled-heart icon for the "favorite" action row (class/size fall through)
+const HeartFilled: FunctionalComponent = () => h(Heart, { fill: 'currentColor' });
+
+// Action sheet actions for sort options (handler runs before the sheet closes)
+const sortSheetActions = computed<ActionSheetAction[]>(() => [
     ...SORT_OPTIONS.map((option) => ({
-        text: option.label,
-        icon: sortMode.value === option.value ? checkmarkOutline : undefined,
+        label: option.label,
+        icon: sortMode.value === option.value ? Check : undefined,
         handler: () => {
             sortMode.value = option.value;
             // Reset active section when changing sort mode
@@ -330,18 +369,19 @@ const sortActionButtons = computed(() => [
         },
     })),
     {
-        text: 'Abbrechen',
+        label: 'Abbrechen',
         role: 'cancel' as const,
     },
 ]);
 
-// Song action sheet buttons
-const songActionButtons = computed(() => {
+// Song action sheet actions. `selectedSongId` deliberately survives the sheet
+// closing — the playlist modal opened from the second handler still needs it.
+const songSheetActions = computed<ActionSheetAction[]>(() => {
     const isFav = selectedSongId.value ? favoritesStore.isFavorite(selectedSongId.value) : false;
     return [
         {
-            text: isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
-            icon: isFav ? heart : heartOutline,
+            label: isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
+            icon: isFav ? HeartFilled : Heart,
             handler: () => {
                 if (selectedSongId.value) {
                     favoritesStore.toggleFavorite(selectedSongId.value);
@@ -349,58 +389,48 @@ const songActionButtons = computed(() => {
             },
         },
         {
-            text: 'Zu Playlist hinzufügen',
-            icon: listOutline,
+            label: 'Zu Playlist hinzufügen',
+            icon: ListMusic,
             handler: () => {
                 showPlaylistModal.value = true;
             },
         },
         {
-            text: 'Abbrechen',
+            label: 'Abbrechen',
             role: 'cancel' as const,
         },
     ];
 });
 
-// Long-press handler
-function openSongActions(songId: string) {
+// Long-press / right-click handler
+function openSongActions(songId: string, anchor: PanelAnchor) {
     selectedSongId.value = songId;
+    songAnchor.value = anchor;
     showSongActions.value = true;
-}
-
-function closeSongActions() {
-    showSongActions.value = false;
 }
 
 function onSongAddedToPlaylist(_playlistId: string) {
     // Could show a toast notification here
 }
 
-// Viewport Y just below the sticky header(s), where a scrolled-to item should
-// land. Measured from the toolbar's live rendered bottom edge so it already
-// accounts for safe-area insets (viewport-fit=cover), font scaling and device
-// differences — anything that hardcoded heights would miss.
-function getHeaderBottom(scrollEl: HTMLElement): number {
+// Vertical room reserved at the top of the scroll container: the sticky section
+// divider (measured live, when shown) plus a little breathing room. The toolbar
+// no longer matters here — it sits outside the scroll container.
+function getStickyOffset(): number {
     const GAP = 8; // small breathing room below the header
 
-    const toolbar = document.querySelector('.song-toolbar') as HTMLElement | null;
-    let headerBottom = toolbar
-        ? toolbar.getBoundingClientRect().bottom
-        : scrollEl.getBoundingClientRect().top + 56;
-
-    // In modes with headers the section divider is also sticky and stacks below
-    // the toolbar, so the item must clear it too.
+    let offset = GAP;
     if (showHeaders.value) {
         const divider = document.querySelector('.section-header') as HTMLElement | null;
-        if (divider) headerBottom += divider.getBoundingClientRect().height;
+        if (divider) offset += divider.getBoundingClientRect().height;
     }
-
-    return headerBottom + GAP;
+    return offset;
 }
 
 // Scroll to a specific section - always scroll to first item in section
-async function scrollToSection(sectionKey: string) {
-    if (!contentRef.value) {
+function scrollToSection(sectionKey: string) {
+    const scrollEl = scrollRef.value;
+    if (!scrollEl) {
         return;
     }
 
@@ -413,28 +443,42 @@ async function scrollToSection(sectionKey: string) {
     }
 
     // Work in viewport coordinates and scroll by a relative delta: move the item
-    // from where it currently is to just below the sticky header. This is immune
-    // to offsetParent quirks and safe-area padding inside the scroll container.
-    const scrollEl: HTMLElement = await contentRef.value.$el.getScrollElement();
-    const delta = firstItem.getBoundingClientRect().top - getHeaderBottom(scrollEl);
-    const target = scrollEl.scrollTop + delta;
+    // from where it currently is to just below the scroll container's top edge
+    // (clearing the sticky section header, if any).
+    const delta =
+        firstItem.getBoundingClientRect().top -
+        (scrollEl.getBoundingClientRect().top + getStickyOffset());
 
-    await contentRef.value.$el.scrollToPoint(0, Math.max(0, target), 300);
+    scrollEl.scrollTo({ top: Math.max(0, scrollEl.scrollTop + delta), behavior: 'smooth' });
 }
 
-// Handle scroll events to update active section
-function onScroll(event: CustomEvent<ScrollDetail>) {
-    const scrollTop = event.detail.scrollTop;
-    const viewportMiddle = scrollTop + 150; // Offset for better UX
+// Handle scroll events to update active section (rAF-throttled)
+let scrollTickPending = false;
 
-    // Find the section that's currently in view
+function onScroll() {
+    if (scrollTickPending) return;
+    scrollTickPending = true;
+    requestAnimationFrame(() => {
+        scrollTickPending = false;
+        updateActiveSection();
+    });
+}
+
+function updateActiveSection() {
+    const scrollEl = scrollRef.value;
+    if (!scrollEl) return;
+    const containerTop = scrollEl.getBoundingClientRect().top;
+
+    // Find the section that's currently in view: last section whose anchor sits
+    // at most 150px below the container's top edge (same heuristic as before,
+    // now in scroll-container-relative coordinates)
     for (let i = sortedSections.value.length - 1; i >= 0; i--) {
         const section = sortedSections.value[i];
         const element = showHeaders.value
             ? document.getElementById(`section-${section.key}`)
-            : document.querySelector(`[data-section="${section.key}"]`);
+            : (document.querySelector(`[data-section="${section.key}"]`) as HTMLElement | null);
 
-        if (element && (element as HTMLElement).offsetTop <= viewportMiddle) {
+        if (element && element.getBoundingClientRect().top - containerTop <= 150) {
             if (activeSection.value !== section.key) {
                 activeSection.value = section.key;
             }
@@ -464,223 +508,3 @@ function formatSyncTime(date: Date): string {
     }).format(date);
 }
 </script>
-
-<style scoped>
-.songs-list {
-    padding-top: 0;
-    background: transparent;
-}
-
-/* Featured card — "Lied der Woche" (ported from the former home screen, compacted) */
-.featured-card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    width: calc(100% - 2 * var(--spacing-md));
-    margin: var(--spacing-xs) var(--spacing-md) var(--spacing-md);
-    text-align: left;
-    background: var(--ion-color-light);
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    cursor: pointer;
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease;
-}
-
-.featured-card:active {
-    transform: scale(0.99);
-}
-
-.featured-card__label {
-    margin: 0;
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-}
-
-.featured-card__body {
-    display: flex;
-    align-items: baseline;
-    gap: var(--spacing-md);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--ion-color-light-shade);
-}
-
-.featured-card__number {
-    font-size: var(--font-size-3xl);
-    font-weight: 600;
-    line-height: 1;
-}
-
-.featured-card__title {
-    font-size: var(--font-size-lg);
-    font-weight: 500;
-    line-height: 1.3;
-}
-
-.featured-card__meta {
-    margin: 0;
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.14em;
-    color: var(--ion-color-medium);
-}
-
-/* Song row — mirrors the home screen's .home-nav__item button rows */
-.song-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    width: 100%;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--ion-color-light-shade);
-    padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) var(--spacing-xs);
-    cursor: pointer;
-    text-align: left;
-    color: inherit;
-    user-select: none;
-    -webkit-touch-callout: none;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s ease;
-}
-
-.song-row:last-child {
-    border-bottom: none;
-}
-
-.song-row:active {
-    background: var(--ion-color-light);
-}
-
-/* Desktop hover — only on devices with a precise pointer, so tapping on a
-   touchscreen doesn't leave a sticky hover state behind */
-@media (hover: hover) and (pointer: fine) {
-    .song-row:hover {
-        background: var(--ion-color-light);
-    }
-
-    .song-row:hover .song-row__number {
-        border-color: var(--ion-color-primary);
-    }
-
-    .song-row:hover .song-row__chevron {
-        color: var(--ion-color-primary);
-        transform: translateX(3px);
-    }
-}
-
-.song-row:focus-visible {
-    outline: 2px solid var(--ion-color-primary);
-    outline-offset: -2px;
-    border-radius: var(--radius-md);
-}
-
-/* Reserve room on the right so text/chevron never sit under the index strip (~40px) */
-.song-row--with-index-scroll {
-    padding-inline-end: 40px;
-}
-
-/* Number box — mirrors .home-nav__icon (fixed width fits up to 3 digits) */
-.song-row__number {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.75rem;
-    height: 2.5rem;
-    border: 1px solid var(--ion-color-light-shade);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-    color: var(--ion-color-primary);
-    transition: border-color 0.15s ease;
-}
-
-/* Graceful "no number" state */
-.song-row__number--empty {
-    color: var(--ion-color-medium);
-}
-
-.song-row__number-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ion-color-medium);
-    transform: rotate(45deg);
-}
-
-.song-row__text {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.song-row__title {
-    font-size: var(--font-size-base);
-    font-weight: 500;
-    line-height: 1.3;
-    overflow-wrap: break-word;
-    word-break: break-word;
-}
-
-.song-row__category {
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ion-color-medium);
-}
-
-.song-row__chevron {
-    flex: 0 0 auto;
-    color: var(--ion-color-medium);
-    font-size: var(--font-size-base);
-    transition:
-        color 0.15s ease,
-        transform 0.15s ease;
-}
-
-.sync-info {
-    padding: 16px;
-    text-align: center;
-    color: var(--ion-color-medium);
-    font-size: 0.85rem;
-}
-
-.state-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-    text-align: center;
-}
-
-/* Direct child only — a descendant selector would also blow up icons
-   inside the empty-state's action button. */
-.state-container > ion-icon {
-    font-size: 64px;
-    color: var(--ion-color-medium);
-    margin-bottom: 16px;
-}
-
-.state-container h2 {
-    margin: 0 0 8px;
-    color: var(--ion-color-dark);
-}
-
-.state-container p {
-    margin: 0 0 16px;
-    color: var(--ion-color-medium);
-}
-
-.empty-state ion-button {
-    margin-top: 8px;
-}
-</style>

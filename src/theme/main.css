@@ -1,0 +1,289 @@
+/* ============================================================
+   Design-system entry point: Tailwind v4, tokens, fonts.
+   ============================================================ */
+@layer theme, base, components, utilities;
+
+/* --- Self-hosted fonts (precached by the PWA, no external requests) --- */
+@import '@fontsource-variable/albert-sans';
+@import '@fontsource-variable/albert-sans/wght-italic.css';
+/* Latin subsets only — the app is German; other subsets would bloat the offline precache */
+@import '@fontsource/cormorant-garamond/latin-400.css';
+@import '@fontsource/cormorant-garamond/latin-ext-400.css';
+@import '@fontsource/cormorant-garamond/latin-400-italic.css';
+@import '@fontsource/cormorant-garamond/latin-ext-400-italic.css';
+@import '@fontsource/cormorant-garamond/latin-500.css';
+@import '@fontsource/cormorant-garamond/latin-ext-500.css';
+@import '@fontsource/cormorant-garamond/latin-500-italic.css';
+@import '@fontsource/cormorant-garamond/latin-ext-500-italic.css';
+@import '@fontsource/cormorant-garamond/latin-600.css';
+@import '@fontsource/cormorant-garamond/latin-ext-600.css';
+@import '@fontsource/cormorant-garamond/latin-700.css';
+@import '@fontsource/cormorant-garamond/latin-ext-700.css';
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'vue-sonner/style.css';
+
+/* Theme is class-driven (settings.theme in localStorage), not media-query-driven */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Tokens — "Kirchenblau & Papier"
+   Anchor color: church blue rgb(39, 60, 119) = #273C77.
+   Editorial-serif direction: warm paper ground, navy ink,
+   restrained gold flourish, hairline rules instead of cards.
+   ============================================================ */
+:root {
+    --background: #faf9f6;
+    --foreground: #202741;
+    --card: #ffffff;
+    --card-foreground: #202741;
+    --popover: #ffffff;
+    --popover-foreground: #202741;
+    --primary: #273c77;
+    --primary-foreground: #f8f7f2;
+    --secondary: #efede5;
+    --secondary-foreground: #2a3350;
+    --muted: #f2f0ea;
+    --muted-foreground: #6c7183;
+    --accent: #e9edf6;
+    --accent-foreground: #273c77;
+    --destructive: #963333;
+    --destructive-foreground: #faf6f3;
+    --border: #e6e3d9;
+    --input: #dbd7cb;
+    --ring: #273c77;
+    /* Flourish color for sparse editorial details (rules, song numbers, Lied der Woche) */
+    --gold: #97783a;
+    --radius: 0.375rem;
+    /* Width of the shared page column (header + content + the index strip's
+       anchor). Grows with the viewport: a column frozen at 48rem looks
+       stranded on a wide screen, and hymn lines are short and pre-broken, so
+       the wider measure costs nothing in readability. */
+    --page-col-max: 48rem;
+    --font-sans: 'Albert Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+}
+
+.dark {
+    --background: #131827;
+    --foreground: #e9e7df;
+    --card: #1b2136;
+    --card-foreground: #e9e7df;
+    --popover: #1b2136;
+    --popover-foreground: #e9e7df;
+    --primary: #9db0e0;
+    --primary-foreground: #131827;
+    --secondary: #252d47;
+    --secondary-foreground: #dfe3ef;
+    --muted: #1f2639;
+    --muted-foreground: #8f96ab;
+    --accent: #253052;
+    --accent-foreground: #c9d4f0;
+    --destructive: #b25555;
+    --destructive-foreground: #fbf1ee;
+    --border: #2a3148;
+    --input: #333b55;
+    --ring: #9db0e0;
+    --gold: #c7a967;
+}
+
+@media (min-width: 1280px) {
+    :root {
+        --page-col-max: 56rem;
+    }
+}
+
+@media (min-width: 1536px) {
+    :root {
+        --page-col-max: 64rem;
+    }
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-gold: var(--gold);
+
+    --font-sans: var(--font-sans);
+    --font-display: var(--font-display);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+    html,
+    body,
+    #app {
+        height: 100%;
+    }
+
+    body {
+        background-color: var(--background);
+        color: var(--foreground);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    * {
+        border-color: var(--border);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    /* Tailwind v4's Preflight gives buttons `cursor: default`. Nearly every
+       clickable surface here — list rows, toolbar actions, kit controls — is a
+       <button> or a Reka role-widget, so restore the pointer for all of them. */
+    button:not(:disabled):not([aria-disabled='true']),
+    [role='button']:not([aria-disabled='true']),
+    [role='option']:not([data-disabled]),
+    [role='menuitem']:not([data-disabled]),
+    [role='menuitemcheckbox']:not([data-disabled]),
+    [role='menuitemradio']:not([data-disabled]),
+    [role='tab']:not([data-disabled]),
+    label[for],
+    label:has(> input:not(:disabled)),
+    label:has(> button:not(:disabled)),
+    summary {
+        cursor: pointer;
+    }
+
+    /* Draggable affordances read as grabbable, not clickable */
+    [role='slider'] {
+        cursor: grab;
+    }
+
+    [role='slider']:active {
+        cursor: grabbing;
+    }
+
+    button:disabled,
+    [aria-disabled='true'] {
+        cursor: not-allowed;
+    }
+
+    /* Scrollbars: slim, token-colored, floating — the OS default (a wide grey
+       bar) fights the calm editorial surfaces, especially in dark mode. */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        /* Transparent border + background-clip keeps the thumb visually thin
+           while staying a comfortable grab target. */
+        background-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+        background-clip: content-box;
+        border: 3px solid transparent;
+        border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+}
+
+@layer utilities {
+    /* Scroll without a visible bar — for containers that carry their own
+       position affordance (the A-Z/number index strip) and for the phone
+       preview, where a desktop scrollbar would break the illusion. */
+    .scrollbar-none {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .scrollbar-none::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
+    }
+}
+
+@layer components {
+    /* One column geometry shared by a page's header and its content, so the
+       title, the rows and the toolbar actions sit on the same vertical axis.
+       (Headers span their container; only their INNER content uses this.) */
+    .page-col {
+        margin-inline: auto;
+        width: 100%;
+        max-width: var(--page-col-max);
+        padding-inline: 1rem;
+    }
+
+    @media (min-width: 640px) {
+        .page-col {
+            padding-inline: 1.5rem;
+        }
+    }
+
+    /* Uppercase micro-label — the editorial section/eyebrow style from the mockup */
+    .label-micro {
+        font-family: var(--font-sans);
+        font-size: 0.6875rem;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    /* Serif song/section number in the flourish color */
+    .number-display {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 500;
+        color: var(--gold);
+        font-variant-numeric: lining-nums;
+    }
+
+    /* Hairline rule with a centered diamond — the mockup's flourish divider */
+    .rule-flourish {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--gold);
+    }
+    .rule-flourish::before,
+    .rule-flourish::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: currentColor;
+        opacity: 0.35;
+    }
+}

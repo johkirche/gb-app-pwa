@@ -1,11 +1,14 @@
 <template>
-    <div class="playlist-header">
-        <div class="playlist-emoji-large">{{ emoji }}</div>
-        <h1 class="playlist-title">{{ name }}</h1>
-        <p class="playlist-meta">
+    <div class="flex flex-col items-center px-4 pb-2 pt-8 text-center">
+        <div class="text-6xl leading-none">{{ emoji }}</div>
+        <h1 class="mt-4 break-words font-display text-3xl font-semibold leading-tight">
+            {{ name }}
+        </h1>
+        <p class="mt-1.5 text-sm text-muted-foreground">
             {{ songCount }} {{ songCount === 1 ? 'Lied' : 'Lieder' }} · Erstellt am
             {{ formattedDate }}
         </p>
+        <div class="rule-flourish mt-6 w-full max-w-[12rem] text-[9px]" aria-hidden="true">✦</div>
     </div>
 </template>
 
@@ -27,34 +30,3 @@ const formattedDate = computed(() => {
     }).format(new Date(props.createdAt));
 });
 </script>
-
-<style scoped>
-.playlist-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 16px;
-    text-align: center;
-    background: linear-gradient(
-        180deg,
-        var(--ion-color-light) 0%,
-        var(--ion-background-color) 100%
-    );
-}
-
-.playlist-emoji-large {
-    font-size: 4rem;
-    margin-bottom: 8px;
-}
-
-.playlist-title {
-    margin: 0 0 4px;
-    font-size: 1.5rem;
-}
-
-.playlist-meta {
-    margin: 0;
-    color: var(--ion-color-medium);
-    font-size: 0.9rem;
-}
-</style>

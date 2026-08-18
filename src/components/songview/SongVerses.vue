@@ -1,12 +1,20 @@
 <template>
-    <div class="verses-container">
-        <div class="verses-section">
+    <div class="mb-8 flex justify-center">
+        <div class="inline-flex flex-col items-start">
             <template v-for="(strophe, idx) in strophes" :key="idx">
-                <div v-if="!(skipFirst && idx === 0)" class="verse">
-                    <span class="verse-number">{{ idx + 1 }}.</span>
-                    <div class="verse-body">
-                        <p class="verse-text" v-html="formatVerse(getStropheText(strophe))"></p>
-                        <p v-if="strophe.anmerkung" class="verse-note">{{ strophe.anmerkung }}</p>
+                <div v-if="!(skipFirst && idx === 0)" class="mb-6 flex items-baseline gap-3">
+                    <span class="verse-number number-display min-w-6 shrink-0">{{ idx + 1 }}.</span>
+                    <div class="flex flex-col">
+                        <p
+                            class="verse-text m-0 font-display text-foreground"
+                            v-html="formatVerse(getStropheText(strophe))"
+                        ></p>
+                        <p
+                            v-if="strophe.anmerkung"
+                            class="verse-note mt-1 italic text-muted-foreground"
+                        >
+                            {{ strophe.anmerkung }}
+                        </p>
                     </div>
                 </div>
             </template>
@@ -42,52 +50,18 @@ function formatVerse(text: string | null | undefined): string {
 </script>
 
 <style scoped>
-.verses-container {
-    display: flex;
-    justify-content: center;
-    margin-bottom: var(--spacing-xl);
-}
-
-.verses-section {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.verse {
-    display: flex;
-    align-items: baseline;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-}
-
-.verse-number {
-    flex-shrink: 0;
-    font-weight: 600;
-    color: var(--ion-color-primary);
-    min-width: 24px;
-    font-size: var(--verse-font-size, var(--font-size-base));
-    line-height: var(--verse-line-height, 1.6);
-}
-
-.verse-body {
-    display: flex;
-    flex-direction: column;
-}
-
+/* Live text-size contract: the parent (.song-content.text-size-*) provides
+   --verse-font-size / --verse-line-height so the popover's Textgröße setting
+   updates the verses without re-render. */
+.verse-number,
 .verse-text {
-    margin: 0;
-    font-size: var(--verse-font-size, var(--font-size-base));
+    font-size: var(--verse-font-size, 1.125rem);
     line-height: var(--verse-line-height, 1.6);
-    color: var(--ion-color-dark);
 }
 
-/* Per-verse note (anmerkung): muted, italic, slightly smaller than the verse */
+/* Per-verse note (anmerkung): slightly smaller than the verse itself */
 .verse-note {
-    margin: var(--spacing-xs) 0 0;
-    font-size: calc(var(--verse-font-size, var(--font-size-base)) * 0.85);
+    font-size: calc(var(--verse-font-size, 1.125rem) * 0.85);
     line-height: var(--verse-line-height, 1.6);
-    font-style: italic;
-    color: var(--ion-color-medium);
 }
 </style>

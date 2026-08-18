@@ -1,8 +1,13 @@
 <template>
-    <div v-if="footerLines.length > 0" class="authors-section">
-        <div v-for="(line, idx) in footerLines" :key="idx" class="author-row">
-            <ion-icon v-if="line.icon" :icon="line.icon" />
-            <span class="author-line" :class="{ 'copyright-line': line.isCopyright }">
+    <div v-if="footerLines.length > 0" class="mt-6 border-t border-border pt-6">
+        <div v-for="(line, idx) in footerLines" :key="idx" class="mb-2 flex items-start gap-2">
+            <component
+                :is="line.icon"
+                v-if="line.icon"
+                class="mt-0.5 size-[18px] shrink-0 text-muted-foreground"
+                aria-hidden="true"
+            />
+            <span :class="line.isCopyright ? 'text-sm text-muted-foreground' : 'text-foreground'">
                 {{ line.text }}
             </span>
         </div>
@@ -10,10 +15,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { type Component, computed } from 'vue';
 
-import { IonIcon } from '@ionic/vue';
-import { documentTextOutline, musicalNoteOutline } from 'ionicons/icons';
+import { FileText, Music2 } from 'lucide-vue-next';
 
 import type { Song } from '@/db';
 import { buildFooter } from '@/utils/authorFormat';
@@ -22,10 +26,10 @@ const props = defineProps<{
     song: Song;
 }>();
 
-function lineIcon(line: string): string | null {
-    if (line.startsWith('Text:')) return documentTextOutline;
+function lineIcon(line: string): Component | null {
+    if (line.startsWith('Text:')) return FileText;
     if (line.startsWith('Melodie:') || line.startsWith('Text und Melodie:')) {
-        return musicalNoteOutline;
+        return Music2;
     }
     // Copyright lines ("© …") get a plain muted row without icon
     return null;
@@ -50,34 +54,3 @@ const footerLines = computed(() =>
         })),
 );
 </script>
-
-<style scoped>
-.authors-section {
-    border-top: 1px solid var(--ion-color-light-shade);
-    padding-top: var(--spacing-lg);
-    margin-top: var(--spacing-lg);
-}
-
-.author-row {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-    color: var(--ion-color-medium);
-}
-
-.author-row ion-icon {
-    flex-shrink: 0;
-    margin-top: 2px;
-    font-size: 18px;
-}
-
-.author-line {
-    color: var(--ion-color-dark);
-}
-
-.copyright-line {
-    color: var(--ion-color-medium);
-    font-size: var(--font-size-sm);
-}
-</style>

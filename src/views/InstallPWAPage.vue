@@ -1,39 +1,26 @@
 <template>
-    <ion-page>
-        <ion-header :translucent="true" class="ion-no-border">
-            <ion-toolbar>
-                <ion-buttons slot="start">
-                    <ion-button @click="$router.back()">
-                        <ion-icon slot="icon-only" :icon="arrowBackOutline"></ion-icon>
-                    </ion-button>
-                </ion-buttons>
-                <ion-title>App installieren</ion-title>
-            </ion-toolbar>
-        </ion-header>
-
-        <ion-content :fullscreen="true">
-            <div class="content-container">
+    <div class="flex h-full flex-col bg-background">
+        <AppPageHeader title="App installieren">
+            <template #leading>
+                <BackButton default-href="/tabs/einstellungen" />
+            </template>
+        </AppPageHeader>
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+                class="mx-auto flex min-h-full w-full max-w-md flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8"
+            >
                 <InstallPWAStep mode="standalone" @done="handleDone" />
             </div>
-        </ion-content>
-    </ion-page>
+        </main>
+    </div>
 </template>
 
 <script setup lang="ts">
-import {
-    IonButton,
-    IonButtons,
-    IonContent,
-    IonHeader,
-    IonIcon,
-    IonPage,
-    IonTitle,
-    IonToolbar,
-} from '@ionic/vue';
-import { arrowBackOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 
 import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import BackButton from '@/components/shell/BackButton.vue';
 
 const router = useRouter();
 
@@ -41,14 +28,3 @@ function handleDone() {
     router.back();
 }
 </script>
-
-<style scoped>
-.content-container {
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    padding: var(--spacing-xl) var(--spacing-lg);
-    /* max-width: var(--container-sm); */
-    margin: 0 auto;
-}
-</style>

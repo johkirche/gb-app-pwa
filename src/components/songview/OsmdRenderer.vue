@@ -1,9 +1,16 @@
 <template>
-    <div ref="containerRef" class="osmd-renderer">
-        <div ref="notationRef" class="notation-container"></div>
+    <div ref="containerRef" class="relative w-full">
+        <!-- Wide scores scroll horizontally inside this container, never the page -->
+        <div
+            ref="notationRef"
+            class="w-full overflow-x-auto overflow-y-hidden [&_svg]:h-auto [&_svg]:max-w-full"
+        ></div>
 
-        <div v-if="renderError" class="render-error">
-            <ion-icon :icon="alertCircleOutline" />
+        <div
+            v-if="renderError"
+            class="flex items-center gap-2 rounded-md bg-destructive/10 p-4 text-sm text-destructive"
+        >
+            <AlertCircle class="size-5 shrink-0" aria-hidden="true" />
             <span>{{ renderError }}</span>
         </div>
     </div>
@@ -12,8 +19,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import { IonIcon } from '@ionic/vue';
-import { alertCircleOutline } from 'ionicons/icons';
+import { AlertCircle } from 'lucide-vue-next';
 import type { OpenSheetMusicDisplay as OSMDType } from 'opensheetmusicdisplay';
 import type PlaybackEngineType from 'osmd-audio-player';
 
@@ -55,7 +61,7 @@ let playRequestToken = 0;
 const isDarkMode = ref(false);
 
 function detectDarkMode() {
-    isDarkMode.value = document.documentElement.classList.contains('ion-palette-dark');
+    isDarkMode.value = document.documentElement.classList.contains('dark');
 }
 
 function getOsmdOptions() {
@@ -92,7 +98,7 @@ async function initOsmd() {
         isInitialized = true;
         await loadAndRender();
 
-        // Watch for theme toggle on documentElement (.ion-palette-dark class)
+        // Watch for theme toggle on documentElement (.dark class, set by useTheme)
         themeObserver = new MutationObserver(() => {
             const wasDark = isDarkMode.value;
             detectDarkMode();
@@ -395,37 +401,3 @@ onBeforeUnmount(async () => {
     }
 });
 </script>
-
-<style scoped>
-.osmd-renderer {
-    position: relative;
-    width: 100%;
-}
-
-.notation-container {
-    width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-
-.notation-container :deep(svg) {
-    max-width: 100%;
-    height: auto;
-}
-
-.render-error {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background: var(--ion-color-danger-tint);
-    border-radius: var(--radius-md);
-    color: var(--ion-color-danger-shade);
-    font-size: var(--font-size-sm);
-}
-
-.render-error ion-icon {
-    flex-shrink: 0;
-    font-size: 20px;
-}
-</style>

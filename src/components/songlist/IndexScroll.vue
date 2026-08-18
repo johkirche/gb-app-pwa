@@ -2,6 +2,7 @@
     <div
         ref="containerRef"
         class="index-scroll"
+        :class="{ dragging: isDragging }"
         :style="{ maxHeight: maxHeight + 'px' }"
         @touchstart.prevent="onTouchStart"
         @touchmove.prevent="onTouchMove"
@@ -224,20 +225,34 @@ function onItemClick(key: string) {
 
 <style scoped>
 .index-scroll {
-    position: fixed;
-    right: 4px;
+    /* absolute (not fixed): anchors to the page column, so on desktop the strip
+       hugs the centered content column instead of the viewport edge */
+    position: absolute;
+    /* the whole strip is one scrub surface (tap to jump, drag to scan) */
+    cursor: grab;
+    /* Hug the shared page column: the page wrapper is full-width, so offset
+       by the column's own margin instead of sticking to the viewport edge. */
+    right: calc(max(0px, (100% - var(--page-col-max)) / 2) + 4px);
     top: 50%;
     transform: translateY(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    z-index: 1000;
-    padding: 8px 4px;
-    background: rgba(var(--ion-background-color-rgb), 0.9);
-    border-radius: 12px;
-    backdrop-filter: blur(8px);
+    /* Above page chrome (sticky headers z-10, page header z-20), below overlays
+       (dialogs/drawers z-50) — the legacy z-1000 painted over them. */
+    z-index: 30;
+    padding: 6px 3px;
+    /* No container: the rail has its own gutter, so nothing scrolls under it.
+       At full height (500+ songs it renders ~30 labels) a bordered panel reads
+       as a heavy second column — the labels alone are the right weight. */
+    background: transparent;
+    border-radius: 10px;
     user-select: none;
     touch-action: none;
+}
+
+.index-scroll.dragging {
+    cursor: grabbing;
 }
 
 .index-items {
@@ -251,27 +266,29 @@ function onItemClick(key: string) {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 24px;
-    min-height: 20px;
-    padding: 3px 6px;
-    cursor: pointer;
+    min-width: 26px;
+    min-height: 21px;
+    padding: 3px 5px;
+    color: var(--muted-foreground);
+    cursor: inherit;
     transition: all 0.15s ease;
     border-radius: 4px;
     flex-shrink: 0;
 }
 
 .index-item:hover {
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .index-item.active {
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
+    background: var(--primary);
+    color: var(--primary-foreground);
 }
 
 .index-label {
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 1;
     white-space: nowrap;
     overflow: hidden;
@@ -282,8 +299,8 @@ function onItemClick(key: string) {
 .drag-indicator {
     position: absolute;
     right: 48px;
-    background: var(--ion-color-primary);
-    color: var(--ion-color-primary-contrast);
+    background: var(--primary);
+    color: var(--primary-foreground);
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 18px;

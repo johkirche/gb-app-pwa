@@ -53,7 +53,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
             notationScale: notationScale.value,
             textSize: textSize.value,
             melodyDisplayMode: melodyDisplayMode.value,
-            xmlSettings: xmlSettings.value,
+            // Spread to a plain object: IndexedDB cannot structured-clone the
+            // reactive proxy behind xmlSettings.value (DataCloneError).
+            xmlSettings: { ...xmlSettings.value },
         });
     }
 
