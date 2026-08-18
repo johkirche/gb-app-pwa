@@ -1,14 +1,15 @@
 <template>
-    <!-- Dev-only helper: preview the current route in a phone-sized viewport
-         without resizing the browser. Rendered via an iframe so media queries
-         (lg: sidebar vs. tab bar) respond to the PHONE width, not the browser's.
+    <!-- Preview the current route in a phone-sized viewport without resizing
+         the browser. Rendered via an iframe so media queries (lg: sidebar vs.
+         tab bar) respond to the PHONE width, not the browser's. Shown on
+         desktop widths only — on a phone the real layout is already on screen.
          Never rendered inside the iframe itself (no recursion). -->
     <template v-if="!isInsideIframe">
         <button
             type="button"
-            class="fixed bottom-4 right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-lg transition-colors hover:text-foreground"
+            class="fixed bottom-4 right-4 z-40 hidden h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-lg transition-colors hover:text-foreground lg:flex"
             aria-label="Mobile Vorschau umschalten"
-            title="Mobile Vorschau (nur Entwicklung)"
+            title="Mobile Vorschau"
             @click="open = true"
         >
             <Smartphone class="h-5 w-5" aria-hidden="true" />

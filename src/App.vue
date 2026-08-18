@@ -14,7 +14,7 @@
         </router-view>
         <Toaster position="bottom-center" :theme="isDark ? 'dark' : 'light'" />
         <ConfirmHost />
-        <component :is="DevViewportPreview" v-if="DevViewportPreview" />
+        <component :is="ViewportPreview" v-if="ViewportPreview" />
     </div>
 </template>
 
@@ -26,9 +26,13 @@ import { useTheme } from '@/composables/useTheme';
 import { ConfirmHost } from '@/components/ui/confirm';
 import { Toaster } from '@/components/ui/sonner';
 
-// Dev-only mobile-viewport preview; the DEV-guarded ternary keeps the chunk
-// out of production bundles entirely (same pattern as DevSkipButton).
-const DevViewportPreview = import.meta.env.DEV
+// Mobile-viewport preview. Always available in dev; a production build ships
+// it only when VITE_SHOW_VIEWPORT_PREVIEW is 'true'. Both values are statically
+// replaced by Vite, so an unflagged build folds the ternary to null and the
+// chunk never gets emitted (same pattern as DevSkipButton).
+const showViewportPreview =
+    import.meta.env.DEV || import.meta.env.VITE_SHOW_VIEWPORT_PREVIEW === 'true';
+const ViewportPreview = showViewportPreview
     ? defineAsyncComponent(() => import('@/components/dev/DevViewportPreview.vue'))
     : null;
 
