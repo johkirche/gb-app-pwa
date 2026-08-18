@@ -7,7 +7,7 @@
         </AppPageHeader>
 
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div class="mx-auto w-full max-w-xl px-4 pb-8">
+            <div class="page-col pb-8">
                 <!-- Empty state -->
                 <div
                     v-if="favoritedSongs.length === 0"

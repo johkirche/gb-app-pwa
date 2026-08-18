@@ -220,6 +220,24 @@
 }
 
 @layer components {
+    /* One column geometry shared by a page's header and its content, so the
+       title, the rows and the toolbar actions sit on the same vertical axis.
+       (Headers span their container; only their INNER content uses this.) */
+    .page-col {
+        margin-inline: auto;
+        width: 100%;
+        /* matches the shell's content column (max-w-3xl), so on desktop the
+           header's hairline and the content share one edge */
+        max-width: 48rem;
+        padding-inline: 1rem;
+    }
+
+    @media (min-width: 640px) {
+        .page-col {
+            padding-inline: 1.5rem;
+        }
+    }
+
     /* Uppercase micro-label — the editorial section/eyebrow style from the mockup */
     .label-micro {
         font-family: var(--font-sans);

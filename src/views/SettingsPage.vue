@@ -3,9 +3,7 @@
         <AppPageHeader title="Einstellungen" />
 
         <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div
-                class="mx-auto w-full max-w-xl space-y-10 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6"
-            >
+            <div class="page-col space-y-10 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6">
                 <!-- Konto -->
                 <section>
                     <div class="flex items-center gap-3 px-2">

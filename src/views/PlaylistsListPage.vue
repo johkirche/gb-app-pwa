@@ -3,7 +3,7 @@
         <AppPageHeader title="Playlisten" />
 
         <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div class="mx-auto w-full max-w-xl px-4 pb-24">
+            <div class="page-col pb-24">
                 <!-- Loading State -->
                 <div
                     v-if="isLoading"

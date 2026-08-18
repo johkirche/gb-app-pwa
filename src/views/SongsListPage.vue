@@ -4,7 +4,7 @@
         <!-- Toolbar with Search, Filter, Sort — outside the scroll container, so
              sticky section headers inside <main> dock at top-0 -->
         <SongToolbar
-            title="Gesangbuch"
+            title="Lieder"
             :show-back="false"
             :search-query="filters.searchQuery"
             :selected-categories="filters.selectedCategories"
@@ -28,7 +28,7 @@
             :class="{ 'scrollbar-none': isIndexScrollerVisible }"
             @scroll="onScroll"
         >
-            <div class="mx-auto w-full max-w-xl px-4 pb-8">
+            <div class="page-col pb-8">
                 <!-- Featured: Lied der Woche (hidden while searching/filtering) -->
                 <button
                     v-if="songOfTheWeek && !filters.searchQuery && !hasActiveFilters"

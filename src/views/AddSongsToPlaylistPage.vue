@@ -39,7 +39,7 @@
         </div>
 
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div class="mx-auto w-full max-w-xl px-4 pb-6">
+            <div class="page-col pb-6">
                 <!-- Loading State -->
                 <div v-if="isLoading" class="flex min-h-[50vh] items-center justify-center">
                     <Spinner size="lg" />

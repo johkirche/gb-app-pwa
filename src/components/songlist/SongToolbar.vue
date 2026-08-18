@@ -4,7 +4,7 @@
     <div
         class="song-toolbar shrink-0 border-b border-border bg-background pt-[env(safe-area-inset-top)]"
     >
-        <div class="mx-auto flex h-14 w-full max-w-xl items-center gap-1 px-2 sm:px-3">
+        <div class="page-col flex h-14 items-center gap-1">
             <!-- Back button (hidden on tab roots) -->
             <Button
                 v-if="showBack"
@@ -112,10 +112,7 @@
 
         <!-- Active filters chips -->
         <Transition name="chips-slide">
-            <div
-                v-if="showFilterChips"
-                class="mx-auto flex w-full max-w-xl flex-wrap gap-1.5 px-3 pb-2"
-            >
+            <div v-if="showFilterChips" class="page-col flex flex-wrap gap-1.5 pb-2">
                 <button
                     v-if="searchQuery"
                     type="button"
@@ -154,10 +151,7 @@
 
         <!-- Results count -->
         <Transition name="results-fade">
-            <div
-                v-if="showResultsCount"
-                class="mx-auto w-full max-w-xl px-4 pb-2 text-[13px] text-muted-foreground"
-            >
+            <div v-if="showResultsCount" class="page-col pb-2 text-[13px] text-muted-foreground">
                 <span>{{ resultCount }} {{ resultCount === 1 ? 'Lied' : 'Lieder' }} gefunden</span>
             </div>
         </Transition>
