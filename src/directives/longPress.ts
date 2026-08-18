@@ -2,7 +2,7 @@ import type { Directive, DirectiveBinding } from 'vue';
 
 interface LongPressHTMLElement extends HTMLElement {
     _longPressTimeout?: ReturnType<typeof setTimeout>;
-    _longPressHandler?: () => void;
+    _longPressHandler?: (el: HTMLElement) => void;
     _longPressStart?: (e: TouchEvent | MouseEvent) => void;
     _longPressEnd?: () => void;
 }
@@ -10,7 +10,7 @@ interface LongPressHTMLElement extends HTMLElement {
 const LONG_PRESS_DURATION = 500; // milliseconds
 
 export const longPressDirective: Directive = {
-    mounted(el: LongPressHTMLElement, binding: DirectiveBinding<() => void>) {
+    mounted(el: LongPressHTMLElement, binding: DirectiveBinding<(el: HTMLElement) => void>) {
         if (typeof binding.value !== 'function') {
             console.warn('v-long-press directive requires a function as its value');
             return;
@@ -25,7 +25,8 @@ export const longPressDirective: Directive = {
 
             el._longPressTimeout = setTimeout(() => {
                 isLongPress = true;
-                el._longPressHandler?.();
+                // The pressed element doubles as the anchor for the menu that opens
+                el._longPressHandler?.(el);
                 // Add haptic feedback if available
                 if ('vibrate' in navigator) {
                     navigator.vibrate(50);

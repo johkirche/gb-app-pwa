@@ -45,10 +45,13 @@
                         <!-- Playlists -->
                         <li v-for="playlist in sortedPlaylists" :key="playlist.id">
                             <button
-                                v-long-press="() => showActionSheet(playlist)"
+                                v-long-press="(el: HTMLElement) => showActionSheet(playlist, el)"
                                 type="button"
                                 class="flex w-full select-none items-center gap-4 rounded-sm px-2 py-2.5 text-left transition-colors [-webkit-touch-callout:none] hover:bg-muted active:bg-muted"
                                 @click="navigateToPlaylist(playlist.id)"
+                                @contextmenu.prevent="
+                                    showActionSheet(playlist, anchorFromEvent($event))
+                                "
                             >
                                 <span
                                     class="flex h-10 w-11 shrink-0 items-center justify-center rounded-md border border-border text-[1.375rem] leading-none"
@@ -106,11 +109,12 @@
             <Plus class="!size-6" aria-hidden="true" />
         </Button>
 
-        <!-- Long-press context menu -->
+        <!-- Long-press / right-click context menu -->
         <ActionSheet
             v-model:open="actionSheetOpen"
             :title="actionSheetPlaylist?.name"
             :actions="actionSheetActions"
+            :anchor="actionSheetAnchor"
         />
     </div>
 </template>
@@ -129,12 +133,13 @@ import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/drawer';
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 
 import type { Playlist } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
+import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 
 const router = useRouter();
 
@@ -171,9 +176,11 @@ function formatDate(date: Date): string {
     }).format(new Date(date));
 }
 
-// Long-press context menu (delete without confirmation, as before)
+// Long-press / right-click context menu (delete without confirmation, as before)
 const actionSheetOpen = ref(false);
 const actionSheetPlaylist = ref<Playlist | null>(null);
+// The row (or click point) the desktop popover form hangs off
+const actionSheetAnchor = ref<PanelAnchor>(null);
 
 const actionSheetActions = computed<ActionSheetAction[]>(() => [
     {
@@ -193,9 +200,10 @@ const actionSheetActions = computed<ActionSheetAction[]>(() => [
     },
 ]);
 
-function showActionSheet(playlist: Playlist) {
+function showActionSheet(playlist: Playlist, anchor: PanelAnchor) {
     if (actionSheetOpen.value) return;
     actionSheetPlaylist.value = playlist;
+    actionSheetAnchor.value = anchor;
     actionSheetOpen.value = true;
 }
 

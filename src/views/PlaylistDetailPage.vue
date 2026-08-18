@@ -122,6 +122,7 @@
             v-model:open="songSheetOpen"
             :title="songSheetSong?.titel"
             :actions="songSheetActions"
+            :anchor="songSheetAnchor"
         />
 
         <!-- Edit Modal -->
@@ -153,7 +154,6 @@ import PlaylistSongsList from '@/components/playlist/PlaylistSongsList.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import BackButton from '@/components/shell/BackButton.vue';
 import { Button } from '@/components/ui/button';
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/drawer';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -161,9 +161,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
 import { Spinner } from '@/components/ui/spinner';
 
 import type { Song } from '@/db';
+import type { PanelAnchor } from '@/lib/anchor';
 
 const route = useRoute();
 const router = useRouter();
@@ -271,6 +273,8 @@ async function removeSong(songId: string) {
 // Android browsers) cannot open the sheet twice
 const songSheetOpen = ref(false);
 const songSheetSong = ref<Song | null>(null);
+// The row (or click point) the desktop popover form hangs off
+const songSheetAnchor = ref<PanelAnchor>(null);
 
 const songSheetActions = computed<ActionSheetAction[]>(() => [
     {
@@ -289,9 +293,10 @@ const songSheetActions = computed<ActionSheetAction[]>(() => [
     },
 ]);
 
-function showSongActions(song: Song) {
+function showSongActions(song: Song, anchor: PanelAnchor) {
     if (songSheetOpen.value) return;
     songSheetSong.value = song;
+    songSheetAnchor.value = anchor;
     songSheetOpen.value = true;
 }
 

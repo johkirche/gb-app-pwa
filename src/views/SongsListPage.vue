@@ -16,8 +16,8 @@
             :total-count="songs.length"
             @search="setSearchQuery"
             @clear-search="clearSearch"
-            @open-filters="openFilters"
-            @open-sort="showSortOptions = true"
+            @open-filters="toggleFilters"
+            @open-sort="toggleSortOptions"
             @toggle-category="toggleCategory"
             @set-index-range="setIndexRange"
         />
@@ -120,12 +120,12 @@
                         <button
                             v-for="song in section.songs"
                             :key="song.id"
-                            v-long-press="() => openSongActions(song.id)"
+                            v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
                             type="button"
                             class="song-row group flex w-full select-none items-baseline gap-4 border-b border-border py-3.5 pl-2 pr-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] last:border-b-0 hover:bg-muted active:bg-muted"
                             :data-section="section.key"
                             @click="navigateToSong(song.id)"
-                            @contextmenu.prevent="openSongActions(song.id)"
+                            @contextmenu.prevent="openSongActions(song.id, anchorFromEvent($event))"
                         >
                             <span
                                 class="number-display w-10 shrink-0 text-right text-lg leading-none"
@@ -175,34 +175,43 @@
             @select="scrollToSection"
         />
 
-        <!-- Filter Bottom Drawer -->
-        <SongFilterDrawer
-            :is-open="showFilterDrawer"
+        <!-- Filter panel: popover from lg up, bottom sheet below -->
+        <SongFilterPanel
+            :is-open="showFilters"
+            :anchor="filterAnchor"
             :available-categories="availableCategories"
             :selected-categories="filters.selectedCategories"
             :filter-index-range="filters.indexRange"
             :index-range="indexRange"
             :has-active-filters="hasActiveFilters"
-            @close="showFilterDrawer = false"
+            @close="showFilters = false"
             @toggle-category="toggleCategory"
             @set-index-range="setIndexRange"
             @clear-all="clearFiltersKeepSearch"
         />
 
-        <!-- Sort Options Action Sheet -->
+        <!-- Sort Options -->
         <ActionSheet
             v-model:open="showSortOptions"
             title="Sortierung"
             :actions="sortSheetActions"
+            :anchor="sortAnchor"
+            align="end"
         />
 
-        <!-- Song Action Sheet (long-press menu) -->
-        <ActionSheet v-model:open="showSongActions" title="Aktionen" :actions="songSheetActions" />
+        <!-- Song actions (long-press / right-click menu) -->
+        <ActionSheet
+            v-model:open="showSongActions"
+            title="Aktionen"
+            :actions="songSheetActions"
+            :anchor="songAnchor"
+        />
 
-        <!-- Playlist Select Modal -->
+        <!-- Playlist Select -->
         <PlaylistSelectModal
             :is-open="showPlaylistModal"
             :song-id="selectedSongId"
+            :anchor="songAnchor"
             @close="showPlaylistModal = false"
             @added="onSongAddedToPlaylist"
         />
@@ -234,14 +243,15 @@ import { SORT_OPTIONS, useSongSorting } from '@/composables/useSongSorting';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
 import IndexScroll from '@/components/songlist/IndexScroll.vue';
-import SongFilterDrawer from '@/components/songlist/SongFilterDrawer.vue';
+import SongFilterPanel from '@/components/songlist/SongFilterPanel.vue';
 import SongSectionHeader from '@/components/songlist/SongSectionHeader.vue';
 import SongToolbar from '@/components/songlist/SongToolbar.vue';
 import { Button } from '@/components/ui/button';
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/drawer';
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
 import { Spinner } from '@/components/ui/spinner';
 
 import type { Category } from '@/db';
+import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
@@ -274,19 +284,29 @@ const {
 const { sortMode, showHeaders, showIndexScroll, sortedSections, indexItems } =
     useSongSorting(filteredSongs);
 
-// UI State
+// UI State. Each panel keeps the element (or click point) it was opened from —
+// that is what its desktop popover form hangs off.
 const showSortOptions = ref(false);
-const showFilterDrawer = ref(false);
+const sortAnchor = ref<PanelAnchor>(null);
+const showFilters = ref(false);
+const filterAnchor = ref<PanelAnchor>(null);
 const activeSection = ref<string>('');
 
 // Long-press / Song Actions State
 const showSongActions = ref(false);
+const songAnchor = ref<PanelAnchor>(null);
 const showPlaylistModal = ref(false);
 const selectedSongId = ref<string>('');
 
-// Open filter drawer
-function openFilters() {
-    showFilterDrawer.value = true;
+// Toolbar buttons toggle their panel, so a second click closes it again
+function toggleFilters(anchor: PanelAnchor) {
+    filterAnchor.value = anchor;
+    showFilters.value = !showFilters.value;
+}
+
+function toggleSortOptions(anchor: PanelAnchor) {
+    sortAnchor.value = anchor;
+    showSortOptions.value = !showSortOptions.value;
 }
 
 // --- Lied der Woche (ported from the former home screen) ---
@@ -382,9 +402,10 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
     ];
 });
 
-// Long-press handler
-function openSongActions(songId: string) {
+// Long-press / right-click handler
+function openSongActions(songId: string, anchor: PanelAnchor) {
     selectedSongId.value = songId;
+    songAnchor.value = anchor;
     showSongActions.value = true;
 }
 

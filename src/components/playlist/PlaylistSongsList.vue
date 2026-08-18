@@ -11,14 +11,14 @@
         <li v-for="song in songs" :key="song.id">
             <component
                 :is="reorderMode ? 'div' : 'button'"
-                v-long-press="() => handleSongLongPress(song)"
+                v-long-press="(el: HTMLElement) => handleSongLongPress(song, el)"
                 :type="reorderMode ? undefined : 'button'"
                 class="flex w-full select-none items-center gap-4 px-2 py-2.5 text-left [-webkit-touch-callout:none]"
                 :class="
                     reorderMode ? '' : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
                 "
                 @click="handleSongClick(song)"
-                @contextmenu.prevent="handleSongContextMenu(song)"
+                @contextmenu.prevent="handleSongContextMenu(song, anchorFromEvent($event))"
             >
                 <span
                     class="number-display flex w-10 shrink-0 items-center justify-end text-lg leading-none"
@@ -59,6 +59,7 @@ import { VueDraggable } from 'vue-draggable-plus';
 
 import type { Category, Song } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
+import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 
 const props = defineProps<{
     songs: Song[];
@@ -67,7 +68,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     songClick: [song: Song];
-    songContextMenu: [song: Song];
+    /** The anchor is the row (or click point) the desktop popover opens against. */
+    songContextMenu: [song: Song, anchor: PanelAnchor];
     /** Complete reordered list of the *rendered* song ids after a drop. */
     reorder: [songIds: string[]];
 }>();
@@ -78,15 +80,15 @@ function handleSongClick(song: Song) {
     }
 }
 
-function handleSongContextMenu(song: Song) {
+function handleSongContextMenu(song: Song, anchor: PanelAnchor) {
     if (!props.reorderMode) {
-        emit('songContextMenu', song);
+        emit('songContextMenu', song, anchor);
     }
 }
 
-function handleSongLongPress(song: Song) {
+function handleSongLongPress(song: Song, anchor: PanelAnchor) {
     if (!props.reorderMode) {
-        emit('songContextMenu', song);
+        emit('songContextMenu', song, anchor);
     }
 }
 

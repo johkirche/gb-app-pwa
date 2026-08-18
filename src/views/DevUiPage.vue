@@ -414,7 +414,7 @@
                                 </DrawerContent>
                             </Drawer>
 
-                            <Button variant="outline" @click="actionSheetOpen = true">
+                            <Button variant="outline" @click="toggleActionSheet">
                                 Action-Sheet öffnen
                             </Button>
                         </div>
@@ -507,10 +507,12 @@
                     </div>
                 </div>
 
+                <!-- Bottom sheet on phones, popover on the button from lg up -->
                 <ActionSheet
                     v-model:open="actionSheetOpen"
                     title="Großer Gott, wir loben dich"
                     :actions="sheetActions"
+                    :anchor="actionSheetAnchor"
                 />
             </section>
 
@@ -629,8 +631,6 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-    ActionSheet,
-    type ActionSheetAction,
     Drawer,
     DrawerClose,
     DrawerContent,
@@ -652,6 +652,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
 import {
     Select,
     SelectContent,
@@ -665,6 +666,8 @@ import { Slider } from '@/components/ui/slider';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+
+import type { PanelAnchor } from '@/lib/anchor';
 
 // --- Farbschema -------------------------------------------------------------
 
@@ -763,6 +766,12 @@ async function demoConfirmDestructive() {
 }
 
 const actionSheetOpen = ref(false);
+const actionSheetAnchor = ref<PanelAnchor>(null);
+
+function toggleActionSheet(event: MouseEvent) {
+    actionSheetAnchor.value = event.currentTarget as HTMLElement;
+    actionSheetOpen.value = !actionSheetOpen.value;
+}
 
 const sheetActions: ActionSheetAction[] = [
     {

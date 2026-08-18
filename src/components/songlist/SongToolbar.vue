@@ -69,7 +69,7 @@
                         size="icon"
                         :class="hasActiveFilters ? 'relative text-primary' : 'relative'"
                         aria-label="Filter öffnen"
-                        @click="$emit('openFilters')"
+                        @click="onOpenFilters"
                     >
                         <SlidersHorizontal aria-hidden="true" />
                         <span
@@ -88,7 +88,7 @@
                         type="button"
                         class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted"
                         aria-label="Sortierung ändern"
-                        @click="$emit('openSort')"
+                        @click="onOpenSort"
                     >
                         <ArrowUpDown class="h-[18px] w-[18px]" aria-hidden="true" />
                         <span
@@ -182,6 +182,8 @@ import type { SortMode } from '@/composables/useSongSorting';
 
 import { Button } from '@/components/ui/button';
 
+import type { PanelAnchor } from '@/lib/anchor';
+
 const props = withDefaults(
     defineProps<{
         title: string;
@@ -204,11 +206,21 @@ const emit = defineEmits<{
     (e: 'back'): void;
     (e: 'search', query: string): void;
     (e: 'clearSearch'): void;
-    (e: 'openFilters'): void;
-    (e: 'openSort'): void;
+    (e: 'openFilters', anchor: PanelAnchor): void;
+    (e: 'openSort', anchor: PanelAnchor): void;
     (e: 'toggleCategory', category: string): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
 }>();
+
+// From lg up the filter and sort panels are popovers, so they need the button
+// they hang off; below lg the anchor is simply ignored.
+function onOpenFilters(event: MouseEvent) {
+    emit('openFilters', event.currentTarget as HTMLElement);
+}
+
+function onOpenSort(event: MouseEvent) {
+    emit('openSort', event.currentTarget as HTMLElement);
+}
 
 // Shared chip styling; the color classes keep the original filter-type distinction
 // (search = primary, category = secondary, boolean/range = flourish gold).

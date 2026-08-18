@@ -1,7 +1,7 @@
 <template>
     <Popover v-model:open="menuOpen">
         <PopoverTrigger as-child>
-            <Button variant="ghost" size="icon" aria-label="Einstellungen">
+            <Button ref="menuTriggerRef" variant="ghost" size="icon" aria-label="Einstellungen">
                 <Settings class="!size-5" aria-hidden="true" />
             </Button>
         </PopoverTrigger>
@@ -179,13 +179,14 @@
     <PlaylistSelectModal
         :is-open="showPlaylistModal"
         :song-id="songId"
+        :anchor="menuAnchor"
         @close="showPlaylistModal = false"
         @added="onSongAddedToPlaylist"
     />
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 
 import {
     Image as ImageIcon,
@@ -213,6 +214,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 
 import type { MelodyDisplayMode, XmlDisplaySettings } from '@/db';
+import type { PanelAnchor } from '@/lib/anchor';
 
 defineProps<{
     songId: string;
@@ -258,6 +260,11 @@ function onScaleChange(value: number[] | undefined) {
         emit('update:notationScale', value[0]);
     }
 }
+
+// The playlist panel replaces this menu, so on desktop it opens off the same
+// settings button the menu itself hangs from.
+const menuTriggerRef = ref<{ $el?: HTMLElement } | null>(null);
+const menuAnchor = computed<PanelAnchor>(() => menuTriggerRef.value?.$el ?? null);
 
 async function handleAddToPlaylist() {
     // Close the popover first, then open the playlist modal — the popover's
