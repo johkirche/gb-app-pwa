@@ -241,9 +241,13 @@ function onItemClick(key: string) {
     /* Above page chrome (sticky headers z-10, page header z-20), below overlays
        (dialogs/drawers z-50) — the legacy z-1000 painted over them. */
     z-index: 30;
-    padding: 8px 4px;
-    background: color-mix(in srgb, var(--background) 90%, transparent);
-    border-radius: 12px;
+    padding: 6px 3px;
+    /* A real surface: as a near-transparent overlay it read as stray numbers
+       bleeding into the list rather than a control sitting beside it. */
+    background: color-mix(in srgb, var(--card) 92%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgb(0 0 0 / 0.06);
     backdrop-filter: blur(8px);
     user-select: none;
     touch-action: none;
@@ -264,9 +268,10 @@ function onItemClick(key: string) {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 24px;
-    min-height: 20px;
-    padding: 3px 6px;
+    min-width: 26px;
+    min-height: 21px;
+    padding: 3px 5px;
+    color: var(--muted-foreground);
     cursor: inherit;
     transition: all 0.15s ease;
     border-radius: 4px;
@@ -283,8 +288,9 @@ function onItemClick(key: string) {
 }
 
 .index-label {
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 1;
     white-space: nowrap;
     overflow: hidden;

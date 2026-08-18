@@ -105,7 +105,10 @@
                 </div>
 
                 <!-- Songs List with Sections -->
-                <div v-else class="songs-list">
+                <!-- Reserve the rail's gutter on the list container, so rows,
+                     hairlines and hover states end before it instead of running
+                     underneath (the strip already cost this space as padding). -->
+                <div v-else class="songs-list" :class="{ 'pr-11': isIndexScrollerVisible }">
                     <template v-for="section in sortedSections" :key="section.key">
                         <!-- Section Header (only shown when showHeaders is true) -->
                         <SongSectionHeader
@@ -120,8 +123,7 @@
                             :key="song.id"
                             v-long-press="() => openSongActions(song.id)"
                             type="button"
-                            class="song-row group flex w-full select-none items-baseline gap-4 border-b border-border py-3.5 pl-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] last:border-b-0 hover:bg-muted active:bg-muted"
-                            :class="isIndexScrollerVisible ? 'pr-10' : 'pr-2'"
+                            class="song-row group flex w-full select-none items-baseline gap-4 border-b border-border py-3.5 pl-2 pr-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] last:border-b-0 hover:bg-muted active:bg-muted"
                             :data-section="section.key"
                             @click="navigateToSong(song.id)"
                             @contextmenu.prevent="openSongActions(song.id)"
