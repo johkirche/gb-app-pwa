@@ -8,7 +8,7 @@
 
         <h1 class="text-center font-display text-3xl font-semibold">Inhalte herunterladen</h1>
         <p class="mt-3 text-center text-[15px] leading-relaxed text-muted-foreground">
-            Das Gesangbuch wird jetzt einmalig heruntergeladen (ca. 15&nbsp;MB), damit alle Lieder
+            Das Gesangbuch wird jetzt einmalig heruntergeladen (ca. 90&nbsp;MB), damit alle Lieder
             und Noten auch ohne Internetverbindung verfügbar sind.
         </p>
 

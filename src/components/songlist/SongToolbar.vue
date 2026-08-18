@@ -140,28 +140,6 @@
                 </button>
 
                 <button
-                    v-if="hasNotes !== null"
-                    type="button"
-                    :class="[chipBase, 'border-gold/40 text-gold']"
-                    @click="$emit('setHasNotes', null)"
-                >
-                    <FileText class="h-3 w-3" aria-hidden="true" />
-                    <span>{{ hasNotes ? 'Mit Noten' : 'Ohne Noten' }}</span>
-                    <CircleX class="h-3 w-3 opacity-70" aria-hidden="true" />
-                </button>
-
-                <button
-                    v-if="hasMelodyXml !== null"
-                    type="button"
-                    :class="[chipBase, 'border-gold/40 text-gold']"
-                    @click="$emit('setHasMelodyXml', null)"
-                >
-                    <Music class="h-3 w-3" aria-hidden="true" />
-                    <span>{{ hasMelodyXml ? 'Mit MusicXML' : 'Ohne MusicXML' }}</span>
-                    <CircleX class="h-3 w-3 opacity-70" aria-hidden="true" />
-                </button>
-
-                <button
                     v-if="filterIndexRange"
                     type="button"
                     :class="[chipBase, 'border-gold/40 text-gold']"
@@ -195,9 +173,7 @@ import {
     ArrowLeft,
     ArrowUpDown,
     CircleX,
-    FileText,
     List,
-    Music,
     Search,
     SlidersHorizontal,
     Tag,
@@ -213,8 +189,6 @@ const props = withDefaults(
         title: string;
         searchQuery: string;
         selectedCategories: string[];
-        hasNotes: boolean | null;
-        hasMelodyXml: boolean | null;
         filterIndexRange: { min: number; max: number } | null;
         activeFilterCount: number;
         hasActiveFilters: boolean;
@@ -235,8 +209,6 @@ const emit = defineEmits<{
     (e: 'openFilters'): void;
     (e: 'openSort'): void;
     (e: 'toggleCategory', category: string): void;
-    (e: 'setHasNotes', value: boolean | null): void;
-    (e: 'setHasMelodyXml', value: boolean | null): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
 }>();
 
@@ -273,11 +245,7 @@ watch(
 // Show filter chips when there are active filters or search
 const showFilterChips = computed(() => {
     return (
-        props.searchQuery ||
-        props.selectedCategories.length > 0 ||
-        props.hasNotes !== null ||
-        props.hasMelodyXml !== null ||
-        props.filterIndexRange !== null
+        props.searchQuery || props.selectedCategories.length > 0 || props.filterIndexRange !== null
     );
 });
 

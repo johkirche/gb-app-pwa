@@ -232,6 +232,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 import {
     ESTIMATED_SYNC_BYTES,
+    REQUIRED_FREE_BYTES,
     type StorageSpace,
     formatBytes,
     getStorageEstimate,
@@ -281,7 +282,7 @@ function confirmLowStorage(): Promise<boolean> {
 
 async function handleSync() {
     storage.value = await getStorageEstimate();
-    if (storage.value && freeSpace.value < ESTIMATED_SYNC_BYTES) {
+    if (storage.value && freeSpace.value < REQUIRED_FREE_BYTES) {
         const proceed = await confirmLowStorage();
         if (!proceed) return;
     }

@@ -5,8 +5,6 @@ import type { Song } from '@/db';
 export interface FilterState {
     searchQuery: string;
     selectedCategories: string[]; // Category names
-    hasNotes: boolean | null; // null = don't filter, true = must have, false = must not have
-    hasMelodyXml: boolean | null;
     indexRange: { min: number; max: number } | null;
     selectedAuthors: string[]; // Author full names
 }
@@ -20,8 +18,6 @@ export interface FilterOption {
 const DEFAULT_FILTER_STATE: FilterState = {
     searchQuery: '',
     selectedCategories: [],
-    hasNotes: null,
-    hasMelodyXml: null,
     indexRange: null,
     selectedAuthors: [],
 };
@@ -40,11 +36,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
     const hasActiveFilters = computed(() => {
         const f = filters.value;
         return (
-            f.selectedCategories.length > 0 ||
-            f.hasNotes !== null ||
-            f.hasMelodyXml !== null ||
-            f.indexRange !== null ||
-            f.selectedAuthors.length > 0
+            f.selectedCategories.length > 0 || f.indexRange !== null || f.selectedAuthors.length > 0
         );
     });
 
@@ -53,8 +45,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         const f = filters.value;
         let count = 0;
         if (f.selectedCategories.length > 0) count++;
-        if (f.hasNotes !== null) count++;
-        if (f.hasMelodyXml !== null) count++;
         if (f.indexRange !== null) count++;
         if (f.selectedAuthors.length > 0) count++;
         return count;
@@ -152,20 +142,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
             );
         }
 
-        // Has notes filter
-        if (f.hasNotes === true) {
-            result = result.filter((song) => song.noten.length > 0);
-        } else if (f.hasNotes === false) {
-            result = result.filter((song) => song.noten.length === 0);
-        }
-
-        // Has MusicXML filter
-        if (f.hasMelodyXml === true) {
-            result = result.filter((song) => !!song.notentextMxml);
-        } else if (f.hasMelodyXml === false) {
-            result = result.filter((song) => !song.notentextMxml);
-        }
-
         // Index range filter
         if (f.indexRange) {
             result = result.filter(
@@ -203,14 +179,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         } else {
             filters.value.selectedCategories.push(categoryName);
         }
-    }
-
-    function setHasNotes(value: boolean | null) {
-        filters.value.hasNotes = value;
-    }
-
-    function setHasMelodyXml(value: boolean | null) {
-        filters.value.hasMelodyXml = value;
     }
 
     function setIndexRange(range: { min: number; max: number } | null) {
@@ -252,8 +220,6 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         setSearchQuery,
         clearSearch,
         toggleCategory,
-        setHasNotes,
-        setHasMelodyXml,
         setIndexRange,
         toggleAuthor,
         clearAllFilters,

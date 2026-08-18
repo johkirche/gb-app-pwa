@@ -12,14 +12,27 @@ export interface StorageSpace {
 }
 
 /**
- * Rough upper estimate of a full content download (songs + note files).
- * Used only for the pre-sync free-space warning — the real backstop is the
- * QuotaExceededError handling during the download itself.
+ * Estimated size of a full content download (songs + note files), shown to the
+ * user before syncing.
+ *
+ * Measured against the production backend on 2026-08-18 (aggregate over
+ * directus_files, the file types the sync actually stores):
+ *   SVG notation        565 files   86.6 MB   <- one per song since 2026-08-18
+ *   legacy PNG notation 261 files    2.7 MB
+ *   MusicXML            564 files    0.9 MB
+ *                                  ≈ 90 MB
+ * Re-measure when the notation set changes; the previous figure (15 MB) dated
+ * from before full SVG coverage.
  */
-// Measured against the production backend on 2026-08-17: the sync downloads
-// ~230 files (PNG/JPG/SVG notation + MusicXML) totalling ~15 MB. 30 MB leaves
-// headroom for content growth without scaring users with an inflated figure.
-export const ESTIMATED_SYNC_BYTES = 30 * 1024 * 1024;
+export const ESTIMATED_SYNC_BYTES = 90 * 1024 * 1024;
+
+/**
+ * Free space the pre-sync check demands. Kept above ESTIMATED_SYNC_BYTES so a
+ * download does not start into a nearly-full quota (IndexedDB overhead, browser
+ * eviction headroom). The real backstop stays the QuotaExceededError handling
+ * during the download itself.
+ */
+export const REQUIRED_FREE_BYTES = 130 * 1024 * 1024;
 
 // Ask the browser to protect IndexedDB content from automatic eviction.
 export async function requestPersistentStorage(): Promise<boolean> {

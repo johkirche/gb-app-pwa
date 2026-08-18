@@ -99,37 +99,9 @@
                 </p>
             </div>
 
-            <!-- Dev Filters (may be removed later) -->
+            <!-- Liednummer -->
             <div class="border-t border-border px-4 pb-10 pt-4">
-                <p class="label-micro mb-4 text-gold">Dev Filter</p>
-
-                <div class="mb-4 flex items-center justify-between gap-3">
-                    <span class="text-sm text-muted-foreground">Hat Noten (PDF)</span>
-                    <ToggleGroup
-                        type="single"
-                        aria-label="Hat Noten (PDF)"
-                        :model-value="hasNotesValue"
-                        @update:model-value="onHasNotesChange"
-                    >
-                        <ToggleGroupItem value="all">Alle</ToggleGroupItem>
-                        <ToggleGroupItem value="yes">Ja</ToggleGroupItem>
-                        <ToggleGroupItem value="no">Nein</ToggleGroupItem>
-                    </ToggleGroup>
-                </div>
-
-                <div class="mb-4 flex items-center justify-between gap-3">
-                    <span class="text-sm text-muted-foreground">Hat MusicXML</span>
-                    <ToggleGroup
-                        type="single"
-                        aria-label="Hat MusicXML"
-                        :model-value="hasMelodyXmlValue"
-                        @update:model-value="onHasMelodyXmlChange"
-                    >
-                        <ToggleGroupItem value="all">Alle</ToggleGroupItem>
-                        <ToggleGroupItem value="yes">Ja</ToggleGroupItem>
-                        <ToggleGroupItem value="no">Nein</ToggleGroupItem>
-                    </ToggleGroup>
-                </div>
+                <p class="label-micro mb-4 text-gold">Liednummer</p>
 
                 <div class="space-y-3">
                     <p class="text-sm text-muted-foreground">
@@ -165,14 +137,12 @@
 import { computed, ref, watch } from 'vue';
 
 import { CircleX, RotateCcw, Search } from 'lucide-vue-next';
-import type { AcceptableValue } from 'reka-ui';
 
 import type { FilterOption } from '@/composables/useSongFiltering';
 
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { Slider } from '@/components/ui/slider';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import { categoryEmoji } from '@/utils/categoryEmoji';
 
@@ -180,8 +150,6 @@ const props = defineProps<{
     isOpen: boolean;
     availableCategories: FilterOption[];
     selectedCategories: string[];
-    hasNotes: boolean | null;
-    hasMelodyXml: boolean | null;
     filterIndexRange: { min: number; max: number } | null;
     indexRange: { min: number; max: number };
     hasActiveFilters: boolean;
@@ -190,8 +158,6 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'close'): void;
     (e: 'toggleCategory', category: string): void;
-    (e: 'setHasNotes', value: boolean | null): void;
-    (e: 'setHasMelodyXml', value: boolean | null): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
     (e: 'clearAll'): void;
 }>();
@@ -226,38 +192,11 @@ function clearCategories() {
     [...props.selectedCategories].forEach((category) => emit('toggleCategory', category));
 }
 
-// Convert boolean | null to segment value
-const hasNotesValue = computed(() => {
-    if (props.hasNotes === true) return 'yes';
-    if (props.hasNotes === false) return 'no';
-    return 'all';
-});
-
-const hasMelodyXmlValue = computed(() => {
-    if (props.hasMelodyXml === true) return 'yes';
-    if (props.hasMelodyXml === false) return 'no';
-    return 'all';
-});
-
 // Current range values
 const currentMin = computed(() => props.filterIndexRange?.min ?? props.indexRange.min);
 const currentMax = computed(() => props.filterIndexRange?.max ?? props.indexRange.max);
 
 const isRangeActive = computed(() => props.filterIndexRange !== null);
-
-// The kit ToggleGroup never emits an empty value (prevent-deselect is its default),
-// so the tri-state can only ever be 'all' | 'yes' | 'no'.
-function onHasNotesChange(value: AcceptableValue | AcceptableValue[]) {
-    if (value === 'yes') emit('setHasNotes', true);
-    else if (value === 'no') emit('setHasNotes', false);
-    else if (value === 'all') emit('setHasNotes', null);
-}
-
-function onHasMelodyXmlChange(value: AcceptableValue | AcceptableValue[]) {
-    if (value === 'yes') emit('setHasMelodyXml', true);
-    else if (value === 'no') emit('setHasMelodyXml', false);
-    else if (value === 'all') emit('setHasMelodyXml', null);
-}
 
 function onRangeUpdate(value: number[] | undefined) {
     if (!value || value.length < 2) return;
