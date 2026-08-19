@@ -1,10 +1,17 @@
 <template>
     <div ref="containerRef" class="relative w-full">
         <!-- Wide scores scroll horizontally inside this container, never the page -->
-        <div
-            ref="notationRef"
-            class="w-full overflow-x-auto overflow-y-hidden [&_svg]:h-auto [&_svg]:max-w-full"
-        ></div>
+        <div class="w-full overflow-x-auto overflow-y-hidden">
+            <!-- The engraving is laid out at the printed page's geometry and
+                 only then scaled into the column, so the systems break where
+                 the book breaks them at every width. Notengröße scales the
+                 picture; it must not reach the layout, or the breaks move. -->
+            <div
+                ref="notationRef"
+                class="[&_svg]:h-auto [&_svg]:w-full"
+                :style="{ width: `${(scale ?? 1) * 100}%` }"
+            ></div>
+        </div>
 
         <div
             v-if="renderError"
@@ -68,7 +75,10 @@ function getOsmdOptions() {
     const s = props.settings;
     const fg = isDarkMode.value ? '#e5e5e5' : undefined; // undefined keeps OSMD's default (black)
     return {
-        autoResize: true,
+        // The host is sized to the print block for every render (see
+        // renderAtPrintGeometry); letting OSMD re-lay-out on resize would
+        // measure the column instead and move the system breaks.
+        autoResize: false,
         backend: 'svg' as const,
         // Song title/composer live in the page header — never render them inside the score.
         drawTitle: false,
@@ -105,7 +115,7 @@ async function initOsmd() {
             if (wasDark !== isDarkMode.value && osmd) {
                 (osmd as any).setOptions(getOsmdOptions());
                 try {
-                    osmd.render();
+                    renderAtPrintGeometry();
                 } catch {
                     // No sheet loaded (blob missing/failed) — OSMD 1.9.9
                     // render() throws without a sheet; nothing to re-render.
@@ -123,19 +133,60 @@ async function initOsmd() {
     }
 }
 
-// Tighten OSMD's default page/system margins for a denser hymnal layout.
-// Also collapse the inter-system gap when lyrics are hidden — otherwise
-// OSMD leaves the space it would have used for lyrics empty.
+// Lay the sheet out on the printed hymnal's page rather than on OSMD's own.
+//
+// The Notenbild is the book's engraving verbatim, and its geometry is the same
+// for all 564 songs: a 249.44pt block holding a 240.96pt system, drawn with a
+// 3.81pt staff space, 8.36pt above the first staff line and ~20.5pt below the
+// last. OSMD measures in units of one staff space and draws it as 10px at
+// zoom 1, which gives the conversion below and lets every print measurement be
+// stated as itself.
+const PRINT_BLOCK_WIDTH_PT = 249.44;
+const PRINT_SYSTEM_WIDTH_PT = 240.96;
+const PRINT_STAFF_SPACE_PT = 3.81;
+const PRINT_SPACE_ABOVE_PT = 8.36;
+const PRINT_SPACE_BELOW_PT = 20.5;
+/** One print point in OSMD pixels (OSMD draws a staff space as 10px at zoom 1) */
+const PX_PER_PT = 10 / PRINT_STAFF_SPACE_PT;
+/** Width the host is given while OSMD lays the sheet out */
+const PRINT_HOST_PX = PRINT_BLOCK_WIDTH_PT * PX_PER_PT;
+/** Page margins in OSMD units, i.e. what is left of the block beside the system */
+const PRINT_SIDE_MARGIN = (PRINT_BLOCK_WIDTH_PT - PRINT_SYSTEM_WIDTH_PT) / 2 / PRINT_STAFF_SPACE_PT;
+
+// Put the sheet on the printed page: its margins, and the system breaks the
+// engraver chose. Also collapse the inter-system gap when lyrics are hidden —
+// otherwise OSMD leaves the space it would have used for lyrics empty.
 function applyEngravingTweaks() {
     if (!osmd) return;
     const rules = (osmd as any).EngravingRules;
     if (!rules) return;
-    rules.PageLeftMargin = 1;
-    rules.PageRightMargin = 1;
-    rules.PageTopMargin = 1;
-    rules.PageBottomMargin = 1;
+    rules.PageLeftMargin = PRINT_SIDE_MARGIN;
+    rules.PageRightMargin = PRINT_SIDE_MARGIN;
+    rules.PageTopMargin = PRINT_SPACE_ABOVE_PT / PRINT_STAFF_SPACE_PT;
+    rules.PageBottomMargin = PRINT_SPACE_BELOW_PT / PRINT_STAFF_SPACE_PT;
     rules.SystemLeftMargin = 0;
     rules.SystemRightMargin = 0;
+
+    // The converter now writes the book's own breaks as <print new-system>.
+    rules.NewSystemAtXMLNewSystemAttribute = true;
+
+    // Honouring those breaks is not enough on its own: OSMD's default note
+    // spacing needs more room for a hymn system than Finale used, so it splits
+    // the requested systems again to make them fit. These lower the width a
+    // system must have, not the width it gets — every system is still
+    // justified to the full block, so the notes end up spaced as before.
+    rules.VoiceSpacingMultiplierVexflow = 0.45;
+    rules.VoiceSpacingAddendVexflow = 0.8;
+
+    // With the notes that close together, OSMD's default 0.2 leaves too little
+    // between two syllables and words touch. This is a floor, not a spacing:
+    // it only widens a note whose lyric needs the room.
+    rules.HorizontalBetweenLyricsDistance = 0.6;
+
+    // Finale justifies the closing system whenever the music fills it, which is
+    // most songs. Left unstretched it is the one system that shows the tightened
+    // spacing raw, and its words end up crowded into the left half.
+    rules.StretchLastSystemLine = true;
 
     const lyricsOn = props.settings?.showLyrics ?? true;
     if (lyricsOn) {
@@ -171,8 +222,7 @@ async function loadAndRender() {
             await osmd.load(text);
         }
 
-        applyScale();
-        osmd.render();
+        renderAtPrintGeometry();
 
         emit('rendered');
 
@@ -225,9 +275,29 @@ async function initPlayback() {
     }
 }
 
-function applyScale() {
-    if (!osmd) return;
-    osmd.Zoom = props.scale ?? 1.0;
+// Render on the print block, then hand the result to the column.
+//
+// OSMD lays out against the width of its host element, so the host is widened
+// to the block for the duration of the render and released afterwards; reading
+// clientWidth inside render() flushes the style, so the two never race. The
+// SVG OSMD writes carries a matching viewBox, so making it fluid scales the
+// whole engraving into the column exactly as the Notenbild's own SVG scales —
+// which is what puts the two views at the same size.
+function renderAtPrintGeometry() {
+    if (!osmd || !notationRef.value) return;
+    const host = notationRef.value;
+    const hostWidth = host.style.width;
+    host.style.width = `${PRINT_HOST_PX}px`;
+    try {
+        osmd.render();
+    } finally {
+        host.style.width = hostWidth;
+    }
+    const svg = host.querySelector('svg');
+    if (svg) {
+        svg.setAttribute('width', '100%');
+        svg.removeAttribute('height');
+    }
 }
 
 async function startPlayback() {
@@ -291,20 +361,9 @@ watch(
     },
 );
 
-watch(
-    () => props.scale,
-    () => {
-        if (osmd && isInitialized) {
-            applyScale();
-            try {
-                osmd.render();
-            } catch {
-                // No sheet loaded (blob missing/failed) — OSMD 1.9.9
-                // render() throws without a sheet; nothing to re-render.
-            }
-        }
-    },
-);
+// Notengröße deliberately has no watcher: it is the host's width in the
+// template, so changing it resizes the drawn engraving without a re-layout —
+// and therefore without moving a single system break.
 
 watch(
     () => props.settings,
@@ -314,7 +373,7 @@ watch(
             (osmd as any).setOptions(getOsmdOptions());
             applyEngravingTweaks();
             try {
-                osmd.render();
+                renderAtPrintGeometry();
             } catch {
                 // No sheet loaded (blob missing/failed) — nothing re-rendered,
                 // so there is no state change to announce.
