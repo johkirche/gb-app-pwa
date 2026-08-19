@@ -83,9 +83,10 @@
                     <span>Keine Melodie verfügbar</span>
                 </div>
 
-                <!-- Song Verses: every verse is listed, including the one the
-                     notation already carries under its notes -->
-                <SongVerses :strophes="song.strophen" />
+                <!-- Song Verses: verse 1 is left out while the vector
+                     Notenbild is on screen — the engraving already carries it
+                     under its notes -->
+                <SongVerses :strophes="song.strophen" :skip-first="lyricsInNotation" />
 
                 <!-- Authors Section -->
                 <SongAuthors :song="song" />
@@ -188,6 +189,16 @@ const hasMelodyImage = computed(() => {
 
 // Check if song has MusicXML notation (.mxl or .musicxml)
 const hasMelodyXml = computed(() => !!song.value?.notentextMxml);
+
+// Whether the notation currently on screen already sings verse 1 under its
+// notes — true for the vector Notenbild, whose Finale export bakes the first
+// verse into the engraving. The raster fallback is left out: those scans are
+// only reached for songs cached before notentext_svg was synced, and what they
+// contain is not known per file. The OSMD view draws lyrics only when the
+// sheet has them and the setting is on, which the renderer no longer reports.
+const lyricsInNotation = computed(
+    () => melodyDisplayMode.value === 'image' && !!melodySvgMarkup.value,
+);
 
 // Load MusicXML blob from stored files (lazily — only when xml mode is active).
 // Falls back to an on-demand network fetch (stored back into Dexie) when the

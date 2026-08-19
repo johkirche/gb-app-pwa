@@ -2,7 +2,7 @@
     <div class="mb-8 flex justify-center">
         <div class="inline-flex flex-col items-start">
             <template v-for="(strophe, idx) in strophes" :key="idx">
-                <div class="mb-6 flex items-baseline gap-3">
+                <div v-if="!(skipFirst && idx === 0)" class="mb-6 flex items-baseline gap-3">
                     <span class="verse-number number-display min-w-6 shrink-0">{{ idx + 1 }}.</span>
                     <div class="flex flex-col">
                         <p class="verse-text m-0 whitespace-pre-line font-display text-foreground">
@@ -30,6 +30,12 @@ interface Strophe {
 
 defineProps<{
     strophes: Strophe[];
+    /**
+     * Leave out verse 1 because the notation on screen already carries it
+     * under its notes. The remaining verses keep their real numbers — the
+     * list is numbered from the index, not from its own position.
+     */
+    skipFirst?: boolean;
 }>();
 
 function getStropheText(strophe: Strophe): string | null | undefined {
