@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
     appendSuffix,
+    authorFilterName,
     buildFooter,
+    buildFooterLines,
     formatAuthorEntry,
     formatAuthorYears,
     formatYearRange,
@@ -229,5 +231,106 @@ describe('buildFooter', () => {
         };
         const lied = { text: { authors: [author] }, melodie: { authors: [author] } };
         expect(buildFooter(lied)).toBe('Text und Melodie: Paul Gerhardt (1607–1676)');
+    });
+});
+
+describe('authorFilterName', () => {
+    it('Vor- und Nachname ohne Jahre, Präfix und Suffix', () => {
+        expect(
+            authorFilterName({
+                autorPrefix: 'nach',
+                vorname: 'Paul',
+                nachname: 'Gerhardt',
+                geburtsjahr: 1607,
+                autorSuffix: '; bearbeitet',
+            }),
+        ).toBe('Paul Gerhardt');
+    });
+    it('fehlender Vorname erzeugt kein führendes Leerzeichen (Issue #23)', () => {
+        expect(authorFilterName({ nachname: 'unbekannt' })).toBe('unbekannt');
+        expect(authorFilterName({ vorname: null, nachname: 'unbekannt' })).toBe('unbekannt');
+    });
+    it('ohne Namen -> leer (nicht filterbar)', () => {
+        expect(authorFilterName({ autorSuffix: '; aus dem Liederschatz' })).toBe('');
+        expect(authorFilterName(null)).toBe('');
+    });
+});
+
+describe('buildFooterLines', () => {
+    const koehler = { vorname: 'Eberhard', nachname: 'Köhler', geburtsjahr: 1927 };
+    const lehmann = { vorname: 'Siegfried', nachname: 'Lehmann', geburtsjahr: 1932 };
+
+    it('Segmente einer Zeile ergeben aneinandergehängt die Textzeile', () => {
+        const lied = {
+            copyright: 'Verlag Merseburger',
+            text: { authors: [koehler, lehmann] },
+            melodie: { authors: [lehmann], copyright: 'Melodieverlag' },
+        };
+        const lines = buildFooterLines(lied);
+        expect(lines.map((l) => l.segments.map((s) => s.text).join(''))).toEqual(
+            buildFooter(lied).split('\n'),
+        );
+        expect(lines.map((l) => l.kind)).toEqual(['text', 'melodie', 'copyright']);
+    });
+
+    it('jeder Autor bekommt ein eigenes Segment mit seinem Objekt', () => {
+        const [textLine] = buildFooterLines({ text: { authors: [koehler, lehmann] } });
+        expect(textLine.segments.map((s) => s.text)).toEqual([
+            'Text: ',
+            'Eberhard Köhler (1927)',
+            ', ',
+            'Siegfried Lehmann (1932)',
+        ]);
+        expect(textLine.segments.filter((s) => s.author).map((s) => s.author)).toEqual([
+            koehler,
+            lehmann,
+        ]);
+    });
+
+    it('Label, Copyright und Extra-Suffix sind keine Autoren-Segmente', () => {
+        const [line] = buildFooterLines({
+            melodie: { authors: [lehmann], copyright: 'Melodieverlag' },
+            melodieAutorExtraSuffix: '„Bitte Gott allezeit“',
+        });
+        expect(line.segments.map((s) => s.text)).toEqual([
+            'Melodie: ',
+            'Siegfried Lehmann (1932)',
+            ' „Bitte Gott allezeit“',
+            ' © Melodieverlag',
+        ]);
+        expect(line.segments.filter((s) => s.author)).toHaveLength(1);
+    });
+
+    it('der Ursprungsautor bleibt unklickbar – er steht in keinem Lied als Autor', () => {
+        const [line] = buildFooterLines({
+            text: {
+                authors: [
+                    {
+                        vorname: 'Max',
+                        nachname: 'Mustermann',
+                        ursprungsAutorObj: { nachname: 'Bach', geburtsjahr: 1685 },
+                    },
+                ],
+            },
+        });
+        expect(line.segments.map((s) => s.text)).toEqual([
+            'Text: ',
+            'Max Mustermann',
+            ' Bach (1685)',
+        ]);
+        expect(line.segments.filter((s) => s.author).map((s) => s.text)).toEqual([
+            'Max Mustermann',
+        ]);
+    });
+
+    it('"Text und Melodie" trägt die Autoren einmal – dort klickbar', () => {
+        const lied = { text: { authors: [koehler] }, melodie: { authors: [koehler] } };
+        const [line] = buildFooterLines(lied);
+        expect(line.kind).toBe('textUndMelodie');
+        expect(line.segments.map((s) => s.text)).toEqual([
+            'Text und Melodie: ',
+            'Eberhard Köhler (1927)',
+        ]);
+        expect(line.segments[1].author).toBe(koehler);
     });
 });
