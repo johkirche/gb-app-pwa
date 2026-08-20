@@ -10,7 +10,21 @@
                 aria-hidden="true"
             />
             <span :class="line.isCopyright ? 'text-sm text-muted-foreground' : 'text-foreground'">
-                {{ line.text }}
+                <!-- Named authors are the way into the list: tapping one shows
+                     every song of theirs. Everything else on the line (label,
+                     copyright, Ursprungsautor) stays plain text. -->
+                <template v-for="(segment, segIdx) in line.segments" :key="segIdx">
+                    <button
+                        v-if="segment.filterName"
+                        type="button"
+                        class="break-words text-left underline decoration-dotted underline-offset-[3px] transition-colors hover:text-primary active:text-primary"
+                        :aria-label="`Lieder von ${segment.filterName} anzeigen`"
+                        @click="showSongsOfAuthor(segment.filterName)"
+                    >
+                        {{ segment.text }}
+                    </button>
+                    <template v-else>{{ segment.text }}</template>
+                </template>
             </span>
         </div>
     </div>
@@ -20,39 +34,49 @@
 import { type Component, computed } from 'vue';
 
 import { FileText, Music2 } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
 
 import type { Song } from '@/db';
-import { buildFooter } from '@/utils/authorFormat';
+import { type FooterLineKind, authorFilterName, buildFooterLines } from '@/utils/authorFormat';
 
 const props = defineProps<{
     song: Song;
 }>();
 
-function lineIcon(line: string): Component | null {
-    if (line.startsWith('Text:')) return FileText;
-    if (line.startsWith('Melodie:') || line.startsWith('Text und Melodie:')) {
-        return Music2;
-    }
-    // Copyright lines ("© …") get a plain muted row without icon
-    return null;
-}
+const router = useRouter();
+
+const lineIcons: Partial<Record<FooterLineKind, Component>> = {
+    text: FileText,
+    melodie: Music2,
+    textUndMelodie: Music2,
+};
 
 // Canonical footer grammar shared with the dashboard (utils/authorFormat):
 //   Text: … / Melodie: … / "Text und Melodie: …" when identical, then "© …".
+// Taken as segments rather than as text so each author keeps its own piece of
+// the line — that piece is what becomes tappable.
 const footerLines = computed(() =>
-    buildFooter({
+    buildFooterLines({
         copyright: props.song.copyright,
         textAutorExtraSuffix: props.song.textAutorExtraSuffix,
         melodieAutorExtraSuffix: props.song.melodieAutorExtraSuffix,
         text: { authors: props.song.textAutoren, copyright: props.song.textCopyright },
         melodie: { authors: props.song.melodieAutoren, copyright: props.song.melodieCopyright },
-    })
-        .split('\n')
-        .filter(Boolean)
-        .map((text) => ({
-            text,
-            icon: lineIcon(text),
-            isCopyright: text.startsWith('©'),
+    }).map((line) => ({
+        icon: lineIcons[line.kind] ?? null,
+        isCopyright: line.kind === 'copyright',
+        segments: line.segments.map((segment) => ({
+            text: segment.text,
+            // Authors without a name (a bare "unbekannt" suffix, say) have
+            // nothing to filter by and stay plain text.
+            filterName: authorFilterName(segment.author),
         })),
+    })),
 );
+
+// Hand the name to the song list, which filters by it. The list is a tab root,
+// so this is a normal navigation — the back gesture returns to the song.
+function showSongsOfAuthor(name: string) {
+    router.push({ path: '/tabs/lieder', query: { autor: name } });
+}
 </script>
