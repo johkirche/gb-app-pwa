@@ -151,59 +151,6 @@
                             />
                         </div>
                     </div>
-
-                    <!-- What the sheet shows while it is being played. The
-                         preview above the switches answers to them, so what it
-                         shows is what the page will do. -->
-                    <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
-                        Wiedergabe
-                    </p>
-                    <div class="space-y-4 px-1 py-1">
-                        <div class="rounded-md border border-border bg-muted/40 px-3 py-2">
-                            <SongPlaybackPreview
-                                :highlight-notes="xmlSettings.highlightNotes"
-                                :show-playhead="xmlSettings.showPlayhead"
-                            />
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <Label for="song-highlight-notes" class="flex items-center gap-2.5">
-                                <Highlighter
-                                    class="size-4 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                Noten hervorheben
-                            </Label>
-                            <Switch
-                                id="song-highlight-notes"
-                                :model-value="xmlSettings.highlightNotes"
-                                @update:model-value="
-                                    $emit('update:xmlSetting', {
-                                        key: 'highlightNotes',
-                                        value: $event,
-                                    })
-                                "
-                            />
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <Label for="song-show-playhead" class="flex items-center gap-2.5">
-                                <SeparatorVertical
-                                    class="size-4 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                Abspielbalken
-                            </Label>
-                            <Switch
-                                id="song-show-playhead"
-                                :model-value="xmlSettings.showPlayhead"
-                                @update:model-value="
-                                    $emit('update:xmlSetting', {
-                                        key: 'showPlayhead',
-                                        value: $event,
-                                    })
-                                "
-                            />
-                        </div>
-                    </div>
                 </template>
             </div>
         </PopoverContent>
@@ -222,20 +169,10 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 
-import {
-    Highlighter,
-    Image as ImageIcon,
-    List,
-    ListMusic,
-    Music,
-    SeparatorVertical,
-    Settings,
-    Type,
-} from 'lucide-vue-next';
+import { Image as ImageIcon, List, ListMusic, Music, Settings, Type } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
-import SongPlaybackPreview from '@/components/songview/SongPlaybackPreview.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

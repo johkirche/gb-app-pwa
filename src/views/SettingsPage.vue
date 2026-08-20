@@ -140,6 +140,82 @@
                     <Separator />
                 </section>
 
+                <!-- Wiedergabe: what the engraving shows while a song plays.
+                     The preview above the switches answers to them, so what it
+                     shows is what the song page will do. -->
+                <section>
+                    <div class="flex items-center gap-3 px-2">
+                        <h2 class="label-micro shrink-0 text-gold">Wiedergabe</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-1 divide-y divide-border">
+                        <div class="px-2 py-3">
+                            <div
+                                class="mx-auto w-full max-w-sm rounded-md border border-border bg-muted/40 px-3 py-2"
+                            >
+                                <SongPlaybackPreview
+                                    :highlight-notes="playbackMarks.highlightNotes"
+                                    :show-playhead="playbackMarks.showPlayhead"
+                                />
+                            </div>
+                            <p class="mt-3 text-center text-sm text-muted-foreground">
+                                Gilt für die MusicXML-Ansicht.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-4 px-2 py-3">
+                            <div class="flex min-w-0 items-center gap-4">
+                                <Highlighter
+                                    class="size-5 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <div class="min-w-0">
+                                    <Label
+                                        for="settings-highlight-notes"
+                                        class="text-[15px] font-normal"
+                                    >
+                                        Noten hervorheben
+                                    </Label>
+                                    <p class="text-sm text-muted-foreground">
+                                        Die klingende Note und ihre Silbe farbig
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                id="settings-highlight-notes"
+                                :model-value="playbackMarks.highlightNotes"
+                                @update:model-value="setPlaybackMark('highlightNotes', $event)"
+                            />
+                        </div>
+
+                        <div class="flex items-center justify-between gap-4 px-2 py-3">
+                            <div class="flex min-w-0 items-center gap-4">
+                                <SeparatorVertical
+                                    class="size-5 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <div class="min-w-0">
+                                    <Label
+                                        for="settings-show-playhead"
+                                        class="text-[15px] font-normal"
+                                    >
+                                        Abspielbalken
+                                    </Label>
+                                    <p class="text-sm text-muted-foreground">
+                                        Ein Balken, der mit der Musik über das System läuft
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                id="settings-show-playhead"
+                                :model-value="playbackMarks.showPlayhead"
+                                @update:model-value="setPlaybackMark('showPlayhead', $event)"
+                            />
+                        </div>
+                    </div>
+                    <Separator />
+                </section>
+
                 <!-- Daten -->
                 <section>
                     <div class="flex items-center gap-3 px-2">
@@ -387,10 +463,12 @@ import {
     Contrast,
     Download,
     FileText,
+    Highlighter,
     Image,
     Info,
     LogOut,
     Mail,
+    SeparatorVertical,
     Server,
     ShieldCheck,
     Smartphone,
@@ -414,6 +492,7 @@ import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { useTheme } from '@/composables/useTheme';
 
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import SongPlaybackPreview from '@/components/songview/SongPlaybackPreview.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -435,6 +514,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import { SUPPORT_EMAIL } from '@/config/support';
@@ -481,6 +561,14 @@ const melodyDisplayMode = computed<AcceptableValue>({
         }
     },
 });
+
+// What the engraving marks while a song plays. Both live with the other
+// MusicXML settings, so the song page picks them up through the same store.
+const playbackMarks = computed(() => preferencesStore.xmlSettings);
+
+function setPlaybackMark(key: 'highlightNotes' | 'showPlayhead', value: boolean) {
+    preferencesStore.setXmlSetting(key, value);
+}
 
 // Data counts
 const songsCount = computed(() => songsStore.songs.length);
