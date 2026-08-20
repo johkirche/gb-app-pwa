@@ -101,6 +101,83 @@
             </p>
         </div>
 
+        <!-- Autoren -->
+        <div class="border-t border-border px-4 pb-8 pt-4 lg:pb-4">
+            <div class="mb-2 flex items-baseline justify-between gap-2">
+                <span class="label-micro text-gold">Autoren</span>
+                <button
+                    v-if="selectedAuthors.length"
+                    type="button"
+                    class="shrink-0 text-xs text-primary"
+                    @click="clearAuthors"
+                >
+                    {{ selectedAuthors.length }} ausgewählt · zurücksetzen
+                </button>
+            </div>
+
+            <div class="mb-3 flex cursor-text items-center gap-2 rounded-lg bg-muted px-3">
+                <Search class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <input
+                    v-model="authorQuery"
+                    type="text"
+                    class="min-w-0 flex-1 bg-transparent py-2 text-[16px] text-foreground outline-none placeholder:text-muted-foreground"
+                    placeholder="Autor suchen…"
+                />
+                <button
+                    v-if="authorQuery"
+                    type="button"
+                    class="inline-flex shrink-0 text-muted-foreground"
+                    aria-label="Suche löschen"
+                    @click="authorQuery = ''"
+                >
+                    <CircleX class="h-4 w-4" aria-hidden="true" />
+                </button>
+            </div>
+
+            <div v-if="visibleAuthors.length" class="flex flex-wrap gap-2">
+                <button
+                    v-for="author in visibleAuthors"
+                    :key="author.value"
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm leading-tight transition-colors"
+                    :class="
+                        selectedAuthors.includes(author.value)
+                            ? 'border-primary/50 bg-accent font-medium text-accent-foreground'
+                            : 'border-border bg-transparent text-foreground hover:border-primary/40 hover:bg-muted'
+                    "
+                    :aria-pressed="selectedAuthors.includes(author.value)"
+                    @click="$emit('toggleAuthor', author.value)"
+                >
+                    <User class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span class="font-medium">{{ author.label }}</span>
+                    <span
+                        class="text-xs tabular-nums"
+                        :class="
+                            selectedAuthors.includes(author.value)
+                                ? 'text-accent-foreground/70'
+                                : 'text-muted-foreground'
+                        "
+                    >
+                        {{ author.count }}
+                    </span>
+                </button>
+            </div>
+
+            <p v-else class="py-6 text-center text-sm text-muted-foreground">
+                {{ availableAuthors.length ? 'Kein Autor gefunden' : 'Keine Autoren verfügbar' }}
+            </p>
+
+            <Button
+                v-if="hiddenAuthorCount > 0"
+                variant="ghost"
+                size="sm"
+                class="mt-3 w-full text-primary"
+                @click="showAllAuthors = true"
+            >
+                Alle {{ availableAuthors.length }} Autoren anzeigen
+            </Button>
+        </div>
+
         <!-- Liednummer -->
         <div class="border-t border-border px-4 pb-10 pt-4 lg:pb-5">
             <p class="label-micro mb-4 text-gold">Liednummer</p>
@@ -137,7 +214,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { CircleX, RotateCcw, Search } from 'lucide-vue-next';
+import { CircleX, RotateCcw, Search, User } from 'lucide-vue-next';
 
 import type { FilterOption } from '@/composables/useSongFiltering';
 
@@ -154,6 +231,8 @@ const props = defineProps<{
     anchor?: PanelAnchor;
     availableCategories: FilterOption[];
     selectedCategories: string[];
+    availableAuthors: FilterOption[];
+    selectedAuthors: string[];
     filterIndexRange: { min: number; max: number } | null;
     indexRange: { min: number; max: number };
     hasActiveFilters: boolean;
@@ -162,6 +241,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'close'): void;
     (e: 'toggleCategory', category: string): void;
+    (e: 'toggleAuthor', author: string): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
     (e: 'clearAll'): void;
 }>();
@@ -183,6 +263,43 @@ function clearCategories() {
     // Deselect every currently selected category (copy first — toggling mutates
     // the parent's array via the emitted events)
     [...props.selectedCategories].forEach((category) => emit('toggleCategory', category));
+}
+
+// Author quick-search. The hymnal names hundreds of authors, far too many to
+// pour into the sheet at once — the list opens on the ones carrying the most
+// songs, and the search box (or one tap on "alle") reaches the rest.
+const authorQuery = ref('');
+const showAllAuthors = ref(false);
+const AUTHOR_PREVIEW_COUNT = 24;
+
+const filteredAuthors = computed(() => {
+    const query = authorQuery.value.trim().toLowerCase();
+    if (!query) return props.availableAuthors;
+    return props.availableAuthors.filter((a) => a.label.toLowerCase().includes(query));
+});
+
+const visibleAuthors = computed(() => {
+    if (showAllAuthors.value || authorQuery.value.trim()) return filteredAuthors.value;
+
+    const preview = [...filteredAuthors.value]
+        .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+        .slice(0, AUTHOR_PREVIEW_COUNT);
+
+    // A selected author always stays in view, even outside the preview — a
+    // filter you cannot see is a filter you cannot switch off.
+    const selected = filteredAuthors.value.filter(
+        (a) => props.selectedAuthors.includes(a.value) && !preview.includes(a),
+    );
+    return [...selected, ...preview];
+});
+
+const hiddenAuthorCount = computed(
+    () => filteredAuthors.value.length - visibleAuthors.value.length,
+);
+
+function clearAuthors() {
+    // Same reason as clearCategories: toggling mutates the parent's array
+    [...props.selectedAuthors].forEach((author) => emit('toggleAuthor', author));
 }
 
 // Current range values

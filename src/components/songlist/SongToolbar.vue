@@ -141,6 +141,18 @@
                 </button>
 
                 <button
+                    v-for="author in selectedAuthors"
+                    :key="author"
+                    type="button"
+                    :class="[chipBase, 'border-transparent bg-accent text-accent-foreground']"
+                    @click="$emit('toggleAuthor', author)"
+                >
+                    <User class="h-3 w-3" aria-hidden="true" />
+                    <span>{{ truncate(author, 18) }}</span>
+                    <CircleX class="h-3 w-3 opacity-70" aria-hidden="true" />
+                </button>
+
+                <button
                     v-if="filterIndexRange"
                     type="button"
                     :class="[chipBase, 'border-gold/40 text-gold']"
@@ -175,6 +187,7 @@ import {
     Search,
     SlidersHorizontal,
     Tag,
+    User,
     X,
 } from 'lucide-vue-next';
 
@@ -189,6 +202,7 @@ const props = withDefaults(
         title: string;
         searchQuery: string;
         selectedCategories: string[];
+        selectedAuthors: string[];
         filterIndexRange: { min: number; max: number } | null;
         activeFilterCount: number;
         hasActiveFilters: boolean;
@@ -209,6 +223,7 @@ const emit = defineEmits<{
     (e: 'openFilters', anchor: PanelAnchor): void;
     (e: 'openSort', anchor: PanelAnchor): void;
     (e: 'toggleCategory', category: string): void;
+    (e: 'toggleAuthor', author: string): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
 }>();
 
@@ -223,7 +238,7 @@ function onOpenSort(event: MouseEvent) {
 }
 
 // Shared chip styling; the color classes keep the original filter-type distinction
-// (search = primary, category = secondary, boolean/range = flourish gold).
+// (search = primary, category = secondary, author = accent, range = flourish gold).
 const chipBase =
     'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors';
 
@@ -255,7 +270,10 @@ watch(
 // Show filter chips when there are active filters or search
 const showFilterChips = computed(() => {
     return (
-        props.searchQuery || props.selectedCategories.length > 0 || props.filterIndexRange !== null
+        props.searchQuery ||
+        props.selectedCategories.length > 0 ||
+        props.selectedAuthors.length > 0 ||
+        props.filterIndexRange !== null
     );
 });
 

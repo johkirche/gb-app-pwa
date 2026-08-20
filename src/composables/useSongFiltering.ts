@@ -1,6 +1,7 @@
 import { type Ref, computed, ref } from 'vue';
 
 import type { Song } from '@/db';
+import { authorFilterName } from '@/utils/authorFormat';
 
 export interface FilterState {
     searchQuery: string;
@@ -81,7 +82,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
 
         for (const song of songs.value) {
             for (const author of [...song.textAutoren, ...song.melodieAutoren]) {
-                const fullName = `${author.vorname} ${author.nachname}`.trim();
+                const fullName = authorFilterName(author);
                 if (fullName) {
                     authorCount.set(fullName, (authorCount.get(fullName) || 0) + 1);
                 }
@@ -159,10 +160,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         if (f.selectedAuthors.length > 0) {
             result = result.filter((song) => {
                 const allAuthors = [...song.textAutoren, ...song.melodieAutoren];
-                return allAuthors.some((a) => {
-                    const fullName = `${a.vorname} ${a.nachname}`.trim();
-                    return f.selectedAuthors.includes(fullName);
-                });
+                return allAuthors.some((a) => f.selectedAuthors.includes(authorFilterName(a)));
             });
         }
 
@@ -200,6 +198,13 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         }
     }
 
+    // Replaces the whole author selection. This is what a deep link uses (a tap
+    // on an author in the song view): it shows that one author, rather than
+    // adding them to whatever was selected before.
+    function setAuthors(authorNames: string[]) {
+        filters.value.selectedAuthors = [...authorNames];
+    }
+
     function clearAllFilters() {
         filters.value = createDefaultFilters();
     }
@@ -228,6 +233,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         toggleCategory,
         setIndexRange,
         toggleAuthor,
+        setAuthors,
         clearAllFilters,
         clearFiltersKeepSearch,
     };

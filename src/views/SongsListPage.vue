@@ -8,6 +8,7 @@
             :show-back="false"
             :search-query="filters.searchQuery"
             :selected-categories="filters.selectedCategories"
+            :selected-authors="filters.selectedAuthors"
             :filter-index-range="filters.indexRange"
             :active-filter-count="activeFilterCount"
             :has-active-filters="hasActiveFilters"
@@ -19,6 +20,7 @@
             @open-filters="toggleFilters"
             @open-sort="toggleSortOptions"
             @toggle-category="toggleCategory"
+            @toggle-author="toggleAuthor"
             @set-index-range="setIndexRange"
         />
 
@@ -181,11 +183,14 @@
             :anchor="filterAnchor"
             :available-categories="availableCategories"
             :selected-categories="filters.selectedCategories"
+            :available-authors="availableAuthors"
+            :selected-authors="filters.selectedAuthors"
             :filter-index-range="filters.indexRange"
             :index-range="indexRange"
             :has-active-filters="hasActiveFilters"
             @close="showFilters = false"
             @toggle-category="toggleCategory"
+            @toggle-author="toggleAuthor"
             @set-index-range="setIndexRange"
             @clear-all="clearFiltersKeepSearch"
         />
@@ -219,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 import type { FunctionalComponent } from 'vue';
 
 import {
@@ -232,7 +237,7 @@ import {
     Search,
 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { useFavoritesStore } from '@/stores/favorites';
 import { useSongsStore } from '@/stores/songs';
@@ -257,6 +262,7 @@ const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
 const { songs, isLoading, error, lastSyncTime, hasSongs } = storeToRefs(songsStore);
 const router = useRouter();
+const route = useRoute();
 
 // The page's single scroll container
 const scrollRef = ref<HTMLElement | null>(null);
@@ -271,14 +277,40 @@ const {
     hasActiveFilters,
     activeFilterCount,
     availableCategories,
+    availableAuthors,
     indexRange,
     setSearchQuery,
     clearSearch,
     toggleCategory,
     setIndexRange,
+    toggleAuthor,
+    setAuthors,
     clearAllFilters,
     clearFiltersKeepSearch,
 } = useSongFiltering(songs);
+
+// Deep link from the song view: /tabs/lieder?autor=<Name> shows that author's
+// songs. The parameter is a one-shot intent — it is applied and then dropped
+// from the URL, because the filter itself lives on in this page (the tab shell
+// is kept alive across a trip to a song). Leaving it in the URL would let a
+// later back-navigation restore a filter the user has since cleared.
+watch(() => route.query.autor, applyAuthorFromQuery, { immediate: true });
+
+function applyAuthorFromQuery() {
+    if (route.name !== 'Songs') return;
+
+    const raw = route.query.autor;
+    const authors = (Array.isArray(raw) ? raw : [raw]).filter((name): name is string => !!name);
+    if (!authors.length) return;
+
+    // A fresh intent: show exactly this author, not the intersection with
+    // whatever was still filtered from before.
+    clearAllFilters();
+    setAuthors(authors);
+
+    const { autor: _autor, ...rest } = route.query;
+    router.replace({ path: route.path, query: rest });
+}
 
 // Sorting - applied to filtered songs
 const { sortMode, showHeaders, showIndexScroll, sortedSections, indexItems } =
