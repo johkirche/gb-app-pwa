@@ -6,6 +6,29 @@
 /* --- Self-hosted fonts (precached by the PWA, no external requests) --- */
 @import '@fontsource-variable/albert-sans';
 @import '@fontsource-variable/albert-sans/wght-italic.css';
+/* Optima LT Std — the face the printed hymnal is set in, for both the lyrics
+   under the notes and the verses beside them. The Notenbild carries it baked
+   into outlines, so the text around it can only match by using the real thing.
+   Registered under an own family name: a reader with "Optima LT Std" installed
+   locally must not silently get a different cut than the engraving does.
+   The italic is here for the per-verse notes; bold has no use on the song page
+   and every face shipped is one the offline precache carries. */
+@font-face {
+    font-family: 'GbOptima';
+    src: url('../assets/font/OptimaLTStd.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'GbOptima';
+    src: url('../assets/font/OptimaLTStd-Italic.otf') format('opentype');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
 /* Latin subsets only — the app is German; other subsets would bloat the offline precache */
 @import '@fontsource/cormorant-garamond/latin-400.css';
 @import '@fontsource/cormorant-garamond/latin-ext-400.css';
@@ -66,8 +89,21 @@
        it reads as a poster instead of a hymnal, so it stops near printed size.
        On phone widths the cap never bites. */
     --notation-max: 40rem;
+    /* The printed page in one number.
+       Optima is set at 2.83 staff spaces in the book, and a staff space is
+       3.81pt of a 249.44pt block — so the verse type is the notation's width
+       over 23.13, whatever that width happens to be. The same number is the
+       column's measure: 23.13 of those ems is the notation's width again,
+       which is how the book has it — the verses sit in the very column the
+       systems occupy. Textgroesse multiplies both, so it widens the column
+       rather than re-wrapping the lines, until the device has no width left
+       to give and .verse-col's own `width: 100%` takes over. */
+    --verse-measure: 23.13;
     --font-sans: 'Albert Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+    /* The hymnal's own face, for the text that sits with the notation. The
+       fallbacks are the humanist sans closest to Optima on each platform. */
+    --font-hymnal: 'GbOptima', Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif;
 }
 
 .dark {
@@ -129,6 +165,9 @@
 
     --font-sans: var(--font-sans);
     --font-display: var(--font-display);
+    /* Also re-exported here so the token survives: a --font-* variable that no
+       theme entry references is treated as an unused theme value and dropped. */
+    --font-hymnal: var(--font-hymnal);
 
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
@@ -264,6 +303,16 @@
         margin-inline: auto;
         width: 100%;
         max-width: var(--notation-max);
+    }
+
+    /* The verses and the credits below them share one measure, the way the
+       printed page shares one column between the notation and the text. It
+       tracks Textgröße through --verse-measure, so it is stated once here and
+       used by both blocks. */
+    .verse-col {
+        margin-inline: auto;
+        width: 100%;
+        max-width: calc(var(--verse-measure) * var(--verse-font-size, 1.125rem));
     }
 
     /* Uppercase micro-label — the editorial section/eyebrow style from the mockup */

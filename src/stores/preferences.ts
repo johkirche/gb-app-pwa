@@ -4,23 +4,42 @@ import { defineStore } from 'pinia';
 
 import { type MelodyDisplayMode, type XmlDisplaySettings, db } from '@/db';
 
-export interface PreferencesData {
-    id: string;
-    notationScale: number; // Scale factor for music notation (0.5 - 2.0)
-    textSize: 'small' | 'medium' | 'large' | 'xlarge'; // Text size for song lyrics
-    melodyDisplayMode: MelodyDisplayMode; // Display mode: image or MusicXML (OSMD)
-    xmlSettings?: XmlDisplaySettings;
-}
-
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
     showLyrics: true,
 };
 
+const MIN_PAGE_SCALE = 0.5;
+const MAX_PAGE_SCALE = 2.0;
+
+/** What the retired Textgröße steps were worth, as factors of the default. */
+const LEGACY_TEXT_SIZE_SCALE = {
+    small: 0.889,
+    medium: 1,
+    large: 1.167,
+    xlarge: 1.333,
+} as const;
+
+// Notengröße and Textgröße were two controls over one thing: the verses are set
+// at the size of the lyrics under the notes, so sizing them apart only ever
+// pulled the page out of proportion. Whichever of the two a reader had actually
+// moved is what they meant by "bigger", so that is what carries over.
+function migrateLegacyScale(prefs: {
+    notationScale?: number;
+    textSize?: keyof typeof LEGACY_TEXT_SIZE_SCALE;
+}): number {
+    if (typeof prefs.notationScale === 'number' && prefs.notationScale !== 1) {
+        return prefs.notationScale;
+    }
+    if (prefs.textSize && prefs.textSize in LEGACY_TEXT_SIZE_SCALE) {
+        return LEGACY_TEXT_SIZE_SCALE[prefs.textSize];
+    }
+    return 1;
+}
+
 export const usePreferencesStore = defineStore('preferences', () => {
     // State
-    const notationScale = ref<number>(1.0); // Default scale
-    const textSize = ref<'small' | 'medium' | 'large' | 'xlarge'>('medium'); // Default text size
+    const pageScale = ref<number>(1.0); // One size for notation and verses alike
     const melodyDisplayMode = ref<MelodyDisplayMode>('xml'); // Default to MusicXML notation
     const xmlSettings = ref<XmlDisplaySettings>({ ...DEFAULT_XML_SETTINGS });
     const isLoading = ref(false);
@@ -33,8 +52,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             // Load preferences from IndexedDB
             const prefs = await db.preferences.get('default');
             if (prefs) {
-                notationScale.value = prefs.notationScale;
-                textSize.value = prefs.textSize;
+                pageScale.value = prefs.pageScale ?? migrateLegacyScale(prefs);
                 // Migrate legacy 'abc' mode (ABC player removed) to MusicXML
                 const storedMode = prefs.melodyDisplayMode as MelodyDisplayMode | 'abc' | undefined;
                 melodyDisplayMode.value = storedMode && storedMode !== 'abc' ? storedMode : 'xml';
@@ -50,8 +68,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     async function persist() {
         await db.preferences.put({
             id: 'default',
-            notationScale: notationScale.value,
-            textSize: textSize.value,
+            pageScale: pageScale.value,
             melodyDisplayMode: melodyDisplayMode.value,
             // Spread to a plain object: IndexedDB cannot structured-clone the
             // reactive proxy behind xmlSettings.value (DataCloneError).
@@ -59,23 +76,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
         });
     }
 
-    async function setNotationScale(scale: number) {
+    async function setPageScale(scale: number) {
         try {
-            const clampedScale = Math.max(0.5, Math.min(2.0, scale));
-            notationScale.value = clampedScale;
+            pageScale.value = Math.max(MIN_PAGE_SCALE, Math.min(MAX_PAGE_SCALE, scale));
             await persist();
         } catch (err) {
-            console.error('Error saving notation scale:', err);
-            throw err;
-        }
-    }
-
-    async function setTextSize(size: 'small' | 'medium' | 'large' | 'xlarge') {
-        try {
-            textSize.value = size;
-            await persist();
-        } catch (err) {
-            console.error('Error saving text size:', err);
+            console.error('Error saving page scale:', err);
             throw err;
         }
     }
@@ -108,8 +114,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // exists, so the previous user's settings would survive in memory.
     async function resetToDefaults(): Promise<void> {
         await db.preferences.delete('default');
-        notationScale.value = 1.0;
-        textSize.value = 'medium';
+        pageScale.value = 1.0;
         melodyDisplayMode.value = 'xml';
         xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
     }
@@ -119,16 +124,14 @@ export const usePreferencesStore = defineStore('preferences', () => {
 
     return {
         // State
-        notationScale,
-        textSize,
+        pageScale,
         melodyDisplayMode,
         xmlSettings,
         isLoading,
 
         // Actions
         loadPreferences,
-        setNotationScale,
-        setTextSize,
+        setPageScale,
         setMelodyDisplayMode,
         setXmlSetting,
         resetToDefaults,

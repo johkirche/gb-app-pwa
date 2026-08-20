@@ -88,29 +88,6 @@
 
                         <div class="flex items-center justify-between gap-4 px-2 py-3">
                             <div class="flex min-w-0 items-center gap-4">
-                                <Type
-                                    class="size-5 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                <Label for="settings-text-size" class="text-[15px] font-normal">
-                                    Textgröße (Lieder)
-                                </Label>
-                            </div>
-                            <Select v-model="songFontSize">
-                                <SelectTrigger id="settings-text-size" class="w-36 shrink-0">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="small">Klein</SelectItem>
-                                    <SelectItem value="medium">Normal</SelectItem>
-                                    <SelectItem value="large">Groß</SelectItem>
-                                    <SelectItem value="xlarge">Sehr groß</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-4 px-2 py-3">
-                            <div class="flex min-w-0 items-center gap-4">
                                 <Image
                                     class="size-5 shrink-0 text-muted-foreground"
                                     aria-hidden="true"
@@ -130,27 +107,30 @@
                             </Select>
                         </div>
 
+                        <!-- One size for the song page: notation and verses
+                             alike. They are set at the same size in the book,
+                             so two controls could only pull them apart. -->
                         <div class="px-2 py-3">
                             <div class="flex items-center justify-between gap-4">
                                 <div class="flex items-center gap-4">
-                                    <Music
+                                    <Type
                                         class="size-5 shrink-0 text-muted-foreground"
                                         aria-hidden="true"
                                     />
-                                    <p class="text-[15px]">Notengröße</p>
+                                    <p class="text-[15px]">Größe (Lieder)</p>
                                 </div>
                                 <span class="number-display text-lg leading-none">
-                                    {{ Math.round(notationScale * 100) }}%
+                                    {{ Math.round(pageScale * 100) }}%
                                 </span>
                             </div>
                             <div class="mt-4 flex items-center gap-3">
                                 <span class="shrink-0 text-xs text-muted-foreground">50%</span>
                                 <Slider
-                                    v-model="notationScaleSlider"
+                                    v-model="pageScaleSlider"
                                     :min="0.5"
                                     :max="2"
                                     :step="0.1"
-                                    aria-label="Notengröße"
+                                    aria-label="Größe (Lieder)"
                                     class="flex-1"
                                 />
                                 <span class="shrink-0 text-xs text-muted-foreground">200%</span>
@@ -411,7 +391,6 @@ import {
     Info,
     LogOut,
     Mail,
-    Music,
     Server,
     ShieldCheck,
     Smartphone,
@@ -483,22 +462,14 @@ const appVersion = ref('1.0.0');
 
 // Appearance settings
 const themeMode = ref<'system' | 'light' | 'dark'>('system');
-const songFontSize = computed<AcceptableValue>({
-    get: () => preferencesStore.textSize,
-    set: (value) => {
-        if (value === 'small' || value === 'medium' || value === 'large' || value === 'xlarge') {
-            preferencesStore.setTextSize(value);
-        }
-    },
-});
-const notationScale = computed(() => preferencesStore.notationScale);
+const pageScale = computed(() => preferencesStore.pageScale);
 // Reka's Slider works on number[] (multi-thumb capable) — bridge to the scalar store value.
-const notationScaleSlider = computed<number[] | undefined>({
-    get: () => [preferencesStore.notationScale],
+const pageScaleSlider = computed<number[] | undefined>({
+    get: () => [preferencesStore.pageScale],
     set: (value) => {
         const scale = value?.[0];
         if (typeof scale === 'number') {
-            preferencesStore.setNotationScale(scale);
+            preferencesStore.setPageScale(scale);
         }
     },
 });

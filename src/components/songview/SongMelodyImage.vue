@@ -1,5 +1,5 @@
 <template>
-    <div class="notation-col mb-6">
+    <div ref="containerRef" class="notation-col mb-6">
         <div
             v-if="isLoading"
             class="flex flex-col items-center justify-center gap-2 rounded-lg bg-muted p-8 text-center"
@@ -8,15 +8,24 @@
             <p class="text-sm text-muted-foreground">Notenbild wird geladen...</p>
         </div>
 
-        <!-- Vector Notenbild, inlined so the engraving takes the theme's ink -->
-        <!-- eslint-disable-next-line vue/no-v-html -- sanitizeNotationSvg strips the markup to drawing primitives -->
+        <!-- Vector Notenbild, inlined so the engraving takes the theme's ink.
+             The scale grows the box out of the column and into the page's free
+             width, the same way the MusicXML view grows — one control, one
+             behaviour, whichever view is on screen. -->
         <div
             v-else-if="svgMarkup"
-            class="noten-svg overflow-x-auto text-foreground"
-            role="img"
-            aria-label="Notenbild"
-            v-html="svgMarkup"
-        ></div>
+            class="flex overflow-x-auto overflow-y-hidden"
+            :style="scrollBoxStyle"
+        >
+            <!-- eslint-disable-next-line vue/no-v-html -- sanitizeNotationSvg strips the markup to drawing primitives -->
+            <div
+                class="noten-svg shrink-0 text-foreground [&_svg]:h-auto [&_svg]:w-full"
+                :style="canvasStyle"
+                role="img"
+                aria-label="Notenbild"
+                v-html="svgMarkup"
+            ></div>
+        </div>
 
         <!-- Raster fallback for songs cached before notentext_svg was synced.
              Kept on a white sheet: those scans are black on transparent and
@@ -39,17 +48,29 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue';
+
 import { Image as ImageIcon } from 'lucide-vue-next';
+
+import { useNotationScale } from '@/composables/useNotationScale';
 
 import { Spinner } from '@/components/ui/spinner';
 
-defineProps<{
+const props = defineProps<{
     /** Sanitised markup of the vector Notenbild (`notentext_svg`) */
     svgMarkup: string | null;
     /** Raster fallback (`melodieId.noten`) for songs without a synced SVG */
     imageUrl: string | null;
     isLoading: boolean;
+    /** The page's one size control */
+    scale?: number;
 }>();
+
+const containerRef = ref<HTMLElement | null>(null);
+const { scrollBoxStyle, canvasStyle } = useNotationScale(
+    containerRef,
+    computed(() => props.scale ?? 1),
+);
 </script>
 
 <style scoped>

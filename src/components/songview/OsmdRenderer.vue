@@ -1,15 +1,18 @@
 <template>
     <div ref="containerRef" class="relative w-full">
-        <!-- Wide scores scroll horizontally inside this container, never the page -->
-        <div class="w-full overflow-x-auto overflow-y-hidden">
+        <!-- The engraving stays centred, and Notengröße grows it to both
+             sides — out of the notation column and into the page's free width.
+             Only once even that is used up (phone widths, where there is none
+             to grow into) does this scroll, and then from its left edge. -->
+        <div class="notation-scroll flex overflow-x-auto overflow-y-hidden" :style="scrollBoxStyle">
             <!-- The engraving is laid out at the printed page's geometry and
                  only then scaled into the column, so the systems break where
                  the book breaks them at every width. Notengröße scales the
                  picture; it must not reach the layout, or the breaks move. -->
             <div
                 ref="notationRef"
-                class="[&_svg]:h-auto [&_svg]:w-full"
-                :style="{ width: `${(scale ?? 1) * 100}%` }"
+                class="notation-canvas shrink-0 [&_svg]:h-auto [&_svg]:w-full"
+                :style="canvasStyle"
             ></div>
         </div>
 
@@ -24,11 +27,13 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { AlertCircle } from 'lucide-vue-next';
 import type { OpenSheetMusicDisplay as OSMDType } from 'opensheetmusicdisplay';
 import type PlaybackEngineType from 'osmd-audio-player';
+
+import { useNotationScale } from '@/composables/useNotationScale';
 
 import type { XmlDisplaySettings } from '@/db';
 
@@ -43,7 +48,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'playStarted'): void;
     (e: 'playStopped'): void;
-    (e: 'rendered'): void;
+    (e: 'rendered', info: { lyricsDrawn: boolean }): void;
     (e: 'renderFailed', reason: 'corrupt' | 'engine'): void;
 }>();
 
@@ -71,6 +76,13 @@ function detectDarkMode() {
     isDarkMode.value = document.documentElement.classList.contains('dark');
 }
 
+// How wide the drawn engraving gets. Shared with the Notenbild so one scale
+// means the same thing in either view — see useNotationScale.
+const { scrollBoxStyle, canvasStyle } = useNotationScale(
+    containerRef,
+    computed(() => props.scale ?? 1),
+);
+
 function getOsmdOptions() {
     const s = props.settings;
     const fg = isDarkMode.value ? '#e5e5e5' : undefined; // undefined keeps OSMD's default (black)
@@ -93,7 +105,11 @@ function getOsmdOptions() {
         defaultColorMusic: fg,
         defaultColorLabel: fg,
         defaultColorTitle: fg,
-        defaultFontFamily: 'Helvetica, Arial, sans-serif',
+        // The lyrics belong to the engraving, so they are set in the
+        // engraving's own face — the same Optima the Notenbild carries baked
+        // into outlines, so switching between the two views does not switch
+        // typeface.
+        defaultFontFamily: 'GbOptima, Optima, Candara, Gill Sans, sans-serif',
     };
 }
 
@@ -170,18 +186,26 @@ function applyEngravingTweaks() {
     // The converter now writes the book's own breaks as <print new-system>.
     rules.NewSystemAtXMLNewSystemAttribute = true;
 
-    // Honouring those breaks is not enough on its own: OSMD's default note
-    // spacing needs more room for a hymn system than Finale used, so it splits
-    // the requested systems again to make them fit. These lower the width a
-    // system must have, not the width it gets — every system is still
-    // justified to the full block, so the notes end up spaced as before.
-    rules.VoiceSpacingMultiplierVexflow = 0.45;
-    rules.VoiceSpacingAddendVexflow = 0.8;
+    // The lyrics are set at the book's size too. OSMD's own default is 2.0
+    // staff spaces; the hymnal sets Optima at 2.7, which is why its lyrics read
+    // as large as the verses beside them rather than as a caption under the
+    // notes.
+    rules.LyricsHeight = 2.7;
+
+    // Honouring the breaks is not enough on its own: OSMD's default note
+    // spacing needs more room for a hymn system than Finale used — and lyrics
+    // at the book's size need more still — so it splits the requested systems
+    // again to make them fit. These lower the width a system must have, not the
+    // width it gets: every system is still justified to the full block, so the
+    // notes end up spaced as before. Measured over 60 songs, 58 then break
+    // exactly where the book breaks them; at OSMD's own spacing only 44 do.
+    rules.VoiceSpacingMultiplierVexflow = 0.25;
+    rules.VoiceSpacingAddendVexflow = 0.3;
 
     // With the notes that close together, OSMD's default 0.2 leaves too little
     // between two syllables and words touch. This is a floor, not a spacing:
     // it only widens a note whose lyric needs the room.
-    rules.HorizontalBetweenLyricsDistance = 0.6;
+    rules.HorizontalBetweenLyricsDistance = 0.9;
 
     // Finale justifies the closing system whenever the music fills it, which is
     // most songs. Left unstretched it is the one system that shows the tightened
@@ -224,7 +248,7 @@ async function loadAndRender() {
 
         renderAtPrintGeometry();
 
-        emit('rendered');
+        emit('rendered', { lyricsDrawn: lyricsDrawn() });
 
         // Invalidate any engine built for a previous sheet — playback is
         // constructed lazily on the first play tap (see startPlayback), so the
@@ -242,6 +266,21 @@ async function loadAndRender() {
         renderError.value = 'Fehler beim Rendern der Noten';
         emit('renderFailed', 'corrupt');
     }
+}
+
+// Whether the engraving on screen sings the words under its notes: the sheet
+// has to carry lyrics AND "Liedtext unter Noten" has to ask for them. Reported
+// with every render so the page can leave verse 1 out of the list below —
+// only the renderer knows both halves of the answer.
+function lyricsDrawn(): boolean {
+    if (!(props.settings?.showLyrics ?? true)) return false;
+    const sheet = osmd?.Sheet;
+    if (!sheet) return false;
+    return sheet.Instruments.some((instrument) =>
+        instrument.Voices.some((voice) =>
+            voice.VoiceEntries.some((entry) => entry.LyricsEntries.size() > 0),
+        ),
+    );
 }
 
 async function initPlayback() {
@@ -382,7 +421,7 @@ watch(
             // Re-emit after every settings re-render so a successful
             // re-render is reported as such.
             if (osmd.Sheet) {
-                emit('rendered');
+                emit('rendered', { lyricsDrawn: lyricsDrawn() });
             }
         }
     },
@@ -436,3 +475,21 @@ onBeforeUnmount(async () => {
     }
 });
 </script>
+
+<style scoped>
+/* Both widths are measured (see the script) and set inline; these are what
+   holds until the first measurement lands. */
+.notation-scroll,
+.notation-canvas {
+    width: 100%;
+}
+
+/* Centre the engraving in its box. Once it is wider than the box — Notengröße
+   past what the page can hold, which only a phone reaches — fall back to a
+   plain scroll start: centred overflow would put the first bar of every system
+   out of reach to the left, and that is what "safe" prevents. */
+.notation-scroll {
+    justify-content: center;
+    justify-content: safe center;
+}
+</style>

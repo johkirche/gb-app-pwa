@@ -104,8 +104,16 @@ export interface XmlDisplaySettings {
 
 export interface PreferencesData {
     id: string;
-    notationScale: number;
-    textSize: 'small' | 'medium' | 'large' | 'xlarge';
+    /**
+     * One size for the whole song page (0.5–2.0). The verses are set at the
+     * notation's own size, so scaling them apart was never meaningful — this
+     * scales the page the two share.
+     */
+    pageScale?: number;
+    /** @deprecated Read once on load to carry an existing setting over to pageScale. */
+    notationScale?: number;
+    /** @deprecated Read once on load to carry an existing setting over to pageScale. */
+    textSize?: 'small' | 'medium' | 'large' | 'xlarge';
     melodyDisplayMode: MelodyDisplayMode;
     xmlSettings?: XmlDisplaySettings;
 }

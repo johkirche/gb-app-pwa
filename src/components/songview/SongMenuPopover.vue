@@ -28,25 +28,33 @@
                     Anzeige
                 </p>
                 <div class="space-y-4 px-1 py-1">
-                    <div class="flex items-center justify-between gap-3">
-                        <Label for="song-font-size" class="flex items-center gap-2.5">
-                            <Type
-                                class="size-4 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            Textgröße
-                        </Label>
-                        <Select :model-value="songFontSize" @update:model-value="onFontSizeChange">
-                            <SelectTrigger id="song-font-size" class="h-9 w-32">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="small">Klein</SelectItem>
-                                <SelectItem value="medium">Normal</SelectItem>
-                                <SelectItem value="large">Groß</SelectItem>
-                                <SelectItem value="xlarge">Sehr groß</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    <!-- One size for the page. Noten and Text were two controls
+                         over one thing: the verses are set at the size of the
+                         lyrics under the notes, so moving them apart only pulled
+                         the page out of proportion. -->
+                    <div class="space-y-3 pb-1">
+                        <div class="flex items-baseline justify-between gap-3">
+                            <span class="flex items-center gap-2.5 text-sm font-medium">
+                                <Type
+                                    class="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                Größe
+                            </span>
+                            <span class="number-display text-lg leading-none">
+                                {{ Math.round(pageScale * 100) }}%
+                            </span>
+                        </div>
+                        <!-- Emits continuously while dragging (like ionInput
+                             before) — the notation re-renders live per change. -->
+                        <Slider
+                            :model-value="[pageScale]"
+                            :min="0.5"
+                            :max="2"
+                            :step="0.1"
+                            aria-label="Größe"
+                            @update:model-value="onScaleChange"
+                        />
                     </div>
                     <div class="flex items-center justify-between gap-3">
                         <Label for="song-show-controls" class="flex items-center gap-2.5">
@@ -94,33 +102,6 @@
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div
-                            v-if="melodyDisplayMode === 'xml' && hasMelodyXml"
-                            class="space-y-3 pb-1"
-                        >
-                            <div class="flex items-baseline justify-between gap-3">
-                                <span class="flex items-center gap-2.5 text-sm font-medium">
-                                    <Music2
-                                        class="size-4 shrink-0 text-muted-foreground"
-                                        aria-hidden="true"
-                                    />
-                                    Notengröße
-                                </span>
-                                <span class="number-display text-lg leading-none">
-                                    {{ Math.round(notationScale * 100) }}%
-                                </span>
-                            </div>
-                            <!-- Emits continuously while dragging (like ionInput
-                                 before) — OSMD re-renders live per change. -->
-                            <Slider
-                                :model-value="[notationScale]"
-                                :min="0.5"
-                                :max="2"
-                                :step="0.1"
-                                aria-label="Notengröße"
-                                @update:model-value="onScaleChange"
-                            />
                         </div>
                     </div>
                 </template>
@@ -188,15 +169,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 
-import {
-    Image as ImageIcon,
-    List,
-    ListMusic,
-    Music,
-    Music2,
-    Settings,
-    Type,
-} from 'lucide-vue-next';
+import { Image as ImageIcon, List, ListMusic, Music, Settings, Type } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
@@ -222,16 +195,14 @@ defineProps<{
     hasMelodyImage: boolean;
     hasMelodyXml: boolean;
     melodyDisplayMode: MelodyDisplayMode;
-    notationScale: number;
-    songFontSize: string;
+    pageScale: number;
     xmlSettings?: XmlDisplaySettings;
 }>();
 
 const emit = defineEmits<{
     'update:showControls': [value: boolean];
     'update:melodyDisplayMode': [value: MelodyDisplayMode];
-    'update:notationScale': [value: number];
-    'update:songFontSize': [value: 'small' | 'medium' | 'large' | 'xlarge'];
+    'update:pageScale': [value: number];
     'update:xmlSetting': [
         payload: {
             key: keyof XmlDisplaySettings;
@@ -243,12 +214,6 @@ const emit = defineEmits<{
 const menuOpen = ref(false);
 const showPlaylistModal = ref(false);
 
-function onFontSizeChange(value: AcceptableValue) {
-    if (value === 'small' || value === 'medium' || value === 'large' || value === 'xlarge') {
-        emit('update:songFontSize', value);
-    }
-}
-
 function onDisplayModeChange(value: AcceptableValue) {
     if (value === 'image' || value === 'xml') {
         emit('update:melodyDisplayMode', value);
@@ -257,7 +222,7 @@ function onDisplayModeChange(value: AcceptableValue) {
 
 function onScaleChange(value: number[] | undefined) {
     if (value && typeof value[0] === 'number') {
-        emit('update:notationScale', value[0]);
+        emit('update:pageScale', value[0]);
     }
 }
 

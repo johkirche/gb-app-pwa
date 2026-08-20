@@ -1,5 +1,7 @@
 <template>
-    <div v-if="footerLines.length > 0" class="mt-6 border-t border-border pt-6">
+    <!-- Same measure as the verses above: the rule that separates them would
+         otherwise run out past the text it belongs to. -->
+    <div v-if="footerLines.length > 0" class="verse-col mt-auto border-t border-border pt-6">
         <div v-for="(line, idx) in footerLines" :key="idx" class="mb-2 flex items-start gap-2">
             <component
                 :is="line.icon"

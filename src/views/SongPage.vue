@@ -8,12 +8,10 @@
                     :has-melody-image="hasMelodyImage"
                     :has-melody-xml="hasMelodyXml"
                     :melody-display-mode="melodyDisplayMode"
-                    :notation-scale="notationScale"
-                    :song-font-size="textSize"
+                    :page-scale="pageScale"
                     :xml-settings="xmlSettings"
                     @update:melody-display-mode="preferencesStore.setMelodyDisplayMode($event)"
-                    @update:notation-scale="updateNotationScale"
-                    @update:song-font-size="preferencesStore.setTextSize($event)"
+                    @update:page-scale="preferencesStore.setPageScale($event)"
                     @update:xml-setting="
                         preferencesStore.setXmlSetting($event.key, $event.value as boolean)
                     "
@@ -29,13 +27,24 @@
             <SongErrorState v-else-if="!song" />
 
             <!-- Song Content -->
-            <div v-else class="song-content page-col pb-8 pt-4" :class="`text-size-${textSize}`">
+            <!-- One scale for the page: the notation is drawn at it, and the
+                 verses — which are set at the notation's own size — follow
+                 through --text-scale. min-h-full and the flex column let the
+                 credits be pushed to the foot of the page: with the transport
+                 hidden a short song would otherwise leave them stranded
+                 mid-screen above a large void. -->
+            <div
+                v-else
+                class="song-content page-col flex min-h-full flex-col pb-8 pt-4"
+                :style="{ '--text-scale': pageScale }"
+            >
                 <!-- Melody Display: Image or MusicXML -->
                 <SongMelodyImage
                     v-if="melodyDisplayMode === 'image' && hasMelodyImage"
                     :svg-markup="melodySvgMarkup"
                     :image-url="melodyImageUrl"
                     :is-loading="imageLoading"
+                    :scale="pageScale"
                 />
 
                 <!-- MusicXML (OSMD) Rendering -->
@@ -46,7 +55,7 @@
                     <OsmdRenderer
                         ref="osmdRendererRef"
                         :file-blob="melodyXmlBlob"
-                        :scale="notationScale"
+                        :scale="pageScale"
                         :settings="xmlSettings"
                         :is-playing="isPlaying"
                         :tempo="tempo"
@@ -83,10 +92,15 @@
                     <span>Keine Melodie verfügbar</span>
                 </div>
 
-                <!-- Song Verses: verse 1 is left out while the vector
-                     Notenbild is on screen — the engraving already carries it
-                     under its notes -->
-                <SongVerses :strophes="song.strophen" :skip-first="lyricsInNotation" />
+                <!-- Song Verses: verse 1 is left out while the notation on
+                     screen already carries it under its notes — the vector
+                     Notenbild always, the MusicXML view whenever "Liedtext
+                     unter Noten" is on -->
+                <SongVerses
+                    :strophes="song.strophen"
+                    :skip-first="lyricsInNotation"
+                    :scale="pageScale"
+                />
 
                 <!-- Authors Section -->
                 <SongAuthors :song="song" />
@@ -148,7 +162,7 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { notationScale, textSize, melodyDisplayMode, xmlSettings } = storeToRefs(preferencesStore);
+const { pageScale, melodyDisplayMode, xmlSettings } = storeToRefs(preferencesStore);
 
 const { getFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
@@ -190,15 +204,21 @@ const hasMelodyImage = computed(() => {
 // Check if song has MusicXML notation (.mxl or .musicxml)
 const hasMelodyXml = computed(() => !!song.value?.notentextMxml);
 
+// Whether the OSMD view is currently singing the words under its notes — both
+// halves of that answer (does the sheet carry lyrics, is "Liedtext unter
+// Noten" on) are the renderer's to give, so it reports it with every render.
+const notationLyricsDrawn = ref(false);
+
 // Whether the notation currently on screen already sings verse 1 under its
-// notes — true for the vector Notenbild, whose Finale export bakes the first
-// verse into the engraving. The raster fallback is left out: those scans are
-// only reached for songs cached before notentext_svg was synced, and what they
-// contain is not known per file. The OSMD view draws lyrics only when the
-// sheet has them and the setting is on, which the renderer no longer reports.
-const lyricsInNotation = computed(
-    () => melodyDisplayMode.value === 'image' && !!melodySvgMarkup.value,
-);
+// notes. True for the vector Notenbild, whose Finale export bakes the first
+// verse into the engraving, and for the MusicXML view whenever it draws
+// lyrics. The raster fallback is left out: those scans are only reached for
+// songs cached before notentext_svg was synced, and what they contain is not
+// known per file.
+const lyricsInNotation = computed(() => {
+    if (melodyDisplayMode.value === 'image') return !!melodySvgMarkup.value;
+    return notationState.value === 'ready' && notationLyricsDrawn.value;
+});
 
 // Load MusicXML blob from stored files (lazily — only when xml mode is active).
 // Falls back to an on-demand network fetch (stored back into Dexie) when the
@@ -226,12 +246,14 @@ async function loadMelodyXml() {
 }
 
 // Outcome of the actual OSMD render — only a real render may flip this.
-function onNotationRendered() {
+function onNotationRendered(info: { lyricsDrawn: boolean }) {
     notationState.value = 'ready';
+    notationLyricsDrawn.value = info.lyricsDrawn;
 }
 
 function onNotationRenderFailed() {
     notationState.value = 'render-failed';
+    notationLyricsDrawn.value = false;
 }
 
 function hasRasterExtension(filename: string): boolean {
@@ -283,6 +305,7 @@ function loadSong() {
         song.value = songs.value.find((s) => s.id === songId) || null;
         // Reset notation outcome before loading the next song's assets
         notationState.value = 'loading';
+        notationLyricsDrawn.value = false;
         // Load only the active display mode's asset — getOrFetchFileBlob has a
         // network fallback, so eagerly loading both would spend bandwidth and
         // quota on the asset the current mode never shows. The
@@ -325,6 +348,7 @@ watch(
 // Reload assets when display mode changes
 watch(melodyDisplayMode, () => {
     notationState.value = 'loading';
+    notationLyricsDrawn.value = false;
     if (melodyDisplayMode.value === 'image') {
         loadMelodyImage();
     } else if (melodyDisplayMode.value === 'xml') {
@@ -360,33 +384,25 @@ function decreaseTempo() {
         tempo.value -= 10;
     }
 }
-
-// Notation scale control (the popover already unwraps the slider's number[])
-function updateNotationScale(value: number) {
-    preferencesStore.setNotationScale(value);
-}
 </script>
 
 <style scoped>
-/* Live text-size contract consumed by SongVerses (via --verse-font-size /
-   --verse-line-height): the popover's Textgröße select toggles these classes. */
-.song-content.text-size-small {
-    --verse-font-size: 1rem;
-    --verse-line-height: 1.5;
-}
+/* Live size contract consumed by SongVerses (via --verse-font-size /
+   --verse-line-height): one factor, set inline from the page's scale.
 
-.song-content.text-size-medium {
-    --verse-font-size: 1.125rem;
-    --verse-line-height: 1.6;
-}
-
-.song-content.text-size-large {
-    --verse-font-size: 1.3125rem;
-    --verse-line-height: 1.7;
-}
-
-.song-content.text-size-xlarge {
-    --verse-font-size: 1.5rem;
-    --verse-line-height: 1.8;
+   The size is not a length but the notation's own: the book sets its verses in
+   the same face and the same size as the lyrics under the notes, and that size
+   follows the engraving as it scales into the column. cqw is what makes it
+   expressible — the notation's width is this container's width capped at
+   --notation-max, and --verse-measure carries the rest of the book's
+   arithmetic. The scale multiplies it, exactly as it multiplies the drawn
+   notation, so the printed proportion holds at every setting. */
+.song-content {
+    container-type: inline-size;
+    --notation-width: min(100cqw, var(--notation-max));
+    --verse-font-size: calc(var(--notation-width) / var(--verse-measure) * var(--text-scale, 1));
+    /* The book leads its verses at 1.20. On a screen that is airless, but the
+       type is now printed size, so it stays far tighter than screen defaults. */
+    --verse-line-height: 1.35;
 }
 </style>
