@@ -36,9 +36,25 @@ export class LocalSoundfontPlayer implements InstrumentPlayer {
 
     private players: Map<number, Player> = new Map();
     private audioContext: IAudioContext | null = null;
+    private muted = false;
 
     public init(audioContext: IAudioContext): void {
         this.audioContext = audioContext;
+    }
+
+    /**
+     * Silence the instruments without stopping the playback.
+     *
+     * The engine keeps its own clock and keeps walking the cursor either way,
+     * so muting here — rather than pausing — is what lets the page follow the
+     * song on screen with nothing to hear. Notes already handed to the audio
+     * graph are up to half a second ahead of what is heard, so they are cut
+     * off too; otherwise muting would keep sounding after the tap.
+     */
+    public setMuted(muted: boolean): void {
+        this.muted = muted;
+        if (!muted) return;
+        for (const midiId of this.players.keys()) this.stop(midiId);
     }
 
     public async load(midiId: number): Promise<void> {
@@ -64,6 +80,7 @@ export class LocalSoundfontPlayer implements InstrumentPlayer {
     }
 
     public play(midiId: number, options: NotePlaybackInstruction): void {
+        if (this.muted) return;
         this.verifyPlayerLoaded(midiId);
         this.players.get(midiId)?.play(String(options.note), 0, {
             gain: options.gain,
@@ -77,6 +94,7 @@ export class LocalSoundfontPlayer implements InstrumentPlayer {
     }
 
     public schedule(midiId: number, time: number, notes: NotePlaybackInstruction[]): void {
+        if (this.muted) return;
         this.verifyPlayerLoaded(midiId);
         this.applyDynamics(notes);
         this.players.get(midiId)?.schedule(time, notes);

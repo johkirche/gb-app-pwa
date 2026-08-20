@@ -7,6 +7,11 @@ import { type MelodyDisplayMode, type XmlDisplaySettings, db } from '@/db';
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
     showLyrics: true,
+    // The playback marks are on by default: they are what the transport is for.
+    // A record stored before they existed picks them up here, because
+    // loadPreferences spreads these defaults under whatever it read.
+    highlightNotes: true,
+    showPlayhead: true,
 };
 
 const MIN_PAGE_SCALE = 0.5;

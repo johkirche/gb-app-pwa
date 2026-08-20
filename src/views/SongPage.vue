@@ -59,8 +59,13 @@
                         :settings="xmlSettings"
                         :is-playing="isPlaying"
                         :tempo="tempo"
+                        :loop="loopEnabled"
+                        :muted="isMuted"
                         @play-started="isPlaying = true"
                         @play-stopped="isPlaying = false"
+                        @ended="onPlaybackEnded"
+                        @engine-loading="engineLoading = $event"
+                        @progress="onPlaybackProgress"
                         @rendered="onNotationRendered"
                         @render-failed="onNotationRenderFailed"
                     />
@@ -120,11 +125,16 @@
         >
             <SongAudioControls
                 v-model:loop-enabled="loopEnabled"
+                v-model:muted="isMuted"
                 :is-playing="isPlaying"
+                :is-loading="engineLoading"
                 :has-paused="hasPaused"
                 :tempo="tempo"
+                :position="playbackPosition"
+                :duration="playbackDuration"
                 @toggle-play="togglePlay"
                 @stop="stopPlayback"
+                @seek="seekPlayback"
                 @increase-tempo="increaseTempo"
                 @decrease-tempo="decreaseTempo"
             />
@@ -189,7 +199,17 @@ const songId = computed(() => route.params.id as string);
 const isPlaying = ref(false);
 const hasPaused = ref(false);
 const loopEnabled = ref(false);
+// Silent playback: the notation still follows the song note by note, which is
+// what a reader wants when they only need to find their place on the page.
+const isMuted = ref(false);
 const tempo = ref(120);
+// The first play tap fetches the soundfont, which takes seconds — the
+// transport says so rather than looking unresponsive.
+const engineLoading = ref(false);
+// Seconds played and the song's length at the current tempo, both reported by
+// the renderer: only it knows where in the sheet the music stands.
+const playbackPosition = ref(0);
+const playbackDuration = ref(0);
 
 // Display options
 const showControls = ref(true);
@@ -306,6 +326,13 @@ function loadSong() {
         // Reset notation outcome before loading the next song's assets
         notationState.value = 'loading';
         notationLyricsDrawn.value = false;
+        // The renderer drops the engine built for the previous sheet, so the
+        // transport has to come back to rest with it — otherwise it would go on
+        // showing "Pause" over a song that is not playing.
+        isPlaying.value = false;
+        hasPaused.value = false;
+        playbackPosition.value = 0;
+        playbackDuration.value = 0;
         // Load only the active display mode's asset — getOrFetchFileBlob has a
         // network fallback, so eagerly loading both would spend bandwidth and
         // quota on the asset the current mode never shows. The
@@ -370,6 +397,23 @@ function stopPlayback() {
     hasPaused.value = false;
     // Call the stop method on the active renderer
     osmdRendererRef.value?.stop();
+}
+
+function seekPlayback(fraction: number) {
+    osmdRendererRef.value?.seek(fraction);
+}
+
+function onPlaybackProgress(value: { position: number; duration: number }) {
+    playbackPosition.value = value.position;
+    playbackDuration.value = value.duration;
+}
+
+// The song ran out. With Wiederholung on the renderer starts it over itself,
+// so only the one-off case has anything to reset here.
+function onPlaybackEnded() {
+    if (!loopEnabled.value) {
+        hasPaused.value = false;
+    }
 }
 
 // Tempo controls

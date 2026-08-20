@@ -100,6 +100,10 @@ export type MelodyDisplayMode = 'image' | 'xml';
 export interface XmlDisplaySettings {
     showMeasureNumbers: boolean;
     showLyrics: boolean;
+    /** Colour the sounding note and its syllable while a song plays */
+    highlightNotes: boolean;
+    /** Show the band and the line that sweep the staff while a song plays */
+    showPlayhead: boolean;
 }
 
 export interface PreferencesData {
