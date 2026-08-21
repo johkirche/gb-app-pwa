@@ -230,6 +230,7 @@ import type { FunctionalComponent } from 'vue';
 import {
     Check,
     ChevronRight,
+    Church,
     CloudDownload,
     Heart,
     ListMusic,
@@ -238,8 +239,10 @@ import {
 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
+import { toast } from 'vue-sonner';
 
 import { useFavoritesStore } from '@/stores/favorites';
+import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
@@ -260,6 +263,7 @@ import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
+const serviceStore = useServiceStore();
 const { songs, isLoading, error, lastSyncTime, hasSongs } = storeToRefs(songsStore);
 const router = useRouter();
 const route = useRoute();
@@ -410,6 +414,7 @@ const sortSheetActions = computed<ActionSheetAction[]>(() => [
 // closing — the playlist modal opened from the second handler still needs it.
 const songSheetActions = computed<ActionSheetAction[]>(() => {
     const isFav = selectedSongId.value ? favoritesStore.isFavorite(selectedSongId.value) : false;
+    const isInService = selectedSongId.value ? serviceStore.isInPlan(selectedSongId.value) : false;
     return [
         {
             label: isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
@@ -418,6 +423,13 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
                 if (selectedSongId.value) {
                     favoritesStore.toggleFavorite(selectedSongId.value);
                 }
+            },
+        },
+        {
+            label: isInService ? 'Aus Gottesdienst entfernen' : 'Für Gottesdienst vormerken',
+            icon: Church,
+            handler: () => {
+                if (selectedSongId.value) toggleService(selectedSongId.value);
             },
         },
         {
@@ -433,6 +445,21 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
         },
     ];
 });
+
+// The Gottesdienst tab appears with the first song marked, so the toast is
+// what explains where the song just went.
+async function toggleService(songId: string) {
+    try {
+        const marked = await serviceStore.toggleSong(songId);
+        toast.success(
+            marked ? 'Für den Gottesdienst vorgemerkt' : 'Aus dem Gottesdienst entfernt',
+            { duration: 2000 },
+        );
+    } catch (err) {
+        console.error('Failed to update the service selection:', err);
+        toast.error('Die Auswahl konnte nicht gespeichert werden.');
+    }
+}
 
 // Long-press / right-click handler
 function openSongActions(songId: string, anchor: PanelAnchor) {

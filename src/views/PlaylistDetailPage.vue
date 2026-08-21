@@ -28,6 +28,10 @@
                             <Pencil />
                             Bearbeiten
                         </DropdownMenuItem>
+                        <DropdownMenuItem :disabled="songs.length === 0" @select="adoptAsService">
+                            <Church />
+                            Als Gottesdienst übernehmen
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem variant="destructive" @select="confirmDelete">
                             <Trash2 />
@@ -139,11 +143,22 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 
-import { CircleAlert, EllipsisVertical, Music, Pencil, Plus, Rows3, Trash2 } from 'lucide-vue-next';
+import {
+    Church,
+    CircleAlert,
+    EllipsisVertical,
+    Music,
+    Pencil,
+    Plus,
+    Rows3,
+    Trash2,
+} from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
+import { toast } from 'vue-sonner';
 
 import { usePlaylistsStore } from '@/stores/playlists';
+import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
 import { useConfirm } from '@/composables/useConfirm';
@@ -171,6 +186,7 @@ const route = useRoute();
 const router = useRouter();
 const playlistsStore = usePlaylistsStore();
 const songsStore = useSongsStore();
+const serviceStore = useServiceStore();
 const { confirm } = useConfirm();
 
 const { isLoading } = storeToRefs(playlistsStore);
@@ -222,6 +238,34 @@ async function deletePlaylist() {
     } catch (error) {
         console.error('Failed to delete playlist:', error);
     }
+}
+
+/**
+ * Run this playlist as today's service. It goes through the playlist provider
+ * rather than copying the ids here, so a plan adopted from the backend later
+ * arrives on exactly the same path.
+ */
+async function adoptAsService() {
+    if (!playlist.value || songs.value.length === 0) return;
+    await nextTick();
+
+    if (serviceStore.hasSelection) {
+        const ok = await confirm({
+            title: 'Auswahl ersetzen?',
+            message: 'Die bisher vorgemerkten Lieder werden durch diese Playlist ersetzt.',
+            confirmText: 'Übernehmen',
+        });
+        if (!ok) return;
+    }
+
+    const adopted = await serviceStore.adoptOffer('playlist', playlist.value.id);
+    if (!adopted) {
+        toast.error('Die Playlist konnte nicht übernommen werden.');
+        return;
+    }
+
+    toast.success('Als Gottesdienst übernommen', { duration: 2000 });
+    router.push('/tabs/gottesdienst');
 }
 
 function toggleReorderMode() {

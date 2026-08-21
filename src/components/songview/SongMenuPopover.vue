@@ -17,6 +17,14 @@
                 <button
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
+                    @click="handleToggleService"
+                >
+                    <Church class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    {{ isInService ? 'Aus Gottesdienst entfernen' : 'Für Gottesdienst vormerken' }}
+                </button>
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="handleAddToPlaylist"
                 >
                     <ListMusic class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -169,8 +177,19 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 
-import { Image as ImageIcon, List, ListMusic, Music, Settings, Type } from 'lucide-vue-next';
+import {
+    Church,
+    Image as ImageIcon,
+    List,
+    ListMusic,
+    Music,
+    Settings,
+    Type,
+} from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
+import { toast } from 'vue-sonner';
+
+import { useServiceStore } from '@/stores/service';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
 import { Button } from '@/components/ui/button';
@@ -189,7 +208,7 @@ import { Switch } from '@/components/ui/switch';
 import type { MelodyDisplayMode, XmlDisplaySettings } from '@/db';
 import type { PanelAnchor } from '@/lib/anchor';
 
-defineProps<{
+const props = defineProps<{
     songId: string;
     showControls: boolean;
     hasMelodyImage: boolean;
@@ -211,8 +230,27 @@ const emit = defineEmits<{
     ];
 }>();
 
+const serviceStore = useServiceStore();
+const isInService = computed(() => serviceStore.isInPlan(props.songId));
+
 const menuOpen = ref(false);
 const showPlaylistModal = ref(false);
+
+// Marking from inside the song is the fastest path during a service, so the
+// menu gets out of the way again straight after and the toast confirms it.
+async function handleToggleService() {
+    menuOpen.value = false;
+    try {
+        const marked = await serviceStore.toggleSong(props.songId);
+        toast.success(
+            marked ? 'Für den Gottesdienst vorgemerkt' : 'Aus dem Gottesdienst entfernt',
+            { duration: 2000 },
+        );
+    } catch (err) {
+        console.error('Failed to update the service selection:', err);
+        toast.error('Die Auswahl konnte nicht gespeichert werden.');
+    }
+}
 
 function onDisplayModeChange(value: AcceptableValue) {
     if (value === 'image' || value === 'xml') {
