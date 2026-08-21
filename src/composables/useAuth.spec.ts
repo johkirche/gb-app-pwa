@@ -41,6 +41,7 @@ const setUser = vi.fn();
 const storeLogout = vi.fn();
 const favoritesClearAll = vi.fn();
 const playlistsClearAll = vi.fn();
+const serviceClearAll = vi.fn();
 const preferencesResetToDefaults = vi.fn();
 
 function freshUserStore() {
@@ -109,6 +110,10 @@ vi.mock('@/stores/favorites', () => ({
 
 vi.mock('@/stores/playlists', () => ({
     usePlaylistsStore: () => ({ clearAll: (...args: unknown[]) => playlistsClearAll(...args) }),
+}));
+
+vi.mock('@/stores/service', () => ({
+    useServiceStore: () => ({ clearAll: (...args: unknown[]) => serviceClearAll(...args) }),
 }));
 
 vi.mock('@/stores/preferences', () => ({
@@ -354,6 +359,7 @@ describe('logout', () => {
         expect(storeLogout).toHaveBeenCalledTimes(1);
         expect(favoritesClearAll).toHaveBeenCalledTimes(1);
         expect(playlistsClearAll).toHaveBeenCalledTimes(1);
+        expect(serviceClearAll).toHaveBeenCalledTimes(1);
         expect(preferencesResetToDefaults).toHaveBeenCalledTimes(1);
     });
 
@@ -368,6 +374,7 @@ describe('logout', () => {
         expect(storeLogout).toHaveBeenCalledTimes(1);
         expect(favoritesClearAll).toHaveBeenCalledTimes(1);
         expect(playlistsClearAll).toHaveBeenCalledTimes(1);
+        expect(serviceClearAll).toHaveBeenCalledTimes(1);
         expect(preferencesResetToDefaults).toHaveBeenCalledTimes(1);
     });
 

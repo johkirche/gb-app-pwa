@@ -13,6 +13,7 @@ import {
 import { useFavoritesStore } from '@/stores/favorites';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
+import { useServiceStore } from '@/stores/service';
 import { useUserStore } from '@/stores/user';
 
 import { SUPPORT_EMAIL } from '@/config/support';
@@ -343,13 +344,15 @@ export function useAuth() {
             }
 
             // Clear everything user-scoped from this device: session, cached user,
-            // playlists, favorites and preferences. Songs and files stay — they are
-            // shared hymnal content. The store resets below are idempotent (db +
-            // memory), so overlapping with clearUserScopedData is harmless.
+            // playlists, favorites, preferences and the Gottesdienst selection. Songs
+            // and files stay — they are shared hymnal content. The store resets below
+            // are idempotent (db + memory), so overlapping with clearUserScopedData is
+            // harmless.
             await clearUserScopedData();
             await userStore.logout();
             await useFavoritesStore().clearAll();
             await usePlaylistsStore().clearAll();
+            await useServiceStore().clearAll();
             await usePreferencesStore().resetToDefaults();
 
             // A half-finished onboarding belongs to the account that just left.

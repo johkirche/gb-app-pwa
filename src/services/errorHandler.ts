@@ -258,12 +258,13 @@ export async function clearSessionData(): Promise<void> {
  * Clear everything that belongs to the signed-in account, for an explicit logout.
  *
  * Songs and files are deliberately kept — they are shared hymnal content, identical for
- * every account and expensive to re-download. Playlists, favorites and preferences are
- * personal data that exist only on this device; they must not leak to the next account
- * that signs in on a shared device, so they go together with the session.
+ * every account and expensive to re-download. Playlists, favorites, preferences and the
+ * Gottesdienst selection are personal data that exist only on this device; they must not
+ * leak to the next account that signs in on a shared device, so they go together with the
+ * session.
  */
 export async function clearUserScopedData(): Promise<void> {
-    const tables = [db.auth, db.users, db.playlists, db.preferences, db.favorites];
+    const tables = [db.auth, db.users, db.playlists, db.preferences, db.favorites, db.services];
 
     try {
         await db.transaction('rw', tables, async () => {
@@ -287,9 +288,10 @@ export async function clearUserScopedData(): Promise<void> {
 /**
  * Clear all local user data from IndexedDB.
  *
- * This removes songs, files, playlists, favorites, preferences, sync metadata, auth and
- * user data, and is destructive and irreversible — playlists, favorites and preferences
- * exist only on this device and cannot be restored from the server. Only call this when
+ * This removes songs, files, playlists, favorites, preferences, the Gottesdienst
+ * selection, sync metadata, auth and user data, and is destructive and irreversible —
+ * playlists, favorites and preferences exist only on this device and cannot be restored
+ * from the server. Only call this when
  * the account is genuinely known to be gone; for an ordinary expired session use
  * {@link clearSessionData} instead.
  */
@@ -302,6 +304,7 @@ export async function clearAllLocalData(): Promise<void> {
         db.playlists,
         db.preferences,
         db.favorites,
+        db.services,
         db.meta,
     ];
 
