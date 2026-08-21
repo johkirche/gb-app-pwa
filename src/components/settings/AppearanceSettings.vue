@@ -18,27 +18,46 @@
             </ToggleGroup>
         </div>
 
-        <div class="flex items-center justify-between gap-4 px-2 py-3">
-            <div class="flex min-w-0 items-center gap-4">
+        <!-- „Notenbild" and „MusicXML" are the names of two file formats, which
+             says nothing to anyone who has not seen both. Two cards do: the
+             picture shows the difference, the line under it names it. -->
+        <fieldset class="min-w-0 px-2 py-3" aria-labelledby="settings-melody-mode-label">
+            <div class="flex items-center gap-4">
                 <Image class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <Label for="settings-melody-mode" class="text-[15px] font-normal">
-                    Notenansicht
-                </Label>
+                <div class="min-w-0">
+                    <p id="settings-melody-mode-label" class="text-[15px]">Notenansicht</p>
+                    <p class="text-sm text-muted-foreground">
+                        Woher die Noten auf der Liedseite kommen
+                    </p>
+                </div>
             </div>
-            <Select v-model="melodyDisplayMode">
-                <SelectTrigger id="settings-melody-mode" class="w-36 shrink-0">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="image">Notenbild</SelectItem>
-                    <SelectItem value="xml">MusicXML</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
+
+            <div class="mt-3 grid grid-cols-2 gap-3">
+                <label
+                    v-for="option in NOTATION_MODES"
+                    :key="option.value"
+                    class="flex cursor-pointer flex-col rounded-lg border border-border p-3 transition-colors hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                >
+                    <input
+                        v-model="melodyDisplayMode"
+                        type="radio"
+                        name="settings-melody-mode"
+                        :value="option.value"
+                        class="sr-only"
+                    />
+                    <SongNotationModePreview :mode="option.value" />
+                    <span class="mt-2.5 text-[15px] font-medium">{{ option.title }}</span>
+                    <span class="mt-0.5 text-sm leading-snug text-muted-foreground">
+                        {{ option.description }}
+                    </span>
+                </label>
+            </div>
+        </fieldset>
 
         <!-- One size for the song page: notation and verses alike. They are set
              at the same size in the book, so two controls could only pull them
-             apart. -->
+             apart. The sample under the slider is that page in miniature — a
+             percentage on its own says nothing about how big the type gets. -->
         <div class="px-2 py-3">
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
@@ -61,6 +80,13 @@
                 />
                 <span class="shrink-0 text-xs text-muted-foreground">200%</span>
             </div>
+
+            <!-- The sample sits under the slider, not over it: it grows with
+                 the setting, and a preview that pushes its own control off the
+                 screen is no use to the hand dragging it. -->
+            <div class="mt-4 rounded-md border border-border bg-muted/40 px-3 py-3">
+                <SongScalePreview :scale="pageScale" />
+            </div>
         </div>
     </SettingsList>
 </template>
@@ -76,16 +102,29 @@ import { usePreferencesStore } from '@/stores/preferences';
 import { useTheme } from '@/composables/useTheme';
 
 import SettingsList from '@/components/settings/SettingsList.vue';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import SongNotationModePreview from '@/components/songview/SongNotationModePreview.vue';
+import SongScalePreview from '@/components/songview/SongScalePreview.vue';
 import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+
+import type { MelodyDisplayMode } from '@/db';
+
+const NOTATION_MODES: ReadonlyArray<{
+    value: MelodyDisplayMode;
+    title: string;
+    description: string;
+}> = [
+    {
+        value: 'image',
+        title: 'Notenbild',
+        description: 'Die gedruckte Seite aus dem Buch.',
+    },
+    {
+        value: 'xml',
+        title: 'MusicXML',
+        description: 'Neu gesetzt, dafür abspielbar.',
+    },
+];
 
 const preferencesStore = usePreferencesStore();
 // useTheme owns persistence ('settings.theme') and applies the `dark` class, so
@@ -104,13 +143,9 @@ const pageScaleSlider = computed<number[] | undefined>({
     },
 });
 
-const melodyDisplayMode = computed<AcceptableValue>({
+const melodyDisplayMode = computed<MelodyDisplayMode>({
     get: () => preferencesStore.melodyDisplayMode,
-    set: (value) => {
-        if (value === 'image' || value === 'xml') {
-            preferencesStore.setMelodyDisplayMode(value);
-        }
-    },
+    set: (value) => preferencesStore.setMelodyDisplayMode(value),
 });
 
 function onThemeModeChange(value: AcceptableValue | AcceptableValue[]) {
