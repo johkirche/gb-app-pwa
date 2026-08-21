@@ -1,679 +1,287 @@
 <template>
     <div class="flex h-full flex-col bg-background">
-        <AppPageHeader title="Einstellungen" />
+        <AppPageHeader :title="headerTitle">
+            <template #leading>
+                <!-- „Up to the overview", not „back a page": a link straight
+                     into a section should land on the list, not leave the
+                     settings altogether. -->
+                <Button
+                    v-if="showBack"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Zurück zur Übersicht"
+                    @click="closeSection"
+                >
+                    <ChevronLeft class="!size-6" aria-hidden="true" />
+                </Button>
+            </template>
+        </AppPageHeader>
+
+        <!-- Wide screens have room to keep every section one click away, so the
+             list becomes a tab bar and the page never leaves the overview. -->
+        <nav
+            v-if="isDesktop"
+            class="shrink-0 border-b border-border"
+            aria-label="Einstellungsbereiche"
+        >
+            <div class="page-col -mb-px flex gap-6 overflow-x-auto scrollbar-none">
+                <button
+                    v-for="section in sections"
+                    :key="section.key"
+                    type="button"
+                    class="flex shrink-0 items-center gap-2 border-b-2 pb-3 pt-2 text-[15px] transition-colors"
+                    :class="
+                        section.key === activeKey
+                            ? 'border-primary font-medium text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                    "
+                    :aria-current="section.key === activeKey ? 'page' : undefined"
+                    @click="selectSection(section.key)"
+                >
+                    <component :is="section.icon" class="size-4" aria-hidden="true" />
+                    {{ section.title }}
+                </button>
+            </div>
+        </nav>
 
         <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div class="page-col space-y-10 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6">
-                <!-- Konto -->
-                <section>
-                    <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Konto</h2>
-                        <Separator class="flex-1" />
-                    </div>
-                    <div class="mt-1 divide-y divide-border">
-                        <div class="flex items-center gap-4 px-2 py-3">
-                            <User
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0">
-                                <p class="text-[15px]">E-Mail</p>
-                                <p class="truncate text-sm text-muted-foreground">
-                                    {{ user?.email || 'Nicht angemeldet' }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="openEditNameModal"
+            <!-- The panes are stacked in one grid cell, so the outgoing one
+                 slides out under the incoming one instead of the page
+                 collapsing to nothing between them. -->
+            <div class="grid overflow-hidden">
+                <Transition :name="transition">
+                    <div :key="activeKey ?? 'root'" class="col-start-1 row-start-1">
+                        <div
+                            class="page-col space-y-10 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6"
                         >
-                            <SquarePen
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0">
-                                <p class="text-[15px]">Name</p>
-                                <p class="truncate text-sm text-muted-foreground">
-                                    {{ displayName }}
-                                </p>
-                            </div>
-                        </button>
-
-                        <button
-                            v-if="isLoggedIn"
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="handleLogout"
-                        >
-                            <LogOut class="size-5 shrink-0 text-destructive" aria-hidden="true" />
-                            <p class="text-[15px] text-destructive">Abmelden</p>
-                        </button>
-                    </div>
-                    <Separator />
-                </section>
-
-                <!-- Darstellung -->
-                <section>
-                    <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Darstellung</h2>
-                        <Separator class="flex-1" />
-                    </div>
-                    <div class="mt-1 divide-y divide-border">
-                        <div class="px-2 py-3">
-                            <div class="flex items-center gap-4">
-                                <Contrast
-                                    class="size-5 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                <p class="text-[15px]">Farbschema</p>
-                            </div>
-                            <ToggleGroup
-                                type="single"
-                                class="mt-3 flex w-full"
-                                aria-label="Farbschema"
-                                :model-value="themeMode"
-                                @update:model-value="onThemeModeChange"
-                            >
-                                <ToggleGroupItem value="system" class="flex-1">
-                                    System
-                                </ToggleGroupItem>
-                                <ToggleGroupItem value="light" class="flex-1">Hell</ToggleGroupItem>
-                                <ToggleGroupItem value="dark" class="flex-1">
-                                    Dunkel
-                                </ToggleGroupItem>
-                            </ToggleGroup>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-4 px-2 py-3">
-                            <div class="flex min-w-0 items-center gap-4">
-                                <Image
-                                    class="size-5 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                <Label for="settings-melody-mode" class="text-[15px] font-normal">
-                                    Notenansicht
-                                </Label>
-                            </div>
-                            <Select v-model="melodyDisplayMode">
-                                <SelectTrigger id="settings-melody-mode" class="w-36 shrink-0">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="image">Notenbild</SelectItem>
-                                    <SelectItem value="xml">MusicXML</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <!-- One size for the song page: notation and verses
-                             alike. They are set at the same size in the book,
-                             so two controls could only pull them apart. -->
-                        <div class="px-2 py-3">
-                            <div class="flex items-center justify-between gap-4">
-                                <div class="flex items-center gap-4">
-                                    <Type
+                            <!-- Level 1 (phones only): which sections there are,
+                                 and what each of them currently says. -->
+                            <SettingsList v-if="activeKey === null">
+                                <button
+                                    v-for="section in sections"
+                                    :key="section.key"
+                                    type="button"
+                                    class="flex w-full items-center gap-4 rounded-sm px-2 py-3.5 text-left transition-colors hover:bg-muted active:bg-muted"
+                                    @click="selectSection(section.key)"
+                                >
+                                    <component
+                                        :is="section.icon"
                                         class="size-5 shrink-0 text-muted-foreground"
                                         aria-hidden="true"
                                     />
-                                    <p class="text-[15px]">Größe (Lieder)</p>
-                                </div>
-                                <span class="number-display text-lg leading-none">
-                                    {{ Math.round(pageScale * 100) }}%
-                                </span>
-                            </div>
-                            <div class="mt-4 flex items-center gap-3">
-                                <span class="shrink-0 text-xs text-muted-foreground">50%</span>
-                                <Slider
-                                    v-model="pageScaleSlider"
-                                    :min="0.5"
-                                    :max="2"
-                                    :step="0.1"
-                                    aria-label="Größe (Lieder)"
-                                    class="flex-1"
-                                />
-                                <span class="shrink-0 text-xs text-muted-foreground">200%</span>
-                            </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-[15px]">{{ section.title }}</p>
+                                        <p class="truncate text-sm text-muted-foreground">
+                                            {{ section.summary }}
+                                        </p>
+                                    </div>
+                                    <ChevronRight
+                                        class="size-4 shrink-0 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            </SettingsList>
+
+                            <!-- Level 2: one section at a time, with the whole page to itself -->
+                            <AccountSettings v-else-if="activeKey === 'konto'" />
+                            <AppearanceSettings v-else-if="activeKey === 'darstellung'" />
+                            <PlaybackSettings v-else-if="activeKey === 'wiedergabe'" />
+                            <ServiceSettings v-else-if="activeKey === 'gottesdienst'" />
+                            <DataSettings
+                                v-else-if="activeKey === 'daten'"
+                                :files-count="filesCount"
+                                :persistent-storage="persistentStorage"
+                            />
+                            <AboutSettings v-else />
                         </div>
                     </div>
-                    <Separator />
-                </section>
-
-                <!-- Wiedergabe: what the engraving shows while a song plays.
-                     The preview above the switches answers to them, so what it
-                     shows is what the song page will do. -->
-                <section>
-                    <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Wiedergabe</h2>
-                        <Separator class="flex-1" />
-                    </div>
-                    <div class="mt-1 divide-y divide-border">
-                        <div class="px-2 py-3">
-                            <div
-                                class="mx-auto w-full max-w-sm rounded-md border border-border bg-muted/40 px-3 py-2"
-                            >
-                                <SongPlaybackPreview
-                                    :highlight-notes="playbackMarks.highlightNotes"
-                                    :show-playhead="playbackMarks.showPlayhead"
-                                />
-                            </div>
-                            <p class="mt-3 text-center text-sm text-muted-foreground">
-                                Gilt für die MusicXML-Ansicht.
-                            </p>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-4 px-2 py-3">
-                            <div class="flex min-w-0 items-center gap-4">
-                                <Highlighter
-                                    class="size-5 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                <div class="min-w-0">
-                                    <Label
-                                        for="settings-highlight-notes"
-                                        class="text-[15px] font-normal"
-                                    >
-                                        Noten hervorheben
-                                    </Label>
-                                    <p class="text-sm text-muted-foreground">
-                                        Die klingende Note und ihre Silbe farbig
-                                    </p>
-                                </div>
-                            </div>
-                            <Switch
-                                id="settings-highlight-notes"
-                                :model-value="playbackMarks.highlightNotes"
-                                @update:model-value="setPlaybackMark('highlightNotes', $event)"
-                            />
-                        </div>
-
-                        <div class="flex items-center justify-between gap-4 px-2 py-3">
-                            <div class="flex min-w-0 items-center gap-4">
-                                <SeparatorVertical
-                                    class="size-5 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                <div class="min-w-0">
-                                    <Label
-                                        for="settings-show-playhead"
-                                        class="text-[15px] font-normal"
-                                    >
-                                        Abspielbalken
-                                    </Label>
-                                    <p class="text-sm text-muted-foreground">
-                                        Ein Balken, der mit der Musik über das System läuft
-                                    </p>
-                                </div>
-                            </div>
-                            <Switch
-                                id="settings-show-playhead"
-                                :model-value="playbackMarks.showPlayhead"
-                                @update:model-value="setPlaybackMark('showPlayhead', $event)"
-                            />
-                        </div>
-                    </div>
-                    <Separator />
-                </section>
-
-                <!-- Gottesdienst -->
-                <section>
-                    <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Gottesdienst</h2>
-                        <Separator class="flex-1" />
-                    </div>
-                    <div class="mt-1 divide-y divide-border">
-                        <div class="flex items-center justify-between gap-4 px-2 py-3">
-                            <div class="flex min-w-0 items-center gap-4">
-                                <Church
-                                    class="size-5 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                <div class="min-w-0">
-                                    <Label
-                                        for="settings-service-tab"
-                                        class="text-[15px] font-normal"
-                                    >
-                                        Tab immer anzeigen
-                                    </Label>
-                                    <p class="text-sm text-muted-foreground">
-                                        Sonst erscheint er nur, solange Lieder vorgemerkt sind
-                                    </p>
-                                </div>
-                            </div>
-                            <Switch
-                                id="settings-service-tab"
-                                :model-value="serviceTabPinned"
-                                @update:model-value="setServiceTabPinned"
-                            />
-                        </div>
-
-                        <button
-                            v-if="hasServiceSelection"
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="router.push('/tabs/gottesdienst')"
-                        >
-                            <CalendarDays
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0 flex-1">
-                                <p class="text-[15px]">Vorgemerkte Lieder</p>
-                                <p class="truncate text-sm text-muted-foreground">
-                                    {{ serviceSelectionLabel }}
-                                </p>
-                            </div>
-                            <ChevronRight
-                                class="size-4 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                        </button>
-                    </div>
-                    <Separator />
-                </section>
-
-                <!-- Daten -->
-                <section>
-                    <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Daten</h2>
-                        <Separator class="flex-1" />
-                    </div>
-                    <div class="mt-1 divide-y divide-border">
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="navigateToDownload"
-                        >
-                            <CloudDownload
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0 flex-1">
-                                <p class="text-[15px]">Heruntergeladene Inhalte</p>
-                                <p class="text-sm text-muted-foreground">
-                                    {{ songsCount }} Lieder, {{ filesCount }} Dateien
-                                </p>
-                            </div>
-                            <ChevronRight
-                                class="size-4 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                        </button>
-
-                        <!-- Always visible: null renders „Vom Browser nicht unterstützt."
-                             (matches the pre-migration behavior) -->
-                        <div class="flex items-center gap-4 px-2 py-3">
-                            <Server
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0">
-                                <p class="text-[15px]">Dauerhafte Speicherung</p>
-                                <p class="text-sm leading-relaxed text-muted-foreground">
-                                    {{ persistedStatusText }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="handleExport"
-                        >
-                            <Download
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0">
-                                <p class="text-[15px]">Daten exportieren</p>
-                                <p class="text-sm text-muted-foreground">
-                                    Playlists und Favoriten als Datei sichern
-                                </p>
-                            </div>
-                        </button>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="importInput?.click()"
-                        >
-                            <CloudUpload
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0">
-                                <p class="text-[15px]">Daten importieren</p>
-                                <p class="text-sm text-muted-foreground">
-                                    Aus einer Sicherungsdatei wiederherstellen
-                                </p>
-                            </div>
-                        </button>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="navigateToInstallPWA"
-                        >
-                            <Smartphone
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0 flex-1">
-                                <p class="text-[15px]">App installieren</p>
-                                <p class="text-sm text-muted-foreground">
-                                    Installiere die App auf deinem Gerät
-                                </p>
-                            </div>
-                            <ChevronRight
-                                class="size-4 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                        </button>
-                    </div>
-                    <Separator />
-                    <input
-                        ref="importInput"
-                        type="file"
-                        accept="application/json,.json"
-                        style="display: none"
-                        @change="onImportFileChange"
-                    />
-                </section>
-
-                <!-- Gefahrenbereich -->
-                <section>
-                    <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-destructive">Gefahrenbereich</h2>
-                        <Separator class="flex-1" />
-                    </div>
-                    <div class="mt-4 px-2">
-                        <p class="text-sm leading-relaxed text-muted-foreground">
-                            Diese Aktionen können nicht rückgängig gemacht werden.
-                        </p>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            class="mt-4 w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            @click="handleDeleteAccount"
-                        >
-                            <Trash2 aria-hidden="true" />
-                            Konto löschen
-                        </Button>
-                    </div>
-                </section>
-
-                <!-- Über die App -->
-                <section>
-                    <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Über die App</h2>
-                        <Separator class="flex-1" />
-                    </div>
-                    <div class="mt-1 divide-y divide-border">
-                        <div class="flex items-center gap-4 px-2 py-3">
-                            <Info
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0">
-                                <p class="text-[15px]">Version</p>
-                                <p class="text-sm text-muted-foreground">{{ appVersion }}</p>
-                            </div>
-                        </div>
-
-                        <a
-                            :href="`mailto:${SUPPORT_EMAIL}`"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 transition-colors hover:bg-muted active:bg-muted"
-                        >
-                            <Mail
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div class="min-w-0">
-                                <p class="text-[15px]">Kontakt &amp; Hilfe</p>
-                                <p class="truncate text-sm text-muted-foreground">
-                                    {{ SUPPORT_EMAIL }}
-                                </p>
-                            </div>
-                        </a>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="openPrivacyPolicy"
-                        >
-                            <ShieldCheck
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <p class="flex-1 text-[15px]">Datenschutz</p>
-                            <ChevronRight
-                                class="size-4 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                        </button>
-
-                        <button
-                            type="button"
-                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-                            @click="router.push('/impressum')"
-                        >
-                            <FileText
-                                class="size-5 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <p class="flex-1 text-[15px]">Impressum</p>
-                            <ChevronRight
-                                class="size-4 shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                        </button>
-                    </div>
-                    <Separator />
-                </section>
+                </Transition>
             </div>
         </main>
-
-        <!-- Name ändern -->
-        <Dialog v-model:open="editNameOpen">
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Name ändern</DialogTitle>
-                    <DialogDescription class="sr-only">
-                        Ändern Sie Ihren Vor- und Nachnamen.
-                    </DialogDescription>
-                </DialogHeader>
-                <div class="space-y-4">
-                    <Input
-                        v-model="editFirstName"
-                        type="text"
-                        placeholder="Vorname"
-                        aria-label="Vorname"
-                        autocomplete="given-name"
-                    />
-                    <Input
-                        v-model="editLastName"
-                        type="text"
-                        placeholder="Nachname"
-                        aria-label="Nachname"
-                        autocomplete="family-name"
-                    />
-                </div>
-                <DialogFooter>
-                    <DialogClose as-child>
-                        <Button type="button" variant="outline">Abbrechen</Button>
-                    </DialogClose>
-                    <Button type="button" @click="saveEditedName">Speichern</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onActivated, onMounted, ref } from 'vue';
+import { computed, nextTick, onActivated, ref, watch } from 'vue';
 
 import {
-    CalendarDays,
+    AudioLines,
+    ChevronLeft,
     ChevronRight,
     Church,
-    CloudDownload,
-    CloudUpload,
     Contrast,
-    Download,
-    FileText,
-    Highlighter,
-    Image,
+    Database,
     Info,
-    LogOut,
-    Mail,
-    SeparatorVertical,
-    Server,
-    ShieldCheck,
-    Smartphone,
-    SquarePen,
-    Trash2,
-    Type,
     User,
 } from 'lucide-vue-next';
-import type { AcceptableValue } from 'reka-ui';
-import { useRouter } from 'vue-router';
-import { toast } from 'vue-sonner';
+import { useRoute, useRouter } from 'vue-router';
 
-import { useFavoritesStore } from '@/stores/favorites';
-import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
-import { useConfirm } from '@/composables/useConfirm';
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
+import { useIsDesktop } from '@/composables/useMediaQuery';
 import { useTheme } from '@/composables/useTheme';
 
+import AboutSettings from '@/components/settings/AboutSettings.vue';
+import AccountSettings from '@/components/settings/AccountSettings.vue';
+import AppearanceSettings from '@/components/settings/AppearanceSettings.vue';
+import DataSettings from '@/components/settings/DataSettings.vue';
+import PlaybackSettings from '@/components/settings/PlaybackSettings.vue';
+import ServiceSettings from '@/components/settings/ServiceSettings.vue';
+import SettingsList from '@/components/settings/SettingsList.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
-import SongPlaybackPreview from '@/components/songview/SongPlaybackPreview.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-import { SUPPORT_EMAIL } from '@/config/support';
-import { type Favorite, type Playlist, db } from '@/db';
-import { formatServiceDate } from '@/services/servicePlans';
-import { downloadJsonFile, isPersisted } from '@/services/storage';
+import { APP_VERSION } from '@/config/app';
+import { isPersisted } from '@/services/storage';
 
+const SECTION_KEYS = [
+    'konto',
+    'darstellung',
+    'wiedergabe',
+    'gottesdienst',
+    'daten',
+    'ueber',
+] as const;
+type SectionKey = (typeof SECTION_KEYS)[number];
+
+const THEME_LABELS = { system: 'System', light: 'Hell', dark: 'Dunkel' } as const;
+
+const route = useRoute();
 const router = useRouter();
-const { user, logout, deleteAccount, isLoggedIn } = useAuth();
-const { theme, setTheme } = useTheme();
+const isDesktop = useIsDesktop();
+
+const { user } = useAuth();
+const { theme } = useTheme();
+const songsStore = useSongsStore();
+const preferencesStore = usePreferencesStore();
+const serviceStore = useServiceStore();
 
 // KeepAlive resets scrollTop on re-attach; save/restore it (Ionic parity)
 const scrollRef = ref<HTMLElement | null>(null);
 useKeepAliveScroll(scrollRef);
-const { confirm } = useConfirm();
-const songsStore = useSongsStore();
-const preferencesStore = usePreferencesStore();
-const playlistsStore = usePlaylistsStore();
-const favoritesStore = useFavoritesStore();
-const serviceStore = useServiceStore();
 
-// Hidden file input for the backup import
-const importInput = ref<HTMLInputElement | null>(null);
-
-// App version - could be pulled from package.json in a real setup
-const appVersion = ref('1.0.0');
-
-// Appearance settings
-const themeMode = ref<'system' | 'light' | 'dark'>('system');
-const pageScale = computed(() => preferencesStore.pageScale);
-// Reka's Slider works on number[] (multi-thumb capable) — bridge to the scalar store value.
-const pageScaleSlider = computed<number[] | undefined>({
-    get: () => [preferencesStore.pageScale],
-    set: (value) => {
-        const scale = value?.[0];
-        if (typeof scale === 'number') {
-            preferencesStore.setPageScale(scale);
-        }
-    },
-});
-const melodyDisplayMode = computed<AcceptableValue>({
-    get: () => preferencesStore.melodyDisplayMode,
-    set: (value) => {
-        if (value === 'image' || value === 'xml') {
-            preferencesStore.setMelodyDisplayMode(value);
-        }
-    },
-});
-
-// What the engraving marks while a song plays. Both live with the other
-// MusicXML settings, so the song page picks them up through the same store.
-const playbackMarks = computed(() => preferencesStore.xmlSettings);
-
-function setPlaybackMark(key: 'highlightNotes' | 'showPlayhead', value: boolean) {
-    preferencesStore.setXmlSetting(key, value);
-}
-
-// Gottesdienst: whether the tab is pinned, and what is currently marked for one
-const serviceTabPinned = computed(() => preferencesStore.serviceTab === 'always');
-const hasServiceSelection = computed(() => serviceStore.hasSelection);
-const serviceSelectionLabel = computed(() => {
-    const count = serviceStore.entryCount;
-    const songs = count === 1 ? '1 Lied' : `${count} Lieder`;
-    const date = serviceStore.plan ? formatServiceDate(serviceStore.plan.date) : '';
-    return [songs, date].filter(Boolean).join(' · ');
-});
-
-function setServiceTabPinned(pinned: boolean) {
-    preferencesStore.setServiceTab(pinned ? 'always' : 'auto');
-}
-
-// Data counts
-const songsCount = computed(() => songsStore.songs.length);
+// Volatile enough to need refreshing on every entry — and shown twice, in the
+// overview summary and inside the Daten section, so the shell owns both.
 const filesCount = ref(0);
-
-// Persistent-storage state: true/false from the browser, null = unsupported
 const persistentStorage = ref<boolean | null>(null);
-const persistedStatusText = computed(() => {
-    if (persistentStorage.value === true) {
-        return 'Aktiv – Ihre Daten sind vor automatischer Löschung geschützt.';
-    }
-    if (persistentStorage.value === false) {
-        return 'Nicht aktiv – der Browser kann lokale Daten bei Speicherplatzmangel entfernen.';
-    }
-    return 'Vom Browser nicht unterstützt.';
+
+const playbackSummary = computed(() => {
+    const marks = preferencesStore.xmlSettings;
+    const on = [
+        marks.highlightNotes ? 'Noten hervorheben' : null,
+        marks.showPlayhead ? 'Abspielbalken' : null,
+    ].filter(Boolean);
+    return on.length ? on.join(' · ') : 'Ohne Markierungen';
 });
 
-// Computed
-const displayName = computed(() => {
-    if (user.value?.firstName || user.value?.lastName) {
-        return [user.value.firstName, user.value.lastName].filter(Boolean).join(' ');
-    }
-    return 'Nicht angegeben';
+const serviceSummary = computed(() => {
+    if (serviceStore.hasSelection) return serviceStore.selectionLabel;
+    return preferencesStore.serviceTab === 'always'
+        ? 'Tab immer sichtbar'
+        : 'Tab nur bei vorgemerkten Liedern';
 });
 
-// Load settings on mount
-onMounted(async () => {
-    await loadSettings();
+// The overview is a list of what each section currently says, not a bare menu:
+// one line each, so a phone reader can see the state without opening anything.
+const sections = computed(() => [
+    {
+        key: 'konto' as const,
+        title: 'Konto',
+        icon: User,
+        summary: user.value?.email || 'Nicht angemeldet',
+    },
+    {
+        key: 'darstellung' as const,
+        title: 'Darstellung',
+        icon: Contrast,
+        summary: `${THEME_LABELS[theme.value]} · ${Math.round(preferencesStore.pageScale * 100)} %`,
+    },
+    {
+        key: 'wiedergabe' as const,
+        title: 'Wiedergabe',
+        icon: AudioLines,
+        summary: playbackSummary.value,
+    },
+    {
+        key: 'gottesdienst' as const,
+        title: 'Gottesdienst',
+        icon: Church,
+        summary: serviceSummary.value,
+    },
+    {
+        key: 'daten' as const,
+        title: 'Daten',
+        icon: Database,
+        summary: `${songsStore.songs.length} Lieder, ${filesCount.value} Dateien`,
+    },
+    {
+        key: 'ueber' as const,
+        title: 'Über die App',
+        icon: Info,
+        summary: `Version ${APP_VERSION}`,
+    },
+]);
+
+function isSectionKey(value: unknown): value is SectionKey {
+    return SECTION_KEYS.includes(value as SectionKey);
+}
+
+const routeSection = computed<SectionKey | null>(() => {
+    const value = route.query.bereich;
+    return isSectionKey(value) ? value : null;
 });
+
+/**
+ * Which section is on show — null being the overview list, which only phones
+ * ever get: on a wide screen the tabs are a view of one page, not a stack, so
+ * an absent query falls back to the first tab instead of an empty page.
+ */
+const activeKey = computed<SectionKey | null>(
+    () => routeSection.value ?? (isDesktop.value ? 'konto' : null),
+);
+
+const activeSection = computed(() => sections.value.find((s) => s.key === activeKey.value));
+const showBack = computed(() => !isDesktop.value && activeKey.value !== null);
+const headerTitle = computed(() =>
+    showBack.value ? (activeSection.value?.title ?? 'Einstellungen') : 'Einstellungen',
+);
+
+const transition = ref<'pane-forward' | 'pane-back' | 'pane-fade'>('pane-fade');
+
+// Pre-flush, so the name is already right when the Transition patches. Sliding
+// is for the drill-down only — tabs that swapped sideways on every click would
+// be a lot of motion for what is one page.
+watch(activeKey, (next, previous) => {
+    if (isDesktop.value) {
+        transition.value = 'pane-fade';
+    } else {
+        transition.value = next === null && previous !== null ? 'pane-back' : 'pane-forward';
+    }
+    nextTick(() => {
+        if (scrollRef.value) scrollRef.value.scrollTop = 0;
+    });
+});
+
+function selectSection(key: SectionKey) {
+    // Drilling in on a phone is a step the back gesture should undo; tabbing
+    // through the sections on a wide screen is not, or six clicks would put
+    // six history entries between the reader and the way out.
+    const to = { query: { ...route.query, bereich: key } };
+    if (isDesktop.value) {
+        router.replace(to);
+    } else {
+        router.push(to);
+    }
+}
+
+function closeSection() {
+    const { bereich: _bereich, ...query } = route.query;
+    router.replace({ query });
+}
 
 // As a tab child this page mounts once and stays alive across tab switches, so
 // volatile values (files count after a sync, persistence state) must refresh on
@@ -681,214 +289,56 @@ onMounted(async () => {
 // (onActivated replaces Ionic's onIonViewWillEnter: the new tab shell keeps
 // pages alive with <KeepAlive> instead of an ion-router-outlet.)
 onActivated(async () => {
-    await updateFilesCount();
+    filesCount.value = await songsStore.getStoredFilesCount();
     persistentStorage.value = await isPersisted();
 });
-
-async function loadSettings() {
-    // Mirror the persisted preference into the segment (useTheme already
-    // applied it on app startup)
-    themeMode.value = theme.value;
-}
-
-async function updateFilesCount() {
-    filesCount.value = await songsStore.getStoredFilesCount();
-}
-
-function onThemeModeChange(value: AcceptableValue | AcceptableValue[]) {
-    if (value === 'system' || value === 'light' || value === 'dark') {
-        themeMode.value = value;
-        onThemeChange();
-    }
-}
-
-function onThemeChange() {
-    // useTheme owns persistence ('settings.theme') and applies the `dark` class.
-    setTheme(themeMode.value);
-}
-
-function navigateToDownload() {
-    router.push('/download');
-}
-
-function navigateToInstallPWA() {
-    router.push('/install-pwa');
-}
-
-// Name ändern dialog
-const editNameOpen = ref(false);
-const editFirstName = ref('');
-const editLastName = ref('');
-
-function openEditNameModal() {
-    editFirstName.value = user.value?.firstName || '';
-    editLastName.value = user.value?.lastName || '';
-    editNameOpen.value = true;
-}
-
-async function saveEditedName() {
-    editNameOpen.value = false;
-    await updateUserName(editFirstName.value, editLastName.value);
-}
-
-async function updateUserName(_firstName: string, _lastName: string) {
-    try {
-        // TODO: Implement API call to update user name on server
-        // For now, show a toast that the feature is coming
-        toast.warning('Name-Änderung wird in einer zukünftigen Version verfügbar sein.', {
-            duration: 3000,
-        });
-    } catch (error) {
-        console.error('Error updating name:', error);
-    }
-}
-
-function showToast(message: string, color: 'success' | 'danger') {
-    if (color === 'success') {
-        toast.success(message, { duration: 3000 });
-    } else {
-        toast.error(message, { duration: 3000 });
-    }
-}
-
-async function handleExport() {
-    try {
-        const [playlists, favorites] = await Promise.all([
-            db.playlists.toArray(),
-            db.favorites.toArray(),
-        ]);
-        downloadJsonFile(`gesangbuch-daten-${new Date().toISOString().slice(0, 10)}.json`, {
-            app: 'gesangbuch',
-            schemaVersion: 1,
-            exportedAt: new Date().toISOString(),
-            playlists,
-            favorites,
-        });
-        showToast('Daten wurden exportiert.', 'success');
-    } catch (error) {
-        console.error('Error exporting data:', error);
-        showToast('Die Daten konnten nicht exportiert werden.', 'danger');
-    }
-}
-
-// Revive a JSON-serialized Date (ISO string) back into a real Date object
-function reviveDate(value: unknown): Date {
-    const date = new Date(value as string | number | Date);
-    return Number.isNaN(date.getTime()) ? new Date() : date;
-}
-
-async function onImportFileChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-
-    try {
-        const data = JSON.parse(await file.text());
-        if (
-            data?.app !== 'gesangbuch' ||
-            !Array.isArray(data.playlists) ||
-            !Array.isArray(data.favorites)
-        ) {
-            throw new Error('invalid backup file');
-        }
-
-        const playlists: Playlist[] = data.playlists
-            .filter(
-                (p: unknown) =>
-                    p &&
-                    typeof (p as Playlist).id === 'string' &&
-                    typeof (p as Playlist).name === 'string' &&
-                    Array.isArray((p as Playlist).songIds),
-            )
-            .map((p: Playlist & { createdAt: string | Date; updatedAt: string | Date }) => ({
-                id: p.id,
-                name: p.name,
-                emoji: typeof p.emoji === 'string' ? p.emoji : '🎵',
-                songIds: p.songIds.filter((s: unknown): s is string => typeof s === 'string'),
-                createdAt: reviveDate(p.createdAt),
-                updatedAt: reviveDate(p.updatedAt),
-            }));
-
-        const favorites: Favorite[] = data.favorites
-            .filter((f: unknown) => f && typeof (f as Favorite).id === 'string')
-            .map((f: Favorite & { createdAt: string | Date }) => ({
-                id: f.id,
-                createdAt: reviveDate(f.createdAt),
-            }));
-
-        // bulkPut matches on the primary keys (playlist id = UUID, favorite id
-        // = song id), so re-importing the same backup is idempotent — existing
-        // rows are overwritten, never duplicated.
-        await db.transaction('rw', db.playlists, db.favorites, async () => {
-            await db.playlists.bulkPut(playlists);
-            await db.favorites.bulkPut(favorites);
-        });
-
-        // Both stores hydrate their refs only once at creation — reload them
-        await Promise.all([playlistsStore.loadPlaylists(), favoritesStore.loadFavorites()]);
-
-        showToast(
-            `${playlists.length} Playlists und ${favorites.length} Favoriten importiert.`,
-            'success',
-        );
-    } catch (error) {
-        console.error('Error importing data:', error);
-        showToast(
-            'Die Datei konnte nicht importiert werden. Bitte wählen Sie eine gültige Sicherungsdatei.',
-            'danger',
-        );
-    }
-}
-
-async function handleLogout() {
-    const proceed = await confirm({
-        title: 'Abmelden',
-        message:
-            'Möchten Sie sich wirklich abmelden? Ihre Playlists, Favoriten und Einstellungen werden dabei von diesem Gerät gelöscht.',
-        confirmText: 'Abmelden',
-    });
-    if (!proceed) return;
-
-    await logout();
-    router.push('/login');
-}
-
-async function handleDeleteAccount() {
-    const proceed = await confirm({
-        title: 'Konto löschen',
-        message:
-            'Sind Sie sicher, dass Sie Ihr Konto unwiderruflich löschen möchten? Alle Ihre Daten werden gelöscht.',
-        confirmText: 'Konto löschen',
-        destructive: true,
-    });
-    if (!proceed) return;
-
-    const result = await deleteAccount();
-    if (result.success) {
-        // deleteAccount already wiped this device and is
-        // hard-redirecting to /login — nothing left to do here.
-        return;
-    }
-
-    if (result.code === 'FORBIDDEN') {
-        // Automatic deletion is not enabled on the server (yet):
-        // offer the honest route via the support address instead.
-        const writeEmail = await confirm({
-            title: 'Kontolöschung nicht möglich',
-            message: result.error,
-            confirmText: 'E-Mail schreiben',
-            cancelText: 'Schließen',
-        });
-        if (writeEmail) {
-            window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Kontolöschung')}`;
-        }
-    } else {
-        showToast(result.error, 'danger');
-    }
-}
-
-function openPrivacyPolicy() {
-    router.push('/datenschutz');
-}
 </script>
+
+<style scoped>
+.pane-forward-enter-active,
+.pane-forward-leave-active,
+.pane-back-enter-active,
+.pane-back-leave-active {
+    transition:
+        transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 140ms ease;
+}
+
+.pane-forward-enter-from,
+.pane-back-leave-to {
+    opacity: 0;
+    transform: translateX(100%);
+}
+
+.pane-forward-leave-to,
+.pane-back-enter-from {
+    opacity: 0;
+    transform: translateX(-25%);
+}
+
+.pane-fade-enter-active,
+.pane-fade-leave-active {
+    transition: opacity 120ms ease;
+}
+
+.pane-fade-enter-from,
+.pane-fade-leave-to {
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pane-forward-enter-active,
+    .pane-forward-leave-active,
+    .pane-back-enter-active,
+    .pane-back-leave-active {
+        transition: opacity 100ms ease;
+    }
+
+    .pane-forward-enter-from,
+    .pane-forward-leave-to,
+    .pane-back-enter-from,
+    .pane-back-leave-to {
+        transform: none;
+    }
+}
+</style>

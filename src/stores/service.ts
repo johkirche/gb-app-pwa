@@ -8,6 +8,7 @@ import {
     type ServicePlanDraft,
     createPlan,
     endOfDay,
+    formatServiceDate,
     getServicePlanProvider,
     isPlanExpired,
     toPlainPlan,
@@ -42,6 +43,12 @@ export const useServiceStore = defineStore('service', () => {
     const entryCount = computed(() => entries.value.length);
     /** What the tab bar asks: is there anything to show? */
     const hasSelection = computed(() => entryCount.value > 0);
+    /** The selection in one line („3 Lieder · Heute") — for rows that link to it. */
+    const selectionLabel = computed(() => {
+        const songs = entryCount.value === 1 ? '1 Lied' : `${entryCount.value} Lieder`;
+        const date = plan.value ? formatServiceDate(plan.value.date) : '';
+        return [songs, date].filter(Boolean).join(' · ');
+    });
 
     function isInPlan(songId: string): boolean {
         return songIdSet.value.has(songId);
@@ -243,6 +250,7 @@ export const useServiceStore = defineStore('service', () => {
         songIds,
         entryCount,
         hasSelection,
+        selectionLabel,
         isInPlan,
         // Actions
         load,
