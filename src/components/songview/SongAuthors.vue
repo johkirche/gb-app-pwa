@@ -12,17 +12,25 @@
             <span :class="line.isCopyright ? 'text-sm text-muted-foreground' : 'text-foreground'">
                 <!-- Named authors are the way into the list: tapping one shows
                      every song of theirs. Everything else on the line (label,
-                     copyright, Ursprungsautor) stays plain text. -->
+                     copyright, Ursprungsautor) stays plain text.
+
+                     A link, not a button, because a button element is an atomic
+                     box in every engine — it cannot be split across lines, not
+                     even with `display: inline`. A long name therefore wrapped as
+                     one piece and left its "Text:" label stranded alone on the
+                     line above. An anchor is a real inline box: the name starts
+                     right after the label and breaks where it runs out of room.
+                     Filtering the list by author is a navigation anyway, so the
+                     link also gets us keyboard activation for free. -->
                 <template v-for="(segment, segIdx) in line.segments" :key="segIdx">
-                    <button
+                    <RouterLink
                         v-if="segment.filterName"
-                        type="button"
-                        class="break-words text-left underline decoration-dotted underline-offset-[3px] transition-colors hover:text-primary active:text-primary"
+                        :to="{ path: '/tabs/lieder', query: { autor: segment.filterName } }"
+                        class="break-words underline decoration-dotted underline-offset-[3px] transition-colors hover:text-primary active:text-primary"
                         :aria-label="`Lieder von ${segment.filterName} anzeigen`"
-                        @click="showSongsOfAuthor(segment.filterName)"
                     >
                         {{ segment.text }}
-                    </button>
+                    </RouterLink>
                     <template v-else>{{ segment.text }}</template>
                 </template>
             </span>
@@ -34,7 +42,7 @@
 import { type Component, computed } from 'vue';
 
 import { FileText, Music2 } from 'lucide-vue-next';
-import { useRouter } from 'vue-router';
+import { RouterLink } from 'vue-router';
 
 import type { Song } from '@/db';
 import { type FooterLineKind, authorFilterName, buildFooterLines } from '@/utils/authorFormat';
@@ -42,8 +50,6 @@ import { type FooterLineKind, authorFilterName, buildFooterLines } from '@/utils
 const props = defineProps<{
     song: Song;
 }>();
-
-const router = useRouter();
 
 const lineIcons: Partial<Record<FooterLineKind, Component>> = {
     text: FileText,
@@ -73,10 +79,4 @@ const footerLines = computed(() =>
         })),
     })),
 );
-
-// Hand the name to the song list, which filters by it. The list is a tab root,
-// so this is a normal navigation — the back gesture returns to the song.
-function showSongsOfAuthor(name: string) {
-    router.push({ path: '/tabs/lieder', query: { autor: name } });
-}
 </script>
