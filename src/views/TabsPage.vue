@@ -25,7 +25,6 @@
                 <component :is="tab.icon" class="h-5 w-5" aria-hidden="true" />
                 {{ tab.label }}
             </RouterLink>
-            <!-- Future tab (Gottesdienst): add an entry to `tabs` below plus a child route under /tabs/ -->
 
             <!-- Quick access (desktop only; on mobile these live inside the tabs) -->
             <p class="label-micro mt-8 px-3 pb-1 text-muted-foreground">Schnellzugriff</p>
@@ -110,14 +109,13 @@
                     v-for="tab in tabs"
                     :key="tab.to"
                     :to="tab.to"
-                    class="flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition-colors"
+                    class="flex min-w-0 flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition-colors"
                     :class="isActive(tab.to) ? 'text-primary' : 'text-muted-foreground'"
                     :aria-current="isActive(tab.to) ? 'page' : undefined"
                 >
                     <component :is="tab.icon" class="h-[22px] w-[22px]" aria-hidden="true" />
-                    {{ tab.label }}
+                    <span class="w-full truncate px-0.5 text-center">{{ tab.label }}</span>
                 </RouterLink>
-                <!-- Future tab (Gottesdienst): add an entry to `tabs` plus a child route under /tabs/ -->
             </div>
         </nav>
     </div>
@@ -128,6 +126,7 @@ import { computed } from 'vue';
 
 import {
     ChevronsUpDown,
+    Church,
     CloudDownload,
     Heart,
     ListMusic,
@@ -136,7 +135,11 @@ import {
     Settings,
     User,
 } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
+
+import { usePreferencesStore } from '@/stores/preferences';
+import { useServiceStore } from '@/stores/service';
 
 import { useAuth } from '@/composables/useAuth';
 import { useConfirm } from '@/composables/useConfirm';
@@ -154,12 +157,30 @@ const router = useRouter();
 const { user, isLoggedIn, logout } = useAuth();
 const { confirm } = useConfirm();
 
-const tabs = [
+const { hasSelection } = storeToRefs(useServiceStore());
+const { serviceTab } = storeToRefs(usePreferencesStore());
+
+/**
+ * The Gottesdienst tab is an occasion, not a permanent fixture: it appears for
+ * as long as songs are marked for one, and stays for whoever pinned it in the
+ * settings. Standing on the page keeps it visible too — otherwise a link
+ * straight to an empty selection would leave the bar with nothing marked.
+ */
+const showServiceTab = computed(
+    () =>
+        hasSelection.value ||
+        serviceTab.value === 'always' ||
+        route.path.startsWith('/tabs/gottesdienst'),
+);
+
+const tabs = computed(() => [
     { to: '/tabs/lieder', label: 'Lieder', icon: Music },
     { to: '/tabs/playlisten', label: 'Playlisten', icon: ListMusic },
-    // Future tab (Gottesdienst): add it here plus a child route under /tabs/
+    ...(showServiceTab.value
+        ? [{ to: '/tabs/gottesdienst', label: 'Gottesdienst', icon: Church }]
+        : []),
     { to: '/tabs/einstellungen', label: 'Einstellungen', icon: Settings },
-];
+]);
 
 const quickLinks = [
     { to: '/favorites', label: 'Favoriten', icon: Heart },

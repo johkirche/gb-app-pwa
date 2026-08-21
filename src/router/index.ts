@@ -15,6 +15,7 @@ import PasswordResetPage from '../views/PasswordResetPage.vue';
 import PlaylistDetailPage from '../views/PlaylistDetailPage.vue';
 import PlaylistsListPage from '../views/PlaylistsListPage.vue';
 import RegisterPage from '../views/RegisterPage.vue';
+import ServicePage from '../views/ServicePage.vue';
 import SettingsPage from '../views/SettingsPage.vue';
 import SongPage from '../views/SongPage.vue';
 import SongsListPage from '../views/SongsListPage.vue';
@@ -51,7 +52,14 @@ const routes: Array<RouteRecordRaw> = [
                 component: PlaylistsListPage,
                 meta: { requiresAuth: true },
             },
-            // Future tab (Gottesdienst): add its child route here
+            // The Gottesdienst tab. The route exists whether or not the tab
+            // is currently offered, so a link to it always resolves.
+            {
+                path: 'gottesdienst',
+                name: 'Service',
+                component: ServicePage,
+                meta: { requiresAuth: true },
+            },
             {
                 path: 'einstellungen',
                 name: 'Settings',

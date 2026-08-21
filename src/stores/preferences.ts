@@ -2,7 +2,7 @@ import { ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type MelodyDisplayMode, type XmlDisplaySettings, db } from '@/db';
+import { type MelodyDisplayMode, type ServiceTabMode, type XmlDisplaySettings, db } from '@/db';
 
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
@@ -47,6 +47,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
     const pageScale = ref<number>(1.0); // One size for notation and verses alike
     const melodyDisplayMode = ref<MelodyDisplayMode>('xml'); // Default to MusicXML notation
     const xmlSettings = ref<XmlDisplaySettings>({ ...DEFAULT_XML_SETTINGS });
+    // 'auto' keeps the tab bar as it was for everyone who never holds a service;
+    // whoever leads the music pins it once and always has it.
+    const serviceTab = ref<ServiceTabMode>('auto');
     const isLoading = ref(false);
 
     // Actions
@@ -62,6 +65,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 const storedMode = prefs.melodyDisplayMode as MelodyDisplayMode | 'abc' | undefined;
                 melodyDisplayMode.value = storedMode && storedMode !== 'abc' ? storedMode : 'xml';
                 xmlSettings.value = { ...DEFAULT_XML_SETTINGS, ...(prefs.xmlSettings || {}) };
+                serviceTab.value = prefs.serviceTab ?? 'auto';
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -78,6 +82,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             // Spread to a plain object: IndexedDB cannot structured-clone the
             // reactive proxy behind xmlSettings.value (DataCloneError).
             xmlSettings: { ...xmlSettings.value },
+            serviceTab: serviceTab.value,
         });
     }
 
@@ -114,6 +119,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setServiceTab(mode: ServiceTabMode) {
+        try {
+            serviceTab.value = mode;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Gottesdienst tab setting:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -122,6 +137,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         pageScale.value = 1.0;
         melodyDisplayMode.value = 'xml';
         xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
+        serviceTab.value = 'auto';
     }
 
     // Initialize store on creation
@@ -132,6 +148,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         pageScale,
         melodyDisplayMode,
         xmlSettings,
+        serviceTab,
         isLoading,
 
         // Actions
@@ -139,6 +156,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setPageScale,
         setMelodyDisplayMode,
         setXmlSetting,
+        setServiceTab,
         resetToDefaults,
 
         // Initialization promise
