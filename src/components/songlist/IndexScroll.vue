@@ -3,7 +3,7 @@
         ref="containerRef"
         class="index-scroll"
         :class="{ dragging: isDragging }"
-        :style="{ maxHeight: maxHeight + 'px' }"
+        :style="{ top: bandTop + 'px', height: bandHeight + 'px' }"
         @touchstart.prevent="onTouchStart"
         @touchmove.prevent="onTouchMove"
         @touchend="onTouchEnd"
@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 export interface IndexItem {
     key: string;
@@ -50,7 +50,9 @@ interface DisplayItem extends IndexItem {
 const props = defineProps<{
     items: IndexItem[];
     activeKey?: string;
-    headerOffset?: number; // Offset from top (for header)
+    /** Box the rail centers itself in — pass the scroll area so the strip
+        ignores the toolbar above it. Falls back to the offset parent. */
+    boundsEl?: HTMLElement | null;
 }>();
 
 const emit = defineEmits<{
@@ -63,23 +65,22 @@ const isDragging = ref(false);
 const currentDragItem = ref<IndexItem | null>(null);
 const indicatorTop = ref(0);
 
-// Space reserved above (header/toolbar) and below (FAB area) the strip.
-const TOP_RESERVE_FALLBACK = 120;
-const BOTTOM_RESERVE = 80;
-const CONTAINER_PADDING = 16; // 8px top + 8px bottom on .index-scroll
-const FALLBACK_ITEM_HEIGHT = 24;
+// Breathing room kept above and below the rail inside its band.
+const BAND_INSET = 8;
+const CONTAINER_PADDING = 12; // 6px top + 6px bottom on .index-scroll
+const FALLBACK_ITEM_HEIGHT = 21;
 
-const maxHeight = ref(computeMaxHeight());
+// The band the strip lives in, measured from the bounds element rather than the
+// viewport: a guessed header height cannot track a toolbar that grows (filter
+// chips) or a safe-area inset, and centering on the full page column pulls the
+// rail up by half the toolbar.
+const bandTop = ref(0);
+const bandHeight = ref(window.innerHeight);
 const itemHeight = ref(FALLBACK_ITEM_HEIGHT);
 
-function computeMaxHeight() {
-    const headerOffset = props.headerOffset ?? TOP_RESERVE_FALLBACK;
-    return Math.max(0, window.innerHeight - headerOffset - BOTTOM_RESERVE);
-}
-
-// How many labels fit in the available height without overflowing.
+// How many labels fit in the band without overflowing.
 const maxVisibleItems = computed(() => {
-    const usable = maxHeight.value - CONTAINER_PADDING;
+    const usable = bandHeight.value - CONTAINER_PADDING;
     return Math.max(1, Math.floor(usable / itemHeight.value));
 });
 
@@ -136,18 +137,59 @@ function measureItemHeight() {
     }
 }
 
+function resolveBounds() {
+    const el = containerRef.value;
+    if (!el) return null;
+    const parent = (el.offsetParent as HTMLElement | null) ?? el.parentElement;
+    if (!parent) return null;
+    return { parent, bounds: props.boundsEl ?? parent };
+}
+
+function measureBand() {
+    const resolved = resolveBounds();
+    if (!resolved) return;
+    const parentRect = resolved.parent.getBoundingClientRect();
+    const boundsRect = resolved.bounds.getBoundingClientRect();
+    if (boundsRect.height === 0) return;
+    bandTop.value = boundsRect.top - parentRect.top + BAND_INSET;
+    bandHeight.value = Math.max(0, boundsRect.height - BAND_INSET * 2);
+}
+
 function updateMeasurements() {
-    maxHeight.value = computeMaxHeight();
+    measureBand();
     measureItemHeight();
 }
 
+// The band shrinks when the toolbar grows a filter-chip row, so watch its box
+// rather than only the window.
+let bandObserver: ResizeObserver | null = null;
+
+function observeBand() {
+    bandObserver?.disconnect();
+    bandObserver = null;
+    const resolved = resolveBounds();
+    if (!resolved || typeof ResizeObserver === 'undefined') return;
+    bandObserver = new ResizeObserver(updateMeasurements);
+    bandObserver.observe(resolved.bounds);
+}
+
+function remeasureAndObserve() {
+    nextTick(() => {
+        updateMeasurements();
+        observeBand();
+    });
+}
+
 onMounted(() => {
-    nextTick(updateMeasurements);
+    remeasureAndObserve();
     window.addEventListener('resize', updateMeasurements);
 });
 
+watch(() => props.boundsEl, remeasureAndObserve);
+
 onUnmounted(() => {
     window.removeEventListener('resize', updateMeasurements);
+    bandObserver?.disconnect();
 });
 
 // --- Pointer handling -----------------------------------------------------
@@ -233,11 +275,12 @@ function onItemClick(key: string) {
     /* Hug the shared page column: the page wrapper is full-width, so offset
        by the column's own margin instead of sticking to the viewport edge. */
     right: calc(max(0px, (100% - var(--page-col-max)) / 2) + 4px);
-    top: 50%;
-    transform: translateY(-50%);
+    /* top/height come from the measured band; the labels center inside it, so
+       the rail sits on the scroll area's axis, not the whole page column's. */
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     /* Above page chrome (sticky headers z-10, page header z-20), below overlays
        (dialogs/drawers z-50) — the legacy z-1000 painted over them. */
     z-index: 30;

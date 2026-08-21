@@ -169,11 +169,13 @@
             </div>
         </main>
 
-        <!-- Index Scroll Sidebar (fixed overlay — must stay outside the scroll container) -->
+        <!-- Index rail: overlays <main> but stays outside it so it never scrolls;
+             bounds-el hands it that box to center on. -->
         <IndexScroll
             v-if="isIndexScrollerVisible"
             :items="indexItems"
             :active-key="activeSection"
+            :bounds-el="scrollRef"
             @select="scrollToSection"
         />
 
