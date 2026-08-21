@@ -106,6 +106,12 @@ export interface XmlDisplaySettings {
     showPlayhead: boolean;
 }
 
+/**
+ * When the Gottesdienst tab is offered: 'auto' only while songs are marked for
+ * one, 'always' pinned in the tab bar.
+ */
+export type ServiceTabMode = 'auto' | 'always';
+
 export interface PreferencesData {
     id: string;
     /**
@@ -120,12 +126,60 @@ export interface PreferencesData {
     textSize?: 'small' | 'medium' | 'large' | 'xlarge';
     melodyDisplayMode: MelodyDisplayMode;
     xmlSettings?: XmlDisplaySettings;
+    /** Optional so records stored before the Gottesdienst tab existed stay valid. */
+    serviceTab?: ServiceTabMode;
 }
 
 // Favorites: id == song id
 export interface Favorite {
     id: string;
     createdAt: Date;
+}
+
+// --- Gottesdienst (temporary service selection) ---
+
+/**
+ * Where a plan came from, when it was not assembled on this device.
+ *
+ * The app only ever writes the built-in providers today (see
+ * `src/services/servicePlans`), but the shape is deliberately provider-agnostic:
+ * a Directus-published order of service is adopted through the same field, so a
+ * plan can later be refreshed from — or matched against — its source.
+ */
+export interface ServicePlanOrigin {
+    /** Id of the provider that offered the plan ('playlist', later e.g. 'directus'). */
+    providerId: string;
+    /** The id that provider knows the offer by. */
+    offerId: string;
+    /** What the provider called it when it was adopted. */
+    label?: string | null;
+    fetchedAt: Date;
+}
+
+/**
+ * One song on the plan. An object rather than a bare id so the
+ * Gottesdienst-Modus (#32) can hang per-entry verses, tempo and key off it
+ * without another migration.
+ */
+export interface ServiceEntry {
+    songId: string;
+    /** Free note for the entry, e.g. "Eingangslied". */
+    note?: string | null;
+}
+
+/** The songs marked for one service. Temporary by design: it expires by itself. */
+export interface ServicePlan {
+    id: string;
+    title: string;
+    /** The day the service is held — ISO `yyyy-mm-dd` in local time. */
+    date: string;
+    entries: ServiceEntry[];
+    /** Epoch ms after which the plan is dropped without asking (end of `date`). */
+    expiresAt: number;
+    /** Unset for a selection made here; set when adopted from a provider. */
+    origin?: ServicePlanOrigin | null;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 // Dexie database class
@@ -137,6 +191,7 @@ export class GesangbuchDatabase extends Dexie {
     playlists!: Table<Playlist, string>;
     preferences!: Table<PreferencesData, string>;
     favorites!: Table<Favorite, string>;
+    services!: Table<ServicePlan, string>;
     meta!: Table<MetaEntry, string>;
 
     constructor() {
@@ -204,6 +259,20 @@ export class GesangbuchDatabase extends Dexie {
                     .filter((u) => u.skipAuth === true || u.id === 'guest')
                     .delete(),
             );
+
+        // Version 7: Add services table (the temporary Gottesdienst selection).
+        // Indexed by expiry so pruning does not have to read every row.
+        this.version(7).stores({
+            songs: 'id, titel',
+            files: 'id, filename',
+            auth: 'id',
+            users: 'id, email, role',
+            playlists: 'id, name, createdAt',
+            preferences: 'id',
+            favorites: 'id, createdAt',
+            meta: 'key',
+            services: 'id, date, expiresAt',
+        });
     }
 }
 
