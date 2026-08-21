@@ -216,6 +216,63 @@
                     <Separator />
                 </section>
 
+                <!-- Gottesdienst -->
+                <section>
+                    <div class="flex items-center gap-3 px-2">
+                        <h2 class="label-micro shrink-0 text-gold">Gottesdienst</h2>
+                        <Separator class="flex-1" />
+                    </div>
+                    <div class="mt-1 divide-y divide-border">
+                        <div class="flex items-center justify-between gap-4 px-2 py-3">
+                            <div class="flex min-w-0 items-center gap-4">
+                                <Church
+                                    class="size-5 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <div class="min-w-0">
+                                    <Label
+                                        for="settings-service-tab"
+                                        class="text-[15px] font-normal"
+                                    >
+                                        Tab immer anzeigen
+                                    </Label>
+                                    <p class="text-sm text-muted-foreground">
+                                        Sonst erscheint er nur, solange Lieder vorgemerkt sind
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                id="settings-service-tab"
+                                :model-value="serviceTabPinned"
+                                @update:model-value="setServiceTabPinned"
+                            />
+                        </div>
+
+                        <button
+                            v-if="hasServiceSelection"
+                            type="button"
+                            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
+                            @click="router.push('/tabs/gottesdienst')"
+                        >
+                            <CalendarDays
+                                class="size-5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[15px]">Vorgemerkte Lieder</p>
+                                <p class="truncate text-sm text-muted-foreground">
+                                    {{ serviceSelectionLabel }}
+                                </p>
+                            </div>
+                            <ChevronRight
+                                class="size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                        </button>
+                    </div>
+                    <Separator />
+                </section>
+
                 <!-- Daten -->
                 <section>
                     <div class="flex items-center gap-3 px-2">
@@ -457,7 +514,9 @@
 import { computed, onActivated, onMounted, ref } from 'vue';
 
 import {
+    CalendarDays,
     ChevronRight,
+    Church,
     CloudDownload,
     CloudUpload,
     Contrast,
@@ -484,6 +543,7 @@ import { toast } from 'vue-sonner';
 import { useFavoritesStore } from '@/stores/favorites';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
+import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
@@ -519,6 +579,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import { SUPPORT_EMAIL } from '@/config/support';
 import { type Favorite, type Playlist, db } from '@/db';
+import { formatServiceDate } from '@/services/servicePlans';
 import { downloadJsonFile, isPersisted } from '@/services/storage';
 
 const router = useRouter();
@@ -533,6 +594,7 @@ const songsStore = useSongsStore();
 const preferencesStore = usePreferencesStore();
 const playlistsStore = usePlaylistsStore();
 const favoritesStore = useFavoritesStore();
+const serviceStore = useServiceStore();
 
 // Hidden file input for the backup import
 const importInput = ref<HTMLInputElement | null>(null);
@@ -568,6 +630,20 @@ const playbackMarks = computed(() => preferencesStore.xmlSettings);
 
 function setPlaybackMark(key: 'highlightNotes' | 'showPlayhead', value: boolean) {
     preferencesStore.setXmlSetting(key, value);
+}
+
+// Gottesdienst: whether the tab is pinned, and what is currently marked for one
+const serviceTabPinned = computed(() => preferencesStore.serviceTab === 'always');
+const hasServiceSelection = computed(() => serviceStore.hasSelection);
+const serviceSelectionLabel = computed(() => {
+    const count = serviceStore.entryCount;
+    const songs = count === 1 ? '1 Lied' : `${count} Lieder`;
+    const date = serviceStore.plan ? formatServiceDate(serviceStore.plan.date) : '';
+    return [songs, date].filter(Boolean).join(' · ');
+});
+
+function setServiceTabPinned(pinned: boolean) {
+    preferencesStore.setServiceTab(pinned ? 'always' : 'auto');
 }
 
 // Data counts
