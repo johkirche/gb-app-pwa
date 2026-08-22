@@ -78,16 +78,25 @@
                             />
                             <span class="min-w-0 flex-1">
                                 <span class="block break-words text-[15px] leading-snug">
+                                    <!-- Der Abstand zum Titel steckt im Text selbst: zwischen
+                                         zwei Elementen wirft der Template-Compiler den
+                                         Zwischenraum im Markup weg. -->
                                     <span v-if="song.index" class="font-semibold text-primary">
-                                        {{ song.index }}.
+                                        <SearchHighlight
+                                            :text="song.index + '. '"
+                                            :terms="searchTerms"
+                                        />
                                     </span>
-                                    {{ song.titel }}
+                                    <SearchHighlight :text="song.titel" :terms="searchTerms" />
                                 </span>
                                 <span
                                     v-if="song.kategorien.length > 0"
                                     class="mt-0.5 block text-sm text-muted-foreground"
                                 >
-                                    {{ formatCategories(song.kategorien) }}
+                                    <SearchHighlight
+                                        :text="formatCategories(song.kategorien)"
+                                        :terms="searchTerms"
+                                    />
                                 </span>
                                 <span
                                     v-if="isInPlaylist(song.id)"
@@ -129,14 +138,18 @@ import { useRoute, useRouter } from 'vue-router';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { useSongsStore } from '@/stores/songs';
 
+import { songMatchesTerms } from '@/composables/useSongFiltering';
+
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import BackButton from '@/components/shell/BackButton.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 
 import type { Category } from '@/db';
+import { searchTerms as toSearchTerms } from '@/utils/search';
 
 const route = useRoute();
 const router = useRouter();
@@ -175,21 +188,16 @@ const playlistId = computed(() => route.params.id as string);
 // Get current playlist
 const playlist = computed(() => playlistsStore.getPlaylistById(playlistId.value));
 
-// Filter songs by search query
+// Gesucht wird wie in der Liederliste: die Wörter der Eingabe UND-verknüpft,
+// über Titel, Liednummer, Kategorien und Autoren, und unempfindlich gegen
+// Groß-/Kleinschreibung, Umlaute und Satzzeichen.
+const searchTerms = computed(() => toSearchTerms(searchQuery.value));
+
 const filteredSongs = computed(() => {
-    const query = searchQuery.value.toLowerCase().trim();
-    let songs = [...allSongs.value].sort((a, b) => a.index - b.index);
-
-    if (query) {
-        songs = songs.filter(
-            (song) =>
-                song.titel.toLowerCase().includes(query) ||
-                song.index.toString().includes(query) ||
-                song.kategorien.some((k) => k.name.toLowerCase().includes(query)),
-        );
-    }
-
-    return songs;
+    const songs = [...allSongs.value].sort((a, b) => a.index - b.index);
+    const terms = searchTerms.value;
+    if (!terms.length) return songs;
+    return songs.filter((song) => songMatchesTerms(song, terms));
 });
 
 // Check if song is already in playlist

@@ -2,6 +2,7 @@ import { type Ref, computed, ref } from 'vue';
 
 import type { Song } from '@/db';
 import { authorFilterName } from '@/utils/authorFormat';
+import { foldForSearch, matchesTerms, searchTerms } from '@/utils/search';
 
 export interface FilterState {
     searchQuery: string;
@@ -30,14 +31,53 @@ function createDefaultFilters(): FilterState {
 }
 
 /**
+ * Die Felder eines Liedes, in denen die Suche nachsieht — Titel, Liednummer,
+ * Kategorien und die beteiligten Autoren. Der Autor steht hier mit vollem Namen
+ * (nicht Vor- und Nachname getrennt wie früher), damit „johann bach" als zwei
+ * UND-verknüpfte Wörter aufgeht.
+ */
+export function songSearchFields(song: Song): string[] {
+    return [
+        song.titel,
+        song.index ? String(song.index) : '',
+        ...song.kategorien.map((cat) => cat.name),
+        ...[...song.textAutoren, ...song.melodieAutoren].map(authorFilterName),
+    ].filter(Boolean);
+}
+
+// Die gefalteten Suchfelder hängen am Lied selbst: gefiltert wird bei jedem
+// Tastendruck über den ganzen Bestand, und die Faltung ist daran der teuerste
+// Teil. Ein Sync tauscht die Lied-Objekte aus und damit auch ihre Einträge —
+// deshalb eine WeakMap und kein nach Hand zu leerender Cache.
+const foldedFields = new WeakMap<Song, string[]>();
+
+function songSearchHaystack(song: Song): string[] {
+    let folded = foldedFields.get(song);
+    if (!folded) {
+        folded = songSearchFields(song).map((field) => foldForSearch(field));
+        foldedFields.set(song, folded);
+    }
+    return folded;
+}
+
+/** Trifft die Eingabe dieses Lied? `terms` kommt aus `searchTerms`. */
+export function songMatchesTerms(song: Song, terms: string[]): boolean {
+    return matchesTerms(terms, songSearchHaystack(song));
+}
+
+/**
  * Composable for song filtering logic
  */
 export function useSongFiltering(songs: Ref<Song[]>) {
     // Filter state
     const filters = ref<FilterState>(createDefaultFilters());
 
-    // Search is active when query is not empty
-    const isSearchActive = computed(() => filters.value.searchQuery.trim().length > 0);
+    // Die Suchwörter der Eingabe, einmal zerlegt: sie filtern die Liste und
+    // markieren anschließend die Treffer darin.
+    const activeSearchTerms = computed(() => searchTerms(filters.value.searchQuery));
+
+    // Search is active when the query holds at least one searchable word
+    const isSearchActive = computed(() => activeSearchTerms.value.length > 0);
 
     // Check if any filter is active
     const hasActiveFilters = computed(() => {
@@ -113,33 +153,11 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         let result = songs.value;
         const f = filters.value;
 
-        // Search filter
-        if (f.searchQuery.trim()) {
-            const query = f.searchQuery.toLowerCase().trim();
-            result = result.filter((song) => {
-                // Search in title
-                if (song.titel.toLowerCase().includes(query)) return true;
-
-                // Search in categories
-                if (song.kategorien.some((cat) => cat.name.toLowerCase().includes(query)))
-                    return true;
-
-                // Search in authors
-                const allAuthors = [...song.textAutoren, ...song.melodieAutoren];
-                if (
-                    allAuthors.some(
-                        (a) =>
-                            a.vorname?.toLowerCase().includes(query) ||
-                            a.nachname?.toLowerCase().includes(query),
-                    )
-                )
-                    return true;
-
-                // Search in song index
-                if (String(song.index).includes(query)) return true;
-
-                return false;
-            });
+        // Search filter: jedes Wort der Eingabe muss irgendwo am Lied sitzen,
+        // aber nicht alle im selben Feld — „luther 45" meint Lied 45 von Luther.
+        const terms = activeSearchTerms.value;
+        if (terms.length) {
+            result = result.filter((song) => songMatchesTerms(song, terms));
         }
 
         // Category filter
@@ -220,6 +238,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         filteredSongs,
 
         // Computed
+        activeSearchTerms,
         isSearchActive,
         hasActiveFilters,
         activeFilterCount,

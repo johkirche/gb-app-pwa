@@ -132,7 +132,11 @@
                             <span
                                 class="number-display w-10 shrink-0 text-right text-lg leading-none"
                             >
-                                <template v-if="song.index">{{ song.index }}</template>
+                                <SearchHighlight
+                                    v-if="song.index"
+                                    :text="String(song.index)"
+                                    :terms="activeSearchTerms"
+                                />
                                 <span
                                     v-else
                                     class="inline-block h-1.5 w-1.5 rotate-45 bg-muted-foreground/60"
@@ -143,7 +147,10 @@
                                 <span
                                     class="font-display text-[17px] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
                                 >
-                                    {{ song.titel }}
+                                    <SearchHighlight
+                                        :text="song.titel"
+                                        :terms="activeSearchTerms"
+                                    />
                                 </span>
                                 <span
                                     v-if="
@@ -151,7 +158,10 @@
                                     "
                                     class="label-micro text-muted-foreground"
                                 >
-                                    {{ formatCategories(song.kategorien) }}
+                                    <SearchHighlight
+                                        :text="formatCategories(song.kategorien)"
+                                        :terms="activeSearchTerms"
+                                    />
                                 </span>
                             </span>
                             <ChevronRight
@@ -259,6 +269,7 @@ import SongToolbar from '@/components/songlist/SongToolbar.vue';
 import { Button } from '@/components/ui/button';
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
 import { Spinner } from '@/components/ui/spinner';
+import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 
 import type { Category } from '@/db';
 import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
@@ -279,6 +290,7 @@ useKeepAliveScroll(scrollRef);
 const {
     filters,
     filteredSongs,
+    activeSearchTerms,
     isSearchActive,
     hasActiveFilters,
     activeFilterCount,

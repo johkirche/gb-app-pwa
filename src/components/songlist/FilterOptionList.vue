@@ -59,7 +59,7 @@
                         class="min-w-0 flex-1 truncate text-[15px] leading-tight"
                         :class="isSelected(option.value) ? 'font-medium' : undefined"
                     >
-                        {{ option.label }}
+                        <SearchHighlight :text="option.label" :terms="terms" />
                     </span>
 
                     <span class="shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -82,6 +82,10 @@ import { Check, CircleX, Search } from 'lucide-vue-next';
 
 import type { FilterOption } from '@/composables/useSongFiltering';
 
+import SearchHighlight from '@/components/utils/SearchHighlight.vue';
+
+import { foldForSearch, matchesTerms, searchTerms } from '@/utils/search';
+
 const props = defineProps<{
     options: FilterOption[];
     selected: string[];
@@ -102,10 +106,15 @@ function isSelected(value: string): boolean {
     return props.selected.includes(value);
 }
 
+// Dieselbe Suche wie über die Lieder: „bach joh" findet Johann Sebastian Bach,
+// „grosser" auch „Großer" — nur dass hier ein einziges Feld durchsucht wird.
+const terms = computed(() => searchTerms(query.value));
+
 const matches = computed(() => {
-    const needle = query.value.trim().toLowerCase();
-    if (!needle) return props.options;
-    return props.options.filter((option) => option.label.toLowerCase().includes(needle));
+    if (!terms.value.length) return props.options;
+    return props.options.filter((option) =>
+        matchesTerms(terms.value, [foldForSearch(option.label)]),
+    );
 });
 
 interface OptionGroup {
@@ -124,7 +133,7 @@ const groups = computed((): OptionGroup[] => {
     const all = matches.value;
     if (!all.length) return [];
 
-    if (query.value.trim() || !props.selected.length) {
+    if (terms.value.length || !props.selected.length) {
         return [{ key: 'all', options: all }];
     }
 
