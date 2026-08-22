@@ -9,6 +9,7 @@
             :search-query="filters.searchQuery"
             :selected-categories="filters.selectedCategories"
             :selected-authors="filters.selectedAuthors"
+            :active-melodien="activeMelodien"
             :filter-index-range="filters.indexRange"
             :active-filter-count="activeFilterCount"
             :has-active-filters="hasActiveFilters"
@@ -21,6 +22,7 @@
             @open-sort="toggleSortOptions"
             @toggle-category="toggleCategory"
             @toggle-author="toggleAuthor"
+            @toggle-melodie="toggleMelodie"
             @set-index-range="setIndexRange"
         />
 
@@ -197,12 +199,15 @@
             :selected-categories="filters.selectedCategories"
             :available-authors="availableAuthors"
             :selected-authors="filters.selectedAuthors"
+            :available-melodien="availableMelodien"
+            :selected-melodien="filters.selectedMelodien"
             :filter-index-range="filters.indexRange"
             :index-range="indexRange"
             :has-active-filters="hasActiveFilters"
             @close="showFilters = false"
             @toggle-category="toggleCategory"
             @toggle-author="toggleAuthor"
+            @toggle-melodie="toggleMelodie"
             @set-index-range="setIndexRange"
             @clear-all="clearFiltersKeepSearch"
         />
@@ -296,6 +301,8 @@ const {
     activeFilterCount,
     availableCategories,
     availableAuthors,
+    availableMelodien,
+    activeMelodien,
     indexRange,
     setSearchQuery,
     clearSearch,
@@ -303,16 +310,20 @@ const {
     setIndexRange,
     toggleAuthor,
     setAuthors,
+    toggleMelodie,
+    setMelodien,
     clearAllFilters,
     clearFiltersKeepSearch,
 } = useSongFiltering(songs);
 
 // Deep link from the song view: /tabs/lieder?autor=<Name> shows that author's
-// songs. The parameter is a one-shot intent — it is applied and then dropped
-// from the URL, because the filter itself lives on in this page (the tab shell
-// is kept alive across a trip to a song). Leaving it in the URL would let a
-// later back-navigation restore a filter the user has since cleared.
+// songs, /tabs/lieder?weise=<Melodie-id> die Lieder auf derselben Weise. The
+// parameter is a one-shot intent — it is applied and then dropped from the URL,
+// because the filter itself lives on in this page (the tab shell is kept alive
+// across a trip to a song). Leaving it in the URL would let a later
+// back-navigation restore a filter the user has since cleared.
 watch(() => route.query.autor, applyAuthorFromQuery, { immediate: true });
+watch(() => route.query.weise, applyWeiseFromQuery, { immediate: true });
 
 function applyAuthorFromQuery() {
     if (route.name !== 'Songs') return;
@@ -327,6 +338,21 @@ function applyAuthorFromQuery() {
     setAuthors(authors);
 
     const { autor: _autor, ...rest } = route.query;
+    router.replace({ path: route.path, query: rest });
+}
+
+function applyWeiseFromQuery() {
+    if (route.name !== 'Songs') return;
+
+    const raw = route.query.weise;
+    const melodien = (Array.isArray(raw) ? raw : [raw]).filter((id): id is string => !!id);
+    if (!melodien.length) return;
+
+    // Wie beim Autor: ein frischer Wunsch ersetzt die bisherige Auswahl.
+    clearAllFilters();
+    setMelodien(melodien);
+
+    const { weise: _weise, ...rest } = route.query;
     router.replace({ path: route.path, query: rest });
 }
 

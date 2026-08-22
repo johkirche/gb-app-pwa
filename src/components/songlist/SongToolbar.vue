@@ -152,6 +152,27 @@
                     <CircleX class="h-3 w-3 opacity-70" aria-hidden="true" />
                 </button>
 
+                <!-- Die Weise trägt hier ihre Choralbuchnummer statt des Titels:
+                     genau die Beschriftung, über die man aus dem Lied hierher
+                     gekommen ist. Ohne Nummer bleibt nur der Melodietitel. -->
+                <button
+                    v-for="weise in activeMelodien"
+                    :key="weise.id"
+                    type="button"
+                    :class="[chipBase, 'border-transparent bg-accent text-accent-foreground']"
+                    @click="$emit('toggleMelodie', weise.id)"
+                >
+                    <Music2 class="h-3 w-3" aria-hidden="true" />
+                    <span>
+                        {{
+                            weise.nummer == null
+                                ? truncate(weise.titel, 18)
+                                : `Choralbuch ${weise.nummer}`
+                        }}
+                    </span>
+                    <CircleX class="h-3 w-3 opacity-70" aria-hidden="true" />
+                </button>
+
                 <button
                     v-if="filterIndexRange"
                     type="button"
@@ -184,6 +205,7 @@ import {
     ArrowUpDown,
     CircleX,
     List,
+    Music2,
     Search,
     SlidersHorizontal,
     Tag,
@@ -191,6 +213,7 @@ import {
     X,
 } from 'lucide-vue-next';
 
+import type { Melodie } from '@/composables/useSongFiltering';
 import type { SortMode } from '@/composables/useSongSorting';
 
 import { Button } from '@/components/ui/button';
@@ -203,6 +226,7 @@ const props = withDefaults(
         searchQuery: string;
         selectedCategories: string[];
         selectedAuthors: string[];
+        activeMelodien: Melodie[];
         filterIndexRange: { min: number; max: number } | null;
         activeFilterCount: number;
         hasActiveFilters: boolean;
@@ -224,6 +248,7 @@ const emit = defineEmits<{
     (e: 'openSort', anchor: PanelAnchor): void;
     (e: 'toggleCategory', category: string): void;
     (e: 'toggleAuthor', author: string): void;
+    (e: 'toggleMelodie', melodieId: string): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
 }>();
 
@@ -273,6 +298,7 @@ const showFilterChips = computed(() => {
         props.searchQuery ||
         props.selectedCategories.length > 0 ||
         props.selectedAuthors.length > 0 ||
+        props.activeMelodien.length > 0 ||
         props.filterIndexRange !== null
     );
 });

@@ -9,12 +9,23 @@ export interface FilterState {
     selectedCategories: string[]; // Category names
     indexRange: { min: number; max: number } | null;
     selectedAuthors: string[]; // Author full names
+    selectedMelodien: string[]; // Melodie-IDs (die Weise, nicht ihr Titel)
 }
 
 export interface FilterOption {
     label: string;
     value: string;
     count?: number;
+}
+
+/** Eine Weise des Bestands: die Melodie, unter der ihre Lieder zusammenfinden. */
+export interface Melodie {
+    id: string;
+    titel: string;
+    /** Die Choralbuchnummer — im Druck die kleinere Zahl unter der Liednummer. */
+    nummer: number | null;
+    /** Wie viele Lieder auf dieser Weise stehen. */
+    count: number;
 }
 
 // A factory, not a shared constant: toggleCategory/toggleAuthor mutate the
@@ -27,6 +38,7 @@ function createDefaultFilters(): FilterState {
         selectedCategories: [],
         indexRange: null,
         selectedAuthors: [],
+        selectedMelodien: [],
     };
 }
 
@@ -83,7 +95,10 @@ export function useSongFiltering(songs: Ref<Song[]>) {
     const hasActiveFilters = computed(() => {
         const f = filters.value;
         return (
-            f.selectedCategories.length > 0 || f.indexRange !== null || f.selectedAuthors.length > 0
+            f.selectedCategories.length > 0 ||
+            f.indexRange !== null ||
+            f.selectedAuthors.length > 0 ||
+            f.selectedMelodien.length > 0
         );
     });
 
@@ -94,6 +109,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         if (f.selectedCategories.length > 0) count++;
         if (f.indexRange !== null) count++;
         if (f.selectedAuthors.length > 0) count++;
+        if (f.selectedMelodien.length > 0) count++;
         return count;
     });
 
@@ -137,6 +153,58 @@ export function useSongFiltering(songs: Ref<Song[]>) {
                 count,
             }));
     });
+
+    // Die Weisen des Bestands, nach Choralbuchnummer geordnet.
+    //
+    // Zusammengefasst wird über die Melodie-id, nicht über den Titel: dieselbe
+    // Weise trägt bei jedem ihrer Lieder denselben Melodietitel, aber zwei
+    // verschiedene Weisen dürfen gleich heißen.
+    const melodien = computed((): Melodie[] => {
+        const byId = new Map<string, Melodie>();
+
+        for (const song of songs.value) {
+            if (!song.melodieId) continue;
+            const known = byId.get(song.melodieId);
+            if (known) {
+                known.count++;
+                continue;
+            }
+            byId.set(song.melodieId, {
+                id: song.melodieId,
+                // Ohne eigenen Melodietitel bleibt der Liedtitel — bei einer nur
+                // einmal verwendeten Weise ist das ohnehin derselbe Text.
+                titel: song.melodieTitel?.trim() || song.titel,
+                nummer: song.choralbuchNummer ?? null,
+                count: 1,
+            });
+        }
+
+        return Array.from(byId.values()).sort((a, b) => {
+            // Ohne Nummer ans Ende — dort bleibt nur der Titel zum Sortieren.
+            if (a.nummer == null || b.nummer == null) {
+                if (a.nummer != null) return -1;
+                if (b.nummer != null) return 1;
+                return a.titel.localeCompare(b.titel, 'de');
+            }
+            return a.nummer - b.nummer;
+        });
+    });
+
+    // Available Weisen from songs (for filter options). Die Choralbuchnummer
+    // steht vorne, damit die Suche im Filter auch auf die reine Nummer anspringt.
+    const availableMelodien = computed((): FilterOption[] =>
+        melodien.value.map((m) => ({
+            label: m.nummer == null ? m.titel : `${m.nummer} · ${m.titel}`,
+            value: m.id,
+            count: m.count,
+        })),
+    );
+
+    // Die gefilterten Weisen, ausgeschrieben — `filters.selectedMelodien` hält
+    // nur ids, die Chips in der Toolbar brauchen aber Nummer und Titel.
+    const activeMelodien = computed((): Melodie[] =>
+        melodien.value.filter((m) => filters.value.selectedMelodien.includes(m.id)),
+    );
 
     // Index range from songs
     const indexRange = computed(() => {
@@ -182,6 +250,13 @@ export function useSongFiltering(songs: Ref<Song[]>) {
             });
         }
 
+        // Weise filter
+        if (f.selectedMelodien.length > 0) {
+            result = result.filter(
+                (song) => !!song.melodieId && f.selectedMelodien.includes(song.melodieId),
+            );
+        }
+
         return result;
     });
 
@@ -223,6 +298,21 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         filters.value.selectedAuthors = [...authorNames];
     }
 
+    function toggleMelodie(melodieId: string) {
+        const idx = filters.value.selectedMelodien.indexOf(melodieId);
+        if (idx >= 0) {
+            filters.value.selectedMelodien.splice(idx, 1);
+        } else {
+            filters.value.selectedMelodien.push(melodieId);
+        }
+    }
+
+    // Ersetzt die ganze Weisen-Auswahl — das Gegenstück zu setAuthors, für den
+    // Deep Link aus der Lied-Ansicht („welche Lieder haben dieselbe Weise?").
+    function setMelodien(melodieIds: string[]) {
+        filters.value.selectedMelodien = [...melodieIds];
+    }
+
     function clearAllFilters() {
         filters.value = createDefaultFilters();
     }
@@ -244,6 +334,8 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         activeFilterCount,
         availableCategories,
         availableAuthors,
+        availableMelodien,
+        activeMelodien,
         indexRange,
 
         // Actions
@@ -253,6 +345,8 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         setIndexRange,
         toggleAuthor,
         setAuthors,
+        toggleMelodie,
+        setMelodien,
         clearAllFilters,
         clearFiltersKeepSearch,
     };

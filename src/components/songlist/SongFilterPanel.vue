@@ -136,6 +136,26 @@
                             </template>
                         </FilterOptionList>
 
+                        <!-- Die Weise: beschriftet mit ihrer Choralbuchnummer,
+                             sodass die Suche hier auch auf die reine Nummer
+                             anspringt. -->
+                        <FilterOptionList
+                            v-else-if="view === 'melodien'"
+                            :options="availableMelodien"
+                            :selected="selectedMelodien"
+                            search-placeholder="Weise oder Choralbuchnummer suchen…"
+                            no-match-label="Keine Weise gefunden"
+                            empty-label="Keine Weisen verfügbar"
+                            @toggle="$emit('toggleMelodie', $event)"
+                        >
+                            <template #glyph>
+                                <Music2
+                                    class="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                            </template>
+                        </FilterOptionList>
+
                         <!-- One control, so it sits centred in the pane rather
                              than clinging to the top of an empty box -->
                         <div v-else class="flex flex-1 flex-col justify-center gap-5 px-4 pb-4">
@@ -169,7 +189,7 @@
 <script setup lang="ts">
 import { type FunctionalComponent, computed, ref, watch } from 'vue';
 
-import { ChevronLeft, ChevronRight, Hash, RotateCcw, Tag, User } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Hash, Music2, RotateCcw, Tag, User } from 'lucide-vue-next';
 
 import type { FilterOption } from '@/composables/useSongFiltering';
 
@@ -189,6 +209,8 @@ const props = defineProps<{
     selectedCategories: string[];
     availableAuthors: FilterOption[];
     selectedAuthors: string[];
+    availableMelodien: FilterOption[];
+    selectedMelodien: string[];
     filterIndexRange: { min: number; max: number } | null;
     indexRange: { min: number; max: number };
     hasActiveFilters: boolean;
@@ -198,6 +220,7 @@ const emit = defineEmits<{
     (e: 'close'): void;
     (e: 'toggleCategory', category: string): void;
     (e: 'toggleAuthor', author: string): void;
+    (e: 'toggleMelodie', melodieId: string): void;
     (e: 'setIndexRange', range: { min: number; max: number } | null): void;
     (e: 'clearAll'): void;
 }>();
@@ -206,7 +229,7 @@ function onOpenUpdate(open: boolean) {
     if (!open) emit('close');
 }
 
-type View = 'root' | 'categories' | 'authors' | 'index';
+type View = 'root' | 'categories' | 'authors' | 'melodien' | 'index';
 
 const view = ref<View>('root');
 const transition = ref<'pane-forward' | 'pane-back'>('pane-forward');
@@ -236,6 +259,14 @@ const currentMin = computed(() => props.filterIndexRange?.min ?? props.indexRang
 const currentMax = computed(() => props.filterIndexRange?.max ?? props.indexRange.max);
 
 const isRangeActive = computed(() => props.filterIndexRange !== null);
+
+// Die Weisen-Auswahl steht als Melodie-id im Filter — in der Übersicht muss sie
+// lesbar sein, also zurück auf die Beschriftung aus der Optionsliste.
+const selectedMelodienLabels = computed(() =>
+    props.selectedMelodien.map(
+        (id) => props.availableMelodien.find((option) => option.value === id)?.label ?? id,
+    ),
+);
 
 interface Section {
     key: Exclude<View, 'root'>;
@@ -268,6 +299,17 @@ const sections = computed((): Section[] => [
         count: props.selectedAuthors.length,
         badge: props.selectedAuthors.length || undefined,
         clear: clearAuthors,
+    },
+    {
+        key: 'melodien',
+        title: 'Weisen',
+        icon: Music2,
+        summary: selectedMelodienLabels.value.length
+            ? selectedMelodienLabels.value.join(', ')
+            : 'Alle',
+        count: props.selectedMelodien.length,
+        badge: props.selectedMelodien.length || undefined,
+        clear: clearMelodien,
     },
     {
         key: 'index',
@@ -304,6 +346,11 @@ function clearCategories() {
 function clearAuthors() {
     // Same reason as clearCategories: toggling mutates the parent's array
     [...props.selectedAuthors].forEach((author) => emit('toggleAuthor', author));
+}
+
+function clearMelodien() {
+    // Same reason as clearCategories: toggling mutates the parent's array
+    [...props.selectedMelodien].forEach((melodieId) => emit('toggleMelodie', melodieId));
 }
 
 function onRangeUpdate(value: number[] | undefined) {
