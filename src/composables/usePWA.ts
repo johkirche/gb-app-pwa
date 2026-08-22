@@ -8,6 +8,10 @@ const isStandaloneRef = ref(false);
 const isSuspectedInstalledRef = ref(false);
 // Loading state while checking installation status
 const isCheckingInstallRef = ref(true);
+// The app reported its own installation while this tab was open. Nothing
+// else can tell us: the page carries on running in the browser, so the
+// display mode stays 'browser' until it is opened from the home screen.
+const wasInstalledRef = ref(false);
 let isListening = false;
 let beforeInstallPromptFired = false;
 
@@ -81,6 +85,7 @@ export function usePWA() {
             deferredPrompt = null;
             canInstallRef.value = false;
             isSuspectedInstalledRef.value = false; // Now we know for sure, no need to suspect
+            wasInstalledRef.value = true;
             beforeInstallPromptFired = false;
         });
 
@@ -108,6 +113,9 @@ export function usePWA() {
             if (outcome === 'accepted') {
                 deferredPrompt = null;
                 canInstallRef.value = false;
+                // Not every browser follows an accepted prompt with an
+                // `appinstalled` event, so record it here as well.
+                wasInstalledRef.value = true;
                 return true;
             }
             return false;
@@ -124,6 +132,7 @@ export function usePWA() {
         canInstall,
         showInstallButton,
         isSuspectedInstalled: isSuspectedInstalledRef,
+        wasInstalled: wasInstalledRef,
         isCheckingInstall: isCheckingInstallRef,
         initPWAListeners,
         installPWA,
