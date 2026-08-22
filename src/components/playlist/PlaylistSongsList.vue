@@ -1,6 +1,6 @@
 <template>
     <VueDraggable
-        :model-value="songs"
+        :model-value="entries"
         tag="ul"
         class="mt-4 divide-y divide-border"
         handle="[data-drag-handle]"
@@ -8,39 +8,56 @@
         :animation="150"
         @update:model-value="handleReorder"
     >
-        <li v-for="song in songs" :key="song.id">
+        <li v-for="entry in entries" :key="entry.id">
             <component
-                :is="reorderMode ? 'div' : 'button'"
-                v-long-press="(el: HTMLElement) => handleSongLongPress(song, el)"
-                :type="reorderMode ? undefined : 'button'"
+                :is="rowTag(entry)"
+                v-long-press="(el: HTMLElement) => handleSongLongPress(entry, el)"
+                :type="rowTag(entry) === 'button' ? 'button' : undefined"
                 class="flex w-full select-none items-center gap-4 px-2 py-2.5 text-left [-webkit-touch-callout:none]"
                 :class="
-                    reorderMode ? '' : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
+                    reorderMode || !entry.song
+                        ? ''
+                        : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
                 "
-                @click="handleSongClick(song)"
-                @contextmenu.prevent="handleSongContextMenu(song, anchorFromEvent($event))"
+                @click="handleSongClick(entry)"
+                @contextmenu.prevent="handleSongContextMenu(entry, anchorFromEvent($event))"
             >
                 <span
                     class="number-display flex w-10 shrink-0 items-center justify-end text-lg leading-none"
+                    :class="entry.song ? '' : 'text-muted-foreground'"
                 >
-                    <template v-if="song.index">{{ song.index }}</template>
+                    <template v-if="entry.song?.index">{{ entry.song.index }}</template>
                     <span
                         v-else
                         class="inline-block h-1.5 w-1.5 rotate-45 rounded-full bg-muted-foreground"
                         aria-hidden="true"
                     ></span>
                 </span>
-                <span class="min-w-0 flex-1">
-                    <span class="block break-words font-display text-[17px] leading-snug">
-                        {{ song.titel }}
+
+                <!-- An id the library has no song for still gets its row: it is
+                     what the playlist stores, it is counted on the list screen,
+                     and the reader needs somewhere to remove it from. -->
+                <span v-if="!entry.song" class="min-w-0 flex-1 text-muted-foreground">
+                    <span class="block font-display text-[17px] italic leading-snug">
+                        Lied derzeit nicht verfügbar
                     </span>
-                    <span
-                        v-if="song.kategorien.length > 0"
-                        class="mt-0.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground"
-                    >
-                        {{ formatCategories(song.kategorien) }}
+                    <span class="mt-0.5 block text-[11px] uppercase tracking-[0.14em]">
+                        Nach dem Synchronisieren wieder da
                     </span>
                 </span>
+
+                <span v-else class="min-w-0 flex-1">
+                    <span class="block break-words font-display text-[17px] leading-snug">
+                        {{ entry.song.titel }}
+                    </span>
+                    <span
+                        v-if="entry.song.kategorien.length > 0"
+                        class="mt-0.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground"
+                    >
+                        {{ formatCategories(entry.song.kategorien) }}
+                    </span>
+                </span>
+
                 <span
                     v-if="reorderMode"
                     data-drag-handle
@@ -57,45 +74,52 @@
 import { GripVertical } from 'lucide-vue-next';
 import { VueDraggable } from 'vue-draggable-plus';
 
-import type { Category, Song } from '@/db';
+import type { Category } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
 import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
+import type { PlaylistEntry } from '@/utils/playlistEntries';
 
 const props = defineProps<{
-    songs: Song[];
+    entries: PlaylistEntry[];
     reorderMode: boolean;
 }>();
 
 const emit = defineEmits<{
-    songClick: [song: Song];
+    entryClick: [entry: PlaylistEntry];
     /** The anchor is the row (or click point) the desktop popover opens against. */
-    songContextMenu: [song: Song, anchor: PanelAnchor];
-    /** Complete reordered list of the *rendered* song ids after a drop. */
+    entryContextMenu: [entry: PlaylistEntry, anchor: PanelAnchor];
+    /** Complete reordered list of the playlist's song ids after a drop. */
     reorder: [songIds: string[]];
 }>();
 
-function handleSongClick(song: Song) {
-    if (!props.reorderMode) {
-        emit('songClick', song);
+// A row that leads nowhere is not a button — it must not take focus or answer
+// to Enter the way the songs around it do.
+function rowTag(entry: PlaylistEntry): 'button' | 'div' {
+    return props.reorderMode || !entry.song ? 'div' : 'button';
+}
+
+function handleSongClick(entry: PlaylistEntry) {
+    if (!props.reorderMode && entry.song) {
+        emit('entryClick', entry);
     }
 }
 
-function handleSongContextMenu(song: Song, anchor: PanelAnchor) {
+function handleSongContextMenu(entry: PlaylistEntry, anchor: PanelAnchor) {
     if (!props.reorderMode) {
-        emit('songContextMenu', song, anchor);
+        emit('entryContextMenu', entry, anchor);
     }
 }
 
-function handleSongLongPress(song: Song, anchor: PanelAnchor) {
+function handleSongLongPress(entry: PlaylistEntry, anchor: PanelAnchor) {
     if (!props.reorderMode) {
-        emit('songContextMenu', song, anchor);
+        emit('entryContextMenu', entry, anchor);
     }
 }
 
-function handleReorder(reordered: Song[]) {
+function handleReorder(reordered: PlaylistEntry[]) {
     emit(
         'reorder',
-        reordered.map((song) => song.id),
+        reordered.map((entry) => entry.id),
     );
 }
 

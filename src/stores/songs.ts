@@ -18,6 +18,11 @@ export const useSongsStore = defineStore('songs', () => {
     // State
     const songs = ref<Song[]>([]);
     const isLoading = ref(false);
+    // Whether the first read from IndexedDB has finished. `isLoading` cannot
+    // answer that on its own — it is false both before the read starts and
+    // after it is done, so a screen that waits on it alone renders its empty
+    // state in the gap.
+    const isInitialized = ref(false);
     const isSyncing = ref(false);
     const error = ref<string | null>(null);
     const lastSyncTime = ref<Date | null>(null);
@@ -72,6 +77,7 @@ export const useSongsStore = defineStore('songs', () => {
             throw err;
         } finally {
             isLoading.value = false;
+            isInitialized.value = true;
         }
     }
 
@@ -319,6 +325,7 @@ export const useSongsStore = defineStore('songs', () => {
         // State
         songs: sortedSongs,
         isLoading,
+        isInitialized,
         isSyncing,
         error,
         lastSyncTime,

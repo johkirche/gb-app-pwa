@@ -73,7 +73,8 @@
                                 {{ playlist.name }}
                             </span>
                             <span class="mt-0.5 block text-sm text-muted-foreground">
-                                {{ playlist.songIds.length }} Lieder
+                                {{ playlist.songIds.length }}
+                                {{ playlist.songIds.length === 1 ? 'Lied' : 'Lieder' }}
                             </span>
                         </span>
                         <CircleCheck

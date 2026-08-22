@@ -10,6 +10,7 @@ import FavoritesPage from '../views/FavoritesPage.vue';
 import ImpressumPage from '../views/ImpressumPage.vue';
 import InstallPWAPage from '../views/InstallPWAPage.vue';
 import LoginPage from '../views/LoginPage.vue';
+import NotFoundPage from '../views/NotFoundPage.vue';
 import OnboardingPage from '../views/OnboardingPage.vue';
 import PasswordResetPage from '../views/PasswordResetPage.vue';
 import PlaylistDetailPage from '../views/PlaylistDetailPage.vue';
@@ -171,6 +172,17 @@ const routes: Array<RouteRecordRaw> = [
               } satisfies RouteRecordRaw,
           ]
         : []),
+    // Catch-all, last on purpose. The edge serves the SPA for every path, so an
+    // unknown URL reaches the router rather than a server 404 — without this
+    // record the outlet would render nothing and a standalone PWA would be
+    // stranded on a blank page. Public, so it also shows while logged out
+    // instead of bouncing a mistyped address to the login form.
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'NotFound',
+        component: NotFoundPage,
+        meta: { requiresAuth: false },
+    },
 ];
 
 const router = createRouter({

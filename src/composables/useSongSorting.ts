@@ -144,17 +144,40 @@ function groupByIndex(songs: Song[]): SongSection[] {
         }));
 }
 
+// The combining marks NFD splits off a base letter: Ä → A + ¨
+const COMBINING_MARKS = /[̀-ͯ]/g;
+
+/**
+ * The letter a title files under in the A–Z index.
+ *
+ * Ä, Ö and Ü belong with A, O and U: a German index has no sections of their
+ * own for them, and giving them one left the rail with stray blocks holding a
+ * single song each. ß files under S, the same way it sorts.
+ */
+export function indexLetter(title: string): string {
+    const letter = title
+        .trim()
+        .charAt(0)
+        .toUpperCase() // 'ß' → 'SS'
+        .normalize('NFD')
+        .replace(COMBINING_MARKS, '')
+        .charAt(0);
+
+    // Numbers, quotation marks and anything else share one block at the end
+    return /[A-Z]/.test(letter) ? letter : '#';
+}
+
 /**
  * Group songs alphabetically by first letter of title
  */
 function groupByAlphabet(songs: Song[]): SongSection[] {
+    // German collation already sorts Ä next to A, so the merged sections stay
+    // contiguous in this order.
     const sorted = [...songs].sort((a, b) => a.titel.localeCompare(b.titel, 'de'));
     const groups = new Map<string, Song[]>();
 
     for (const song of sorted) {
-        const firstChar = song.titel.charAt(0).toUpperCase();
-        // Handle numbers and special characters
-        const letter = /[A-ZÄÖÜ]/.test(firstChar) ? firstChar : '#';
+        const letter = indexLetter(song.titel);
 
         if (!groups.has(letter)) {
             groups.set(letter, []);

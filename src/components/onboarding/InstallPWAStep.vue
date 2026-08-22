@@ -29,7 +29,9 @@
             class="mt-8 flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-4"
         >
             <Spinner size="sm" />
-            <span class="font-medium text-muted-foreground">Prüfe Installationsstatus...</span>
+            <span class="font-medium text-muted-foreground">
+                Installationsstatus wird geprüft...
+            </span>
         </div>
 
         <template v-else>
@@ -201,15 +203,19 @@
                 Weiter
                 <ArrowRight aria-hidden="true" />
             </Button>
+            <!-- Only while the step is still waiting on an installation it
+                 can actually detect. Once the primary action is open, a
+                 second button doing exactly the same thing is noise — and
+                 it is what readers on iOS were left pressing. -->
             <Button
-                v-if="props.mode === 'onboarding'"
+                v-if="props.mode === 'onboarding' && !canProceed"
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="lg"
-                class="w-full text-muted-foreground"
+                class="w-full"
                 @click="$emit('next')"
             >
-                Überspringen
+                Ohne Installation fortfahren
             </Button>
             <Button
                 v-if="props.mode === 'standalone'"
@@ -271,6 +277,7 @@ const {
     installPWA,
     isSuspectedInstalled,
     isCheckingInstall,
+    wasInstalled,
 } = usePWA();
 
 const isDev = import.meta.env.DEV;
@@ -287,7 +294,20 @@ const installButtonLabel = computed(() =>
     isAndroidView.value ? 'Jetzt installieren' : 'App installieren',
 );
 
-const canProceed = computed(() => isStandalone.value || isSuspectedInstalled.value);
+// Safari never fires `beforeinstallprompt` and tells a page in a tab
+// nothing about a home-screen icon, which is exactly why the
+// suspected-installed heuristic skips iOS — and why the primary action
+// could never open there. Where the browser cannot answer, the reader
+// does: the step stays completable, and says what it is doing.
+const canDetectInstall = computed(() => !isIOSView.value);
+
+const canProceed = computed(
+    () =>
+        isStandalone.value ||
+        isSuspectedInstalled.value ||
+        wasInstalled.value ||
+        (!canDetectInstall.value && !isCheckingInstall.value),
+);
 
 const previewDeviceLabel = computed(() => {
     switch (previewDevice.value) {
