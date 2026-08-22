@@ -271,6 +271,7 @@ import { useFavoritesStore } from '@/stores/favorites';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
+import { useCurrentDate } from '@/composables/useCurrentDate';
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { usePullToRefresh } from '@/composables/usePullToRefresh';
 import { useSongFiltering } from '@/composables/useSongFiltering';
@@ -289,6 +290,7 @@ import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 
 import type { Category } from '@/db';
 import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
+import { pickSongOfTheWeek } from '@/utils/songOfTheWeek';
 
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
@@ -436,24 +438,10 @@ function toggleSortOptions(anchor: PanelAnchor) {
 }
 
 // --- Lied der Woche (ported from the former home screen) ---
-const now = new Date();
+// The date is a live value: the page can stay open for days on a lectern.
+const today = useCurrentDate();
 
-// ISO week number — used to pick a stable "song of the week"
-function getIsoWeek(date: Date): number {
-    const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNr = (target.getUTCDay() + 6) % 7;
-    target.setUTCDate(target.getUTCDate() - dayNr + 3);
-    const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
-    const diff = target.getTime() - firstThursday.getTime();
-    return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
-}
-
-const songOfTheWeek = computed(() => {
-    const songsWithIndex = songsStore.songs.filter((s) => s.index);
-    if (!songsWithIndex.length) return null;
-    const week = getIsoWeek(now);
-    return songsWithIndex[week % songsWithIndex.length] ?? null;
-});
+const songOfTheWeek = computed(() => pickSongOfTheWeek(songs.value, today.value));
 
 const songOfTheWeekMeta = computed(() => {
     const song = songOfTheWeek.value;
