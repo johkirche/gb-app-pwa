@@ -59,6 +59,17 @@ export interface Song {
     melodieCopyright?: string | null;
     textAutorExtraSuffix?: string | null;
     melodieAutorExtraSuffix?: string | null;
+    // Die Weise des Liedes (Directus-Collection `melodie`). Rund die Hälfte des
+    // Bestands teilt sich eine Weise mit mindestens einem anderen Lied, deshalb
+    // sitzt die Nummer an der Melodie und nicht am Lied: `choralbuchNummer` ist
+    // im Druck die kleinere Zahl unter der Liednummer und verweist aufs
+    // Choralbuch. Vergeben wird sie im Dashboard (Nummerngenerierung),
+    // alphabetisch nach Melodietitel über alle angenommenen Lieder.
+    //
+    // Optional, damit vor dem nächsten Sync gespeicherte Lieder gültig bleiben.
+    melodieId?: string | null;
+    melodieTitel?: string | null;
+    choralbuchNummer?: number | null;
 }
 
 // Auth related types

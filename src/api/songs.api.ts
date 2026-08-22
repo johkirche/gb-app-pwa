@@ -73,6 +73,9 @@ interface DirectusGesangbuchlied {
         autorId: DirectusAutor[];
     } | null;
     melodieId: {
+        id: string;
+        titel: string | null;
+        choralbuchNummer: number | null;
         copyright?: string | null;
         autorId: DirectusAutor[];
         noten: DirectusNotenFile[];
@@ -94,7 +97,7 @@ interface DirectusResponse {
 // ursprungsAutorObj stays null — the formatter (src/utils/authorFormat.ts)
 // already handles it and needs no change once the selection is re-added.
 const SONGS_QUERY = `
-    { gesangbuchlied( filter: { bewertungKleinerKreis: { bezeichner: { _eq: "Rein" } } } limit: 5000 ) { id titel liednummer2026 copyright textAutorExtraSuffix melodieAutorExtraSuffix notentext_mxml { id filename_download } notentext_svg { id filename_download } textId { copyright strophenEinzeln autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } } melodieId { copyright autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
+    { gesangbuchlied( filter: { bewertungKleinerKreis: { bezeichner: { _eq: "Rein" } } } limit: 5000 ) { id titel liednummer2026 copyright textAutorExtraSuffix melodieAutorExtraSuffix notentext_mxml { id filename_download } notentext_svg { id filename_download } textId { copyright strophenEinzeln autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } } melodieId { id titel choralbuchNummer copyright autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
 `;
 
 // Get current token from the user store.
@@ -203,6 +206,12 @@ function transformSong(directusSong: DirectusGesangbuchlied): Song {
         melodieCopyright: directusSong.melodieId?.copyright ?? null,
         textAutorExtraSuffix: directusSong.textAutorExtraSuffix ?? null,
         melodieAutorExtraSuffix: directusSong.melodieAutorExtraSuffix ?? null,
+        // Die Weise. Die id wird als String festgehalten, weil sie in der App nur
+        // noch verglichen wird — gegen die id am anderen Lied und gegen den
+        // Deep-Link-Parameter, der immer ein String ist.
+        melodieId: directusSong.melodieId ? String(directusSong.melodieId.id) : null,
+        melodieTitel: directusSong.melodieId?.titel ?? null,
+        choralbuchNummer: directusSong.melodieId?.choralbuchNummer ?? null,
     };
 }
 
