@@ -20,7 +20,7 @@
                     />
                     <h2 class="mt-4 font-display text-2xl font-semibold">Keine Favoriten</h2>
                     <p class="mt-2 max-w-96 text-sm text-muted-foreground">
-                        Tippe auf das Herz-Symbol in einem Lied, um es zu deinen Favoriten
+                        Tippen Sie auf das Herz-Symbol in einem Lied, um es zu Ihren Favoriten
                         hinzuzufügen.
                     </p>
                     <Button variant="outline" class="mt-6" @click="router.push('/tabs/lieder')">

@@ -63,7 +63,9 @@
             <Smartphone class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0 flex-1">
                 <p class="text-[15px]">App installieren</p>
-                <p class="text-sm text-muted-foreground">Installiere die App auf deinem Gerät</p>
+                <p class="text-sm text-muted-foreground">
+                    Installieren Sie die App auf Ihrem Gerät
+                </p>
             </div>
             <ChevronRight class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>

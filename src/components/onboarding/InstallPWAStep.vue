@@ -29,7 +29,9 @@
             class="mt-8 flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-4"
         >
             <Spinner size="sm" />
-            <span class="font-medium text-muted-foreground">Prüfe Installationsstatus...</span>
+            <span class="font-medium text-muted-foreground">
+                Installationsstatus wird geprüft...
+            </span>
         </div>
 
         <template v-else>
