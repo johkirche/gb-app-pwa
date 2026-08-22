@@ -28,7 +28,10 @@
                             <Pencil />
                             Bearbeiten
                         </DropdownMenuItem>
-                        <DropdownMenuItem :disabled="songs.length === 0" @select="adoptAsService">
+                        <DropdownMenuItem
+                            :disabled="resolvedSongs.length === 0"
+                            @select="adoptAsService"
+                        >
                             <Church />
                             Als Gottesdienst übernehmen
                         </DropdownMenuItem>
@@ -70,16 +73,18 @@
                 <!-- Playlist Content -->
                 <template v-else>
                     <!-- Playlist Header -->
+                    <!-- Counted the way the list screen counts: every stored
+                         id, including the ones the library cannot resolve. -->
                     <PlaylistHeader
                         :emoji="playlist.emoji"
                         :name="playlist.name"
-                        :song-count="songs.length"
+                        :song-count="entries.length"
                         :created-at="playlist.createdAt"
                     />
 
                     <!-- Empty Playlist State -->
                     <div
-                        v-if="songs.length === 0"
+                        v-if="entries.length === 0"
                         class="flex flex-col items-center px-6 py-12 text-center"
                     >
                         <Music
@@ -100,10 +105,10 @@
                     <!-- Songs List -->
                     <PlaylistSongsList
                         v-else
-                        :songs="songs"
+                        :entries="entries"
                         :reorder-mode="reorderMode"
-                        @song-click="(song) => navigateToSong(song.id)"
-                        @song-context-menu="showSongActions"
+                        @entry-click="(entry) => navigateToSong(entry.id)"
+                        @entry-context-menu="showSongActions"
                         @reorder="handleReorder"
                     />
                 </template>
@@ -112,7 +117,7 @@
 
         <!-- FAB for adding songs -->
         <Button
-            v-if="!isLoading && playlist && songs.length > 0"
+            v-if="!isLoading && playlist && entries.length > 0"
             size="icon"
             class="absolute bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-10 h-14 w-14 rounded-full shadow-lg"
             aria-label="Lieder hinzufügen"
@@ -124,7 +129,7 @@
         <!-- Song context menu (long-press / right-click) -->
         <ActionSheet
             v-model:open="songSheetOpen"
-            :title="songSheetSong?.titel"
+            :title="songSheetTitle"
             :actions="songSheetActions"
             :anchor="songSheetAnchor"
         />
@@ -181,6 +186,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 import type { Song } from '@/db';
 import type { PanelAnchor } from '@/lib/anchor';
+import { type PlaylistEntry, resolvePlaylistEntries } from '@/utils/playlistEntries';
 
 const route = useRoute();
 const router = useRouter();
@@ -189,8 +195,13 @@ const songsStore = useSongsStore();
 const serviceStore = useServiceStore();
 const { confirm } = useConfirm();
 
-const { isLoading } = storeToRefs(playlistsStore);
-const { songs: allSongs } = storeToRefs(songsStore);
+const { isLoading: isLoadingPlaylists } = storeToRefs(playlistsStore);
+const { songs: allSongs, isInitialized: songsInitialized } = storeToRefs(songsStore);
+
+// Both stores read from IndexedDB when they are created. Waiting only for the
+// playlists let a cold open render a full playlist with none of its ids
+// resolved yet: "Keine Lieder", for a moment, on a playlist that has plenty.
+const isLoading = computed(() => isLoadingPlaylists.value || !songsInitialized.value);
 
 // UI State
 const showEditModal = ref(false);
@@ -202,13 +213,16 @@ const playlist = computed(() => {
     return playlistsStore.getPlaylistById(id);
 });
 
-// Get songs in playlist (ids without a matching song are not rendered)
-const songs = computed<Song[]>(() => {
-    if (!playlist.value) return [];
-    return playlist.value.songIds
-        .map((id) => allSongs.value.find((s) => s.id === id))
-        .filter((s): s is Song => s !== undefined);
-});
+// Every stored id becomes a row — the ones the library cannot resolve say so
+// rather than disappearing and leaving the two screens with different counts.
+const entries = computed<PlaylistEntry[]>(() =>
+    resolvePlaylistEntries(playlist.value?.songIds ?? [], allSongs.value),
+);
+
+// What can actually be sung: the subset an adopted service would consist of.
+const resolvedSongs = computed<Song[]>(() =>
+    entries.value.map((entry) => entry.song).filter((song): song is Song => song !== null),
+);
 
 function openEditModal() {
     // Let the dropdown menu finish closing before opening the dialog
@@ -246,7 +260,7 @@ async function deletePlaylist() {
  * arrives on exactly the same path.
  */
 async function adoptAsService() {
-    if (!playlist.value || songs.value.length === 0) return;
+    if (!playlist.value || resolvedSongs.value.length === 0) return;
     await nextTick();
 
     if (serviceStore.hasSelection) {
@@ -273,19 +287,18 @@ function toggleReorderMode() {
 }
 
 /**
- * Persist a new song order. `orderedIds` is the complete reordered list of the
- * *rendered* songs; ids whose song is missing locally (filtered from display)
- * are appended so they are not dropped from the playlist. This replaces the old
- * rendered-index-into-raw-ids splice, which misaligned when ids were filtered.
+ * Persist a new song order. Every stored id is rendered now, so `orderedIds` is
+ * the whole playlist; the filter below only makes sure a partial list could
+ * never silently drop what it did not carry.
  */
 async function handleReorder(orderedIds: string[]) {
     if (!playlist.value) return;
 
     const orderedSet = new Set(orderedIds);
-    const hiddenIds = playlist.value.songIds.filter((id) => !orderedSet.has(id));
+    const missingIds = playlist.value.songIds.filter((id) => !orderedSet.has(id));
 
     try {
-        await playlistsStore.reorderSongs(playlist.value.id, [...orderedIds, ...hiddenIds]);
+        await playlistsStore.reorderSongs(playlist.value.id, [...orderedIds, ...missingIds]);
     } catch (error) {
         console.error('Failed to reorder songs:', error);
     }
@@ -316,7 +329,10 @@ async function removeSong(songId: string) {
 // Song context menu — guarded so long-press AND contextmenu (both fire on some
 // Android browsers) cannot open the sheet twice
 const songSheetOpen = ref(false);
-const songSheetSong = ref<Song | null>(null);
+const songSheetEntry = ref<PlaylistEntry | null>(null);
+const songSheetTitle = computed(
+    () => songSheetEntry.value?.song?.titel ?? 'Lied derzeit nicht verfügbar',
+);
 // The row (or click point) the desktop popover form hangs off
 const songSheetAnchor = ref<PanelAnchor>(null);
 
@@ -326,8 +342,8 @@ const songSheetActions = computed<ActionSheetAction[]>(() => [
         role: 'destructive',
         icon: Trash2,
         handler: () => {
-            if (songSheetSong.value) {
-                removeSong(songSheetSong.value.id);
+            if (songSheetEntry.value) {
+                removeSong(songSheetEntry.value.id);
             }
         },
     },
@@ -337,9 +353,9 @@ const songSheetActions = computed<ActionSheetAction[]>(() => [
     },
 ]);
 
-function showSongActions(song: Song, anchor: PanelAnchor) {
+function showSongActions(entry: PlaylistEntry, anchor: PanelAnchor) {
     if (songSheetOpen.value) return;
-    songSheetSong.value = song;
+    songSheetEntry.value = entry;
     songSheetAnchor.value = anchor;
     songSheetOpen.value = true;
 }
