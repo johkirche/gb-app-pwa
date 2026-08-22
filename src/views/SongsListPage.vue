@@ -32,6 +32,14 @@
             :class="{ 'scrollbar-none': isIndexScrollerVisible }"
             @scroll="onScroll"
         >
+            <PullToRefreshIndicator
+                :distance="pullDistance"
+                :is-refreshing="isPullRefreshing"
+                :is-pulling="isPulling"
+                :is-armed="isPullArmed"
+                :status-label="syncStatusLabel"
+            />
+
             <!-- The index rail overlays this column, so everything in it —
                  Lied der Woche, states and the list — shares the same gutter. -->
             <div class="page-col pb-8" :class="{ 'pr-12': isIndexScrollerVisible }">
@@ -86,8 +94,9 @@
                 >
                     <Music class="h-14 w-14 text-muted-foreground/50" aria-hidden="true" />
                     <h2 class="mt-5 font-display text-2xl font-semibold">Keine Lieder vorhanden</h2>
-                    <p class="mt-2 text-muted-foreground">
-                        Laden Sie das Gesangbuch einmal herunter, um es offline zu nutzen.
+                    <p class="mt-2 max-w-96 text-muted-foreground">
+                        Laden Sie das Gesangbuch einmal herunter, um es offline zu nutzen — über die
+                        Schaltfläche oder indem Sie die Liste nach unten ziehen.
                     </p>
                     <Button class="mt-6" @click="router.push('/download')">
                         <CloudDownload aria-hidden="true" />
@@ -263,10 +272,12 @@ import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
+import { usePullToRefresh } from '@/composables/usePullToRefresh';
 import { useSongFiltering } from '@/composables/useSongFiltering';
 import { SORT_OPTIONS, useSongSorting } from '@/composables/useSongSorting';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
+import PullToRefreshIndicator from '@/components/shell/PullToRefreshIndicator.vue';
 import IndexScroll from '@/components/songlist/IndexScroll.vue';
 import SongFilterPanel from '@/components/songlist/SongFilterPanel.vue';
 import SongSectionHeader from '@/components/songlist/SongSectionHeader.vue';
@@ -282,7 +293,8 @@ import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
 const serviceStore = useServiceStore();
-const { songs, isLoading, error, lastSyncTime, hasSongs } = storeToRefs(songsStore);
+const { songs, isLoading, error, lastSyncTime, hasSongs, isSyncing, syncProgress } =
+    storeToRefs(songsStore);
 const router = useRouter();
 const route = useRoute();
 
@@ -290,6 +302,44 @@ const route = useRoute();
 const scrollRef = ref<HTMLElement | null>(null);
 // KeepAlive resets scrollTop on re-attach; save/restore it (Ionic parity)
 useKeepAliveScroll(scrollRef);
+
+// Pull-to-refresh: the list is where a reader notices that content is missing
+// or out of date, so it is also where the sync belongs. The toolbar has no
+// sync button by design — this is the gesture that replaces it.
+const {
+    distance: pullDistance,
+    isRefreshing: isPullRefreshing,
+    isPulling,
+    isArmed: isPullArmed,
+} = usePullToRefresh(scrollRef, syncSongs, { enabled: () => !isSyncing.value });
+
+const syncStatusLabel = computed(() => {
+    if (syncProgress.value.phase === 'songs') return 'Lieder werden geladen…';
+    if (syncProgress.value.phase === 'files' && syncProgress.value.total > 0) {
+        return `${syncProgress.value.current} von ${syncProgress.value.total} Dateien`;
+    }
+    return 'Wird synchronisiert…';
+});
+
+async function syncSongs() {
+    if (isSyncing.value) return;
+    try {
+        await songsStore.syncAll();
+        if (songsStore.failedFiles.length > 0) {
+            toast.warning('Einige Notendateien fehlen noch.', {
+                description: 'Unter Synchronisieren können Sie sie erneut laden.',
+                action: { label: 'Öffnen', onClick: () => router.push('/download') },
+            });
+            return;
+        }
+        toast.success('Gesangbuch ist aktuell', { duration: 2000 });
+    } catch (err) {
+        console.error('Pull-to-refresh sync failed:', err);
+        toast.error('Die Synchronisierung ist fehlgeschlagen.', {
+            description: 'Bitte prüfen Sie die Internetverbindung.',
+        });
+    }
+}
 
 // Filtering - applied first
 const {
