@@ -54,6 +54,10 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // what this is for, and the lock is only ever held while a song is open
     // and on screen. Whoever would rather have the battery turns it off.
     const keepScreenAwake = ref(true);
+    // Off by default: the first Web MIDI call raises a permission prompt, and
+    // nobody looking up a hymn should be asked about MIDI hardware.
+    const midiOutputEnabled = ref(false);
+    const midiOutputId = ref('');
     const isLoading = ref(false);
 
     // Actions
@@ -71,6 +75,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 xmlSettings.value = { ...DEFAULT_XML_SETTINGS, ...(prefs.xmlSettings || {}) };
                 serviceTab.value = prefs.serviceTab ?? 'auto';
                 keepScreenAwake.value = prefs.keepScreenAwake ?? true;
+                midiOutputEnabled.value = prefs.midiOutputEnabled ?? false;
+                midiOutputId.value = prefs.midiOutputId ?? '';
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -89,6 +95,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
             xmlSettings: { ...xmlSettings.value },
             serviceTab: serviceTab.value,
             keepScreenAwake: keepScreenAwake.value,
+            midiOutputEnabled: midiOutputEnabled.value,
+            midiOutputId: midiOutputId.value,
         });
     }
 
@@ -145,6 +153,26 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setMidiOutputEnabled(enabled: boolean) {
+        try {
+            midiOutputEnabled.value = enabled;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the MIDI output setting:', err);
+            throw err;
+        }
+    }
+
+    async function setMidiOutputId(id: string) {
+        try {
+            midiOutputId.value = id;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the MIDI device:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -155,6 +183,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
         serviceTab.value = 'auto';
         keepScreenAwake.value = true;
+        midiOutputEnabled.value = false;
+        midiOutputId.value = '';
     }
 
     // Initialize store on creation
@@ -167,6 +197,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         xmlSettings,
         serviceTab,
         keepScreenAwake,
+        midiOutputEnabled,
+        midiOutputId,
         isLoading,
 
         // Actions
@@ -176,6 +208,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setXmlSetting,
         setServiceTab,
         setKeepScreenAwake,
+        setMidiOutputEnabled,
+        setMidiOutputId,
         resetToDefaults,
 
         // Initialization promise

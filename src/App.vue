@@ -19,8 +19,11 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted } from 'vue';
+import { defineAsyncComponent, onMounted, watch } from 'vue';
 
+import { usePreferencesStore } from '@/stores/preferences';
+
+import { syncMidiPreference } from '@/composables/useMidiOutput';
 import { useTheme } from '@/composables/useTheme';
 
 import { ConfirmHost } from '@/components/ui/confirm';
@@ -37,6 +40,19 @@ const ViewportPreview = showViewportPreview
     : null;
 
 const { isDark, initTheme } = useTheme();
+
+// Bring the MIDI device layer in line with what was saved. Only a permission
+// that already stands is re-used — this never raises a prompt, so a reader who
+// has never asked for MIDI never hears about it. Watched rather than read once:
+// the preferences load asynchronously, and the settings page writes here too.
+const preferencesStore = usePreferencesStore();
+watch(
+    () => [preferencesStore.midiOutputEnabled, preferencesStore.midiOutputId] as const,
+    ([enabled, deviceId]) => {
+        void syncMidiPreference(enabled, deviceId);
+    },
+    { immediate: true },
+);
 
 onMounted(() => {
     initTheme();

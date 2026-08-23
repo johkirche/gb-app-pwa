@@ -48,10 +48,11 @@ import { AlertCircle } from 'lucide-vue-next';
 import type { OpenSheetMusicDisplay as OSMDType } from 'opensheetmusicdisplay';
 import type PlaybackEngineType from 'osmd-audio-player';
 
+import { midiRouteKey } from '@/composables/useMidiOutput';
 import { useNotationScale } from '@/composables/useNotationScale';
 
 import type { XmlDisplaySettings } from '@/db';
-import type { LocalSoundfontPlayer as LocalSoundfontPlayerType } from '@/services/localSoundfontPlayer';
+import type { HymnInstrumentPlayer } from '@/services/instrumentPlayer';
 
 const props = defineProps<{
     fileBlob: Blob | null;
@@ -87,7 +88,7 @@ let osmd: OSMDType | null = null;
 let playbackEngine: PlaybackEngineType | null = null;
 // Kept beside the engine because muting lives here rather than in the engine:
 // osmd-audio-player carries a masterVolume it never applies.
-let instrumentPlayer: LocalSoundfontPlayerType | null = null;
+let instrumentPlayer: HymnInstrumentPlayer | null = null;
 // The engine's own state enum, kept from the lazy import so its state can be
 // read without pulling the module in eagerly. It lives one level down: the
 // package's entry point re-exports the engine and nothing else.
@@ -720,30 +721,40 @@ function followPlayhead() {
     });
 }
 
-async function initPlayback() {
-    if (!osmd) return;
-
-    // Tear down any previous engine
+// Drop the engine and, with it, whatever it was sounding through. A MIDI
+// instrument has to be told: notes already queued on the device would go on
+// playing — and a note-on whose note-off was dropped holds forever.
+async function disposeEngine() {
     if (playbackEngine) {
         try {
             await playbackEngine.stop();
         } catch {
             // ignore
         }
-        playbackEngine = null;
-        instrumentPlayer = null;
     }
+    instrumentPlayer?.dispose?.();
+    playbackEngine = null;
+    instrumentPlayer = null;
+}
 
+async function initPlayback() {
+    if (!osmd) return;
+
+    await disposeEngine();
+
+    // Held locally as well: if construction fails after the sink exists, the
+    // field is still null and only this reference can release it.
+    let player: HymnInstrumentPlayer | null = null;
     try {
         const { default: PlaybackEngine } = await import('osmd-audio-player');
         const { PlaybackEvent, PlaybackState } =
             await import('osmd-audio-player/dist/PlaybackEngine');
         playbackStates = PlaybackState;
         const { AudioContext } = await import('standardized-audio-context');
-        const { LocalSoundfontPlayer } = await import('@/services/localSoundfontPlayer');
-        // Local instrument player: soundfonts come precached from the app's
-        // own origin (public/soundfonts/) — no gleitz.github.io request.
-        const player = new LocalSoundfontPlayer();
+        const { createInstrumentPlayer } = await import('@/services/instrumentPlayer');
+        // Either the precached local soundfont (no third-party request) or a
+        // connected MIDI instrument — the engine above cannot tell the two apart.
+        player = await createInstrumentPlayer();
         player.setMuted(!!props.muted);
         const engine = new PlaybackEngine(new AudioContext(), player);
         await engine.loadScore(osmd as any);
@@ -765,6 +776,7 @@ async function initPlayback() {
     } catch (error) {
         console.error('Failed to init OSMD audio player:', error);
         // Audio failure should not block visual rendering
+        player?.dispose?.();
         playbackEngine = null;
         instrumentPlayer = null;
     }
@@ -961,6 +973,16 @@ watch(
     },
 );
 
+// The instrument was switched, plugged in or unplugged. The engine holds its
+// sink for life, so it has to go; the next play tap builds one on the new
+// route. Rebuilding silently mid-song would be worse than stopping — the
+// reader would hear the hymn restart from an unknown place.
+watch(midiRouteKey, async () => {
+    if (!playbackEngine) return;
+    if (props.isPlaying) emit('playStopped');
+    await disposeEngine();
+});
+
 let layerObserver: ResizeObserver | null = null;
 
 onMounted(() => {
@@ -981,15 +1003,7 @@ onBeforeUnmount(async () => {
         themeObserver.disconnect();
         themeObserver = null;
     }
-    if (playbackEngine) {
-        try {
-            await playbackEngine.stop();
-        } catch {
-            // ignore
-        }
-        playbackEngine = null;
-        instrumentPlayer = null;
-    }
+    await disposeEngine();
     if (osmd) {
         try {
             osmd.clear();

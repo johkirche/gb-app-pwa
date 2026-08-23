@@ -145,6 +145,15 @@ export interface PreferencesData {
      * store supplies the default.
      */
     keepScreenAwake?: boolean;
+    /**
+     * Play through a connected MIDI instrument instead of the built-in
+     * soundfont. Off by default and deliberately so: since Chrome 124 the first
+     * Web MIDI call raises a permission prompt, which nobody should meet
+     * unasked.
+     */
+    midiOutputEnabled?: boolean;
+    /** Which MIDI output was chosen. Empty means "the only one connected". */
+    midiOutputId?: string;
 }
 
 // Favorites: id == song id

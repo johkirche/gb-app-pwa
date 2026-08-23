@@ -172,6 +172,9 @@ const persistentStorage = ref<boolean | null>(null);
 const playbackSummary = computed(() => {
     const marks = preferencesStore.xmlSettings;
     const on = [
+        // The output comes first: which instrument a hymn sounds on outranks
+        // what the engraving marks while it plays.
+        preferencesStore.midiOutputEnabled ? 'MIDI-Ausgabe' : null,
         marks.highlightNotes ? 'Noten hervorheben' : null,
         marks.showPlayhead ? 'Abspielbalken' : null,
     ].filter(Boolean);
