@@ -10,8 +10,10 @@
                     :melody-display-mode="melodyDisplayMode"
                     :page-scale="pageScale"
                     :xml-settings="xmlSettings"
+                    :keep-screen-awake="keepScreenAwake"
                     @update:melody-display-mode="preferencesStore.setMelodyDisplayMode($event)"
                     @update:page-scale="preferencesStore.setPageScale($event)"
+                    @update:keep-screen-awake="preferencesStore.setKeepScreenAwake($event)"
                     @update:xml-setting="
                         preferencesStore.setXmlSetting($event.key, $event.value as boolean)
                     "
@@ -152,7 +154,13 @@ import { useRoute } from 'vue-router';
 import { usePreferencesStore } from '@/stores/preferences';
 import { useSongsStore } from '@/stores/songs';
 
+import {
+    type NowPlaying,
+    type NowPlayingState,
+    useMediaSession,
+} from '@/composables/useMediaSession';
 import { useStoredFiles } from '@/composables/useStoredFiles';
+import { useWakeLock } from '@/composables/useWakeLock';
 
 import OsmdRenderer from '@/components/songview/OsmdRenderer.vue';
 import SongAudioControls from '@/components/songview/SongAudioControls.vue';
@@ -165,6 +173,7 @@ import SongMenuPopover from '@/components/songview/SongMenuPopover.vue';
 import SongVerses from '@/components/songview/SongVerses.vue';
 
 import type { Song } from '@/db';
+import { authorFilterName } from '@/utils/authorFormat';
 import { sanitizeNotationSvg } from '@/utils/notationSvg';
 
 const route = useRoute();
@@ -172,7 +181,8 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { pageScale, melodyDisplayMode, xmlSettings } = storeToRefs(preferencesStore);
+const { pageScale, melodyDisplayMode, xmlSettings, keepScreenAwake } =
+    storeToRefs(preferencesStore);
 
 const { getFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
@@ -210,6 +220,10 @@ const engineLoading = ref(false);
 // the renderer: only it knows where in the sheet the music stands.
 const playbackPosition = ref(0);
 const playbackDuration = ref(0);
+// Whether this hymn is the one the platform is showing. Set by the first play
+// tap and kept past the final note, so the lock screen still offers a play
+// button for the next verse; cleared by Stop and by moving to another song.
+const playbackEngaged = ref(false);
 
 // Display options
 const showControls = ref(true);
@@ -329,10 +343,7 @@ function loadSong() {
         // The renderer drops the engine built for the previous sheet, so the
         // transport has to come back to rest with it — otherwise it would go on
         // showing "Pause" over a song that is not playing.
-        isPlaying.value = false;
-        hasPaused.value = false;
-        playbackPosition.value = 0;
-        playbackDuration.value = 0;
+        resetPlayback();
         // Load only the active display mode's asset — getOrFetchFileBlob has a
         // network fallback, so eagerly loading both would spend bandwidth and
         // quota on the asset the current mode never shows. The
@@ -376,6 +387,11 @@ watch(
 watch(melodyDisplayMode, () => {
     notationState.value = 'loading';
     notationLyricsDrawn.value = false;
+    // Switching to the Notenbild unmounts the renderer that owns the audio, so
+    // the transport — and with it the platform's controls — has to come to rest
+    // too. Left alone, the lock screen would go on offering "Pause" for a
+    // player that no longer exists.
+    resetPlayback();
     if (melodyDisplayMode.value === 'image') {
         loadMelodyImage();
     } else if (melodyDisplayMode.value === 'xml') {
@@ -383,24 +399,52 @@ watch(melodyDisplayMode, () => {
     }
 });
 
-// Toggle play/pause
+// Everything the transport shows, back at rest. Called wherever the renderer
+// that owns the audio is dropped: another hymn, another notation view.
+function resetPlayback() {
+    isPlaying.value = false;
+    hasPaused.value = false;
+    playbackEngaged.value = false;
+    playbackPosition.value = 0;
+    playbackDuration.value = 0;
+}
+
+// Start / pause / toggle. Split apart because the platform's own controls
+// address them separately: a lock-screen "play" must never come out as a
+// pause because the two got out of step.
+function startPlayback() {
+    if (isPlaying.value) return;
+    isPlaying.value = true;
+    hasPaused.value = true;
+    playbackEngaged.value = true;
+}
+
+function pausePlayback() {
+    isPlaying.value = false;
+}
+
 function togglePlay() {
-    isPlaying.value = !isPlaying.value;
-    if (isPlaying.value) {
-        hasPaused.value = true;
-    }
+    if (isPlaying.value) pausePlayback();
+    else startPlayback();
 }
 
 // Stop playback completely
 function stopPlayback() {
     isPlaying.value = false;
     hasPaused.value = false;
+    playbackEngaged.value = false;
     // Call the stop method on the active renderer
     osmdRendererRef.value?.stop();
 }
 
 function seekPlayback(fraction: number) {
     osmdRendererRef.value?.seek(fraction);
+}
+
+function seekToSeconds(seconds: number) {
+    if (playbackDuration.value <= 0) return;
+    const clamped = Math.max(0, Math.min(playbackDuration.value, seconds));
+    seekPlayback(clamped / playbackDuration.value);
 }
 
 function onPlaybackProgress(value: { position: number; duration: number }) {
@@ -428,6 +472,68 @@ function decreaseTempo() {
         tempo.value -= 10;
     }
 }
+
+// --- The song page and the device it is held in ---------------------------
+
+// Verse three is exactly when the screen dims and the reader loses their place
+// fumbling to unlock. The hold stands while this page is open and on screen;
+// leaving it — or turning the setting off — drops it, and everything no-ops
+// where the platform has no wake lock at all.
+useWakeLock(() => keepScreenAwake.value);
+
+// Playback is a Web Audio scheduler, so nothing about it reaches the OS by
+// itself: no hymn on the lock screen, no headset play/pause. This is what
+// tells the platform what is playing. A source is only claimed once the reader
+// has actually started a hymn — merely opening a song page must not take the
+// lock screen away from whatever else is playing.
+const nowPlayingArtist = computed(() => {
+    const current = song.value;
+    if (!current) return '';
+    // The melody is what is sounding; its author is the one to name. Songs
+    // that carry no melody author fall back to the text's.
+    const authors = current.melodieAutoren?.length ? current.melodieAutoren : current.textAutoren;
+    return (authors ?? [])
+        .map((author) => authorFilterName(author))
+        .filter(Boolean)
+        .join(', ');
+});
+
+const nowPlaying = computed<NowPlaying | null>(() => {
+    const current = song.value;
+    if (!current) return null;
+    return {
+        // The number reads first, as it does in the book and in the header.
+        title: current.index ? `${current.index}. ${current.titel}` : current.titel,
+        artist: nowPlayingArtist.value,
+        album: 'Gesangbuch der Johannischen Kirche',
+    };
+});
+
+const nowPlayingState = computed<NowPlayingState>(() => {
+    if (!playbackEngaged.value) return 'none';
+    return isPlaying.value ? 'playing' : 'paused';
+});
+
+useMediaSession({
+    metadata: nowPlaying,
+    state: nowPlayingState,
+    position: () =>
+        playbackDuration.value > 0
+            ? { position: playbackPosition.value, duration: playbackDuration.value }
+            : null,
+    handlers: {
+        play: startPlayback,
+        pause: pausePlayback,
+        stop: stopPlayback,
+        seekto: (details) => {
+            if (typeof details.seekTime === 'number') seekToSeconds(details.seekTime);
+        },
+        seekbackward: (details) =>
+            seekToSeconds(playbackPosition.value - (details.seekOffset ?? 10)),
+        seekforward: (details) =>
+            seekToSeconds(playbackPosition.value + (details.seekOffset ?? 10)),
+    },
+});
 </script>
 
 <style scoped>

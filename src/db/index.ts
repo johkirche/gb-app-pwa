@@ -139,6 +139,12 @@ export interface PreferencesData {
     xmlSettings?: XmlDisplaySettings;
     /** Optional so records stored before the Gottesdienst tab existed stay valid. */
     serviceTab?: ServiceTabMode;
+    /**
+     * Hold a screen wake lock while a song is open, so the page does not dim
+     * mid-verse. Optional so records stored before it existed stay valid; the
+     * store supplies the default.
+     */
+    keepScreenAwake?: boolean;
 }
 
 // Favorites: id == song id

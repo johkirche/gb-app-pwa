@@ -88,23 +88,47 @@
                 <SongScalePreview :scale="pageScale" />
             </div>
         </div>
+
+        <!-- Left out entirely where the platform has no Screen Wake Lock API:
+             a switch that provably does nothing is worse than no switch. -->
+        <div v-if="wakeLockSupported" class="flex items-center justify-between gap-4 px-2 py-3">
+            <div class="flex min-w-0 items-center gap-4">
+                <Lightbulb class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <div class="min-w-0">
+                    <Label for="settings-keep-awake" class="text-[15px] font-normal">
+                        Bildschirm anlassen
+                    </Label>
+                    <p class="text-sm text-muted-foreground">
+                        Die Liedseite bleibt hell, solange sie offen ist
+                    </p>
+                </div>
+            </div>
+            <Switch
+                id="settings-keep-awake"
+                :model-value="keepScreenAwake"
+                @update:model-value="preferencesStore.setKeepScreenAwake($event)"
+            />
+        </div>
     </SettingsList>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { Contrast, Image, Type } from 'lucide-vue-next';
+import { Contrast, Image, Lightbulb, Type } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import { usePreferencesStore } from '@/stores/preferences';
 
 import { useTheme } from '@/composables/useTheme';
+import { isWakeLockSupported } from '@/composables/useWakeLock';
 
 import SettingsList from '@/components/settings/SettingsList.vue';
 import SongNotationModePreview from '@/components/songview/SongNotationModePreview.vue';
 import SongScalePreview from '@/components/songview/SongScalePreview.vue';
+import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import type { MelodyDisplayMode } from '@/db';
@@ -131,7 +155,10 @@ const preferencesStore = usePreferencesStore();
 // the segment reads straight from it instead of keeping a second copy in sync.
 const { theme, setTheme } = useTheme();
 
+const wakeLockSupported = isWakeLockSupported();
+
 const pageScale = computed(() => preferencesStore.pageScale);
+const keepScreenAwake = computed(() => preferencesStore.keepScreenAwake);
 // Reka's Slider works on number[] (multi-thumb capable) — bridge to the scalar store value.
 const pageScaleSlider = computed<number[] | undefined>({
     get: () => [preferencesStore.pageScale],

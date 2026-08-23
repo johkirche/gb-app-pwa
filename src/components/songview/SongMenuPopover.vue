@@ -78,6 +78,22 @@
                             @update:model-value="$emit('update:showControls', $event)"
                         />
                     </div>
+                    <!-- Hidden where the platform has no wake lock: a switch
+                         that provably does nothing is worse than no switch. -->
+                    <div v-if="wakeLockSupported" class="flex items-center justify-between gap-3">
+                        <Label for="song-keep-awake" class="flex items-center gap-2.5">
+                            <Lightbulb
+                                class="size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            Bildschirm anlassen
+                        </Label>
+                        <Switch
+                            id="song-keep-awake"
+                            :model-value="keepScreenAwake"
+                            @update:model-value="$emit('update:keepScreenAwake', $event)"
+                        />
+                    </div>
                 </div>
 
                 <!-- Melody Settings Group (only shown when relevant) -->
@@ -180,6 +196,7 @@ import { computed, nextTick, ref } from 'vue';
 import {
     Church,
     Image as ImageIcon,
+    Lightbulb,
     List,
     ListMusic,
     Music,
@@ -190,6 +207,8 @@ import type { AcceptableValue } from 'reka-ui';
 import { toast } from 'vue-sonner';
 
 import { useServiceStore } from '@/stores/service';
+
+import { isWakeLockSupported } from '@/composables/useWakeLock';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
 import { Button } from '@/components/ui/button';
@@ -216,10 +235,12 @@ const props = defineProps<{
     melodyDisplayMode: MelodyDisplayMode;
     pageScale: number;
     xmlSettings?: XmlDisplaySettings;
+    keepScreenAwake: boolean;
 }>();
 
 const emit = defineEmits<{
     'update:showControls': [value: boolean];
+    'update:keepScreenAwake': [value: boolean];
     'update:melodyDisplayMode': [value: MelodyDisplayMode];
     'update:pageScale': [value: number];
     'update:xmlSetting': [
@@ -232,6 +253,8 @@ const emit = defineEmits<{
 
 const serviceStore = useServiceStore();
 const isInService = computed(() => serviceStore.isInPlan(props.songId));
+
+const wakeLockSupported = isWakeLockSupported();
 
 const menuOpen = ref(false);
 const showPlaylistModal = ref(false);

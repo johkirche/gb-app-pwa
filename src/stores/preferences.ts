@@ -50,6 +50,10 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // 'auto' keeps the tab bar as it was for everyone who never holds a service;
     // whoever leads the music pins it once and always has it.
     const serviceTab = ref<ServiceTabMode>('auto');
+    // On by default: the phone on the hymnal stand dimming in verse three is
+    // what this is for, and the lock is only ever held while a song is open
+    // and on screen. Whoever would rather have the battery turns it off.
+    const keepScreenAwake = ref(true);
     const isLoading = ref(false);
 
     // Actions
@@ -66,6 +70,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 melodyDisplayMode.value = storedMode && storedMode !== 'abc' ? storedMode : 'xml';
                 xmlSettings.value = { ...DEFAULT_XML_SETTINGS, ...(prefs.xmlSettings || {}) };
                 serviceTab.value = prefs.serviceTab ?? 'auto';
+                keepScreenAwake.value = prefs.keepScreenAwake ?? true;
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -83,6 +88,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             // reactive proxy behind xmlSettings.value (DataCloneError).
             xmlSettings: { ...xmlSettings.value },
             serviceTab: serviceTab.value,
+            keepScreenAwake: keepScreenAwake.value,
         });
     }
 
@@ -129,6 +135,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setKeepScreenAwake(enabled: boolean) {
+        try {
+            keepScreenAwake.value = enabled;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the wake-lock setting:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -138,6 +154,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         melodyDisplayMode.value = 'xml';
         xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
         serviceTab.value = 'auto';
+        keepScreenAwake.value = true;
     }
 
     // Initialize store on creation
@@ -149,6 +166,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         melodyDisplayMode,
         xmlSettings,
         serviceTab,
+        keepScreenAwake,
         isLoading,
 
         // Actions
@@ -157,6 +175,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setMelodyDisplayMode,
         setXmlSetting,
         setServiceTab,
+        setKeepScreenAwake,
         resetToDefaults,
 
         // Initialization promise
