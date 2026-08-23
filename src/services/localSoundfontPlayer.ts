@@ -1,11 +1,14 @@
-import type {
-    InstrumentPlayer,
-    PlaybackInstrument,
-} from 'osmd-audio-player/dist/players/InstrumentPlayer';
+import type { PlaybackInstrument } from 'osmd-audio-player/dist/players/InstrumentPlayer';
 import type { NotePlaybackInstruction } from 'osmd-audio-player/dist/players/NotePlaybackOptions';
 import * as Soundfont from 'soundfont-player';
 import type { Player } from 'soundfont-player';
 import type { IAudioContext } from 'standardized-audio-context';
+
+import {
+    ARTICULATION_STACCATO,
+    type HymnInstrumentPlayer,
+    OSMD_HALFTONE_TO_MIDI,
+} from '@/services/instrumentPlayer';
 
 /**
  * Local Soundfont Player
@@ -17,18 +20,16 @@ import type { IAudioContext } from 'standardized-audio-context';
  * precached app shell makes playback work fully offline with no third-party
  * request ever firing.
  *
- * Modeled on osmd-audio-player/dist/players/SoundfontPlayer.js with two
+ * Modeled on osmd-audio-player/dist/players/SoundfontPlayer.js with three
  * changes: `instruments` lists ONLY the vendored instruments (PlaybackEngine
  * routes every unknown score instrument through its piano fallback, so midi ID
- * 0 must always be present), and load() overrides nameToUrl to point at the
- * local files.
+ * 0 must always be present), load() overrides nameToUrl to point at the local
+ * files, and every note is shifted by OSMD_HALFTONE_TO_MIDI — the engine hands
+ * over OSMD half-tones, which are an octave below the MIDI numbers this
+ * soundfont is keyed by.
  */
 
-// ArticulationStyle.Staccato from osmd-audio-player/dist/players/NotePlaybackOptions.
-// Kept as a local constant so every import from the package's dist stays type-only.
-const ARTICULATION_STACCATO = 1;
-
-export class LocalSoundfontPlayer implements InstrumentPlayer {
+export class LocalSoundfontPlayer implements HymnInstrumentPlayer {
     public instruments: PlaybackInstrument[] = [
         { midiId: 0, name: 'Acoustic Grand Piano', loaded: false },
         { midiId: 19, name: 'Church Organ', loaded: false },
@@ -82,7 +83,7 @@ export class LocalSoundfontPlayer implements InstrumentPlayer {
     public play(midiId: number, options: NotePlaybackInstruction): void {
         if (this.muted) return;
         this.verifyPlayerLoaded(midiId);
-        this.players.get(midiId)?.play(String(options.note), 0, {
+        this.players.get(midiId)?.play(String(options.note + OSMD_HALFTONE_TO_MIDI), 0, {
             gain: options.gain,
             duration: options.duration,
         });
@@ -97,7 +98,13 @@ export class LocalSoundfontPlayer implements InstrumentPlayer {
         if (this.muted) return;
         this.verifyPlayerLoaded(midiId);
         this.applyDynamics(notes);
-        this.players.get(midiId)?.schedule(time, notes);
+        // A copy, not a shift in place: the engine emits the ITERATION event
+        // over this same array, and the page reads the notes back from it.
+        const pitched = notes.map((note) => ({
+            ...note,
+            note: note.note + OSMD_HALFTONE_TO_MIDI,
+        }));
+        this.players.get(midiId)?.schedule(time, pitched);
     }
 
     private applyDynamics(notes: NotePlaybackInstruction[]): void {
