@@ -351,6 +351,13 @@ let clockRunning = false;
 let pendingSeek: number | null = null;
 /** Which of those steps is sounding — where the sweeping line starts from */
 let currentStep = 0;
+/** Set between asking the engine to play and its first sounded note */
+let awaitingFirstNote = false;
+let firstNoteHandle = 0;
+
+/** The run-in of silence the engine's scheduler lays before the first note it
+ *  sounds, in whole notes — a fixed 300 of the 1024 ticks it cuts one into. */
+const SCHEDULER_LEAD_IN = 300 / 1024;
 
 /** How long one whole note lasts at a tempo — the transport's, by default */
 function secondsPerWholeNote(bpm = props.tempo): number {
@@ -408,7 +415,37 @@ function measureSheetClock() {
     emitProgress();
 }
 
+// Hand the start of the clock to the engine: the music begins on the note it
+// sounds, not on the tap that asked for it. Its scheduler lays a run-in of
+// silence before that first note, so a clock started at the tap would sweep
+// the whole of the first beat during the silence and then be pegged back to
+// the beginning when the note finally arrives — playing that beat twice.
+//
+// The deadline behind it is only a safety line. An engine with no step left to
+// announce — resumed on the last note of the sheet — would never sound one,
+// and the clock is what notices that the sheet has ended, so it may not be
+// left waiting forever.
+function startClockOnFirstNote() {
+    awaitingFirstNote = true;
+    if (firstNoteHandle) clearTimeout(firstNoteHandle);
+    firstNoteHandle = window.setTimeout(
+        () => {
+            if (!awaitingFirstNote) return;
+            cancelFirstNoteWait();
+            startClock();
+        },
+        (SCHEDULER_LEAD_IN * secondsPerWholeNote() + 0.5) * 1000,
+    );
+}
+
+function cancelFirstNoteWait() {
+    awaitingFirstNote = false;
+    if (firstNoteHandle) clearTimeout(firstNoteHandle);
+    firstNoteHandle = 0;
+}
+
 function startClock() {
+    cancelFirstNoteWait();
     if (clockRunning) return;
     clockRunning = true;
     baseClock = performance.now();
@@ -423,6 +460,7 @@ function startClock() {
 }
 
 function stopClock() {
+    cancelFirstNoteWait();
     if (frameHandle) cancelAnimationFrame(frameHandle);
     frameHandle = 0;
     if (clockRunning) {
@@ -453,7 +491,7 @@ async function restartPlayback() {
         syncPosition(0);
         emitProgress(0);
         await playbackEngine.play();
-        startClock();
+        startClockOnFirstNote();
     } catch (error) {
         console.error('OSMD loop restart error:', error);
         stopPlayback();
@@ -476,7 +514,9 @@ async function seek(fraction: number) {
         return;
     }
 
-    const wasPlaying = clockRunning;
+    // A seek during the run-in before the first note is a seek in a song that
+    // is playing, even though its clock has not started yet.
+    const wasPlaying = clockRunning || awaitingFirstNote;
     stopClock();
     // jumpToStep pauses the engine and walks the cursor to the step.
     playbackEngine.jumpToStep(step);
@@ -485,7 +525,7 @@ async function seek(fraction: number) {
     if (wasPlaying) {
         try {
             await playbackEngine.play();
-            startClock();
+            startClockOnFirstNote();
         } catch (error) {
             console.error('OSMD playback error:', error);
             emit('playStopped');
@@ -711,7 +751,9 @@ function noteAfter(note: SVGGElement, system: Element): Element | null {
 // Keep the system being played in view — but only when the band reaches a new
 // one, so following never fights a reader scrolling the page themselves.
 function followPlayhead() {
-    if (!clockRunning) return;
+    // The run-in counts as playing: the mark lands on the first note before
+    // the clock starts, and that is exactly the system to bring into view.
+    if (!clockRunning && !awaitingFirstNote) return;
     nextTick(() => {
         playheadRef.value?.scrollIntoView({
             behavior: 'smooth',
@@ -762,13 +804,15 @@ async function initPlayback() {
             engine.setBpm(props.tempo);
         }
         // Every note the engine sounds is announced here — which is what moves
-        // the mark on the page and pegs the clock to the real position.
+        // the mark on the page, pegs the clock to the real position, and, on
+        // the first note of a run, is what sets the clock going at all.
         engine.on(PlaybackEvent.ITERATION, () => {
             const position = osmd?.cursor?.Iterator?.CurrentSourceTimestamp?.RealValue;
             if (typeof position === 'number') {
                 syncPosition(position);
                 currentStep = stepForPosition(position);
             }
+            if (awaitingFirstNote) startClock();
             showCursorPosition();
         });
         playbackEngine = engine;
@@ -852,7 +896,7 @@ async function startPlayback() {
     }
     try {
         await playbackEngine.play();
-        startClock();
+        startClockOnFirstNote();
         showCursorPosition();
         emit('playStarted');
     } catch (error) {
