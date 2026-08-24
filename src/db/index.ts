@@ -70,6 +70,15 @@ export interface Song {
     melodieId?: string | null;
     melodieTitel?: string | null;
     choralbuchNummer?: number | null;
+    // Die serverseitigen Zeitstempel der drei Collections, aus denen ein Lied
+    // besteht, wie sie beim letzten Sync galten. Der Sync vergleicht sie gegen
+    // das Manifest und holt nur, was sich bewegt hat (src/utils/syncDiff.ts).
+    //
+    // Optional, damit vor dem Delta-Sync gespeicherte Lieder gültig bleiben —
+    // die vergleichen sich als ungleich und werden einmalig nachgeladen.
+    dateUpdated?: string | null;
+    textDateUpdated?: string | null;
+    melodieDateUpdated?: string | null;
 }
 
 // Auth related types
@@ -299,6 +308,24 @@ export class GesangbuchDatabase extends Dexie {
             meta: 'key',
             services: 'id, date, expiresAt',
         });
+
+        // Version 8: no schema change — drop the `lastServerUpdate` watermark.
+        // The delta sync compares per-song timestamps against the manifest
+        // instead of one collection-wide mark (src/utils/syncDiff.ts), so the
+        // row is dead. Leaving it would only invite a future reader to trust it.
+        this.version(8)
+            .stores({
+                songs: 'id, titel',
+                files: 'id, filename',
+                auth: 'id',
+                users: 'id, email, role',
+                playlists: 'id, name, createdAt',
+                preferences: 'id',
+                favorites: 'id, createdAt',
+                meta: 'key',
+                services: 'id, date, expiresAt',
+            })
+            .upgrade((tx) => tx.table('meta').delete('lastServerUpdate'));
     }
 }
 

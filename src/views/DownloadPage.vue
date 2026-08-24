@@ -88,15 +88,21 @@
                     <div class="mt-4 px-2">
                         <p class="text-sm leading-relaxed text-muted-foreground">
                             Lädt alle Lieder und Notendateien vom Server herunter und speichert sie
-                            lokal für die Offline-Nutzung.
+                            lokal für die Offline-Nutzung. Bereits Geladenes wird übersprungen.
                         </p>
                         <p
                             v-if="storage"
                             class="mt-2 text-sm leading-relaxed text-muted-foreground"
                         >
-                            Geschätzte Downloadgröße: ca.
-                            {{ formatBytes(ESTIMATED_SYNC_BYTES) }} &ndash; Freier Speicher:
-                            {{ formatBytes(freeSpace) }}
+                            <template v-if="expectsFullDownload">
+                                Geschätzte Downloadgröße: ca.
+                                {{ formatBytes(ESTIMATED_SYNC_BYTES) }} &ndash; Freier Speicher:
+                                {{ formatBytes(freeSpace) }}
+                            </template>
+                            <template v-else>
+                                Es werden nur die Änderungen geladen &ndash; Freier Speicher:
+                                {{ formatBytes(freeSpace) }}
+                            </template>
                         </p>
                         <Button
                             type="button"
@@ -253,6 +259,12 @@ const freeSpace = computed(() =>
     storage.value ? Math.max(storage.value.quota - storage.value.usage, 0) : 0,
 );
 
+// Whether the next sync still has the whole book ahead of it. A sync only
+// fetches what changed, so the ~90 MB estimate — and the free-space gate built
+// on it — only speaks for a device that holds nothing yet, or one whose last
+// download broke off with files missing.
+const expectsFullDownload = computed(() => songsCount.value === 0 || failedFiles.value.length > 0);
+
 // Load counts on mount
 onMounted(async () => {
     await updateFilesCount();
@@ -282,7 +294,7 @@ function confirmLowStorage(): Promise<boolean> {
 
 async function handleSync() {
     storage.value = await getStorageEstimate();
-    if (storage.value && freeSpace.value < REQUIRED_FREE_BYTES) {
+    if (expectsFullDownload.value && storage.value && freeSpace.value < REQUIRED_FREE_BYTES) {
         const proceed = await confirmLowStorage();
         if (!proceed) return;
     }

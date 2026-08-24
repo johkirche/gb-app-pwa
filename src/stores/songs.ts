@@ -3,9 +3,23 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import { fetchFile } from '@/api/files.api';
-import { fetchLatestContentUpdate, fetchSongsWithFiles } from '@/api/songs.api';
+import {
+    fetchChangeCounts,
+    fetchSongManifest,
+    fetchSongsByIds,
+    fetchSongsWithFiles,
+} from '@/api/songs.api';
 import { type Song, db } from '@/db';
 import { requestPersistentStorage } from '@/services/storage';
+import {
+    type SongManifestEntry,
+    buildFileStamps,
+    diffFiles,
+    diffSongs,
+    findOrphanFileIds,
+    latestLocalStamp,
+    stampSongs,
+} from '@/utils/syncDiff';
 
 // Dexie wraps the DOMException: sometimes the error itself carries the name,
 // sometimes it lives on .inner — check both shapes.
@@ -81,14 +95,25 @@ export const useSongsStore = defineStore('songs', () => {
         }
     }
 
-    function resolveFilename(fileId: string, allSongs: Song[]): string {
+    // The download name of every file the library references, built once per
+    // batch — a delta after a bulk edit can name a thousand files, and each of
+    // them used to walk the whole library looking for its name.
+    function buildFilenameIndex(allSongs: Song[]): Map<string, string> {
+        const names = new Map<string, string>();
+
         for (const song of allSongs) {
-            if (song.notentextSvg?.id === fileId) return song.notentextSvg.filename_download;
-            if (song.notentextMxml?.id === fileId) return song.notentextMxml.filename_download;
-            const raster = song.noten.find((n) => n.id === fileId);
-            if (raster) return raster.filename_download;
+            if (song.notentextSvg) {
+                names.set(song.notentextSvg.id, song.notentextSvg.filename_download);
+            }
+            if (song.notentextMxml) {
+                names.set(song.notentextMxml.id, song.notentextMxml.filename_download);
+            }
+            for (const raster of song.noten) {
+                names.set(raster.id, raster.filename_download);
+            }
         }
-        return `${fileId}.bin`;
+
+        return names;
     }
 
     // Mirror the in-memory failed list into db.meta so it survives restarts.
@@ -114,6 +139,9 @@ export const useSongsStore = defineStore('songs', () => {
         syncProgress.value.total = fileIds.length;
         syncProgress.value.current = 0;
 
+        const filenames = buildFilenameIndex(allSongs);
+        const nameOf = (fileId: string) => filenames.get(fileId) ?? `${fileId}.bin`;
+
         const batchSize = 5;
         let quotaHit = false;
 
@@ -122,10 +150,7 @@ export const useSongsStore = defineStore('songs', () => {
                 // Storage is full — record the remaining files as failed
                 // instead of attempting downloads that cannot be stored.
                 for (const fileId of fileIds.slice(i)) {
-                    failedFiles.value.push({
-                        id: fileId,
-                        filename: resolveFilename(fileId, allSongs),
-                    });
+                    failedFiles.value.push({ id: fileId, filename: nameOf(fileId) });
                 }
                 break;
             }
@@ -134,7 +159,7 @@ export const useSongsStore = defineStore('songs', () => {
 
             await Promise.all(
                 batch.map(async (fileId) => {
-                    const filename = resolveFilename(fileId, allSongs);
+                    const filename = nameOf(fileId);
                     try {
                         const blob = await fetchFile(fileId);
                         await db.files.put({ id: fileId, blob, filename });
@@ -165,7 +190,139 @@ export const useSongsStore = defineStore('songs', () => {
         await db.meta.put({ key: 'lastSyncTime', value: lastSyncTime.value.toISOString() });
     }
 
-    async function syncAll() {
+    // What the server said about each stored blob when it was last seen, kept
+    // as one JSON row rather than a column on db.files: reading a column back
+    // would mean reading every Blob with it.
+    const FILE_STAMPS_KEY = 'fileStamps';
+
+    async function loadFileStamps(): Promise<Record<string, string | null>> {
+        try {
+            const row = await db.meta.get(FILE_STAMPS_KEY);
+            if (!row) return {};
+
+            const parsed: unknown = JSON.parse(row.value);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+            return parsed as Record<string, string | null>;
+        } catch (err) {
+            console.error('Error reading file stamps:', err);
+            return {};
+        }
+    }
+
+    // Best-effort, like the failed-file list: losing the stamps costs a
+    // freshness check, never a file.
+    async function persistFileStamps(stamps: Record<string, string | null>): Promise<void> {
+        try {
+            await db.meta.put({ key: FILE_STAMPS_KEY, value: JSON.stringify(stamps) });
+        } catch (err) {
+            console.error('Error persisting file stamps:', err);
+        }
+    }
+
+    // The ids of the stored blobs, read from the index — never the blobs.
+    async function storedFileIds(): Promise<string[]> {
+        return (await db.files.toCollection().primaryKeys()) as string[];
+    }
+
+    // Write freshly fetched songs and drop the ones the server no longer offers
+    async function applySongUpdates(fetched: Song[], removedIds: string[]): Promise<void> {
+        if (fetched.length > 0 || removedIds.length > 0) {
+            await db.transaction('rw', db.songs, async () => {
+                if (fetched.length > 0) await db.songs.bulkPut(fetched);
+                if (removedIds.length > 0) await db.songs.bulkDelete(removedIds);
+            });
+        }
+
+        songs.value = await db.songs.toArray();
+    }
+
+    // An empty result against a filled library is far more likely a permission
+    // or filter accident than an emptied Gesangbuch. Refuse it — deleting every
+    // song on the device is not something to get wrong quietly.
+    function guardEmptyResult(remoteCount: number, localCount: number): void {
+        if (remoteCount === 0 && localCount > 0) {
+            throw new Error(
+                'Der Server hat keine Lieder gemeldet. Die vorhandenen Lieder bleiben erhalten.',
+            );
+        }
+    }
+
+    /**
+     * The delta path: pull the records whose timestamps moved, drop what left
+     * the book, and report the blobs still missing.
+     */
+    async function syncFromManifest(
+        manifest: SongManifestEntry[],
+        full: boolean,
+    ): Promise<string[]> {
+        const local = await db.songs.toArray();
+        guardEmptyResult(manifest.length, local.length);
+
+        const { changedIds, removedIds } = diffSongs(manifest, local, { full });
+
+        const fetched = changedIds.length > 0 ? await fetchSongsByIds(changedIds) : [];
+        await applySongUpdates(stampSongs(fetched, manifest), removedIds);
+
+        return diffFiles(manifest, new Set(await storedFileIds()), await loadFileStamps(), {
+            full,
+        });
+    }
+
+    /**
+     * The path without a manifest: pull every record, because there is nothing
+     * to compare against. The files are still diffed — by id, which is all the
+     * song query knows about them.
+     */
+    async function syncEverything(): Promise<string[]> {
+        const { songs: fetched, fileIds } = await fetchSongsWithFiles();
+
+        const localIds = (await db.songs.toCollection().primaryKeys()) as string[];
+        guardEmptyResult(fetched.length, localIds.length);
+
+        const fetchedIds = new Set(fetched.map((song) => song.id));
+        await applySongUpdates(
+            fetched,
+            localIds.filter((id) => !fetchedIds.has(id)),
+        );
+
+        const present = new Set(await storedFileIds());
+        return fileIds.filter((id) => !present.has(id));
+    }
+
+    /**
+     * Blobs nothing points at any more.
+     *
+     * The notation pipeline uploads a *new* Directus file per run instead of
+     * replacing one, so every regenerated Notenbild leaves its predecessor
+     * behind. Held against the local songs, so a raster fetched on demand
+     * survives — it is referenced through `song.noten`.
+     */
+    async function pruneOrphanedFiles(): Promise<void> {
+        if (songs.value.length === 0) return;
+
+        try {
+            const orphans = findOrphanFileIds(await storedFileIds(), songs.value);
+            if (orphans.length > 0) await db.files.bulkDelete(orphans);
+        } catch (err) {
+            console.error('Error pruning orphaned files:', err);
+        }
+    }
+
+    /**
+     * Bring the local library up to date.
+     *
+     * Only what actually changed: a manifest says what the server holds, and
+     * the diff against IndexedDB decides which records to pull and which blobs
+     * to fetch — a repeat sync of an unchanged book downloads nothing.
+     *
+     * `full: true` skips that comparison and pulls everything. That is the hook
+     * for invalidating the set as a whole (a content version bump), where no
+     * per-item timestamp can be trusted to say what is stale.
+     */
+    async function syncAll(options: { full?: boolean } = {}) {
+        const full = options.full === true;
+
         // Fire-and-forget: ask the browser to protect local content from eviction
         void requestPersistentStorage();
 
@@ -175,32 +332,28 @@ export const useSongsStore = defineStore('songs', () => {
         syncProgress.value = { current: 0, total: 0, phase: 'songs' };
 
         try {
-            // Step 1: Fetch and save songs
+            // Step 1: work out what changed, and fetch those songs
             syncProgress.value.phase = 'songs';
-            const { songs: fetchedSongs, fileIds } = await fetchSongsWithFiles();
+            const manifest = await fetchSongManifest();
+            const fileIds = manifest
+                ? await syncFromManifest(manifest, full)
+                : await syncEverything();
 
-            await db.transaction('rw', db.songs, async () => {
-                await db.songs.clear();
-                await db.songs.bulkAdd(fetchedSongs);
-            });
-
-            songs.value = fetchedSongs;
-
-            // Step 2: Download all files
+            // Step 2: download the files that are missing or superseded
             syncProgress.value.phase = 'files';
 
-            await downloadFileBatch(fileIds, fetchedSongs);
+            await downloadFileBatch(fileIds, songs.value);
+
+            await pruneOrphanedFiles();
+
+            if (manifest) {
+                await persistFileStamps(buildFileStamps(manifest, new Set(await storedFileIds())));
+            }
 
             // Only a sync without failed files may record success — a partial
             // download must not pretend the content is complete and current.
             if (failedFiles.value.length === 0) {
                 await persistLastSyncTime();
-
-                // Remember the server-side content timestamp for the staleness check
-                const latest = await fetchLatestContentUpdate();
-                if (latest) {
-                    await db.meta.put({ key: 'lastServerUpdate', value: latest });
-                }
             }
 
             syncProgress.value.phase = '';
@@ -239,19 +392,29 @@ export const useSongsStore = defineStore('songs', () => {
     }
 
     /**
-     * Compare the newest server-side content timestamp against the one stored
-     * at last sync (server clock vs server clock — never against client time).
-     * Returns null when no statement is possible (offline, field missing,
-     * never synced with the timestamp recorded).
+     * Whether the server holds something the device does not.
+     *
+     * Two counts, ~100 bytes: how large the set is, and how much of it moved
+     * after the newest timestamp stored here (server clock against server
+     * clock — never against client time). A different size means a song was
+     * added or withdrawn; a change count means content moved.
+     *
+     * Returns null when no statement is possible — offline, or the timestamps
+     * are not readable. That is not the same as "nothing changed".
      */
     async function checkForUpdates(): Promise<boolean | null> {
-        const latest = await fetchLatestContentUpdate();
-        if (!latest) return null;
+        try {
+            const local = songs.value.length > 0 ? songs.value : await db.songs.toArray();
+            const { total, changed } = await fetchChangeCounts(latestLocalStamp(local));
 
-        const stored = await db.meta.get('lastServerUpdate');
-        if (!stored) return null;
+            if (total !== local.length) return true;
+            if (changed === null) return null;
 
-        return new Date(latest).getTime() > new Date(stored.value).getTime();
+            return changed > 0;
+        } catch (err) {
+            console.warn('Update check unavailable:', err);
+            return null;
+        }
     }
 
     async function getFileBlob(fileId: string): Promise<Blob | null> {
