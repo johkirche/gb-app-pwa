@@ -1,38 +1,60 @@
 <template>
-    <div ref="containerRef" class="relative w-full">
-        <!-- The engraving stays centred, and Notengröße grows it to both
-             sides — out of the notation column and into the page's free width.
-             Only once even that is used up (phone widths, where there is none
-             to grow into) does this scroll, and then from its left edge. -->
-        <div class="notation-scroll flex overflow-x-auto overflow-y-hidden" :style="scrollBoxStyle">
-            <!-- The engraving is laid out at the printed page's geometry and
-                 only then scaled into the column, so the systems break where
-                 the book breaks them at every width. Notengröße scales the
-                 picture; it must not reach the layout, or the breaks move.
-                 The layer carries that width so the playhead can be measured
-                 against it — OSMD owns the canvas below and rewrites it on
-                 every render, so nothing of ours may live inside it. -->
-            <div ref="layerRef" class="notation-layer relative shrink-0" :style="canvasStyle">
-                <div ref="notationRef" class="notation-canvas [&_svg]:h-auto [&_svg]:w-full"></div>
-                <div
-                    v-if="playhead"
-                    ref="playheadRef"
-                    class="playhead"
-                    :style="playheadStyle"
-                    aria-hidden="true"
-                ></div>
-                <div
-                    v-if="playhead"
-                    ref="playheadLineRef"
-                    class="playhead-line"
-                    :style="{ top: `${playhead.top}px`, height: `${playhead.height}px` }"
-                    aria-hidden="true"
-                ></div>
+    <div ref="containerRef" class="notation-col relative w-full">
+        <!-- The book's own engraving, and where the melody lives. Everything
+             Finale settled while setting the page — the text rows, the system
+             breaks, the split bars, the volta brackets, the melisma dashes — is
+             already in it, so none of it has to be worked out again here. -->
+        <div
+            v-if="hasEngraving"
+            :class="showOsmd ? BRANCH_OFF : undefined"
+            :aria-hidden="showOsmd || undefined"
+        >
+            <SongMelodyImage
+                ref="engravingRef"
+                :svg-markup="svgMarkup"
+                :image-url="imageUrl"
+                :is-loading="imageLoading"
+                :scroll-box-style="scrollBoxStyle"
+                :canvas-style="canvasStyle"
+                :highlight-notes="settings?.highlightNotes ?? true"
+                :show-playhead="settings?.showPlayhead ?? true"
+            />
+        </div>
+
+        <!-- The re-set notation. Hidden rather than unmounted while the
+             engraving is showing: this is the clock the whole playback runs on,
+             and it has to keep its layout so it can be brought back mid-song
+             without the music stopping. Hidden through `visibility`, never
+             `display`, because OSMD lays a sheet out against its host's
+             offsetWidth and a display:none host measures nothing at all. -->
+        <div :class="showOsmd ? undefined : BRANCH_OFF" :aria-hidden="!showOsmd || undefined">
+            <div
+                ref="osmdScrollRef"
+                class="notation-scroll flex overflow-x-auto overflow-y-hidden"
+                :style="scrollBoxStyle"
+            >
+                <!-- The engraving is laid out at the printed page's geometry and
+                     only then scaled into the column, so the systems break where
+                     the book breaks them at every width. Notengröße scales the
+                     picture; it must not reach the layout, or the breaks move.
+                     The layer carries that width so the playhead can be measured
+                     against it — OSMD owns the canvas below and rewrites it on
+                     every render, so nothing of ours may live inside it. -->
+                <div ref="layerRef" class="notation-layer relative shrink-0" :style="canvasStyle">
+                    <div
+                        ref="notationRef"
+                        class="notation-canvas [&_svg]:h-auto [&_svg]:w-full"
+                    ></div>
+                    <NotationPlayhead v-if="playhead" ref="osmdPlayheadRef" :box="playhead" />
+                </div>
             </div>
         </div>
 
+        <!-- Only worth saying where the re-set notation is what should have been
+             on screen. With the engraving showing, the reader has their melody
+             and a failed sheet costs them nothing but the transport. -->
         <div
-            v-if="renderError"
+            v-if="renderError && showOsmd"
             class="flex items-center gap-2 rounded-md bg-destructive/10 p-4 text-sm text-destructive"
         >
             <AlertCircle class="size-5 shrink-0" aria-hidden="true" />
@@ -51,13 +73,27 @@ import type PlaybackEngineType from 'osmd-audio-player';
 import { midiRouteKey } from '@/composables/useMidiOutput';
 import { useNotationScale } from '@/composables/useNotationScale';
 
-import type { XmlDisplaySettings } from '@/db';
+import NotationPlayhead from '@/components/songview/NotationPlayhead.vue';
+import SongMelodyImage from '@/components/songview/SongMelodyImage.vue';
+
+import type { NotationBeyondFit, XmlDisplaySettings } from '@/db';
 import type { HymnInstrumentPlayer } from '@/services/instrumentPlayer';
+import { type NotationMark, verseForPass } from '@/utils/notationMap';
+
+import { type PlayheadBox, type Rect, playheadBox } from './notationPlayhead';
 
 const props = defineProps<{
+    /** The MusicXML sheet — the clock, and the second engraving */
     fileBlob: Blob | null;
+    /** Sanitised markup of the book's engraving (`notentext_svg`) */
+    svgMarkup: string | null;
+    /** Raster fallback for songs cached before notentext_svg was synced */
+    imageUrl: string | null;
+    imageLoading: boolean;
     scale?: number;
     settings?: XmlDisplaySettings;
+    /** What the melody becomes once it outgrows the page */
+    beyondFit: NotationBeyondFit;
     isPlaying?: boolean;
     tempo?: number;
     loop?: boolean;
@@ -73,16 +109,25 @@ const emit = defineEmits<{
     (e: 'progress', value: { position: number; duration: number }): void;
     (e: 'rendered', info: { lyricsDrawn: boolean }): void;
     (e: 'renderFailed', reason: 'corrupt' | 'engine'): void;
+    /** Whether the melody has outgrown the page — the only point at which the
+     *  choice between the two engravings arises, and is offered */
+    (e: 'update:overflows', value: boolean): void;
+    /** Which of the two is on screen right now */
+    (e: 'update:showsEngraving', value: boolean): void;
 }>();
 
 defineExpose({ stop: stopPlayback, seek });
 
 const containerRef = ref<HTMLElement | null>(null);
+const osmdScrollRef = ref<HTMLElement | null>(null);
 const layerRef = ref<HTMLElement | null>(null);
 const notationRef = ref<HTMLElement | null>(null);
-const playheadRef = ref<HTMLElement | null>(null);
-const playheadLineRef = ref<HTMLElement | null>(null);
+const osmdPlayheadRef = ref<InstanceType<typeof NotationPlayhead> | null>(null);
+const engravingRef = ref<InstanceType<typeof SongMelodyImage> | null>(null);
 const renderError = ref<string | null>(null);
+
+/** Off screen but still laid out — see the template. */
+const BRANCH_OFF = 'pointer-events-none invisible absolute inset-x-0 top-0';
 
 let osmd: OSMDType | null = null;
 let playbackEngine: PlaybackEngineType | null = null;
@@ -110,12 +155,36 @@ function detectDarkMode() {
     isDarkMode.value = document.documentElement.classList.contains('dark');
 }
 
-// How wide the drawn engraving gets. Shared with the Notenbild so one scale
-// means the same thing in either view — see useNotationScale.
-const { scrollBoxStyle, canvasStyle } = useNotationScale(
+// How wide the drawn melody gets. Measured once for the column and handed to
+// both engravings, so one scale means the same thing in either — and so the
+// question of whether it still fits is asked once. See useNotationScale.
+const { scrollBoxStyle, canvasStyle, overflowsPage } = useNotationScale(
     containerRef,
     computed(() => props.scale ?? 1),
 );
+
+// The engraving counts as present while it is still loading, so a song does not
+// flash the re-set notation on its way to the page it actually has.
+const hasEngraving = computed(() => !!props.svgMarkup || !!props.imageUrl || props.imageLoading);
+
+/**
+ * Which of the two is on screen.
+ *
+ * Below the fit width there is nothing to decide: the engraving is the book's
+ * own setting and is already larger on a phone than in print, so it wins
+ * everywhere. Past it the systems can only be pushed sideways, and re-breaking
+ * them onto the width there is becomes worth offering — that, and only that, is
+ * what the setting governs. A song with no engraving at all has no choice to
+ * make, and neither has one whose sheet never arrived.
+ */
+const showOsmd = computed(() => {
+    if (!hasEngraving.value) return true;
+    if (!props.fileBlob) return false;
+    return overflowsPage.value && props.beyondFit === 'reflow';
+});
+
+watch(overflowsPage, (value) => emit('update:overflows', value), { immediate: true });
+watch(showOsmd, (value) => emit('update:showsEngraving', !value), { immediate: true });
 
 function getOsmdOptions() {
     const s = props.settings;
@@ -341,6 +410,10 @@ function lyricsDrawn(): boolean {
 let sheetLength = 0;
 /** The musical position each of the engine's iteration steps sits at */
 let stepPositions: number[] = [];
+/** Where the note sounding at each step began, and where the next one begins —
+ *  which is the beat the line sweeps, rather than the step it is measured in */
+let beatFrom: number[] = [];
+let beatTo: number[] = [];
 /** Position at the last peg, and the wall clock reading taken with it */
 let basePosition = 0;
 let baseClock = 0;
@@ -390,29 +463,172 @@ function resetPosition() {
     emitProgress(0);
 }
 
-// Read the sheet's own clock: how long it is, and the position of every step
-// the engine will walk through — which is what a seek needs to land on a note
-// rather than between two. Both come off the cursor, so this may only run
-// while nothing is playing: taking the reading moves it.
+// ---------------------------------------------------------------------------
+// The bridge from the sheet to the engraving
+//
+// The map gb-scripts wrote into the Notenbild is keyed by the ordinal of a
+// note's <note> in the MusicXML, rests skipped. Nothing in OSMD counts that
+// way, so the notes are numbered here in score order and every step the cursor
+// walks is matched to its note by object identity.
+//
+// Two tables come out of that, not one. stepToNote sends both passes of a
+// repeat to the same note — which is the point, it IS the same notehead — and
+// in doing so throws away exactly what decides which line is sung under it. So
+// the visits are counted as well: the second time a note comes round, the
+// second verse is the one being sung. Lied 8 is the case that proves it.
+// ---------------------------------------------------------------------------
+
+/** The notes in score order — the index is what the Notenbild calls `data-note` */
+let notesInOrder: object[] = [];
+/** The verse numbers written at each note, ascending (for the re-set notation) */
+let versesByNote: string[][] = [];
+/** Which note each of the engine's steps sounds, and its pass through it */
+let stepToNote: number[] = [];
+let stepToVerse: number[] = [];
+
+/** The verse numbers a voice entry carries, ascending. Never the optical row
+ *  from the top: a note can carry "2" and "3" without carrying "1". */
+function verseNumbersOf(voiceEntry: any): string[] {
+    const written: string[] = (voiceEntry?.LyricsEntries?.values?.() ?? [])
+        .map((entry: any) => entry?.VerseNumber)
+        .filter((verse: unknown): verse is string => typeof verse === 'string' && !!verse);
+    return [...new Set(written)].sort((a, b) => Number(a) - Number(b));
+}
+
+// Read the sheet's own clock: how long it is, the position of every step the
+// engine will walk through — which is what a seek needs to land on a note
+// rather than between two — and which note each of those steps sounds.
+//
+// The positions are ENROLLED, not source, timestamps: a repeat sends the source
+// clock backwards halfway through a song, and everything reading it — the
+// transport, a seek, the step a position names — would go back with it.
+//
+// It all comes off the cursor, so this may only run while nothing is playing:
+// taking the reading moves it.
 function measureSheetClock() {
     const cursor = osmd?.cursor;
-    if (!osmd?.Sheet || !cursor) return;
+    const sheet = osmd?.Sheet;
+    if (!sheet || !cursor) return;
     try {
-        sheetLength = osmd.Sheet.SheetEndTimestamp?.RealValue ?? 0;
+        // Number the notes the way the Notenbild's map numbers them: the order
+        // their <note> elements stand in the MusicXML, rests skipped, counted
+        // from zero. That order is part by part, then measure by measure, then
+        // voice by voice within a measure — which is why the walk below is
+        // nested the way it is rather than simply running down the measures.
+        // Every mapped song is one part in one voice and the two coincide, but
+        // getting it wrong on a song that is not would put the mark on the
+        // wrong note for the whole of it.
+        const ordinals = new Map<object, number>();
+        const order: object[] = [];
+        const verses: string[][] = [];
+        for (const instrument of sheet.Instruments ?? []) {
+            for (const measure of sheet.SourceMeasures ?? []) {
+                for (const voice of instrument.Voices ?? []) {
+                    for (const container of measure.VerticalSourceStaffEntryContainers ?? []) {
+                        for (const staffEntry of container.StaffEntries ?? []) {
+                            for (const voiceEntry of staffEntry?.VoiceEntries ?? []) {
+                                if (voiceEntry.ParentVoice !== voice) continue;
+                                const written = verseNumbersOf(voiceEntry);
+                                for (const note of voiceEntry.Notes ?? []) {
+                                    if (note.isRest()) continue;
+                                    ordinals.set(note, order.length);
+                                    order.push(note);
+                                    verses.push(written);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         const positions: number[] = [];
+        const toNote: number[] = [];
+        const toPass: number[] = [];
+        const visits = new Map<number, number>();
+        // A rest — or a step the numbering never saw — holds the note before
+        // it, so the band simply stays put and covers the silence.
+        let heldNote = -1;
+        let heldPass = 0;
+        let endsAt = 0;
+
         cursor.reset();
         while (!cursor.Iterator.EndReached) {
-            positions.push(cursor.Iterator.CurrentSourceTimestamp?.RealValue ?? 0);
+            const iterator = cursor.Iterator;
+            const position = iterator.CurrentEnrolledTimestamp?.RealValue ?? 0;
+            positions.push(position);
+
+            let sounding = -1;
+            let length = 0;
+            for (const voiceEntry of iterator.CurrentVoiceEntries ?? []) {
+                for (const note of voiceEntry.Notes ?? []) {
+                    length = Math.max(length, note.Length?.RealValue ?? 0);
+                    const ordinal = ordinals.get(note);
+                    if (ordinal !== undefined && (sounding < 0 || ordinal < sounding)) {
+                        sounding = ordinal;
+                    }
+                }
+            }
+
+            if (sounding < 0) {
+                toNote.push(heldNote);
+                toPass.push(heldPass);
+            } else {
+                const pass = visits.get(sounding) ?? 0;
+                visits.set(sounding, pass + 1);
+                toNote.push(sounding);
+                toPass.push(pass);
+                heldNote = sounding;
+                heldPass = pass;
+            }
+            endsAt = position + length;
             cursor.next();
         }
         cursor.reset();
+
+        notesInOrder = order;
+        versesByNote = verses;
         stepPositions = positions;
+        stepToNote = toNote;
+        stepToVerse = toPass;
+        sheetLength = positions.length ? endsAt : (sheet.SheetEndTimestamp?.RealValue ?? 0);
+        measureBeats();
     } catch (error) {
         console.error('Could not measure the sheet:', error);
         sheetLength = 0;
         stepPositions = [];
+        beatFrom = [];
+        beatTo = [];
+        stepToNote = [];
+        stepToVerse = [];
+        notesInOrder = [];
+        versesByNote = [];
     }
     emitProgress();
+}
+
+// A beat is one sounding of one note, and it can span several steps: a rest
+// after a note belongs to it, because the band goes on covering the silence.
+// The line sweeps that whole span, so it reaches the next notehead exactly as
+// the band moves on instead of restarting partway.
+function measureBeats() {
+    const steps = stepPositions.length;
+    beatFrom = new Array(steps);
+    beatTo = new Array(steps);
+    let began = 0;
+    for (let step = 0; step < steps; step++) {
+        if (step > 0 && !sameBeat(step - 1, step)) began = step;
+        beatFrom[step] = stepPositions[began];
+    }
+    let ends = sheetLength;
+    for (let step = steps - 1; step >= 0; step--) {
+        if (step < steps - 1 && !sameBeat(step, step + 1)) ends = beatFrom[step + 1];
+        beatTo[step] = ends;
+    }
+}
+
+function sameBeat(a: number, b: number): boolean {
+    return stepToNote[a] === stepToNote[b] && stepToVerse[a] === stepToVerse[b];
 }
 
 // Hand the start of the clock to the engine: the music begins on the note it
@@ -521,7 +737,7 @@ async function seek(fraction: number) {
     // jumpToStep pauses the engine and walks the cursor to the step.
     playbackEngine.jumpToStep(step);
     settleAt(step);
-    showCursorPosition();
+    showPosition();
     if (wasPlaying) {
         try {
             await playbackEngine.play();
@@ -553,118 +769,178 @@ function moveCursorToStep(step: number) {
     if (!cursor) return;
     cursor.reset();
     for (let i = 0; i < step; i++) cursor.next();
-    showCursorPosition();
+    showPosition();
 }
 
 // ---------------------------------------------------------------------------
 // What the playback looks like
 //
-// OSMD's own cursor is an image laid out in the print block's pixels, while
-// the engraving on screen is that block scaled into the column — so it lands
-// anywhere but on the note. The mark is drawn here instead, and in the terms
-// the page is already written in: the sounding notes and the syllable under
-// them take the flourish colour, and a band behind the staff covers the beat
-// from this note up to where the next one starts.
+// One mark, two engravings. Which note is sounding and which pass through it
+// this is comes out of the tables above and out of nothing else, so both
+// drawings light the same note and the same line of text — and a switch from
+// one to the other mid-song moves nothing.
+//
+// OSMD's own cursor plays no part: it is an image laid out in the print block's
+// pixels while the engraving on screen is that block scaled into the column, so
+// it can only land beside the note. The mark is drawn in the terms the page is
+// already written in — the sounding note and its syllable take the flourish
+// colour, and a band behind the staff covers the beat from this note up to
+// where the next one starts.
 // ---------------------------------------------------------------------------
 
 const ACTIVE_CLASS = 'gb-play-active';
-/** Air kept around the band, as a share of the system's height */
-const PLAYHEAD_GAP_RATIO = 0.035;
-
-interface PlayheadBox {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-    /** Where the sweeping line crosses when this beat starts and when the next one does */
-    from: number;
-    to: number;
-    /** False when the band lands on another system — sliding there reads as noise */
-    animate: boolean;
-}
 
 const playhead = ref<PlayheadBox | null>(null);
-const playheadStyle = computed(() => {
-    const box = playhead.value;
-    if (!box) return {};
-    return {
-        left: `${box.left}px`,
-        top: `${box.top}px`,
-        width: `${box.width}px`,
-        height: `${box.height}px`,
-        transitionDuration: box.animate ? '' : '0s',
-    };
-});
 
-let activeElements: Element[] = [];
-let activeNotes: SVGGElement[] = [];
-let activeSystem: Element | null = null;
+let osmdNotes: SVGGElement[] = [];
+let osmdLitNotes: Element[] = [];
+let osmdLitLyrics: Element[] = [];
+let osmdSystem: Element | null = null;
 // Whether a mark belongs on the page at all. The cursor sits on the first note
 // from the moment a sheet is loaded, so without this a re-engraving — a
 // setting toggled, the theme switched — would light that note up on a song
 // nobody has played yet.
 let marked = false;
 
+function clearOsmdInk() {
+    for (const element of osmdLitNotes) element.classList.remove(ACTIVE_CLASS);
+    for (const element of osmdLitLyrics) element.classList.remove(ACTIVE_CLASS);
+    osmdLitNotes = [];
+    osmdLitLyrics = [];
+}
+
 function clearHighlight() {
-    for (const element of activeElements) element.classList.remove(ACTIVE_CLASS);
-    activeElements = [];
-    activeNotes = [];
-    activeSystem = null;
+    clearOsmdInk();
+    osmdNotes = [];
+    osmdSystem = null;
     marked = false;
     playhead.value = null;
+    engravingRef.value?.clearMark();
 }
 
 /** Put the mark back where it was, if there is one to put back. */
 function refreshMark() {
-    if (marked) showCursorPosition();
+    if (marked) showPosition();
 }
 
-/** Mark whatever the cursor now stands on. */
-function showCursorPosition() {
-    const cursor = osmd?.cursor;
-    if (!cursor) return;
-    marked = true;
-    for (const element of activeElements) element.classList.remove(ACTIVE_CLASS);
-    activeElements = [];
-    activeNotes = [];
+/** Where the music stands, in the map's own terms — or null where the sheet
+ *  could not be mapped, which is when the cursor has to answer for itself. */
+function markAt(step: number): NotationMark | null {
+    const note = stepToNote[step];
+    if (note === undefined || note < 0) return null;
+    return { note, next: nextNoteAfter(step), pass: stepToVerse[step] ?? 0, follow: false };
+}
 
-    let graphicalNotes: any[] = [];
+/**
+ * The note the beat runs to.
+ *
+ * Taken from the playback's own reckoning, never from the order the notes are
+ * drawn in: over a repeat's jump the next note drawn is not the next note sung.
+ * The scan skips a run of steps that hold the same note — a rest belongs to the
+ * note before it — and finds nothing once the music has no note left to reach.
+ */
+function nextNoteAfter(step: number): number | null {
+    const note = stepToNote[step];
+    for (let ahead = step + 1; ahead < stepToNote.length; ahead++) {
+        if (stepToNote[ahead] >= 0 && stepToNote[ahead] !== note) return stepToNote[ahead];
+    }
+    return null;
+}
+
+/** Mark where the music stands, on whichever engraving is showing. */
+function showPosition() {
+    marked = true;
+    const at = markAt(currentStep);
+    // The run-in counts as playing: the mark lands on the first note before the
+    // clock starts, and that is exactly the beat to bring into view.
+    const running = clockRunning || awaitingFirstNote;
+    engravingRef.value?.mark(at ? { ...at, follow: running && !showOsmd.value } : null);
+    markOnOsmd(at, running && showOsmd.value);
+}
+
+/** What the re-set notation drew for a note of the score, if it drew one. The
+ *  map it is looked up in is rebuilt on every render, so a note from before one
+ *  simply is not in it. */
+function graphicalFor(note: object | undefined): any {
+    if (!note) return null;
     try {
-        graphicalNotes = cursor.GNotesUnderCursor();
+        return (osmd as any)?.rules?.GNote?.(note) ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/** The graphical notes to mark in the re-set notation: the one the map names,
+ *  or — where the sheet could not be mapped — whatever the cursor stands on. */
+function graphicalNotesAt(at: NotationMark | null): any[] {
+    const graphical = at ? graphicalFor(notesInOrder[at.note]) : null;
+    if (graphical) return [graphical];
+    try {
+        return osmd?.cursor?.GNotesUnderCursor() ?? [];
     } catch {
         // Cursor sitting past the end of the sheet — nothing to mark.
+        return [];
     }
-    // The notes are collected either way — the band is measured off them, so
-    // it can be shown with the colouring turned off.
+}
+
+function markOnOsmd(at: NotationMark | null, follow: boolean) {
+    // The notes are collected either way — the band is measured off them, so it
+    // can be shown with the colouring turned off.
     const colour = props.settings?.highlightNotes ?? true;
-    for (const graphicalNote of graphicalNotes) {
-        const noteElement: SVGGElement | undefined = graphicalNote.getSVGGElement?.();
-        if (noteElement) {
-            activeNotes.push(noteElement);
+    for (const element of osmdLitNotes) element.classList.remove(ACTIVE_CLASS);
+    osmdLitNotes = [];
+    osmdNotes = [];
+    if (!colour) {
+        for (const element of osmdLitLyrics) element.classList.remove(ACTIVE_CLASS);
+        osmdLitLyrics = [];
+    }
+
+    // The line the Notenbild would light, chosen the same way — off the numbers
+    // written at this note, in the order they are written. Null means the sheet
+    // carries no lyrics to choose between, and then every row is lit.
+    const verse = at ? verseForPass(versesByNote[at.note] ?? [], at.pass) : null;
+    const sung: Element[] = [];
+
+    for (const graphical of graphicalNotesAt(at)) {
+        const element: SVGGElement | undefined = graphical.getSVGGElement?.();
+        if (element) {
+            osmdNotes.push(element);
             if (colour) {
-                noteElement.classList.add(ACTIVE_CLASS);
-                activeElements.push(noteElement);
+                element.classList.add(ACTIVE_CLASS);
+                osmdLitNotes.push(element);
             }
         }
         if (!colour) continue;
-        for (const lyric of graphicalNote.getLyricsSVGs?.() ?? []) {
-            lyric.classList.add(ACTIVE_CLASS);
-            activeElements.push(lyric);
+        for (const lyric of graphical.parentVoiceEntry?.parentStaffEntry?.LyricsEntries ?? []) {
+            const node = lyric?.GraphicalLabel?.SVGNode as Element | undefined;
+            if (!node) continue;
+            if (verse !== null && lyric.LyricsEntry?.VerseNumber !== verse) continue;
+            sung.push(node);
         }
     }
-    updatePlayhead();
+
+    // Nothing written at this note means a syllable is being held across it.
+    // The word already lit stays lit; clearing it would blank the text for the
+    // length of the melisma.
+    if (colour && sung.length) {
+        for (const element of osmdLitLyrics) element.classList.remove(ACTIVE_CLASS);
+        osmdLitLyrics = sung;
+        for (const element of sung) element.classList.add(ACTIVE_CLASS);
+    }
+
+    updateOsmdBand(at, follow);
 }
 
-function updatePlayhead() {
+function updateOsmdBand(at: NotationMark | null, follow: boolean) {
     const layer = layerRef.value;
-    if (!layer || !activeNotes.length || !(props.settings?.showPlayhead ?? true)) {
+    if (!layer || !osmdNotes.length || !(props.settings?.showPlayhead ?? true)) {
         playhead.value = null;
         return;
     }
     // A system is one staffline per staff, so a grand staff contributes two:
     // the band spans all of them, the way one beat runs down the whole system.
     const systems = new Set<Element>();
-    for (const note of activeNotes) {
+    for (const note of osmdNotes) {
         const system = note.closest('g.staffline');
         if (system) systems.add(system);
     }
@@ -674,50 +950,50 @@ function updatePlayhead() {
         return;
     }
 
-    const layerRect = layer.getBoundingClientRect();
-    let systemTop = Infinity;
-    let systemBottom = -Infinity;
-    let systemRight = -Infinity;
-    for (const system of systems) {
-        const rect = system.getBoundingClientRect();
-        systemTop = Math.min(systemTop, rect.top);
-        systemBottom = Math.max(systemBottom, rect.bottom);
-        systemRight = Math.max(systemRight, rect.right);
+    let left = Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    let right = -Infinity;
+    for (const staffline of systems) {
+        const rect = staffline.getBoundingClientRect();
+        left = Math.min(left, rect.left);
+        top = Math.min(top, rect.top);
+        bottom = Math.max(bottom, rect.bottom);
+        right = Math.max(right, rect.right);
     }
-    let noteLeft = Infinity;
-    let noteRight = -Infinity;
-    for (const note of activeNotes) {
-        const rect = note.getBoundingClientRect();
-        noteLeft = Math.min(noteLeft, rect.left);
-        noteRight = Math.max(noteRight, rect.right);
-    }
+    const bounds: Rect = { left, right, top, bottom, height: bottom - top };
 
-    // The band holds for as long as the note sounds, so it runs up to where
-    // the next one starts — or to the end of the system, when there is none.
-    const gap = (systemBottom - systemTop) * PLAYHEAD_GAP_RATIO;
-    const successorRect = noteAfter(activeNotes[0], firstSystem)?.getBoundingClientRect();
-    const runsTo = successorRect ? successorRect.left : systemRight + gap;
+    const sameSystem = firstSystem === osmdSystem;
+    osmdSystem = firstSystem;
+    playhead.value = playheadBox(
+        layer.getBoundingClientRect(),
+        bounds,
+        osmdNotes.map((note) => note.getBoundingClientRect()),
+        osmdSuccessor(at, firstSystem)?.getBoundingClientRect() ?? null,
+        sameSystem,
+    );
 
-    const start = noteLeft - gap;
-    const end = Math.max(runsTo - gap, noteRight + gap);
-    const sameSystem = firstSystem === activeSystem;
-    activeSystem = firstSystem;
-    playhead.value = {
-        left: start - layerRect.left,
-        top: systemTop - layerRect.top,
-        width: Math.max(0, end - start),
-        height: systemBottom - systemTop,
-        // The line travels note centre to note centre, so it stands on the
-        // notehead at the moment that note is struck rather than beside it.
-        from: (noteLeft + noteRight) / 2 - layerRect.left,
-        to:
-            (successorRect ? (successorRect.left + successorRect.right) / 2 : systemRight + gap) -
-            layerRect.left,
-        animate: sameSystem,
-    };
-    if (!sameSystem) followPlayhead();
+    if (follow) followOsmd(!sameSystem);
     // The element is created by the box above, so it only exists a tick later.
-    nextTick(sweepPlayheadLine);
+    nextTick(() => sweepPlayheadLine());
+}
+
+/** The notehead the band runs to, within this staffline. Where the sheet could
+ *  not be mapped there is nothing to ask, so document order answers instead —
+ *  a second staff is written out as its own staffline after the first, so that
+ *  order is only musical order inside one. */
+function osmdSuccessor(at: NotationMark | null, system: Element): Element | null {
+    if (!at) {
+        const drawn = Array.from(system.querySelectorAll('g.vf-stavenote'));
+        const index = drawn.indexOf(osmdNotes[0]);
+        return index < 0 ? null : (drawn[index + 1] ?? null);
+    }
+    if (at.next === null) return null;
+    const element: Element | undefined = graphicalFor(notesInOrder[at.next])?.getSVGGElement?.();
+    if (!element) return null;
+    // One on another system does not bound this beat — there the beat runs to
+    // the end of its own system.
+    return element.closest('g.staffline') === system ? element : null;
 }
 
 // Where the music stands *between* two notes.
@@ -725,40 +1001,29 @@ function updatePlayhead() {
 // The band can only move a note at a time — it marks which note is sounding.
 // This line carries the time inside that note: it crosses the notehead as the
 // note is struck and reaches the next one exactly as the band moves on, so the
-// two never disagree and the motion never breaks. The transform is written
-// straight to the element rather than through a binding: it changes every
-// frame, and nothing else about the page does.
+// two never disagree and the motion never breaks. Both engravings are swept,
+// the hidden one included, so the one brought back mid-song is already right.
 function sweepPlayheadLine(position = currentPosition()) {
-    const line = playheadLineRef.value;
-    const box = playhead.value;
-    if (!line || !box) return;
-    const from = stepPositions[currentStep] ?? 0;
-    const to = stepPositions[currentStep + 1] ?? sheetLength;
+    const from = beatFrom[currentStep] ?? 0;
+    const to = beatTo[currentStep] ?? sheetLength;
     const span = to - from;
     const played = span > 0 ? Math.min(1, Math.max(0, (position - from) / span)) : 0;
-    line.style.transform = `translateX(${box.from + played * (box.to - box.from)}px)`;
+    osmdPlayheadRef.value?.sweep(played);
+    engravingRef.value?.sweep(played);
 }
 
-// The note the engraving draws after this one. Looked up within the staffline
-// rather than across the sheet: a second staff is written out as its own
-// staffline after the first, so document order is only musical order inside one.
-function noteAfter(note: SVGGElement, system: Element): Element | null {
-    const notes = Array.from(system.querySelectorAll('g.vf-stavenote'));
-    const index = notes.indexOf(note);
-    return index < 0 ? null : (notes[index + 1] ?? null);
-}
-
-// Keep the system being played in view — but only when the band reaches a new
-// one, so following never fights a reader scrolling the page themselves.
-function followPlayhead() {
-    // The run-in counts as playing: the mark lands on the first note before
-    // the clock starts, and that is exactly the system to bring into view.
-    if (!clockRunning && !awaitingFirstNote) return;
+// Keep the beat in view. Vertically only when it reaches a new system, so
+// following never fights a reader scrolling the page themselves; sideways
+// whenever the drawing is wider than the box showing it, because there the
+// music leaves the screen within a single system.
+function followOsmd(systemChanged: boolean) {
+    const box = osmdScrollRef.value;
+    const sideways = !!box && box.scrollWidth > box.clientWidth + 1;
+    if (!systemChanged && !sideways) return;
     nextTick(() => {
-        playheadRef.value?.scrollIntoView({
-            behavior: 'smooth',
+        osmdPlayheadRef.value?.bringIntoView({
             block: 'nearest',
-            inline: 'nearest',
+            inline: sideways ? 'center' : 'nearest',
         });
     });
 }
@@ -807,13 +1072,16 @@ async function initPlayback() {
         // the mark on the page, pegs the clock to the real position, and, on
         // the first note of a run, is what sets the clock going at all.
         engine.on(PlaybackEvent.ITERATION, () => {
-            const position = osmd?.cursor?.Iterator?.CurrentSourceTimestamp?.RealValue;
+            // Enrolled, like the table it is looked up in: on the second pass
+            // of a repeat the source timestamp names the first pass's step, and
+            // with it the first verse — under notes that are singing the second.
+            const position = osmd?.cursor?.Iterator?.CurrentEnrolledTimestamp?.RealValue;
             if (typeof position === 'number') {
                 syncPosition(position);
                 currentStep = stepForPosition(position);
             }
             if (awaitingFirstNote) startClock();
-            showCursorPosition();
+            showPosition();
         });
         playbackEngine = engine;
         instrumentPlayer = player;
@@ -850,10 +1118,11 @@ function renderAtPrintGeometry() {
         svg.removeAttribute('height');
     }
     // Every element the mark hung on has just been replaced. Hang it back on
-    // where the cursor stands, so a re-engraving mid-song goes unnoticed.
-    activeElements = [];
-    activeNotes = [];
-    activeSystem = null;
+    // where the music stands, so a re-engraving mid-song goes unnoticed.
+    osmdLitNotes = [];
+    osmdLitLyrics = [];
+    osmdNotes = [];
+    osmdSystem = null;
     if (osmd.Sheet) refreshMark();
 }
 
@@ -897,7 +1166,7 @@ async function startPlayback() {
     try {
         await playbackEngine.play();
         startClockOnFirstNote();
-        showCursorPosition();
+        showPosition();
         emit('playStarted');
     } catch (error) {
         console.error('OSMD playback error:', error);
@@ -984,6 +1253,12 @@ watch(
     () => refreshMark(),
 );
 
+// The renderers swap without the music noticing — the engine, the clock and the
+// tables all live here and none of them is touched. What does have to happen is
+// a fresh measurement: the layer that was folded away is now in the flow, so
+// every rectangle the band was built from has moved.
+watch(showOsmd, () => nextTick(() => refreshMark()));
+
 watch(
     () => props.tempo,
     (newTempo, oldTempo) => {
@@ -1032,7 +1307,7 @@ let layerObserver: ResizeObserver | null = null;
 onMounted(() => {
     initOsmd();
     if (layerRef.value) {
-        layerObserver = new ResizeObserver(() => updatePlayhead());
+        layerObserver = new ResizeObserver(() => refreshMark());
         layerObserver.observe(layerRef.value);
     }
 });
@@ -1088,42 +1363,6 @@ onBeforeUnmount(async () => {
    wrong place. The band below replaces it. */
 .notation-layer :deep(img[id^='cursorImg']) {
     display: none !important;
-}
-
-/* The beat being sounded, and the line running through it. Both sit behind the
-   engraving — the layer is the stacking context, so they reach no further back
-   than that — which keeps the notes the darkest thing on the staff. */
-.playhead,
-.playhead-line {
-    position: absolute;
-    z-index: -1;
-    pointer-events: none;
-}
-
-.playhead {
-    border-radius: 0.375rem;
-    background: color-mix(in srgb, var(--gold) 14%, transparent);
-    transition-property: left, top, width, height;
-    transition-duration: 110ms;
-    transition-timing-function: ease-out;
-}
-
-/* Moved every frame, so it is written straight to the element's transform (see
-   sweepPlayheadLine) — never through a CSS transition, which would drag it
-   behind the music it is meant to be showing. Faded at both ends so it reads as
-   a sweep over the staff rather than a rule drawn across it. */
-.playhead-line {
-    left: 0;
-    width: 2px;
-    border-radius: 1px;
-    background: linear-gradient(
-        to bottom,
-        transparent,
-        color-mix(in srgb, var(--gold) 70%, transparent) 12%,
-        color-mix(in srgb, var(--gold) 70%, transparent) 88%,
-        transparent
-    );
-    will-change: transform;
 }
 
 /* The sounding notes and the syllable under them, in the flourish colour.

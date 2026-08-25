@@ -46,6 +46,22 @@ export function useNotationScale(containerRef: Ref<HTMLElement | null>, scale: R
             drawnWidth.value === null ? {} : { width: `${drawnWidth.value}px` },
     );
 
+    /**
+     * Whether the drawing has outgrown the page — the fit width, past which the
+     * notation can only be pushed sideways.
+     *
+     * This is the whole of the question the two renderers answer differently:
+     * below it the engraving is the right size everywhere (on a phone it is
+     * already 1.56× the printed book), and only past it does the choice between
+     * keeping the engraved setting and re-breaking the systems arise.
+     */
+    const overflowsPage = computed(
+        () =>
+            drawnWidth.value !== null &&
+            availableWidth.value !== null &&
+            drawnWidth.value > availableWidth.value + 1,
+    );
+
     // The box may grow out of its own column, but not out of the page: the
     // nearest ancestor that clips horizontally is what it has to stay inside.
     function findClippingAncestor(el: HTMLElement): HTMLElement {
@@ -83,5 +99,12 @@ export function useNotationScale(containerRef: Ref<HTMLElement | null>, scale: R
         }
     });
 
-    return { columnWidth, drawnWidth, scrollBoxStyle, canvasStyle, measureWidths };
+    return {
+        columnWidth,
+        drawnWidth,
+        overflowsPage,
+        scrollBoxStyle,
+        canvasStyle,
+        measureWidths,
+    };
 }

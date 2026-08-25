@@ -1,8 +1,14 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type MelodyDisplayMode, type ServiceTabMode, type XmlDisplaySettings, db } from '@/db';
+import {
+    type MelodyDisplayMode,
+    type NotationBeyondFit,
+    type ServiceTabMode,
+    type XmlDisplaySettings,
+    db,
+} from '@/db';
 
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
@@ -14,6 +20,16 @@ const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showPlayhead: true,
 };
 
+/**
+ * What holds past the fit width until somebody says otherwise. Whoever enlarges
+ * a song wants to read it, and re-breaking the systems gives them big *and*
+ * whole, where the engraving can only give them big and pushed sideways.
+ *
+ * This is a one-line default: if it turns out in use that people would rather
+ * keep the setting they know from the book, turn it round.
+ */
+const DEFAULT_BEYOND_FIT: NotationBeyondFit = 'reflow';
+
 const MIN_PAGE_SCALE = 0.5;
 const MAX_PAGE_SCALE = 2.0;
 
@@ -24,6 +40,19 @@ const LEGACY_TEXT_SIZE_SCALE = {
     large: 1.167,
     xlarge: 1.333,
 } as const;
+
+/**
+ * What a reader who had picked „Notenbild" meant by it.
+ *
+ * The two notations used to be a standing choice; they are one view now, and
+ * the only place the choice still bites is past the fit width. „MusicXML" was
+ * also the default, so it says nothing about what anybody wanted — but whoever
+ * went out of their way to pick the engraved page meant to keep it, and keeping
+ * it is exactly what „Notenbild behalten" does.
+ */
+function migrateLegacyMelodyMode(mode: MelodyDisplayMode | undefined): NotationBeyondFit | null {
+    return mode === 'image' ? 'engraving' : null;
+}
 
 // Notengröße and Textgröße were two controls over one thing: the verses are set
 // at the size of the lyrics under the notes, so sizing them apart only ever
@@ -45,7 +74,9 @@ function migrateLegacyScale(prefs: {
 export const usePreferencesStore = defineStore('preferences', () => {
     // State
     const pageScale = ref<number>(1.0); // One size for notation and verses alike
-    const melodyDisplayMode = ref<MelodyDisplayMode>('xml'); // Default to MusicXML notation
+    // Null until the reader has been asked — which only happens by enlarging a
+    // song past the width the page can show. See DEFAULT_BEYOND_FIT.
+    const notationBeyondFit = ref<NotationBeyondFit | null>(null);
     const xmlSettings = ref<XmlDisplaySettings>({ ...DEFAULT_XML_SETTINGS });
     // 'auto' keeps the tab bar as it was for everyone who never holds a service;
     // whoever leads the music pins it once and always has it.
@@ -60,6 +91,13 @@ export const usePreferencesStore = defineStore('preferences', () => {
     const midiOutputId = ref('');
     const isLoading = ref(false);
 
+    /** The setting as the melody view should read it */
+    const beyondFit = computed<NotationBeyondFit>(
+        () => notationBeyondFit.value ?? DEFAULT_BEYOND_FIT,
+    );
+    /** Whether it has ever been chosen — which is what puts it in Einstellungen */
+    const beyondFitChosen = computed(() => notationBeyondFit.value !== null);
+
     // Actions
     async function loadPreferences() {
         try {
@@ -69,9 +107,11 @@ export const usePreferencesStore = defineStore('preferences', () => {
             const prefs = await db.preferences.get('default');
             if (prefs) {
                 pageScale.value = prefs.pageScale ?? migrateLegacyScale(prefs);
-                // Migrate legacy 'abc' mode (ABC player removed) to MusicXML
+                // 'abc' is older still (the ABC player is gone) and says nothing.
                 const storedMode = prefs.melodyDisplayMode as MelodyDisplayMode | 'abc' | undefined;
-                melodyDisplayMode.value = storedMode && storedMode !== 'abc' ? storedMode : 'xml';
+                notationBeyondFit.value =
+                    prefs.notationBeyondFit ??
+                    migrateLegacyMelodyMode(storedMode === 'abc' ? undefined : storedMode);
                 xmlSettings.value = { ...DEFAULT_XML_SETTINGS, ...(prefs.xmlSettings || {}) };
                 serviceTab.value = prefs.serviceTab ?? 'auto';
                 keepScreenAwake.value = prefs.keepScreenAwake ?? true;
@@ -89,7 +129,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         await db.preferences.put({
             id: 'default',
             pageScale: pageScale.value,
-            melodyDisplayMode: melodyDisplayMode.value,
+            notationBeyondFit: notationBeyondFit.value ?? undefined,
             // Spread to a plain object: IndexedDB cannot structured-clone the
             // reactive proxy behind xmlSettings.value (DataCloneError).
             xmlSettings: { ...xmlSettings.value },
@@ -110,12 +150,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
-    async function setMelodyDisplayMode(mode: MelodyDisplayMode) {
+    async function setNotationBeyondFit(mode: NotationBeyondFit) {
         try {
-            melodyDisplayMode.value = mode;
+            notationBeyondFit.value = mode;
             await persist();
         } catch (err) {
-            console.error('Error saving melody display mode:', err);
+            console.error('Error saving the enlarged-notation setting:', err);
             throw err;
         }
     }
@@ -179,7 +219,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     async function resetToDefaults(): Promise<void> {
         await db.preferences.delete('default');
         pageScale.value = 1.0;
-        melodyDisplayMode.value = 'xml';
+        notationBeyondFit.value = null;
         xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
         serviceTab.value = 'auto';
         keepScreenAwake.value = true;
@@ -193,7 +233,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
     return {
         // State
         pageScale,
-        melodyDisplayMode,
+        notationBeyondFit,
+        beyondFit,
+        beyondFitChosen,
         xmlSettings,
         serviceTab,
         keepScreenAwake,
@@ -204,7 +246,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         // Actions
         loadPreferences,
         setPageScale,
-        setMelodyDisplayMode,
+        setNotationBeyondFit,
         setXmlSetting,
         setServiceTab,
         setKeepScreenAwake,
