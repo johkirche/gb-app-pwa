@@ -9,6 +9,13 @@
  * Inlining also makes foreign markup part of this page, so the file is first
  * reduced to the drawing primitives a baked export actually contains — no
  * scripts, no external references, no event handlers.
+ *
+ * What must come through untouched is the map gb-scripts writes into the file:
+ * `data-note`, `data-system`, `data-lyric` and `data-verse`, the `<rect>`s that
+ * carry the system boxes, and the `class` on the group holding them. Nothing
+ * here removes them today — attributes go by rule, not by allow-list — and
+ * nothing here may start to: after the sanitizer, the playback would find an
+ * engraving it can no longer follow. See utils/notationMap.
  */
 
 // Drawing elements of a baked engraving. Everything else (script, foreignObject,

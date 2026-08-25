@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { notationMapKind } from './notationMap';
 import { sanitizeNotationSvg } from './notationSvg';
 
 // Shape of a baked Finale export (gesangbuchlied.notentext_svg): glyph outlines
@@ -62,6 +63,27 @@ describe('sanitizeNotationSvg', () => {
         expect(out).not.toContain('script');
         expect(out).not.toContain('foreignObject');
         expect(out).not.toContain('example.test');
+    });
+
+    // The map gb-scripts writes into the file is what lets the playback follow a
+    // song across the engraving. It is not on any allow-list here — attributes
+    // are dropped by rule, not by name — so this is what would notice if one of
+    // those rules ever grew to cover it.
+    it('lets the map through, which is what the playback follows', () => {
+        const mapped = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 249.44 130.24">
+            <use xlink:href="#p0_font_1_147" data-note="0" data-system="0"/>
+            <path d="M1 1" data-lyric="0" data-verse="2"/>
+            <g class="gb-systeme" fill="none" stroke="none" pointer-events="none">
+                <rect data-system="0" x="4.24" y="8.36" width="240.96" height="15.24"/>
+            </g>
+        </svg>`;
+
+        const out = sanitizeNotationSvg(mapped)!;
+        const root = new DOMParser().parseFromString(out, 'image/svg+xml').documentElement;
+
+        expect(notationMapKind(root)).toBe('notes-and-lyrics');
+        expect(root.querySelector('rect[data-system="0"]')).not.toBeNull();
+        expect(root.querySelector('g.gb-systeme')).not.toBeNull();
     });
 
     it('returns null for input that is not a usable SVG', () => {
