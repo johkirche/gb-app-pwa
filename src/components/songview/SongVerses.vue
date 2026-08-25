@@ -61,15 +61,30 @@ function getStropheText(strophe: Strophe): string | null | undefined {
     return strophe.text || strophe.strophe;
 }
 
-// The stored verses carry their own line breaks (one line per sung line),
-// which `whitespace: pre-line` on .verse-text keeps. Rendering as text rather
-// than markup means a break can never be lost to HTML collapsing, and the CMS
-// field is never interpreted as HTML.
+// The stored verses carry the line breaks of the editorial system — one line
+// per sung line, as the text was captured there. Those breaks are an artefact
+// of the capture, not of the setting: the printed book runs a verse on into its
+// column and breaks it wherever the measure ends, mid sung line as often as not
+// (Lied 6, verse 3: "zur schlichten Krippe / hin"). A single break is therefore
+// dropped here so the verse re-flows the way the book flows it, and the column
+// (.verse-col) is the book's own measure, so it flows to the same shape.
+//
+// A blank line survives as a break. That one was set deliberately — a Kehrvers
+// standing apart from the verse it follows — and it is what `pre-line` on
+// .verse-text is still there for. Rendering as text rather than markup means
+// the CMS field is never interpreted as HTML.
 function verseText(strophe: Strophe): string {
     const text = getStropheText(strophe);
     if (typeof text !== 'string') return '';
-    // ¬ marks a syllable break for the engraver, never for the reader
-    return text.replace(/¬/g, '').trim();
+    return (
+        text
+            // ¬ marks a syllable break for the engraver, never for the reader
+            .replace(/¬/g, '')
+            .split(/\r?\n[^\S\r\n]*(?:\r?\n)+/)
+            .map((block) => block.replace(/\s*\r?\n\s*/g, ' ').trim())
+            .filter(Boolean)
+            .join('\n')
+    );
 }
 
 // --- Centring the verses under the notation --------------------------------
