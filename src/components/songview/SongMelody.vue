@@ -427,10 +427,35 @@ let currentStep = 0;
 /** Set between asking the engine to play and its first sounded note */
 let awaitingFirstNote = false;
 let firstNoteHandle = 0;
+/** A note announced but not yet heard — see the ITERATION handler */
+let soundingHandle = 0;
 
 /** The run-in of silence the engine's scheduler lays before the first note it
  *  sounds, in whole notes — a fixed 300 of the 1024 ticks it cuts one into. */
 const SCHEDULER_LEAD_IN = 300 / 1024;
+
+// ---------------------------------------------------------------------------
+// Announced, and heard
+//
+// The engine announces a note the moment it hands it to the sink, and the
+// soundfont's sink hands it to the audio graph — which is not where sound comes
+// out. Between the graph and the speaker sits the machine's own buffering, some
+// 40ms on a desktop and several times that over Bluetooth, and none of it is in
+// the engine's reckoning. Left alone the band and the line therefore run that
+// far ahead of the music the whole way down the page: always the same distance,
+// always the same direction, and just far enough to see.
+//
+// So the announcement is held for as long as the sink says its sound takes to
+// get out, and everything the reader sees hangs off that later moment. A
+// connected instrument reports nothing to wait for and this collapses to what
+// it was.
+// ---------------------------------------------------------------------------
+
+/** Drop a note that was announced but has not been acted on yet. */
+function cancelSounding() {
+    if (soundingHandle) clearTimeout(soundingHandle);
+    soundingHandle = 0;
+}
 
 /** How long one whole note lasts at a tempo — the transport's, by default */
 function secondsPerWholeNote(bpm = props.tempo): number {
@@ -446,6 +471,17 @@ function currentPosition(secondsPerWhole = secondsPerWholeNote()): number {
 function syncPosition(position: number) {
     basePosition = Math.max(0, Math.min(sheetLength, position));
     baseClock = performance.now();
+}
+
+/** Everything that has to happen once a note is actually heard. */
+function noteSounded(position: number | undefined) {
+    soundingHandle = 0;
+    if (typeof position === 'number') {
+        syncPosition(position);
+        currentStep = stepForPosition(position);
+    }
+    if (awaitingFirstNote) startClock();
+    showPosition();
 }
 
 function emitProgress(position = currentPosition()) {
@@ -677,6 +713,9 @@ function startClock() {
 
 function stopClock() {
     cancelFirstNoteWait();
+    // A note announced but not yet heard must not land after the music has
+    // been stopped, or it would put the mark back on a song at rest.
+    cancelSounding();
     if (frameHandle) cancelAnimationFrame(frameHandle);
     frameHandle = 0;
     if (clockRunning) {
@@ -1032,6 +1071,7 @@ function followOsmd(systemChanged: boolean) {
 // instrument has to be told: notes already queued on the device would go on
 // playing — and a note-on whose note-off was dropped holds forever.
 async function disposeEngine() {
+    cancelSounding();
     if (playbackEngine) {
         try {
             await playbackEngine.stop();
@@ -1068,20 +1108,28 @@ async function initPlayback() {
         if (props.tempo) {
             engine.setBpm(props.tempo);
         }
-        // Every note the engine sounds is announced here — which is what moves
-        // the mark on the page, pegs the clock to the real position, and, on
-        // the first note of a run, is what sets the clock going at all.
+        // Every note the engine hands to the sink is announced here — which is
+        // what moves the mark on the page, pegs the clock to the real position,
+        // and, on the first note of a run, is what sets the clock going at all.
+        // Handed over is not heard, though, so all of it waits out the sink's
+        // own latency first.
         engine.on(PlaybackEvent.ITERATION, () => {
+            // Read here and carried into the wait rather than read again inside
+            // it: this is where the cursor stands on the note being announced.
+            //
             // Enrolled, like the table it is looked up in: on the second pass
             // of a repeat the source timestamp names the first pass's step, and
             // with it the first verse — under notes that are singing the second.
             const position = osmd?.cursor?.Iterator?.CurrentEnrolledTimestamp?.RealValue;
-            if (typeof position === 'number') {
-                syncPosition(position);
-                currentStep = stepForPosition(position);
+            // Read now rather than cached: an instrument plugged in mid-song
+            // changes the answer, and so does a machine switching output.
+            const heardIn = player?.outputLatency?.() ?? 0;
+            cancelSounding();
+            if (heardIn > 0.005) {
+                soundingHandle = window.setTimeout(() => noteSounded(position), heardIn * 1000);
+            } else {
+                noteSounded(position);
             }
-            if (awaitingFirstNote) startClock();
-            showPosition();
         });
         playbackEngine = engine;
         instrumentPlayer = player;

@@ -14,6 +14,18 @@ import { activeMidiOutput } from '@/composables/useMidiOutput';
 export interface HymnInstrumentPlayer extends InstrumentPlayer {
     /** Follow the song on screen with nothing to hear. */
     setMuted(muted: boolean): void;
+    /**
+     * How long after the moment it was scheduled for this sink's sound is
+     * actually heard, in seconds.
+     *
+     * The engine announces a note when it hands it over, not when it comes out
+     * of anything, so this is what the page has to wait before moving the mark
+     * — otherwise the band and the line run ahead of the music by however long
+     * the sound takes to get out. Only the sink knows: the soundfont goes
+     * through the audio graph and the machine's output buffer, a connected
+     * instrument does not.
+     */
+    outputLatency?(): number;
     /** Release the sink. A MIDI instrument must be silenced, or it holds. */
     dispose?(): void;
 }

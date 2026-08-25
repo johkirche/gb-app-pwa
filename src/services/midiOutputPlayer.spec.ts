@@ -145,3 +145,12 @@ describe('MidiOutputPlayer', () => {
         expect(() => player.schedule(CHURCH_ORGAN, 0, [note()])).not.toThrow();
     });
 });
+
+describe('MidiOutputPlayer – wie lange der Klang braucht', () => {
+    it('lässt das Laufband nicht warten', () => {
+        // schedule() rechnet den Moment der Audio-Uhr selbst in die Wanduhr um
+        // und schickt die Note von Hand los — dieser Ausgang sitzt also nie
+        // hinter dem Ausgabepuffer des Klanggraphen.
+        expect(new MidiOutputPlayer({ send: () => {} } as never).outputLatency()).toBe(0);
+    });
+});
