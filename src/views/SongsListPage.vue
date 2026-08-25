@@ -274,6 +274,7 @@ import { useSongsStore } from '@/stores/songs';
 import { useCurrentDate } from '@/composables/useCurrentDate';
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { usePullToRefresh } from '@/composables/usePullToRefresh';
+import { useSessionAccess } from '@/composables/useSessionAccess';
 import { useSongFiltering } from '@/composables/useSongFiltering';
 import { SORT_OPTIONS, useSongSorting } from '@/composables/useSongSorting';
 
@@ -297,6 +298,7 @@ const favoritesStore = useFavoritesStore();
 const serviceStore = useServiceStore();
 const { songs, isLoading, error, lastSyncTime, hasSongs, isSyncing, syncProgress } =
     storeToRefs(songsStore);
+const { isLoggedIn } = useSessionAccess();
 const router = useRouter();
 const route = useRoute();
 
@@ -325,6 +327,18 @@ const syncStatusLabel = computed(() => {
 
 async function syncSongs() {
     if (isSyncing.value) return;
+
+    // The gesture is available to everyone, because a reader pulling the list
+    // has no way of knowing their session lapsed. It answers rather than fails:
+    // the book is fine, only the abgleich needs an account.
+    if (!isLoggedIn.value) {
+        toast.info('Zum Synchronisieren ist eine Anmeldung erforderlich.', {
+            description: 'Ihr heruntergeladenes Gesangbuch bleibt vollständig nutzbar.',
+            action: { label: 'Anmelden', onClick: () => router.push('/login') },
+        });
+        return;
+    }
+
     try {
         await songsStore.syncAll();
         if (songsStore.failedFiles.length > 0) {

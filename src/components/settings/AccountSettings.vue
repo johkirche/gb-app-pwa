@@ -1,4 +1,13 @@
 <template>
+    <!-- The one section of the settings that is entirely about the account, so
+         the one that has to say plainly when there is none. Everything else in
+         the app keeps working; this is where signing back in lives. -->
+    <LoginRequiredNotice v-if="!isLoggedIn" title="Nicht angemeldet" class="mb-6">
+        Sie lesen Ihr heruntergeladenes Gesangbuch ohne Anmeldung. Ihre Playlists, Favoriten und
+        Einstellungen bleiben auf diesem Gerät erhalten. Für Kontoeinstellungen und zum
+        Synchronisieren melden Sie sich bitte erneut an, sobald Sie online sind.
+    </LoginRequiredNotice>
+
     <SettingsList>
         <div class="flex items-center gap-4 px-2 py-3">
             <User class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -11,6 +20,7 @@
         </div>
 
         <button
+            v-if="isLoggedIn"
             type="button"
             class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
             @click="openEditNameModal"
@@ -36,8 +46,10 @@
     </SettingsList>
 
     <!-- Gefahrenbereich: still its own heading, because it is the one place in
-         the settings where a tap cannot be taken back. -->
-    <section>
+         the settings where a tap cannot be taken back. Hidden without a session:
+         deleting an account needs the server, and offering a button that can
+         only answer "Sie sind nicht angemeldet" is worse than not offering it. -->
+    <section v-if="isLoggedIn">
         <div class="flex items-center gap-3 px-2">
             <h2 class="label-micro shrink-0 text-destructive">Gefahrenbereich</h2>
             <Separator class="flex-1" />
@@ -104,6 +116,7 @@ import { useAuth } from '@/composables/useAuth';
 import { useConfirm } from '@/composables/useConfirm';
 
 import SettingsList from '@/components/settings/SettingsList.vue';
+import LoginRequiredNotice from '@/components/shell/LoginRequiredNotice.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,

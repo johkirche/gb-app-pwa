@@ -1,5 +1,6 @@
 import { RouteRecordRaw, createRouter, createWebHistory } from 'vue-router';
 
+import { useSongsStore } from '@/stores/songs';
 import { useUserStore } from '@/stores/user';
 
 import AddSongsToPlaylistPage from '../views/AddSongsToPlaylistPage.vue';
@@ -22,6 +23,44 @@ import SongPage from '../views/SongPage.vue';
 import SongsListPage from '../views/SongsListPage.vue';
 import TabsPage from '../views/TabsPage.vue';
 
+/**
+ * What a view needs before it may be entered.
+ *
+ * The distinction that matters is not "logged in or not" but *what the view is
+ * for*. Almost everything in this app reads a Gesangbuch that already sits in
+ * IndexedDB; a Directus session had to fetch it once, but nothing about turning
+ * its pages needs one afterwards. Sessions expire, phones go offline, and a
+ * hymnal that locks itself in a pew is no use — so:
+ *
+ *  - `'public'`  – needs nothing. The way in and the pages that must stay
+ *                  readable from outside the app (login, registration,
+ *                  Impressum, Datenschutz).
+ *  - `'library'` – needs a session *or* a downloaded Gesangbuch. The whole
+ *                  reading app: songs, playlists, Gottesdienst, settings. A
+ *                  reader whose session died keeps every one of these; the few
+ *                  features inside them that do talk to the server say so
+ *                  themselves (see `LoginRequiredNotice`) instead of the view
+ *                  as a whole being taken away.
+ *  - `'session'` – genuinely useless without a live account, because the view's
+ *                  entire purpose is to talk to the server (the onboarding
+ *                  download). These are the only views that still bounce to the
+ *                  login form.
+ */
+export type RouteAccess = 'public' | 'library' | 'session';
+
+declare module 'vue-router' {
+    interface RouteMeta {
+        /**
+         * Required on every route that renders a view, so a new page cannot be
+         * added without deciding what it needs. Pure redirect records may omit
+         * it — vue-router resolves them before the guard runs, so their meta is
+         * never read. A view that omits it anyway is treated as `'session'`: the
+         * guard fails closed.
+         */
+        access: RouteAccess;
+    }
+}
+
 const routes: Array<RouteRecordRaw> = [
     {
         path: '/',
@@ -35,7 +74,7 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/tabs/',
         component: TabsPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
         children: [
             {
                 path: '',
@@ -45,13 +84,13 @@ const routes: Array<RouteRecordRaw> = [
                 path: 'lieder',
                 name: 'Songs',
                 component: SongsListPage,
-                meta: { requiresAuth: true },
+                meta: { access: 'library' },
             },
             {
                 path: 'playlisten',
                 name: 'Playlists',
                 component: PlaylistsListPage,
-                meta: { requiresAuth: true },
+                meta: { access: 'library' },
             },
             // The Gottesdienst tab. The route exists whether or not the tab
             // is currently offered, so a link to it always resolves.
@@ -59,13 +98,13 @@ const routes: Array<RouteRecordRaw> = [
                 path: 'gottesdienst',
                 name: 'Service',
                 component: ServicePage,
-                meta: { requiresAuth: true },
+                meta: { access: 'library' },
             },
             {
                 path: 'einstellungen',
                 name: 'Settings',
                 component: SettingsPage,
-                meta: { requiresAuth: true },
+                meta: { access: 'library' },
             },
         ],
     },
@@ -73,38 +112,41 @@ const routes: Array<RouteRecordRaw> = [
         path: '/login',
         name: 'Login',
         component: LoginPage,
-        meta: { requiresAuth: false },
+        meta: { access: 'public' },
     },
     {
         path: '/register',
         name: 'Register',
         component: RegisterPage,
-        meta: { requiresAuth: false },
+        meta: { access: 'public' },
     },
+    // The onboarding *is* the download, so it is one of the two views that a
+    // session is genuinely required for. A reader who already has the book
+    // never comes back here.
     {
         path: '/onboarding',
         name: 'Onboarding',
         component: OnboardingPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'session' },
     },
     {
         path: '/password-reset',
         name: 'PasswordReset',
         component: PasswordResetPage,
-        meta: { requiresAuth: false },
+        meta: { access: 'public' },
     },
     // Legal pages: public so they are reachable from the login page while logged out
     {
         path: '/impressum',
         name: 'Impressum',
         component: ImpressumPage,
-        meta: { requiresAuth: false },
+        meta: { access: 'public' },
     },
     {
         path: '/datenschutz',
         name: 'Datenschutz',
         component: DatenschutzPage,
-        meta: { requiresAuth: false },
+        meta: { access: 'public' },
     },
     {
         path: '/songs',
@@ -114,19 +156,22 @@ const routes: Array<RouteRecordRaw> = [
         path: '/songs/:id',
         name: 'Song',
         component: SongPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
     },
+    // Reachable without a session on purpose: the page reports what is stored
+    // on the device and can delete it, both of which work offline. Only the
+    // sync itself needs an account, and the page says so where the button is.
     {
         path: '/download',
         name: 'Download',
         component: DownloadPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
     },
     {
         path: '/install-pwa',
         name: 'InstallPWA',
         component: InstallPWAPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
     },
     {
         path: '/settings',
@@ -136,7 +181,7 @@ const routes: Array<RouteRecordRaw> = [
         path: '/favorites',
         name: 'Favorites',
         component: FavoritesPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
     },
     {
         path: '/playlists',
@@ -146,19 +191,19 @@ const routes: Array<RouteRecordRaw> = [
         path: '/playlists/create',
         name: 'CreatePlaylist',
         component: CreatePlaylistPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
     },
     {
         path: '/playlists/:id',
         name: 'Playlist',
         component: PlaylistDetailPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
     },
     {
         path: '/playlists/:id/add-songs',
         name: 'AddSongsToPlaylist',
         component: AddSongsToPlaylistPage,
-        meta: { requiresAuth: true },
+        meta: { access: 'library' },
     },
     // Dev-only design-system kitchen sink. import.meta.env.DEV is statically
     // replaced by Vite, so production builds drop the route and its chunk.
@@ -168,7 +213,7 @@ const routes: Array<RouteRecordRaw> = [
                   path: '/dev/ui',
                   name: 'DevUi',
                   component: () => import('../views/DevUiPage.vue'),
-                  meta: { requiresAuth: false },
+                  meta: { access: 'public' },
               } satisfies RouteRecordRaw,
           ]
         : []),
@@ -181,7 +226,7 @@ const routes: Array<RouteRecordRaw> = [
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: NotFoundPage,
-        meta: { requiresAuth: false },
+        meta: { access: 'public' },
     },
 ];
 
@@ -197,8 +242,6 @@ router.beforeEach(async (to) => {
     // Wait for user data to be loaded from IndexedDB
     await userStore.initPromise;
 
-    const requiresAuth = to.meta.requiresAuth;
-
     // Dev-only auth bypass. import.meta.env.DEV is statically replaced by Vite, so
     // production builds dead-code-eliminate this branch entirely; the flag itself is
     // in-memory only and never persisted.
@@ -206,10 +249,26 @@ router.beforeEach(async (to) => {
         return true;
     }
 
-    // If route requires authentication and user is not logged in
-    if (requiresAuth && !userStore.isLoggedIn) {
-        // Redirect to login page
-        return { name: 'Login' };
+    // An undeclared view is treated as the most restrictive kind (see RouteMeta).
+    const access = to.meta.access ?? 'session';
+
+    if (access !== 'public') {
+        // A downloaded Gesangbuch is worth as much as a session to a view that
+        // only reads it, so the guard has to wait for that read before it can
+        // decide — mid-flight the library still looks empty.
+        const songsStore = useSongsStore();
+        await songsStore.initPromise;
+
+        // `hasSongs`, not `songs.length`: the exposed `songs` is the sorted
+        // computed, and re-sorting the whole book on every navigation to ask
+        // whether it is empty would be a strange way to spend the frame.
+        const mayEnter = userStore.isLoggedIn || (access === 'library' && songsStore.hasSongs);
+
+        if (!mayEnter) {
+            // Nothing to read and no session: the login form is the only place
+            // this visit can go.
+            return { name: 'Login' };
+        }
     }
 
     // If user is logged in and trying to access login/register, redirect into the app

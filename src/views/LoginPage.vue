@@ -102,6 +102,32 @@
                     <component :is="DevSkipButton" v-if="DevSkipButton" :disabled="isLoading" />
                 </form>
 
+                <!-- The book is already on this device. Saying so — and offering
+                     the way back into it — matters most in exactly the situation
+                     that brought the reader here: an expired session, often with
+                     no connection to sign in over. -->
+                <section
+                    v-if="hasLocalLibrary"
+                    class="mt-8 rounded-lg border border-border bg-card px-4 py-4"
+                >
+                    <p class="text-sm font-medium">Gesangbuch bereits heruntergeladen</p>
+                    <p class="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        Auf diesem Gerät sind {{ localSongCount }} Lieder gespeichert. Sie können
+                        ohne Anmeldung darin lesen – für neue Inhalte und zum Synchronisieren melden
+                        Sie sich später wieder an.
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        class="mt-4 w-full"
+                        :disabled="isLoading"
+                        @click="continueWithoutLogin"
+                    >
+                        <BookOpen aria-hidden="true" />
+                        Ohne Anmeldung fortfahren
+                    </Button>
+                </section>
+
                 <div
                     class="mt-10 flex items-center justify-center gap-3 text-xs text-muted-foreground"
                 >
@@ -119,14 +145,15 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 
-import { CircleAlert, Info } from 'lucide-vue-next';
+import { BookOpen, CircleAlert, Info } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 
 import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
+import { useSessionAccess } from '@/composables/useSessionAccess';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -139,10 +166,13 @@ import { LOGOUT_REASON_MESSAGES, type LogoutReason } from '@/services/errorHandl
 const router = useRouter();
 const route = useRoute();
 const { login, isLoading, error } = useAuth();
+const { hasLocalLibrary } = useSessionAccess();
 const songsStore = useSongsStore();
 
 const email = ref('');
 const password = ref('');
+
+const localSongCount = computed(() => songsStore.songs.length);
 
 // Dev-only skip button, loaded via a DEV-guarded dynamic import so production
 // builds emit neither the chunk nor its strings (a plain v-if compiles to an
@@ -186,6 +216,18 @@ onMounted(() => {
     }
 });
 
+/**
+ * Into the app on the strength of the downloaded Gesangbuch alone.
+ *
+ * Nothing is granted and nothing is remembered here — the router already lets
+ * every `access: 'library'` view open when songs are stored (see
+ * `src/router/index.ts`). This is only the door, for a reader who landed on the
+ * login form and does not want to (or cannot) sign in right now.
+ */
+function continueWithoutLogin() {
+    router.push('/tabs/lieder');
+}
+
 async function handleLogin() {
     if (!email.value || !password.value) {
         return;
@@ -194,7 +236,10 @@ async function handleLogin() {
     const result = await login(email.value, password.value);
 
     if (result.success) {
-        // Check if user has downloaded data
+        // Check if user has downloaded data. Awaited, because asking before the
+        // first read from IndexedDB is done would send a reader who already has
+        // the whole book back through the onboarding download.
+        await songsStore.initPromise;
         const hasData = songsStore.songs.length > 0;
 
         // If no data, go to onboarding; otherwise go to the songs tab

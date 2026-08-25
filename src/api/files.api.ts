@@ -3,7 +3,7 @@ import { useUserStore } from '@/stores/user';
 import { refreshAuthToken } from '@/composables/useAuth';
 
 import { directusConfig } from '@/services/directus';
-import { handleApiError } from '@/services/errorHandler';
+import { SESSION_ENDED_ERROR, handleApiError } from '@/services/errorHandler';
 
 /**
  * Files API
@@ -67,7 +67,7 @@ export async function fetchFile(fileId: string): Promise<Blob> {
         // Check for invalid credentials (user account may be deleted)
         const handled = await handleApiError(error);
         if (handled) {
-            throw new Error('Invalid credentials - user logged out', { cause: error });
+            throw new Error(SESSION_ENDED_ERROR, { cause: error });
         }
 
         throw error;

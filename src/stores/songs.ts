@@ -10,6 +10,7 @@ import {
     fetchSongsWithFiles,
 } from '@/api/songs.api';
 import { type Song, db } from '@/db';
+import { isSessionEndedError } from '@/services/errorHandler';
 import { requestPersistentStorage } from '@/services/storage';
 import {
     type SongManifestEntry,
@@ -361,7 +362,15 @@ export const useSongsStore = defineStore('songs', () => {
             console.error('Error during sync:', err);
             // Keep a message already set inside the sync (e.g. the quota message)
             if (!error.value) {
-                error.value = err instanceof Error ? err.message : 'Failed to complete sync';
+                // A sync that died with the session used to be invisible — the
+                // page was already navigating to the login form. It stays put
+                // now, so it has to say why in German rather than leave the
+                // internal sentinel on screen.
+                error.value = isSessionEndedError(err)
+                    ? 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an, um zu synchronisieren.'
+                    : err instanceof Error
+                      ? err.message
+                      : 'Failed to complete sync';
             }
             throw err;
         } finally {
@@ -481,8 +490,15 @@ export const useSongsStore = defineStore('songs', () => {
         }
     }
 
-    // Initialize on store creation
-    loadSongsFromDB();
+    // Initialize on store creation.
+    //
+    // The promise is exposed because the router guard has to know whether this
+    // device holds a downloaded Gesangbuch before it can decide where a visit
+    // without a session belongs — `hasSongs` alone is still false while the first
+    // read is in flight. A rejection is swallowed: the failure is already in
+    // `error`, and an unreadable library reads as "nothing downloaded", which is
+    // the honest answer for the guard.
+    const initPromise = loadSongsFromDB().catch(() => undefined);
 
     return {
         // State
@@ -505,5 +521,8 @@ export const useSongsStore = defineStore('songs', () => {
         getOrFetchFileBlob,
         getStoredFilesCount,
         clearAllData,
+
+        // Initialization promise
+        initPromise,
     };
 });

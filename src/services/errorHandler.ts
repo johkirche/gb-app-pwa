@@ -1,3 +1,5 @@
+import { useUserStore } from '@/stores/user';
+
 import { db } from '@/db';
 
 /**
@@ -189,6 +191,21 @@ export function isInvalidCredentialsError(error: unknown): boolean {
     return false;
 }
 
+/**
+ * What the API modules throw with once a request has been answered by ending the
+ * session, and the predicate that recognises it again afterwards.
+ *
+ * Shared rather than repeated per module because two very different callers need
+ * it: the API wrappers, to keep "your session went" distinguishable from "the
+ * request failed" after they rephrase the error, and the sync, to tell the reader
+ * which of the two happened.
+ */
+export const SESSION_ENDED_ERROR = 'Invalid credentials - user logged out';
+
+export function isSessionEndedError(error: unknown): boolean {
+    return error instanceof Error && error.message.startsWith('Invalid credentials');
+}
+
 /** German message shown when a request failed because the server was unreachable. */
 export const NETWORK_ERROR_MESSAGE =
     'Keine Verbindung zum Server. Bitte prüfen Sie Ihre Internetverbindung.';
@@ -341,7 +358,23 @@ export async function clearAllLocalData(): Promise<void> {
 }
 
 /**
- * Log the user out and send them to the login page with an explanation.
+ * Whether this device holds a downloaded Gesangbuch.
+ *
+ * Counted straight off the songs table rather than through the store: this module
+ * sits underneath the stores — every API module imports it — and the count is an
+ * index read, so it costs nothing next to loading the songs themselves.
+ */
+async function hasDownloadedLibrary(): Promise<boolean> {
+    try {
+        return (await db.songs.count()) > 0;
+    } catch (error) {
+        console.error('Error counting local songs:', error);
+        return false;
+    }
+}
+
+/**
+ * End the session and decide where that leaves the reader.
  *
  * The reason decides how much is deleted:
  *   - `account_deleted` clears everything, including the downloaded hymnal and playlists.
@@ -351,14 +384,31 @@ export async function clearAllLocalData(): Promise<void> {
  * expired refresh token, a revoked session and a deleted account all look alike from the
  * client — so the non-destructive reading is the only safe one. Pass `account_deleted`
  * explicitly, and only where the deletion is actually known.
+ *
+ * A device that holds a downloaded Gesangbuch is NOT sent to the login form. Doing that
+ * is what used to happen, and it took the whole book away over a token — typically
+ * offline, where signing back in is not even possible. The session ends quietly instead:
+ * the app stays where it is on the local content, and asks for a sign-in only on the
+ * features that actually need the server (see `LoginRequiredNotice`). Only a device with
+ * nothing to read has anywhere else to go, and only that one is redirected.
  */
 export async function handleInvalidCredentials(
     reason: LogoutReason = 'session_expired',
 ): Promise<void> {
     if (reason === 'account_deleted') {
         await clearAllLocalData();
-    } else {
-        await clearSessionData();
+        // Force a full page reload so no cached state survives the deletion.
+        window.location.href = `/login?reason=${reason}`;
+        return;
+    }
+
+    await clearSessionData();
+
+    if (await hasDownloadedLibrary()) {
+        // The tokens are gone from IndexedDB; the store still holds them in memory,
+        // and a stale `isLoggedIn` would keep the UI offering what can no longer work.
+        useUserStore().endSession();
+        return;
     }
 
     // Redirect to login page with reason query parameter

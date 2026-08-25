@@ -21,7 +21,11 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onMounted, watch } from 'vue';
 
+import { useRouter } from 'vue-router';
+import { toast } from 'vue-sonner';
+
 import { usePreferencesStore } from '@/stores/preferences';
+import { useUserStore } from '@/stores/user';
 
 import { syncMidiPreference } from '@/composables/useMidiOutput';
 import { useTheme } from '@/composables/useTheme';
@@ -52,6 +56,28 @@ watch(
         void syncMidiPreference(enabled, deviceId);
     },
     { immediate: true },
+);
+
+// A session that lapses no longer interrupts anything: the reader stays on the
+// page they were on, with the whole downloaded Gesangbuch intact (see
+// `handleInvalidCredentials`). But it must not lapse *silently* either, or the
+// next sync would fail for no visible reason — so the shell says it once, here,
+// where every route can be reached from.
+const router = useRouter();
+const userStore = useUserStore();
+
+watch(
+    () => userStore.sessionExpired,
+    (expired) => {
+        if (!expired) return;
+        userStore.acknowledgeSessionExpired();
+        toast.info('Ihre Sitzung ist abgelaufen.', {
+            description:
+                'Ihr heruntergeladenes Gesangbuch bleibt nutzbar. Zum Synchronisieren melden Sie sich bitte wieder an.',
+            duration: 8000,
+            action: { label: 'Anmelden', onClick: () => router.push('/login') },
+        });
+    },
 );
 
 onMounted(() => {

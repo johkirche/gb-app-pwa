@@ -17,6 +17,12 @@ export const useUserStore = defineStore('user', () => {
     // bypass is dead code in production bundles.
     const devSkipAuth = ref(false);
 
+    // Set when a session ends underneath a reader who keeps their downloaded
+    // Gesangbuch (see endSession). It exists so the shell can say so once, and
+    // for nothing else: whether a server feature is available is read from
+    // isLoggedIn, never from here.
+    const sessionExpired = ref(false);
+
     // Computed
     //
     // Logged in = a cached user AND session tokens. Requiring both is defense-in-depth
@@ -97,6 +103,7 @@ export const useUserStore = defineStore('user', () => {
                 refreshToken: tokens.refreshToken,
                 expiresAt: tokens.expiresAt,
             });
+            sessionExpired.value = false;
         } catch (err) {
             console.error('Error setting user:', err);
             throw err;
@@ -130,6 +137,33 @@ export const useUserStore = defineStore('user', () => {
         devSkipAuth.value = skip;
     }
 
+    /**
+     * End the session in memory, and leave everything else on the device alone.
+     *
+     * The counterpart to `clearSessionData()` in the error handler: that drops the
+     * persisted tokens, this drops the copies the UI reads off. Songs, playlists,
+     * favourites and preferences stay — an expired or rotated-away token says
+     * nothing about the account, and the downloaded Gesangbuch has to outlive it.
+     * Without this the store would keep reporting a session that no longer exists
+     * and the UI would go on offering server features that cannot work.
+     *
+     * Idempotent, and that matters: a sync fires its requests in batches, so a
+     * session dying mid-download gets rejected several times over. Only the first
+     * rejection has anything to end — and only it should raise the notice.
+     */
+    function endSession() {
+        if (!user.value && !authData.value) return;
+
+        user.value = null;
+        authData.value = null;
+        sessionExpired.value = true;
+    }
+
+    /** The shell has told the reader their session ended; do not tell them twice. */
+    function acknowledgeSessionExpired() {
+        sessionExpired.value = false;
+    }
+
     async function logout() {
         try {
             isLoading.value = true;
@@ -139,9 +173,11 @@ export const useUserStore = defineStore('user', () => {
             await db.auth.clear();
             await db.users.clear();
 
-            // Clear reactive state
+            // Clear reactive state. Leaving on purpose is not an expiry, so the
+            // "Sitzung abgelaufen" notice must not fire behind the logout.
             user.value = null;
             authData.value = null;
+            sessionExpired.value = false;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to logout';
             console.error('Error during logout:', err);
@@ -160,6 +196,7 @@ export const useUserStore = defineStore('user', () => {
         authData,
         isLoading,
         error,
+        sessionExpired,
 
         // Computed
         isLoggedIn,
@@ -175,6 +212,8 @@ export const useUserStore = defineStore('user', () => {
         updateUserRole,
         updateTokens,
         setDevSkipAuth,
+        endSession,
+        acknowledgeSessionExpired,
         logout,
 
         // Initialization promise

@@ -73,13 +73,21 @@
                             <Settings class="h-4 w-4" aria-hidden="true" />
                             Einstellungen
                         </DropdownMenuItem>
-                        <template v-if="isLoggedIn">
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem variant="destructive" @select="handleLogout">
-                                <LogOut class="h-4 w-4" aria-hidden="true" />
-                                Abmelden
-                            </DropdownMenuItem>
-                        </template>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            v-if="isLoggedIn"
+                            variant="destructive"
+                            @select="handleLogout"
+                        >
+                            <LogOut class="h-4 w-4" aria-hidden="true" />
+                            Abmelden
+                        </DropdownMenuItem>
+                        <!-- Reading offline on a downloaded Gesangbuch: the way
+                             back to a session belongs where the account lives. -->
+                        <DropdownMenuItem v-else @select="router.push('/login')">
+                            <LogIn class="h-4 w-4" aria-hidden="true" />
+                            Anmelden
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
@@ -130,6 +138,7 @@ import {
     CloudDownload,
     Heart,
     ListMusic,
+    LogIn,
     LogOut,
     Music,
     Settings,

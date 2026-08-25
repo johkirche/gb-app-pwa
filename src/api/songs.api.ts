@@ -4,7 +4,7 @@ import { refreshAuthToken } from '@/composables/useAuth';
 
 import type { Autor, Category, NotenFile, Song } from '@/db';
 import { directusClient } from '@/services/directus';
-import { handleApiError } from '@/services/errorHandler';
+import { SESSION_ENDED_ERROR, handleApiError, isSessionEndedError } from '@/services/errorHandler';
 import type { SongManifestEntry } from '@/utils/syncDiff';
 
 /**
@@ -265,7 +265,7 @@ async function queryDirectus<T extends object>(
         // Check for invalid credentials first (user account may be deleted)
         const handled = await handleApiError(error);
         if (handled) {
-            throw new Error('Invalid credentials - user logged out', { cause: error });
+            throw new Error(SESSION_ENDED_ERROR, { cause: error });
         }
 
         // If unauthorized, try to refresh token and retry
@@ -284,12 +284,6 @@ async function queryDirectus<T extends object>(
     }
 }
 
-// A logged-out session is a different outcome from a failed request and has to
-// stay distinguishable after the wrapper below rephrases the error.
-function isLoggedOutError(error: unknown): boolean {
-    return error instanceof Error && error.message.startsWith('Invalid credentials');
-}
-
 // Fetch songs from Directus
 export async function fetchSongs(): Promise<Song[]> {
     try {
@@ -299,7 +293,7 @@ export async function fetchSongs(): Promise<Song[]> {
 
         return response.gesangbuchlied.map((song) => transformSong(song));
     } catch (error) {
-        if (isLoggedOutError(error)) throw error;
+        if (isSessionEndedError(error)) throw error;
 
         console.error('Error fetching songs from Directus:', error);
         throw new Error('Failed to fetch songs from server', { cause: error });
@@ -325,7 +319,7 @@ export async function fetchSongsByIds(ids: string[]): Promise<Song[]> {
             });
             songs.push(...response.gesangbuchlied.map((song) => transformSong(song)));
         } catch (error) {
-            if (isLoggedOutError(error)) throw error;
+            if (isSessionEndedError(error)) throw error;
 
             console.error('Error fetching songs from Directus:', error);
             throw new Error('Failed to fetch songs from server', { cause: error });
@@ -369,7 +363,7 @@ export async function fetchSongManifest(): Promise<SongManifestEntry[] | null> {
                 .map((file) => ({ id: file.id, modifiedOn: file.modified_on ?? null })),
         }));
     } catch (error) {
-        if (isLoggedOutError(error)) throw error;
+        if (isSessionEndedError(error)) throw error;
 
         console.warn('Sync manifest unavailable, falling back to a full pull:', error);
         return null;
