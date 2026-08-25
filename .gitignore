@@ -39,3 +39,6 @@ npm-debug.log*
 dev-dist/
 # Private, non-public documents (legal question catalogs etc.) - never commit
 docs/private/
+
+# Local reference copy of the printed book (~45 MB) - never commit
+tests/assets/2026-08-05_gesangbuch_innenteil_choräle_1.pdf
