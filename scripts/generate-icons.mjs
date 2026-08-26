@@ -93,6 +93,13 @@ await write(
     path.join(PUB, 'apple-touch-icon.png'),
     await renderIcon(svg, 180, { pad: 0.1, bg: APPLE_BG }),
 );
+// iPad home screens ask for their own sizes rather than downscaling the 180.
+for (const s of [120, 152, 167]) {
+    await write(
+        path.join(PUB, `apple-touch-icon-${s}.png`),
+        await renderIcon(svg, s, { pad: 0.1, bg: APPLE_BG }),
+    );
+}
 await write(path.join(PUB, 'android-chrome-192x192.png'), await renderIcon(svg, 192));
 await write(path.join(PUB, 'android-chrome-512x512.png'), await renderIcon(svg, 512));
 
@@ -100,10 +107,13 @@ console.log('pwa manifest icons (pwaicons/android):');
 for (const s of [48, 72, 96, 144, 192, 512]) {
     await write(path.join(ANDROID, `android-launchericon-${s}-${s}.png`), await renderIcon(svg, s));
 }
-// Dedicated maskable icon: opaque bg + safe-zone padding (referenced in manifest).
-await write(
-    path.join(ANDROID, 'maskable-512.png'),
-    await renderIcon(svg, 512, { pad: MASKABLE_PAD, bg: MASKABLE_BG }),
-);
+// Dedicated maskable icons: opaque bg + safe-zone padding (referenced in manifest).
+// 192 as well as 512, so Android picks one at size instead of downscaling.
+for (const s of [192, 512]) {
+    await write(
+        path.join(ANDROID, `maskable-${s}.png`),
+        await renderIcon(svg, s, { pad: MASKABLE_PAD, bg: MASKABLE_BG }),
+    );
+}
 
 console.log('\nDone.');

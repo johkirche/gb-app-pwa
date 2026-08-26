@@ -61,6 +61,9 @@ export default defineConfig({
                 'favicon-16x16.png',
                 'favicon-32x32.png',
                 'apple-touch-icon.png',
+                'apple-touch-icon-120.png',
+                'apple-touch-icon-152.png',
+                'apple-touch-icon-167.png',
                 'android-chrome-192x192.png',
                 'android-chrome-512x512.png',
                 'logo.svg',
@@ -86,6 +89,12 @@ export default defineConfig({
                         src: 'pwaicons/android/android-launchericon-512-512.png',
                         sizes: '512x512',
                         type: 'image/png',
+                    },
+                    {
+                        src: 'pwaicons/android/maskable-192.png',
+                        sizes: '192x192',
+                        type: 'image/png',
+                        purpose: 'maskable',
                     },
                     {
                         src: 'pwaicons/android/maskable-512.png',
