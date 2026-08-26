@@ -14,7 +14,10 @@
                 v-for="item in displayItems"
                 :key="item.originalIndex"
                 class="index-item"
-                :class="{ active: item.key === activeDisplayKey }"
+                :class="{
+                    current: item.key === activeDisplayKey,
+                    pressed: item.key === pressedDisplayKey,
+                }"
                 :data-key="item.key"
                 @click="onItemClick(item.key)"
             >
@@ -63,6 +66,10 @@ const containerRef = ref<HTMLElement | null>(null);
 const itemsContainerRef = ref<HTMLElement | null>(null);
 const isDragging = ref(false);
 const currentDragItem = ref<IndexItem | null>(null);
+// The label under the finger. Kept apart from the active section: that one only
+// catches up once the list has scrolled, so a single highlight driven by it
+// trails the press.
+const pressedDisplayKey = ref<string | null>(null);
 const indicatorTop = ref(0);
 
 // Breathing room kept above and below the rail inside its band.
@@ -107,7 +114,7 @@ const displayItems = computed<DisplayItem[]>(() => {
     return result;
 });
 
-// Highlight the displayed label closest to the active section.
+// Mark the displayed label closest to the section the list actually sits on.
 const activeDisplayKey = computed(() => {
     if (!props.activeKey) return undefined;
     if (displayItems.value.some((d) => d.key === props.activeKey)) {
@@ -208,6 +215,7 @@ function onMouseDown(event: MouseEvent) {
     const onMouseUp = () => {
         isDragging.value = false;
         currentDragItem.value = null;
+        pressedDisplayKey.value = null;
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
     };
@@ -230,6 +238,7 @@ function onTouchMove(event: TouchEvent) {
 function onTouchEnd() {
     isDragging.value = false;
     currentDragItem.value = null;
+    pressedDisplayKey.value = null;
 }
 
 // Map a vertical position on the strip to an item in the FULL list, so every
@@ -246,6 +255,12 @@ function updateFromPosition(clientY: number) {
     const targetIndex = Math.round(clamped * (all.length - 1));
     const item = all[targetIndex];
     if (!item) return;
+
+    // Which rendered label the pointer is over — the slots tile the strip
+    // evenly, so this snaps to the finger instead of waiting for the scroll.
+    const slots = displayItems.value.length;
+    const slot = Math.min(slots - 1, Math.max(0, Math.floor(clamped * slots)));
+    pressedDisplayKey.value = displayItems.value[slot]?.key ?? null;
 
     // Position the floating indicator next to the finger/cursor.
     const outerRect = containerRef.value?.getBoundingClientRect();
@@ -323,9 +338,23 @@ function onItemClick(key: string) {
     background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
-.index-item.active {
+.index-item.current,
+.index-item.pressed {
     background: var(--primary);
     color: var(--primary-foreground);
+}
+
+/* While scrubbing, the filled chip belongs to the finger. The section the list
+   is on keeps a quieter ring, so both places stay readable at once. */
+.index-scroll.dragging .index-item.current:not(.pressed) {
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+/* The press chip has to land with the finger, not fade after it. */
+.index-scroll.dragging .index-item {
+    transition: none;
 }
 
 .index-label {
