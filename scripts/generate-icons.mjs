@@ -28,7 +28,11 @@ const APPLE_BG = '#ffffff';
 
 const PAD = 0.06; // app icons: logo fills ~88% of the canvas
 const FAVICON_PAD = 0.04; // small favicons: a touch more bleed for legibility
-const MASKABLE_PAD = 0.2; // Android adaptive safe-zone (logo fills ~60%)
+// Android masks adaptive icons to the centre 66.7% of the canvas, which is
+// stricter than the 80% safe zone the web maskable spec guarantees. Padding for
+// 80% is what clipped the book corners flat against the launcher circle; 0.28
+// keeps the logo (which fills its box corner to corner) clear of the mask.
+const MASKABLE_PAD = 0.28; // Android adaptive safe-zone (logo fills ~44%)
 
 // ------------------------------------------------------------- rendering ----
 const svg = await readFile(SRC, 'utf8');
