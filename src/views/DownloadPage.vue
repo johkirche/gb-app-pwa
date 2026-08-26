@@ -12,9 +12,11 @@
         </AppPageHeader>
 
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div
-                class="mx-auto w-full max-w-md space-y-10 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6"
-            >
+            <!-- The shared page column, the same one the header and the settings
+                 page it was opened from use. Held at max-w-md the body kept phone
+                 proportions on a desktop screen: a strip of content indented under
+                 a title that started well to the left of it. -->
+            <div class="page-col space-y-10 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6">
                 <!-- Sync Status -->
                 <section>
                     <div class="flex items-center gap-3 px-2">
@@ -23,6 +25,11 @@
                         </h2>
                         <Separator class="flex-1" />
                     </div>
+                    <!-- A phone stacks each row's label over its value. Given the
+                         whole page column that leaves the right half of every row
+                         empty, so from lg the pair sits side by side and the values
+                         line up in a column of their own — the inventory reads as
+                         the small table it always was. -->
                     <ul class="mt-1 divide-y divide-border">
                         <!-- First, because it decides what the rest of the page can
                              do. Every other line here is a number that holds true
@@ -34,7 +41,9 @@
                                 :class="isLoggedIn ? 'text-muted-foreground' : 'text-gold'"
                                 aria-hidden="true"
                             />
-                            <div class="min-w-0">
+                            <div
+                                class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
+                            >
                                 <p class="text-[15px]">
                                     {{ isLoggedIn ? 'Angemeldet' : 'Nicht angemeldet' }}
                                 </p>
@@ -48,7 +57,9 @@
                                 class="size-5 shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                            <div class="min-w-0">
+                            <div
+                                class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
+                            >
                                 <p class="text-[15px]">Lieder</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ songsCount }} Lieder gespeichert
@@ -60,7 +71,9 @@
                                 class="size-5 shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                            <div class="min-w-0">
+                            <div
+                                class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
+                            >
                                 <p class="text-[15px]">Notendateien (SVG &amp; MusicXML)</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ filesCount }} Dateien gespeichert
@@ -72,7 +85,9 @@
                                 class="size-5 shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                            <div class="min-w-0">
+                            <div
+                                class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
+                            >
                                 <p class="text-[15px]">Speicherplatz</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ formatBytes(storage.usage) }} von
@@ -85,7 +100,9 @@
                                 class="size-5 shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                            <div class="min-w-0">
+                            <div
+                                class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
+                            >
                                 <p class="text-[15px]">Letzte Synchronisierung</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ formatSyncTime(lastSyncTime) }}
@@ -126,14 +143,14 @@
                         </LoginRequiredNotice>
 
                         <template v-else>
-                            <p class="text-sm leading-relaxed text-muted-foreground">
+                            <p class="max-w-prose text-sm leading-relaxed text-muted-foreground">
                                 Lädt alle Lieder und Notendateien vom Server herunter und speichert
                                 sie lokal für die Offline-Nutzung. Bereits Geladenes wird
                                 übersprungen.
                             </p>
                             <p
                                 v-if="storage"
-                                class="mt-2 text-sm leading-relaxed text-muted-foreground"
+                                class="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground"
                             >
                                 <template v-if="expectsFullDownload">
                                     Geschätzte Downloadgröße: ca.
@@ -148,7 +165,7 @@
                             <Button
                                 type="button"
                                 size="lg"
-                                class="mt-5 w-full"
+                                class="mt-5 w-full lg:w-auto"
                                 :disabled="isSyncing"
                                 @click="handleSync"
                             >
@@ -165,7 +182,7 @@
                         <h2 class="label-micro shrink-0 text-gold">Wird synchronisiert...</h2>
                         <Separator class="flex-1" />
                     </div>
-                    <div class="mt-4 rounded-lg bg-muted px-6 py-6 text-center">
+                    <div class="mt-4 max-w-prose rounded-lg bg-muted px-6 py-6 text-center">
                         <Spinner class="mx-auto" />
                         <p
                             v-if="syncProgress.phase === 'songs'"
@@ -211,7 +228,7 @@
                     <Button
                         v-if="isLoggedIn"
                         type="button"
-                        class="mt-3 w-full"
+                        class="mt-3 w-full lg:w-auto"
                         @click="handleRetryFailed"
                     >
                         Fehlgeschlagene erneut laden
@@ -220,7 +237,7 @@
                         v-else
                         type="button"
                         variant="outline"
-                        class="mt-3 w-full"
+                        class="mt-3 w-full lg:w-auto"
                         @click="router.push('/login')"
                     >
                         <LogIn aria-hidden="true" />
@@ -246,7 +263,7 @@
                     </div>
                     <div class="mt-3 flex items-start gap-4 px-2">
                         <Wifi class="mt-0.5 size-5 shrink-0 text-gold" aria-hidden="true" />
-                        <p class="text-sm leading-relaxed text-muted-foreground">
+                        <p class="max-w-prose text-sm leading-relaxed text-muted-foreground">
                             Für die Synchronisierung wird eine Internetverbindung benötigt. Der
                             Download kann je nach Verbindung einige Minuten dauern.
                         </p>
@@ -260,7 +277,7 @@
                         <Separator class="flex-1" />
                     </div>
                     <div class="mt-4 px-2">
-                        <p class="text-sm leading-relaxed text-muted-foreground">
+                        <p class="max-w-prose text-sm leading-relaxed text-muted-foreground">
                             Löscht alle lokal gespeicherten Lieder und Notendateien. Diese können
                             jederzeit erneut synchronisiert werden.
                         </p>
@@ -268,7 +285,7 @@
                             type="button"
                             variant="destructive"
                             size="lg"
-                            class="mt-5 w-full"
+                            class="mt-5 w-full lg:w-auto"
                             :disabled="
                                 isSyncing || isDeleting || (songsCount === 0 && filesCount === 0)
                             "
