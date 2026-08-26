@@ -77,3 +77,42 @@ describe('LocalSoundfontPlayer – Oktavlage', () => {
         expect(OSMD_HALFTONE_TO_MIDI).toBe(12);
     });
 });
+
+// Die Maschine schiebt zwischen Klanggraph und Lautsprecher noch einen Puffer,
+// von dem die Wiedergabe-Uhr nichts weiß. Ungenannt läuft das Laufband genau um
+// diese Spanne vor der Musik her — immer gleich weit, immer in dieselbe
+// Richtung, und gerade weit genug, um es zu sehen.
+describe('LocalSoundfontPlayer – wie lange der Klang braucht', () => {
+    function mitKontext(baseLatency: unknown, outputLatency?: unknown) {
+        const spieler = new LocalSoundfontPlayer();
+        spieler.init({
+            baseLatency,
+            ...(outputLatency === undefined ? {} : { _nativeAudioContext: { outputLatency } }),
+        } as never);
+        return spieler;
+    }
+
+    it('zählt beide Abschnitte zusammen', () => {
+        // Gemessen in Chrome auf einem Arbeitsplatz: 10 ms + 32 ms.
+        expect(mitKontext(0.01, 0.032).outputLatency()).toBeCloseTo(0.042, 6);
+    });
+
+    it('nimmt die kleinere Hälfte, wo die größere nicht zu haben ist', () => {
+        // standardized-audio-context reicht baseLatency durch, outputLatency
+        // nicht; Safari und Firefox kennen letzteres gar nicht.
+        expect(mitKontext(0.01).outputLatency()).toBeCloseTo(0.01, 6);
+        expect(mitKontext(0.01, undefined).outputLatency()).toBeCloseTo(0.01, 6);
+    });
+
+    it('verwirft eine Angabe, die keine Laufzeit mehr sein kann', () => {
+        // Eine halbe Sekunde zurückhalten wäre schlimmer als der Vorlauf,
+        // den es zu beheben gilt.
+        expect(mitKontext(0.01, 4).outputLatency()).toBeCloseTo(0.01, 6);
+        expect(mitKontext(0.01, Number.NaN).outputLatency()).toBeCloseTo(0.01, 6);
+    });
+
+    it('wartet auf nichts, solange kein Kontext da ist', () => {
+        expect(new LocalSoundfontPlayer().outputLatency()).toBe(0);
+        expect(mitKontext(undefined).outputLatency()).toBe(0);
+    });
+});

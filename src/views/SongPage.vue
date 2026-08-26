@@ -5,13 +5,10 @@
                 <SongMenuPopover
                     v-model:show-controls="showControls"
                     :song-id="songId"
-                    :has-melody-image="hasMelodyImage"
-                    :has-melody-xml="hasMelodyXml"
-                    :melody-display-mode="melodyDisplayMode"
+                    :shows-reflow="hasMelodyXml && !showsEngraving"
                     :page-scale="pageScale"
                     :xml-settings="xmlSettings"
                     :keep-screen-awake="keepScreenAwake"
-                    @update:melody-display-mode="preferencesStore.setMelodyDisplayMode($event)"
                     @update:page-scale="preferencesStore.setPageScale($event)"
                     @update:keep-screen-awake="preferencesStore.setKeepScreenAwake($event)"
                     @update:xml-setting="
@@ -40,54 +37,69 @@
                 class="song-content page-col flex min-h-full flex-col pb-8 pt-4"
                 :style="{ '--text-scale': pageScale }"
             >
-                <!-- Melody Display: Image or MusicXML -->
-                <SongMelodyImage
-                    v-if="melodyDisplayMode === 'image' && hasMelodyImage"
+                <!-- The melody: the book's own engraving, with the re-set
+                     notation behind it as the clock the playback runs on — and
+                     in front of it only where the reader has enlarged the page
+                     past the width it can be shown at. -->
+                <SongMelody
+                    v-if="hasMelodyImage || hasMelodyXml"
+                    ref="melodyRef"
+                    class="mb-6"
+                    :file-blob="melodyXmlBlob"
                     :svg-markup="melodySvgMarkup"
                     :image-url="melodyImageUrl"
-                    :is-loading="imageLoading"
+                    :image-loading="imageLoading"
                     :scale="pageScale"
+                    :settings="xmlSettings"
+                    :beyond-fit="beyondFit"
+                    :is-playing="isPlaying"
+                    :tempo="tempo"
+                    :loop="loopEnabled"
+                    :muted="isMuted"
+                    @play-started="isPlaying = true"
+                    @play-stopped="isPlaying = false"
+                    @ended="onPlaybackEnded"
+                    @engine-loading="engineLoading = $event"
+                    @progress="onPlaybackProgress"
+                    @rendered="onNotationRendered"
+                    @render-failed="onNotationRenderFailed"
+                    @update:overflows="melodyOverflows = $event"
+                    @update:shows-engraving="showsEngraving = $event"
                 />
 
-                <!-- MusicXML (OSMD) Rendering -->
+                <!-- The one question the reader owns, asked only where it
+                     arises: past the fit width both answers are defensible, and
+                     below it there is nothing to decide. The label names what
+                     tapping it does, and the choice is remembered. -->
+                <div v-if="offerBeyondFit" class="notation-col -mt-3 mb-6 flex justify-center">
+                    <button
+                        type="button"
+                        class="rounded px-2 py-1 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                        @click="chooseBeyondFit"
+                    >
+                        {{ beyondFit === 'reflow' ? 'Notenbild behalten' : 'Zeilen neu umbrechen' }}
+                    </button>
+                </div>
+
+                <!-- Only worth saying where there is no engraving to fall back
+                     on. With the Notenbild on screen a missing sheet costs the
+                     reader nothing but the transport. -->
                 <div
-                    v-else-if="melodyDisplayMode === 'xml' && hasMelodyXml"
-                    class="notation-col mb-4"
+                    v-if="!hasMelodyImage && notationState === 'blob-missing-offline'"
+                    class="notation-col mb-6 flex items-center justify-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
                 >
-                    <OsmdRenderer
-                        ref="osmdRendererRef"
-                        :file-blob="melodyXmlBlob"
-                        :scale="pageScale"
-                        :settings="xmlSettings"
-                        :is-playing="isPlaying"
-                        :tempo="tempo"
-                        :loop="loopEnabled"
-                        :muted="isMuted"
-                        @play-started="isPlaying = true"
-                        @play-stopped="isPlaying = false"
-                        @ended="onPlaybackEnded"
-                        @engine-loading="engineLoading = $event"
-                        @progress="onPlaybackProgress"
-                        @rendered="onNotationRendered"
-                        @render-failed="onNotationRenderFailed"
-                    />
-                    <div
-                        v-if="notationState === 'blob-missing-offline'"
-                        class="flex items-center justify-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
-                    >
-                        <Music class="size-5 shrink-0" aria-hidden="true" />
-                        <span>
-                            Noten sind offline nicht verfügbar. Stellen Sie eine Internetverbindung
-                            her und laden Sie das Lied erneut.
-                        </span>
-                    </div>
-                    <div
-                        v-else-if="notationState === 'blob-fetch-failed'"
-                        class="flex items-center justify-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
-                    >
-                        <Music class="size-5 shrink-0" aria-hidden="true" />
-                        <span>Noten konnten nicht geladen werden.</span>
-                    </div>
+                    <Music class="size-5 shrink-0" aria-hidden="true" />
+                    <span>
+                        Noten sind offline nicht verfügbar. Stellen Sie eine Internetverbindung her
+                        und laden Sie das Lied erneut.
+                    </span>
+                </div>
+                <div
+                    v-else-if="!hasMelodyImage && notationState === 'blob-fetch-failed'"
+                    class="notation-col mb-6 flex items-center justify-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
+                >
+                    <Music class="size-5 shrink-0" aria-hidden="true" />
+                    <span>Noten konnten nicht geladen werden.</span>
                 </div>
 
                 <!-- No Melody Notice -->
@@ -116,13 +128,7 @@
 
         <!-- Docked audio transport: opaque, above the safe area -->
         <footer
-            v-if="
-                song &&
-                showControls &&
-                melodyDisplayMode === 'xml' &&
-                hasMelodyXml &&
-                notationState === 'ready'
-            "
+            v-if="song && showControls && hasMelodyXml && notationState === 'ready'"
             class="shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]"
         >
             <SongAudioControls
@@ -162,13 +168,12 @@ import {
 import { useStoredFiles } from '@/composables/useStoredFiles';
 import { useWakeLock } from '@/composables/useWakeLock';
 
-import OsmdRenderer from '@/components/songview/OsmdRenderer.vue';
 import SongAudioControls from '@/components/songview/SongAudioControls.vue';
 import SongAuthors from '@/components/songview/SongAuthors.vue';
 import SongErrorState from '@/components/songview/SongErrorState.vue';
 import SongHeader from '@/components/songview/SongHeader.vue';
 import SongLoadingState from '@/components/songview/SongLoadingState.vue';
-import SongMelodyImage from '@/components/songview/SongMelodyImage.vue';
+import SongMelody from '@/components/songview/SongMelody.vue';
 import SongMenuPopover from '@/components/songview/SongMenuPopover.vue';
 import SongVerses from '@/components/songview/SongVerses.vue';
 
@@ -181,8 +186,7 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { pageScale, melodyDisplayMode, xmlSettings, keepScreenAwake } =
-    storeToRefs(preferencesStore);
+const { pageScale, beyondFit, xmlSettings, keepScreenAwake } = storeToRefs(preferencesStore);
 
 const { getFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
@@ -197,7 +201,13 @@ const notationState = ref<
 >('loading');
 
 // Refs
-const osmdRendererRef = ref<InstanceType<typeof OsmdRenderer> | null>(null);
+const melodyRef = ref<InstanceType<typeof SongMelody> | null>(null);
+
+// Whether the melody has outgrown the page, and which engraving that has left
+// on screen. Both are the melody view's to report — only it knows how wide the
+// drawing came out.
+const melodyOverflows = ref(false);
+const showsEngraving = ref(true);
 
 // Current song
 const song = ref<Song | null>(null);
@@ -245,18 +255,28 @@ const notationLyricsDrawn = ref(false);
 
 // Whether the notation currently on screen already sings verse 1 under its
 // notes. True for the vector Notenbild, whose Finale export bakes the first
-// verse into the engraving, and for the MusicXML view whenever it draws
+// verse into the engraving, and for the re-set notation whenever it draws
 // lyrics. The raster fallback is left out: those scans are only reached for
 // songs cached before notentext_svg was synced, and what they contain is not
 // known per file.
 const lyricsInNotation = computed(() => {
-    if (melodyDisplayMode.value === 'image') return !!melodySvgMarkup.value;
+    if (showsEngraving.value) return !!melodySvgMarkup.value;
     return notationState.value === 'ready' && notationLyricsDrawn.value;
 });
 
-// Load MusicXML blob from stored files (lazily — only when xml mode is active).
-// Falls back to an on-demand network fetch (stored back into Dexie) when the
-// blob is missing locally.
+// The choice only exists where both engravings do and the page has been
+// enlarged past what it can show. Fall back under the fit width and it goes
+// away again, whatever was chosen — the setting governs nothing else.
+const offerBeyondFit = computed(
+    () => melodyOverflows.value && hasMelodyImage.value && hasMelodyXml.value,
+);
+
+function chooseBeyondFit() {
+    preferencesStore.setNotationBeyondFit(beyondFit.value === 'reflow' ? 'engraving' : 'reflow');
+}
+
+// Load the MusicXML sheet. Falls back to an on-demand network fetch (stored
+// back into Dexie) when the blob is missing locally.
 async function loadMelodyXml() {
     if (!song.value?.notentextMxml) {
         melodyXmlBlob.value = null;
@@ -303,7 +323,9 @@ async function loadMelodyImage() {
     const current = song.value;
     melodySvgMarkup.value = null;
     melodyImageUrl.value = null;
-    if (!current) return;
+    // Nothing to wait for where the song has no engraving at all — and saying
+    // otherwise would put a spinner in front of the notation that IS there.
+    if (!current || !hasMelodyImage.value) return;
 
     imageLoading.value = true;
     try {
@@ -340,24 +362,15 @@ function loadSong() {
         // Reset notation outcome before loading the next song's assets
         notationState.value = 'loading';
         notationLyricsDrawn.value = false;
-        // The renderer drops the engine built for the previous sheet, so the
+        // The melody view drops the engine built for the previous sheet, so the
         // transport has to come back to rest with it — otherwise it would go on
         // showing "Pause" over a song that is not playing.
         resetPlayback();
-        // Load only the active display mode's asset — getOrFetchFileBlob has a
-        // network fallback, so eagerly loading both would spend bandwidth and
-        // quota on the asset the current mode never shows. The
-        // melodyDisplayMode watcher loads the other asset on switch.
-        // Drop the inactive mode's stale asset so a later switch cannot
-        // briefly show the previous song's melody.
-        if (melodyDisplayMode.value === 'xml') {
-            melodySvgMarkup.value = null;
-            melodyImageUrl.value = null;
-            loadMelodyXml();
-        } else {
-            melodyXmlBlob.value = null;
-            loadMelodyImage();
-        }
+        // Both assets, every time: the engraving is what is shown and the sheet
+        // is what the playback is clocked by, so neither is optional any more.
+        melodyXmlBlob.value = null;
+        loadMelodyImage();
+        loadMelodyXml();
     }
 }
 
@@ -382,22 +395,6 @@ watch(
         }
     },
 );
-
-// Reload assets when display mode changes
-watch(melodyDisplayMode, () => {
-    notationState.value = 'loading';
-    notationLyricsDrawn.value = false;
-    // Switching to the Notenbild unmounts the renderer that owns the audio, so
-    // the transport — and with it the platform's controls — has to come to rest
-    // too. Left alone, the lock screen would go on offering "Pause" for a
-    // player that no longer exists.
-    resetPlayback();
-    if (melodyDisplayMode.value === 'image') {
-        loadMelodyImage();
-    } else if (melodyDisplayMode.value === 'xml') {
-        loadMelodyXml();
-    }
-});
 
 // Everything the transport shows, back at rest. Called wherever the renderer
 // that owns the audio is dropped: another hymn, another notation view.
@@ -434,11 +431,11 @@ function stopPlayback() {
     hasPaused.value = false;
     playbackEngaged.value = false;
     // Call the stop method on the active renderer
-    osmdRendererRef.value?.stop();
+    melodyRef.value?.stop();
 }
 
 function seekPlayback(fraction: number) {
-    osmdRendererRef.value?.seek(fraction);
+    melodyRef.value?.seek(fraction);
 }
 
 function seekToSeconds(seconds: number) {

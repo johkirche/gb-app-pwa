@@ -115,7 +115,25 @@ export interface Playlist {
 }
 
 // Preferences types
+
+/**
+ * @deprecated The melody is the book's own engraving now, and the re-set
+ * notation is only reached by zooming past the fit width — see
+ * NotationBeyondFit. Read once on load to carry an existing setting over.
+ */
 export type MelodyDisplayMode = 'image' | 'xml';
+
+/**
+ * What the melody becomes once it has been enlarged past the width the page can
+ * show — the only point at which the two renderings are both defensible.
+ *
+ * - 'engraving' keeps the book's own setting, pushed sideways
+ * - 'reflow' hands the song to the re-set notation, which breaks the systems
+ *   onto the width there is
+ *
+ * Below the fit width there is nothing to decide and this is not consulted.
+ */
+export type NotationBeyondFit = 'engraving' | 'reflow';
 
 export interface XmlDisplaySettings {
     showMeasureNumbers: boolean;
@@ -144,7 +162,16 @@ export interface PreferencesData {
     notationScale?: number;
     /** @deprecated Read once on load to carry an existing setting over to pageScale. */
     textSize?: 'small' | 'medium' | 'large' | 'xlarge';
-    melodyDisplayMode: MelodyDisplayMode;
+    /** @deprecated Read once on load to carry an existing setting over to notationBeyondFit. */
+    melodyDisplayMode?: MelodyDisplayMode;
+    /**
+     * Undefined until the reader has actually been asked — which only happens
+     * by enlarging a song past the fit width. Until then the default holds and
+     * the setting is not shown anywhere, because there is nothing it would
+     * change; once chosen it appears in Einstellungen, so it can be found again
+     * without zooming back in to look for it.
+     */
+    notationBeyondFit?: NotationBeyondFit;
     xmlSettings?: XmlDisplaySettings;
     /** Optional so records stored before the Gottesdienst tab existed stay valid. */
     serviceTab?: ServiceTabMode;

@@ -67,6 +67,18 @@ export class MidiOutputPlayer implements HymnInstrumentPlayer {
         if (muted) this.panic();
     }
 
+    /**
+     * Nothing to wait for.
+     *
+     * schedule() turns the audio clock's moment into a wall-clock one and sends
+     * the note itself, so this sink never sits behind the audio graph's output
+     * buffer the way the soundfont does. What the instrument at the other end
+     * adds is its own, is a few milliseconds, and is not ours to know.
+     */
+    public outputLatency(): number {
+        return 0;
+    }
+
     public schedule(midiId: number, time: number, notes: NotePlaybackInstruction[]): void {
         if (this.muted) return;
         const channel = this.channelFor(midiId);

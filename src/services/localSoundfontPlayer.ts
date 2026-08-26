@@ -58,6 +58,30 @@ export class LocalSoundfontPlayer implements HymnInstrumentPlayer {
         for (const midiId of this.players.keys()) this.stop(midiId);
     }
 
+    /**
+     * What the machine adds between the graph and the speaker.
+     *
+     * Two segments, and they add up: `baseLatency` is the context's own
+     * buffering, `outputLatency` the buffer between the audio subsystem and
+     * the hardware — the larger of the two, and much larger again over
+     * Bluetooth. standardized-audio-context forwards the first and not the
+     * second, so the native context underneath is asked for it; where that is
+     * out of reach, or the browser has no such reading (Safari, Firefox), the
+     * correction is the smaller half rather than nothing at all.
+     */
+    public outputLatency(): number {
+        const context = this.audioContext as
+            | (IAudioContext & { _nativeAudioContext?: { outputLatency?: number } })
+            | null;
+        if (!context) return 0;
+        const base = typeof context.baseLatency === 'number' ? context.baseLatency : 0;
+        const output = context._nativeAudioContext?.outputLatency;
+        const total = base + (typeof output === 'number' ? output : 0);
+        // A reading this far out is not a latency, it is a bad number — and
+        // holding the mark back by it would be worse than the lead it fixes.
+        return total > 0 && total < 0.5 ? total : Math.min(Math.max(base, 0), 0.5);
+    }
+
     public async load(midiId: number): Promise<void> {
         const instrument = this.instruments.find((i) => i.midiId === midiId);
         if (!instrument) {

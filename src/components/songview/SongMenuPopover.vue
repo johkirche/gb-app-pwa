@@ -96,44 +96,14 @@
                     </div>
                 </div>
 
-                <!-- Melody Settings Group (only shown when relevant) -->
-                <template v-if="hasMelodyImage || hasMelodyXml">
+                <!-- The re-set notation's own settings, offered only while
+                     it is what is on screen. Under the fit width the melody is
+                     the book's engraving, where neither of these changes
+                     anything — and a switch that provably does nothing is worse
+                     than no switch. -->
+                <template v-if="showsReflow && xmlSettings">
                     <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
-                        Noten
-                    </p>
-                    <div class="space-y-4 px-1 py-1">
-                        <div class="flex items-center justify-between gap-3">
-                            <Label for="song-display-mode" class="flex items-center gap-2.5">
-                                <ImageIcon
-                                    class="size-4 shrink-0 text-muted-foreground"
-                                    aria-hidden="true"
-                                />
-                                Notenansicht
-                            </Label>
-                            <Select
-                                :model-value="melodyDisplayMode"
-                                @update:model-value="onDisplayModeChange"
-                            >
-                                <SelectTrigger id="song-display-mode" class="h-9 w-32">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="image" :disabled="!hasMelodyImage">
-                                        Notenbild
-                                    </SelectItem>
-                                    <SelectItem value="xml" :disabled="!hasMelodyXml">
-                                        MusicXML
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- MusicXML-specific Display Settings -->
-                <template v-if="melodyDisplayMode === 'xml' && hasMelodyXml && xmlSettings">
-                    <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
-                        MusicXML Anzeige
+                        Neu gesetzte Noten
                     </p>
                     <div class="space-y-4 px-1 py-1">
                         <div class="flex items-center justify-between gap-3">
@@ -193,17 +163,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 
-import {
-    Church,
-    Image as ImageIcon,
-    Lightbulb,
-    List,
-    ListMusic,
-    Music,
-    Settings,
-    Type,
-} from 'lucide-vue-next';
-import type { AcceptableValue } from 'reka-ui';
+import { Church, Lightbulb, List, ListMusic, Music, Settings, Type } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 
 import { useServiceStore } from '@/stores/service';
@@ -214,25 +174,17 @@ import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 
-import type { MelodyDisplayMode, XmlDisplaySettings } from '@/db';
+import type { XmlDisplaySettings } from '@/db';
 import type { PanelAnchor } from '@/lib/anchor';
 
 const props = defineProps<{
     songId: string;
     showControls: boolean;
-    hasMelodyImage: boolean;
-    hasMelodyXml: boolean;
-    melodyDisplayMode: MelodyDisplayMode;
+    /** Whether the re-set notation is the one on screen */
+    showsReflow: boolean;
     pageScale: number;
     xmlSettings?: XmlDisplaySettings;
     keepScreenAwake: boolean;
@@ -241,7 +193,6 @@ const props = defineProps<{
 const emit = defineEmits<{
     'update:showControls': [value: boolean];
     'update:keepScreenAwake': [value: boolean];
-    'update:melodyDisplayMode': [value: MelodyDisplayMode];
     'update:pageScale': [value: number];
     'update:xmlSetting': [
         payload: {
@@ -272,12 +223,6 @@ async function handleToggleService() {
     } catch (err) {
         console.error('Failed to update the service selection:', err);
         toast.error('Die Auswahl konnte nicht gespeichert werden.');
-    }
-}
-
-function onDisplayModeChange(value: AcceptableValue) {
-    if (value === 'image' || value === 'xml') {
-        emit('update:melodyDisplayMode', value);
     }
 }
 
