@@ -89,6 +89,23 @@ export function noteHead(root: ParentNode, note: number): SVGGraphicsElement | n
     );
 }
 
+/**
+ * Every element the note is drawn from — head, stem, flag, dot, accidental.
+ *
+ * What the highlight is hung on, because a lit head over an unlit stem reads as
+ * half a note. The pieces are found by their shared ordinal rather than by
+ * `data-part`, so the engravings written before that key existed answer with
+ * the one element they have.
+ *
+ * The colour cannot be one rule for all of them: the head, the flag and the dot
+ * are filled glyphs placed as `<use>`, the stem is a stroked line that carries
+ * `fill="none"`. See the stylesheet in SongMelodyImage.
+ */
+export function noteParts(root: ParentNode, note: number): Element[] {
+    if (!isOrdinal(note)) return [];
+    return Array.from(root.querySelectorAll(`[data-note="${note}"]`));
+}
+
 /** Which system a notehead stands in, as the string both it and the rect use. */
 export function systemOf(head: Element | null): string | null {
     return head?.getAttribute('data-system') ?? null;

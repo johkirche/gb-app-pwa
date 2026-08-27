@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     notationMapKind,
     noteHead,
+    noteParts,
     syllables,
     systemOf,
     systemRect,
@@ -81,6 +82,17 @@ describe('reading a note off the map', () => {
 
     it('still finds the head where the ordinal sits on it alone', () => {
         expect(noteHead(LIED_8, 2)?.getAttribute('xlink:href')).toBe('#g3');
+    });
+
+    it('collects the pieces the note is drawn from, for the highlight to take', () => {
+        expect(noteParts(NEW_BATCH, 0).map((part) => part.getAttribute('data-part'))).toEqual([
+            'stem',
+            'head',
+            'dot',
+        ]);
+        // The engravings written before `data-part` have the one element.
+        expect(noteParts(LIED_8, 2)).toHaveLength(1);
+        expect(noteParts(LIED_8, 9)).toEqual([]);
     });
 
     it('answers nothing rather than throwing on an ordinal that is not one', () => {

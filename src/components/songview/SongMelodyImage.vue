@@ -65,6 +65,7 @@ import {
     type NotationMark,
     notationMapKind,
     noteHead,
+    noteParts,
     syllables,
     systemOf,
     systemRect,
@@ -152,9 +153,13 @@ function mark(next: NotationMark | null) {
     if (!props.highlightNotes) {
         clearInk();
     } else {
+        // The whole note, not the head alone: the engraver draws it from a head,
+        // a stem and whatever flag or dot it carries, and all of them answer to
+        // its ordinal.
+        const parts = noteParts(host, next.note);
         for (const element of litNotes) element.classList.remove(ACTIVE_CLASS);
-        head.classList.add(ACTIVE_CLASS);
-        litNotes = [head];
+        litNotes = parts;
+        for (const element of parts) element.classList.add(ACTIVE_CLASS);
 
         const verse = verseForPass(versesAtNote(host, next.note), next.pass);
         const sung = syllables(host, next.note, verse);
@@ -285,9 +290,20 @@ defineExpose({ mark, clearMark, sweep, refresh });
    are named through their map attribute as well as the class: the ink rule
    above is a two-part selector too, and an even fight would be settled by
    source order rather than by what the rule means. */
-.noten-svg :deep([data-note].gb-play-active),
+.noten-svg :deep([data-note].gb-play-active:not([data-part='stem'])),
 .noten-svg :deep([data-lyric].gb-play-active) {
     fill: var(--gold);
     transition: fill 90ms linear;
+}
+
+/* The stem is the one piece of a note that is drawn rather than placed: a
+   stroked line carrying `fill="none"`, which the fill above cannot reach. It is
+   held out of that rule instead of merely added here, because a colour set on a
+   `<use>` reaches the glyph in `<defs>` — and a stroke there would be laid on in
+   the glyph's own coordinates, some fifteen times scaled up, thickening every
+   lit notehead into a blot. */
+.noten-svg :deep([data-part='stem'].gb-play-active) {
+    stroke: var(--gold);
+    transition: stroke 90ms linear;
 }
 </style>

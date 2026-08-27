@@ -43,6 +43,7 @@ const ENGRAVING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 249.44 1
 const GROUPED_ENGRAVING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 249.44 130.24">
     <path id="s0" d="M0 0" fill="none" stroke="#000000" data-note="0" data-system="0" data-part="stem"/>
     <use id="h0" data-note="0" data-system="0" data-part="head"/>
+    <use id="d0" data-note="0" data-system="0" data-part="dot"/>
     <path id="s1" d="M0 0" fill="none" stroke="#000000" data-note="1" data-system="0" data-part="stem"/>
     <use id="h1" data-note="1" data-system="0" data-part="head"/>
     <path id="v1a" d="M0 0" data-lyric="0" data-verse="1"/>
@@ -122,14 +123,23 @@ describe('SongMelodyImage – following a song across the engraving', () => {
         expect(lit(wrapper)).toEqual([]);
     });
 
-    // The batch that grouped a note's pieces put the stem first in the document,
-    // and first-match handed that back: a stroked path with `fill="none"`, where
-    // the gold has nothing to paint. The head is what must be lit.
-    it('lights the head of a note drawn from several pieces, not its stem', () => {
+    // The batch that grouped a note's pieces is what the whole note is lit from:
+    // stem, head and dot all answer to the ordinal, and lighting the head alone
+    // left the rest of the note in the page's ink.
+    it('lights every piece the note is drawn from, stem and all', () => {
         const wrapper = notenbild(GROUPED_ENGRAVING);
         wrapper.vm.mark({ note: 0, next: 1, pass: 0, follow: false });
 
-        expect(lit(wrapper)).toEqual(['h0', 'v1a']);
+        expect(lit(wrapper)).toEqual(['s0', 'h0', 'd0', 'v1a']);
+    });
+
+    it('lets go of every piece again when the next note sounds', () => {
+        const wrapper = notenbild(GROUPED_ENGRAVING);
+
+        wrapper.vm.mark({ note: 0, next: 1, pass: 0, follow: false });
+        wrapper.vm.mark({ note: 1, next: null, pass: 0, follow: false });
+
+        expect(lit(wrapper)).toEqual(['s1', 'h1', 'v1b']);
     });
 
     it('shows an unmapped engraving plainly rather than reaching into it', () => {
