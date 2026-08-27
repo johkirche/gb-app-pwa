@@ -13,6 +13,10 @@ import {
 // A Notenbild in miniature, shaped like the ones gb-scripts writes: noteheads
 // placed as <use>, syllables as their own <path>, and one invisible <rect> per
 // system laid over the staff lines.
+//
+// LIED_8 is written in the older shape, where the ordinal sits on the head
+// alone; NEW_BATCH is the shape the engraver writes now, where stem, flag, dot
+// and head all repeat it.
 function engraving(body: string): Element {
     const source = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 249.44 130.24">${body}</svg>`;
     return new DOMParser().parseFromString(source, 'image/svg+xml').documentElement;
@@ -30,6 +34,15 @@ const LIED_8 = engraving(`
         <rect data-system="0" x="4.24" y="8.36" width="240.96" height="15.24"/>
         <rect data-system="1" x="4.24" y="66.8" width="240.96" height="15.24"/>
     </g>
+`);
+
+// The pieces of one note, in the order the engraver draws them: the stem lands
+// before the head it hangs off, and the dot after both.
+const NEW_BATCH = engraving(`
+    <path d="M0 0" fill="none" stroke="#000000" data-note="0" data-system="0" data-part="stem"/>
+    <use xlink:href="#head" data-note="0" data-system="0" data-part="head"/>
+    <use xlink:href="#dot" data-note="0" data-system="0" data-part="dot"/>
+    <use xlink:href="#head" data-note="1" data-system="0" data-part="head"/>
 `);
 
 describe('notationMapKind', () => {
@@ -53,6 +66,21 @@ describe('reading a note off the map', () => {
         expect(head?.getAttribute('xlink:href')).toBe('#g3');
         expect(systemOf(head)).toBe('1');
         expect(systemRect(LIED_8, '1')?.getAttribute('y')).toBe('66.8');
+    });
+
+    // The regression the batch with grouped noteheads brought: every piece of a
+    // note repeats its ordinal, and the stem is drawn first. Lit, that stem
+    // paints nothing — it is stroked, with `fill="none"` — and the band would be
+    // measured off a tall thin box beside the head.
+    it('takes the head out of the pieces the note is drawn from, not the first of them', () => {
+        const head = noteHead(NEW_BATCH, 0);
+
+        expect(head?.getAttribute('data-part')).toBe('head');
+        expect(systemOf(head)).toBe('0');
+    });
+
+    it('still finds the head where the ordinal sits on it alone', () => {
+        expect(noteHead(LIED_8, 2)?.getAttribute('xlink:href')).toBe('#g3');
     });
 
     it('answers nothing rather than throwing on an ordinal that is not one', () => {

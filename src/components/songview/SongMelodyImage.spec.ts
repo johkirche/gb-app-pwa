@@ -38,6 +38,20 @@ const ENGRAVING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 249.44 1
     </g>
 </svg>`;
 
+// The same three notes as the engraver writes them now: each note drawn from
+// several elements, all repeating its ordinal, the stem before the head.
+const GROUPED_ENGRAVING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 249.44 130.24">
+    <path id="s0" d="M0 0" fill="none" stroke="#000000" data-note="0" data-system="0" data-part="stem"/>
+    <use id="h0" data-note="0" data-system="0" data-part="head"/>
+    <path id="s1" d="M0 0" fill="none" stroke="#000000" data-note="1" data-system="0" data-part="stem"/>
+    <use id="h1" data-note="1" data-system="0" data-part="head"/>
+    <path id="v1a" d="M0 0" data-lyric="0" data-verse="1"/>
+    <path id="v1b" d="M0 0" data-lyric="1" data-verse="1"/>
+    <g class="gb-systeme" fill="none" stroke="none">
+        <rect data-system="0" x="4.24" y="8.36" width="240.96" height="15.24"/>
+    </g>
+</svg>`;
+
 function notenbild(svgMarkup: string | null = ENGRAVING) {
     return mount(SongMelodyImage, {
         props: {
@@ -106,6 +120,16 @@ describe('SongMelodyImage – following a song across the engraving', () => {
         await wrapper.setProps({ highlightNotes: false });
 
         expect(lit(wrapper)).toEqual([]);
+    });
+
+    // The batch that grouped a note's pieces put the stem first in the document,
+    // and first-match handed that back: a stroked path with `fill="none"`, where
+    // the gold has nothing to paint. The head is what must be lit.
+    it('lights the head of a note drawn from several pieces, not its stem', () => {
+        const wrapper = notenbild(GROUPED_ENGRAVING);
+        wrapper.vm.mark({ note: 0, next: 1, pass: 0, follow: false });
+
+        expect(lit(wrapper)).toEqual(['h0', 'v1a']);
     });
 
     it('shows an unmapped engraving plainly rather than reaching into it', () => {

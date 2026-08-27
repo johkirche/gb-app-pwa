@@ -7,9 +7,10 @@
  * breaks, how a bar is split, where a syllable sits:
  *
  * - `data-note` — the ordinal of the note's `<note>` in the MusicXML, in
- *   document order, rests skipped, counted from 0. On the notehead.
- * - `data-system` — the system that notehead stands in, running on across the
- *   pages of a multi-page song. On the notehead, and on an invisible `<rect>`
+ *   document order, rests skipped, counted from 0. On every element the note is
+ *   drawn from, not on the notehead alone — see `data-part`.
+ * - `data-system` — the system the note stands in, running on across the pages
+ *   of a multi-page song. On those same elements, and on an invisible `<rect>`
  *   laid over that system's five staff lines.
  * - `data-lyric` — **the ordinal of the note a syllable is sung on**, not a
  *   syllable count of its own. One number therefore keys both a notehead and
@@ -17,6 +18,9 @@
  * - `data-verse` — the MusicXML `number` of the syllable's verse, as the
  *   string it is written as ("1", "2", "3"). Not the optical row from the top:
  *   Lied 121 sets a short third verse between the first and the second.
+ * - `data-part` — which piece of a note this element draws: `head`, `stem`,
+ *   `flag`, `dot` or `accidental`. All of them repeat the note's `data-note`,
+ *   so the head is the one piece that has to be asked for by name.
  *
  * Neither key is written unless it could be checked against the MusicXML, so
  * both are missing from some songs — and one can be there without the other.
@@ -65,10 +69,24 @@ function isOrdinal(value: number): boolean {
     return Number.isInteger(value) && value >= 0;
 }
 
-/** The notehead of a note, or null where this song carries no note map. */
+/**
+ * The notehead of a note, or null where this song carries no note map.
+ *
+ * Named through `data-part`, never taken as the first `data-note` in the
+ * document: the pieces of one note all carry its ordinal, and the engraver
+ * draws the stem before the head. First-match would hand back that stem for
+ * three notes in four — a stroked path with `fill="none"`, where the highlight
+ * has no fill to paint and the band would be measured off the wrong box.
+ *
+ * The bare fallback is for the engravings written before `data-part` existed,
+ * where the ordinal sits on the head alone.
+ */
 export function noteHead(root: ParentNode, note: number): SVGGraphicsElement | null {
     if (!isOrdinal(note)) return null;
-    return root.querySelector<SVGGraphicsElement>(`[data-note="${note}"]`);
+    return (
+        root.querySelector<SVGGraphicsElement>(`[data-note="${note}"][data-part="head"]`) ??
+        root.querySelector<SVGGraphicsElement>(`[data-note="${note}"]`)
+    );
 }
 
 /** Which system a notehead stands in, as the string both it and the rect use. */
