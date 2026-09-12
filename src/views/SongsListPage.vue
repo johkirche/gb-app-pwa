@@ -238,6 +238,14 @@
             :anchor="songAnchor"
         />
 
+        <!-- Which verses this service sings -->
+        <ServiceVersePanel
+            :is-open="showVersePanel"
+            :song="selectedSong"
+            :anchor="songAnchor"
+            @close="showVersePanel = false"
+        />
+
         <!-- Playlist Select -->
         <PlaylistSelectModal
             :is-open="showPlaylistModal"
@@ -260,6 +268,7 @@ import {
     CloudDownload,
     Heart,
     ListMusic,
+    ListOrdered,
     Music,
     Search,
 } from 'lucide-vue-next';
@@ -279,6 +288,7 @@ import { useSongFiltering } from '@/composables/useSongFiltering';
 import { SORT_OPTIONS, useSongSorting } from '@/composables/useSongSorting';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
+import ServiceVersePanel from '@/components/service/ServiceVersePanel.vue';
 import PullToRefreshIndicator from '@/components/shell/PullToRefreshIndicator.vue';
 import IndexScroll from '@/components/songlist/IndexScroll.vue';
 import SongFilterPanel from '@/components/songlist/SongFilterPanel.vue';
@@ -291,6 +301,7 @@ import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 
 import type { Category } from '@/db';
 import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
+import { formatVerseNumbers } from '@/services/servicePlans';
 import { pickSongOfTheWeek } from '@/utils/songOfTheWeek';
 
 const songsStore = useSongsStore();
@@ -438,7 +449,14 @@ const activeSection = ref<string>('');
 const showSongActions = ref(false);
 const songAnchor = ref<PanelAnchor>(null);
 const showPlaylistModal = ref(false);
+const showVersePanel = ref(false);
 const selectedSongId = ref<string>('');
+
+// The song the action sheet is about — the Strophenwahl needs the record, not
+// just the id, and the sheet's own entries need to know how long the hymn is.
+const selectedSong = computed(
+    () => songs.value.find((song) => song.id === selectedSongId.value) ?? null,
+);
 
 // Toolbar buttons toggle their panel, so a second click closes it again
 function toggleFilters(anchor: PanelAnchor) {
@@ -507,6 +525,10 @@ const sortSheetActions = computed<ActionSheetAction[]>(() => [
 const songSheetActions = computed<ActionSheetAction[]>(() => {
     const isFav = selectedSongId.value ? favoritesStore.isFavorite(selectedSongId.value) : false;
     const isInService = selectedSongId.value ? serviceStore.isInPlan(selectedSongId.value) : false;
+    // A hymn of one verse has nothing to choose, so marking it stays one tap.
+    const canChooseVerses = (selectedSong.value?.strophen.length ?? 0) > 1;
+    const verses = selectedSongId.value ? serviceStore.versesFor(selectedSongId.value) : null;
+
     return [
         {
             label: isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
@@ -517,13 +539,32 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
                 }
             },
         },
-        {
-            label: isInService ? 'Aus Gottesdienst entfernen' : 'Für Gottesdienst vormerken',
-            icon: Church,
-            handler: () => {
-                if (selectedSongId.value) toggleService(selectedSongId.value);
-            },
-        },
+        // Marking a song and saying which of its verses are sung are one act:
+        // this opens the Strophenwahl, which does the marking when it is saved.
+        // Once the song is on the plan the same row changes the choice, and
+        // removing it becomes a row of its own.
+        ...(!isInService || canChooseVerses
+            ? [
+                  {
+                      label: isInService
+                          ? verses
+                              ? `Strophen wählen · ${formatVerseNumbers(verses)}`
+                              : 'Strophen wählen'
+                          : 'Für Gottesdienst vormerken',
+                      icon: isInService ? ListOrdered : Church,
+                      handler: () => markForService(canChooseVerses),
+                  },
+              ]
+            : []),
+        ...(isInService
+            ? [
+                  {
+                      label: 'Aus Gottesdienst entfernen',
+                      icon: Church,
+                      handler: () => removeFromService(),
+                  },
+              ]
+            : []),
         {
             label: 'Zu Playlist hinzufügen',
             icon: ListMusic,
@@ -539,14 +580,30 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
 });
 
 // The Gottesdienst tab appears with the first song marked, so the toast is
-// what explains where the song just went.
-async function toggleService(songId: string) {
+// what explains where the song just went. Where there are verses to choose the
+// Strophenwahl takes over from here and confirms it itself.
+async function markForService(canChooseVerses: boolean) {
+    if (!selectedSongId.value) return;
+
+    if (canChooseVerses) {
+        showVersePanel.value = true;
+        return;
+    }
+
     try {
-        const marked = await serviceStore.toggleSong(songId);
-        toast.success(
-            marked ? 'Für den Gottesdienst vorgemerkt' : 'Aus dem Gottesdienst entfernt',
-            { duration: 2000 },
-        );
+        await serviceStore.markSong(selectedSongId.value);
+        toast.success('Für den Gottesdienst vorgemerkt', { duration: 2000 });
+    } catch (err) {
+        console.error('Failed to update the service selection:', err);
+        toast.error('Die Auswahl konnte nicht gespeichert werden.');
+    }
+}
+
+async function removeFromService() {
+    if (!selectedSongId.value) return;
+    try {
+        await serviceStore.removeSong(selectedSongId.value);
+        toast.success('Aus dem Gottesdienst entfernt', { duration: 2000 });
     } catch (err) {
         console.error('Failed to update the service selection:', err);
         toast.error('Die Auswahl konnte nicht gespeichert werden.');

@@ -47,6 +47,15 @@ export function entriesFromSongIds(songIds: string[]): ServiceEntry[] {
     return songIds.map((songId) => ({ songId }));
 }
 
+/**
+ * A plain copy of one entry. `verses` is copied out rather than carried along:
+ * an entry read back from the store hands out the reactive proxy Vue wrapped
+ * its array in, and Dexie cannot structured-clone that (DataCloneError).
+ */
+export function toPlainEntry(entry: ServiceEntry): ServiceEntry {
+    return { ...entry, verses: entry.verses ? [...entry.verses] : entry.verses };
+}
+
 /** Turn a draft into a storable plan. Its expiry always follows its date. */
 export function createPlan(
     draft: ServicePlanDraft,
@@ -59,7 +68,7 @@ export function createPlan(
         id: crypto.randomUUID(),
         title: draft.title.trim() || DEFAULT_SERVICE_TITLE,
         date,
-        entries: draft.entries.map((entry) => ({ ...entry })),
+        entries: draft.entries.map(toPlainEntry),
         expiresAt: endOfDay(date, now),
         origin: options.origin ? { ...options.origin } : null,
         createdAt: now,
@@ -75,7 +84,7 @@ export function createPlan(
 export function toPlainPlan(plan: ServicePlan): ServicePlan {
     return {
         ...plan,
-        entries: plan.entries.map((entry) => ({ ...entry })),
+        entries: plan.entries.map(toPlainEntry),
         origin: plan.origin ? { ...plan.origin } : null,
         createdAt: new Date(plan.createdAt),
         updatedAt: new Date(plan.updatedAt),

@@ -5,6 +5,7 @@
                 <SongMenuPopover
                     v-model:show-controls="showControls"
                     :song-id="songId"
+                    :song="song"
                     :shows-reflow="hasMelodyXml && !showsEngraving"
                     :page-scale="pageScale"
                     :xml-settings="xmlSettings"
@@ -111,13 +112,29 @@
                     <span>Keine Melodie verfügbar</span>
                 </div>
 
+                <!-- Which verses this service sings, said once above them —
+                     without it the pale verses below are an unexplained defect
+                     rather than the order of service. Only shown where a choice
+                     was actually made; the whole hymn says nothing. -->
+                <p
+                    v-if="serviceVerseHint"
+                    class="verse-col mb-5 flex items-center justify-center gap-2 text-center"
+                >
+                    <Church class="size-3.5 shrink-0 text-gold" aria-hidden="true" />
+                    <span class="label-micro text-gold">{{ serviceVerseHint }}</span>
+                </p>
+
                 <!-- Song Verses: verse 1 is left out while the notation on
                      screen already carries it under its notes — the vector
                      Notenbild always, the MusicXML view whenever "Liedtext
-                     unter Noten" is on -->
+                     unter Noten" is on. A verse 1 this service does not sing is
+                     the exception: the engraving prints it regardless, so the
+                     list keeps it and shows it pale, which is the only place
+                     that can say so. -->
                 <SongVerses
                     :strophes="song.strophen"
-                    :skip-first="lyricsInNotation"
+                    :skip-first="lyricsInNotation && isVerseSung(serviceVerses, 1)"
+                    :sung-verses="serviceVerses"
                     :scale="pageScale"
                 />
 
@@ -153,11 +170,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 
-import { Music } from 'lucide-vue-next';
+import { Church, Music } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 
 import { usePreferencesStore } from '@/stores/preferences';
+import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
 import {
@@ -178,6 +196,7 @@ import SongMenuPopover from '@/components/songview/SongMenuPopover.vue';
 import SongVerses from '@/components/songview/SongVerses.vue';
 
 import type { Song } from '@/db';
+import { type VerseSelection, formatVerseSelection, isVerseSung } from '@/services/servicePlans';
 import { authorFilterName } from '@/utils/authorFormat';
 import { sanitizeNotationSvg } from '@/utils/notationSvg';
 
@@ -263,6 +282,22 @@ const lyricsInNotation = computed(() => {
     if (showsEngraving.value) return !!melodySvgMarkup.value;
     return notationState.value === 'ready' && notationLyricsDrawn.value;
 });
+
+// --- Which verses this service sings ---------------------------------------
+//
+// Read from the plan rather than from how the page was reached: a hymn marked
+// for today is marked whether it is opened from the Gottesdienst tab, from the
+// list or out of a search, and the verses the congregation skips are the same
+// ones either way.
+const serviceStore = useServiceStore();
+
+const serviceVerses = computed<VerseSelection>(() => serviceStore.versesFor(songId.value));
+
+const serviceVerseHint = computed(() =>
+    serviceVerses.value
+        ? `Gottesdienst · ${formatVerseSelection(serviceVerses.value, song.value?.strophen.length)}`
+        : '',
+);
 
 // The choice only exists where both engravings do and the page has been
 // enlarged past what it can show. Fall back under the fit width and it goes

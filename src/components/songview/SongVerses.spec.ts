@@ -67,3 +67,33 @@ describe('SongVerses – Umbrüche der Erfassung', () => {
         expect(gesetzt('Ad¬vent will es\nnun wer¬den')).toBe('Advent will es nun werden');
     });
 });
+
+// Die Strophen, die dieser Gottesdienst nicht singt, bleiben stehen – sie
+// treten nur zurück. Gezählt wird dabei nach der gedruckten Nummer.
+describe('SongVerses – Strophen dieses Gottesdienstes', () => {
+    const dreiStrophen = [{ text: 'Erste' }, { text: 'Zweite' }, { text: 'Dritte' }];
+
+    function zeilen(sungVerses?: number[] | null) {
+        return mount(SongVerses, { props: { strophes: dreiStrophen, sungVerses } }).findAll(
+            '.verse-row',
+        );
+    }
+
+    it('lässt ohne Auswahl jede Strophe stehen wie bisher', () => {
+        expect(zeilen().every((zeile) => !zeile.classes('verse-unsung'))).toBe(true);
+        expect(zeilen(null).every((zeile) => !zeile.classes('verse-unsung'))).toBe(true);
+    });
+
+    it('nimmt die nicht gewählten Strophen zurück, ohne sie zu verstecken', () => {
+        const reihen = zeilen([1, 3]);
+        expect(reihen.map((zeile) => zeile.classes('verse-unsung'))).toEqual([false, true, false]);
+        // Verschwunden ist nichts: der Text steht weiter da.
+        expect(reihen[1].text()).toContain('Zweite');
+    });
+
+    it('sagt Vorlesegeräten, was das blasse Grau bedeutet', () => {
+        const reihen = zeilen([1, 3]);
+        expect(reihen[1].find('.sr-only').exists()).toBe(true);
+        expect(reihen[0].find('.sr-only').exists()).toBe(false);
+    });
+});

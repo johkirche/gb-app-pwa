@@ -7,5 +7,6 @@ registerServicePlanProvider(playlistServicePlanProvider);
 
 export * from './plan';
 export * from './providers';
+export * from './verses';
 export type * from './types';
 export { playlistServicePlanProvider };

@@ -35,8 +35,14 @@
                         </span>
                         <span>{{ song.titel }}</span>
                     </span>
+                    <!-- Which verses this service sings, where that was
+                         narrowed down. The whole hymn says nothing: a line
+                         under every row would only be noise. -->
+                    <span v-if="verseLabels?.[song.id]" class="label-micro mt-0.5 block text-gold">
+                        {{ verseLabels[song.id] }}
+                    </span>
                     <span
-                        v-if="formatCategories(song.kategorien)"
+                        v-else-if="formatCategories(song.kategorien)"
                         class="label-micro mt-0.5 block text-muted-foreground"
                     >
                         {{ formatCategories(song.kategorien) }}
@@ -65,6 +71,12 @@ import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 const props = defineProps<{
     songs: Song[];
     reorderMode: boolean;
+    /**
+     * Per song id, the verses this service sings („Strophen 1–3 und 5") — only
+     * for the songs where a choice was actually made. Passed in already
+     * phrased: the row renders what the plan says, it does not read the plan.
+     */
+    verseLabels?: Record<string, string>;
 }>();
 
 const emit = defineEmits<{

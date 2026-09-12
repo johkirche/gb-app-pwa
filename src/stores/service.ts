@@ -6,11 +6,13 @@ import { type ServicePlan, type ServicePlanOrigin, db } from '@/db';
 import {
     DEFAULT_SERVICE_TITLE,
     type ServicePlanDraft,
+    type VerseSelection,
     createPlan,
     endOfDay,
     formatServiceDate,
     getServicePlanProvider,
     isPlanExpired,
+    normalizeVerseSelection,
     toPlainPlan,
     todayIsoDate,
 } from '@/services/servicePlans';
@@ -52,6 +54,14 @@ export const useServiceStore = defineStore('service', () => {
 
     function isInPlan(songId: string): boolean {
         return songIdSet.value.has(songId);
+    }
+
+    /**
+     * Which verses of that song are sung — null for the whole hymn, and for a
+     * song that is not on the plan at all.
+     */
+    function versesFor(songId: string): VerseSelection {
+        return entries.value.find((entry) => entry.songId === songId)?.verses ?? null;
     }
 
     async function write(next: ServicePlan): Promise<ServicePlan> {
@@ -125,25 +135,46 @@ export const useServiceStore = defineStore('service', () => {
         );
     }
 
-    async function addSong(songId: string): Promise<void> {
+    /**
+     * `verses` is sorted and de-duplicated on the way in, but not measured
+     * against the hymn: the store never sees the song. Turning a selection that
+     * covers every verse back into "the whole hymn" is the Strophenwahl's job,
+     * because only it knows how long the hymn is.
+     */
+    async function addSong(songId: string, verses: VerseSelection = null): Promise<void> {
         const current = await ensurePlan();
         if (current.entries.some((entry) => entry.songId === songId)) return;
-        await update({ entries: [...current.entries, { songId }] });
+        await update({
+            entries: [...current.entries, { songId, verses: normalizeVerseSelection(verses) }],
+        });
+    }
+
+    /** Change which verses of a song already on the plan are sung. */
+    async function setVerses(songId: string, verses: VerseSelection): Promise<void> {
+        if (!plan.value) return;
+        if (!plan.value.entries.some((entry) => entry.songId === songId)) return;
+        await update({
+            entries: plan.value.entries.map((entry) =>
+                entry.songId === songId
+                    ? { ...entry, verses: normalizeVerseSelection(verses) }
+                    : entry,
+            ),
+        });
+    }
+
+    /**
+     * What the Strophenwahl saves: put the song on the plan with these verses,
+     * or change the verses of the one that is already on it. One call, because
+     * from the panel it is one decision.
+     */
+    async function markSong(songId: string, verses: VerseSelection = null): Promise<void> {
+        if (isInPlan(songId)) await setVerses(songId, verses);
+        else await addSong(songId, verses);
     }
 
     async function removeSong(songId: string): Promise<void> {
         if (!plan.value) return;
         await update({ entries: plan.value.entries.filter((entry) => entry.songId !== songId) });
-    }
-
-    /** Returns whether the song is on the plan afterwards. */
-    async function toggleSong(songId: string): Promise<boolean> {
-        if (isInPlan(songId)) {
-            await removeSong(songId);
-            return false;
-        }
-        await addSong(songId);
-        return true;
     }
 
     /**
@@ -252,12 +283,14 @@ export const useServiceStore = defineStore('service', () => {
         hasSelection,
         selectionLabel,
         isInPlan,
+        versesFor,
         // Actions
         load,
         ensurePlan,
         addSong,
+        setVerses,
+        markSong,
         removeSong,
-        toggleSong,
         reorder,
         setDate,
         setTitle,

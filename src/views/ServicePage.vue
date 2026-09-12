@@ -114,6 +114,7 @@
                     <ServiceSongsList
                         :songs="songs"
                         :reorder-mode="reorderMode"
+                        :verse-labels="verseLabels"
                         @song-click="(song) => router.push(`/songs/${song.id}`)"
                         @song-context-menu="showSongActions"
                         @reorder="handleReorder"
@@ -154,6 +155,14 @@
             :anchor="songSheetAnchor"
         />
 
+        <!-- Which verses this service sings -->
+        <ServiceVersePanel
+            :is-open="versePanelOpen"
+            :song="songSheetSong"
+            :anchor="songSheetAnchor"
+            @close="versePanelOpen = false"
+        />
+
         <!-- Ready-made plans on offer (playlists today, the backend later) -->
         <ServiceSourcePanel
             :is-open="sourcePanelOpen"
@@ -173,6 +182,7 @@ import {
     EllipsisVertical,
     Import,
     ListMusic,
+    ListOrdered,
     Music,
     Plus,
     Rows3,
@@ -190,6 +200,7 @@ import { useConfirm } from '@/composables/useConfirm';
 
 import ServiceSongsList from '@/components/service/ServiceSongsList.vue';
 import ServiceSourcePanel from '@/components/service/ServiceSourcePanel.vue';
+import ServiceVersePanel from '@/components/service/ServiceVersePanel.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -210,6 +221,7 @@ import {
     collectServicePlanOffers,
     formatExpiryHint,
     formatServiceDate,
+    formatVerseSelection,
     todayIsoDate,
 } from '@/services/servicePlans';
 
@@ -235,6 +247,22 @@ const songs = computed<Song[]>(() => {
 });
 
 const missingCount = computed(() => entryCount.value - songs.value.length);
+
+// Which verses each song is down for, phrased once here. Only the songs whose
+// verses were narrowed down appear — for the rest the plan says the whole hymn,
+// which is what a row with no such line already means.
+const verseLabels = computed<Record<string, string>>(() => {
+    const byId = new Map(songs.value.map((song) => [song.id, song]));
+    const labels: Record<string, string> = {};
+    for (const entry of serviceStore.entries) {
+        if (!entry.verses) continue;
+        labels[entry.songId] = formatVerseSelection(
+            entry.verses,
+            byId.get(entry.songId)?.strophen.length,
+        );
+    }
+    return labels;
+});
 
 const countLabel = computed(() =>
     entryCount.value === 1 ? '1 Lied' : `${entryCount.value} Lieder`,
@@ -356,7 +384,21 @@ const songSheetOpen = ref(false);
 const songSheetSong = ref<Song | null>(null);
 const songSheetAnchor = ref<PanelAnchor>(null);
 
+const versePanelOpen = ref(false);
+
 const songSheetActions = computed<ActionSheetAction[]>(() => [
+    // Offered only where there is something to choose between.
+    ...((songSheetSong.value?.strophen.length ?? 0) > 1
+        ? [
+              {
+                  label: 'Strophen wählen',
+                  icon: ListOrdered,
+                  handler: () => {
+                      versePanelOpen.value = true;
+                  },
+              },
+          ]
+        : []),
     {
         label: 'Aus Gottesdienst entfernen',
         role: 'destructive',

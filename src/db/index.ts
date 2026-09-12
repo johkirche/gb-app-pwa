@@ -227,6 +227,13 @@ export interface ServiceEntry {
     songId: string;
     /** Free note for the entry, e.g. "Eingangslied". */
     note?: string | null;
+    /**
+     * Which verses are sung, as the 1-based numbers the song page prints beside
+     * them. Undefined or null means the whole hymn — which is what every entry
+     * written before the Strophenwahl existed, and every plan adopted from a
+     * provider, says.
+     */
+    verses?: number[] | null;
 }
 
 /** The songs marked for one service. Temporary by design: it expires by itself. */

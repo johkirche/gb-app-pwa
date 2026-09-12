@@ -5,9 +5,18 @@
     <div ref="listRef" class="verse-col mb-8">
         <div ref="rowsRef" class="flex flex-col items-stretch">
             <template v-for="(strophe, idx) in strophes" :key="idx">
-                <div v-if="!(skipFirst && idx === 0)" class="verse-row mb-6 flex items-baseline">
+                <div
+                    v-if="!(skipFirst && idx === 0)"
+                    class="verse-row mb-6 flex items-baseline"
+                    :class="{ 'verse-unsung': !isSung(sungVerses, idx + 1) }"
+                >
                     <span class="verse-number number-display shrink-0">{{ idx + 1 }}.</span>
                     <div class="verse-body flex min-w-0 flex-1 flex-col">
+                        <!-- The dimming is the whole signal on screen; screen
+                             readers get it said. -->
+                        <span v-if="!isSung(sungVerses, idx + 1)" class="sr-only">
+                            Wird in diesem Gottesdienst nicht gesungen:
+                        </span>
                         <!-- text-balance evens the lines out so a verse does
                              not trail off into a single orphaned word -->
                         <p
@@ -31,20 +40,24 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-interface Strophe {
-    text?: string | { strophe?: string };
-    strophe?: string;
-    anmerkung?: string | null;
-}
+import { isVerseSung as isSung } from '@/services/servicePlans';
+import { type VerseLike, verseText } from '@/utils/verses';
 
 const props = defineProps<{
-    strophes: Strophe[];
+    strophes: VerseLike[];
     /**
      * Leave out verse 1 because the notation on screen already carries it
      * under its notes. The remaining verses keep their real numbers — the
      * list is numbered from the index, not from its own position.
      */
     skipFirst?: boolean;
+    /**
+     * The verses this service actually sings, as 1-based numbers. The others
+     * stay on the page — the reader still has to be able to read past them —
+     * but stand back, so nobody sings a verse the congregation skips.
+     * `undefined` or `null` means the whole hymn, which is the normal case.
+     */
+    sungVerses?: number[] | null;
     /**
      * The page's scale, passed only so the centring can re-measure when it
      * changes. The size itself still travels as CSS variables — this component
@@ -53,39 +66,6 @@ const props = defineProps<{
      */
     scale?: number;
 }>();
-
-function getStropheText(strophe: Strophe): string | null | undefined {
-    if (typeof strophe.text === 'object') {
-        return strophe.text?.strophe;
-    }
-    return strophe.text || strophe.strophe;
-}
-
-// The stored verses carry the line breaks of the editorial system — one line
-// per sung line, as the text was captured there. Those breaks are an artefact
-// of the capture, not of the setting: the printed book runs a verse on into its
-// column and breaks it wherever the measure ends, mid sung line as often as not
-// (Lied 6, verse 3: "zur schlichten Krippe / hin"). A single break is therefore
-// dropped here so the verse re-flows the way the book flows it, and the column
-// (.verse-col) is the book's own measure, so it flows to the same shape.
-//
-// A blank line survives as a break. That one was set deliberately — a Kehrvers
-// standing apart from the verse it follows — and it is what `pre-line` on
-// .verse-text is still there for. Rendering as text rather than markup means
-// the CMS field is never interpreted as HTML.
-function verseText(strophe: Strophe): string {
-    const text = getStropheText(strophe);
-    if (typeof text !== 'string') return '';
-    return (
-        text
-            // ¬ marks a syllable break for the engraver, never for the reader
-            .replace(/¬/g, '')
-            .split(/\r?\n[^\S\r\n]*(?:\r?\n)+/)
-            .map((block) => block.replace(/\s*\r?\n\s*/g, ' ').trim())
-            .filter(Boolean)
-            .join('\n')
-    );
-}
 
 // --- Centring the verses under the notation --------------------------------
 //
@@ -203,6 +183,13 @@ onBeforeUnmount(() => {
 
 .verse-number {
     min-width: calc(var(--verse-font-size, 1.125rem) * 1.3333);
+}
+
+/* A verse this service does not sing. It stays legible — somebody will read
+   ahead, and a verse rendered unreadable is a verse the page has hidden — but
+   it recedes far enough that the sung ones are what the eye lands on. */
+.verse-unsung {
+    opacity: 0.4;
 }
 
 /* Per-verse note (anmerkung): slightly smaller than the verse itself */
