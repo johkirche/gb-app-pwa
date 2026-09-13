@@ -107,6 +107,7 @@
                         v-else
                         :entries="entries"
                         :reorder-mode="reorderMode"
+                        :active-entry-id="songSheetOpen ? songSheetEntry?.id : null"
                         @entry-click="(entry) => navigateToSong(entry.id)"
                         @entry-context-menu="showSongActions"
                         @reorder="handleReorder"
@@ -126,12 +127,13 @@
             <Plus class="!size-6" aria-hidden="true" />
         </Button>
 
-        <!-- Song context menu (long-press / right-click) -->
+        <!-- Song context menu (row `⋯` / long-press / right-click) -->
         <ActionSheet
             v-model:open="songSheetOpen"
             :title="songSheetTitle"
             :actions="songSheetActions"
             :anchor="songSheetAnchor"
+            align="end"
         />
 
         <!-- Edit Modal -->

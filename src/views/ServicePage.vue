@@ -54,9 +54,9 @@
                     />
                     <h2 class="mt-4 font-display text-2xl font-semibold">Nichts vorgemerkt</h2>
                     <p class="mt-2 max-w-96 text-sm leading-relaxed text-muted-foreground">
-                        Merken Sie die Lieder dieses Gottesdienstes vor — im Lied selbst oder mit
-                        einem langen Druck auf einen Eintrag in der Liederliste. Sie liegen dann
-                        hier bereit und verschwinden von allein, wenn der Tag vorbei ist.
+                        Merken Sie die Lieder dieses Gottesdienstes vor — im Lied selbst oder über
+                        das Menü eines Eintrags in der Liederliste. Sie liegen dann hier bereit und
+                        verschwinden von allein, wenn der Tag vorbei ist.
                     </p>
                     <div class="mt-6 flex flex-col items-stretch gap-2">
                         <Button @click="router.push('/tabs/lieder')">
@@ -115,6 +115,7 @@
                         :songs="songs"
                         :reorder-mode="reorderMode"
                         :verse-labels="verseLabels"
+                        :active-song-id="songSheetOpen ? songSheetSong?.id : null"
                         @song-click="(song) => router.push(`/songs/${song.id}`)"
                         @song-context-menu="showSongActions"
                         @reorder="handleReorder"
@@ -147,12 +148,13 @@
             </div>
         </main>
 
-        <!-- Song context menu (long-press / right-click) -->
+        <!-- Song context menu (row `⋯` / long-press / right-click) -->
         <ActionSheet
             v-model:open="songSheetOpen"
             :title="songSheetSong?.titel"
             :actions="songSheetActions"
             :anchor="songSheetAnchor"
+            align="end"
         />
 
         <!-- Which verses this service sings -->

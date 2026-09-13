@@ -30,7 +30,7 @@
             <Church class="size-12 text-muted-foreground" stroke-width="1.5" aria-hidden="true" />
             <p class="mt-3 text-sm text-muted-foreground">
                 Es liegt kein fertiger Ablauf vor. Merken Sie die Lieder einzeln vor — im Lied oder
-                über einen langen Druck in der Liste.
+                über das Menü eines Eintrags in der Liste.
             </p>
         </div>
 

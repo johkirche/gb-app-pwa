@@ -102,7 +102,7 @@ import { verseText } from '@/utils/verses';
  * two or three verses of a seven-verse hymn, and until that is written down
  * everybody at the lectern has to remember it. Opening it is therefore how a
  * song is marked at all — the panel does the marking itself, so its three call
- * sites (the song menu, the long press in the list, the Gottesdienst page) have
+ * sites (the song menu, the row menu in the list, the Gottesdienst page) have
  * nothing to repeat.
  */
 const props = defineProps<{

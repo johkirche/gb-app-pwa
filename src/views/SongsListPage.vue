@@ -129,57 +129,70 @@
                             :label="section.label"
                         />
 
-                        <!-- Songs in this section -->
-                        <button
+                        <!-- Songs in this section. The row is a wrapper, not the
+                             button itself: the `⋯` menu trigger has to sit beside
+                             the button that opens the song, never inside it. -->
+                        <div
                             v-for="song in section.songs"
                             :key="song.id"
-                            v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
-                            type="button"
-                            class="song-row group flex w-full select-none items-baseline gap-4 border-b border-border py-3.5 pl-2 pr-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] last:border-b-0 hover:bg-muted active:bg-muted"
+                            class="song-row group flex w-full items-center border-b border-border pr-2 transition-colors last:border-b-0 hover:bg-muted active:bg-muted"
                             :data-section="section.key"
-                            @click="navigateToSong(song.id)"
                             @contextmenu.prevent="openSongActions(song.id, anchorFromEvent($event))"
                         >
-                            <span
-                                class="number-display w-10 shrink-0 text-right text-lg leading-none"
+                            <button
+                                v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
+                                type="button"
+                                class="flex min-w-0 flex-1 select-none items-baseline gap-4 py-3.5 pl-2 text-left [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]"
+                                @click="navigateToSong(song.id)"
                             >
-                                <SearchHighlight
-                                    v-if="song.index"
-                                    :text="String(song.index)"
-                                    :terms="activeSearchTerms"
-                                />
                                 <span
-                                    v-else
-                                    class="inline-block h-1.5 w-1.5 rotate-45 bg-muted-foreground/60"
+                                    class="number-display w-10 shrink-0 text-right text-lg leading-none"
+                                >
+                                    <SearchHighlight
+                                        v-if="song.index"
+                                        :text="String(song.index)"
+                                        :terms="activeSearchTerms"
+                                    />
+                                    <span
+                                        v-else
+                                        class="inline-block h-1.5 w-1.5 rotate-45 bg-muted-foreground/60"
+                                        aria-hidden="true"
+                                    ></span>
+                                </span>
+                                <span class="flex min-w-0 flex-1 flex-col gap-1">
+                                    <span
+                                        class="font-display text-[17px] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
+                                    >
+                                        <SearchHighlight
+                                            :text="song.titel"
+                                            :terms="activeSearchTerms"
+                                        />
+                                    </span>
+                                    <span
+                                        v-if="
+                                            sortMode !== 'category' &&
+                                            formatCategories(song.kategorien)
+                                        "
+                                        class="label-micro text-muted-foreground"
+                                    >
+                                        <SearchHighlight
+                                            :text="formatCategories(song.kategorien)"
+                                            :terms="activeSearchTerms"
+                                        />
+                                    </span>
+                                </span>
+                                <ChevronRight
+                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:translate-x-[3px] group-hover:text-primary"
                                     aria-hidden="true"
-                                ></span>
-                            </span>
-                            <span class="flex min-w-0 flex-1 flex-col gap-1">
-                                <span
-                                    class="font-display text-[17px] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
-                                >
-                                    <SearchHighlight
-                                        :text="song.titel"
-                                        :terms="activeSearchTerms"
-                                    />
-                                </span>
-                                <span
-                                    v-if="
-                                        sortMode !== 'category' && formatCategories(song.kategorien)
-                                    "
-                                    class="label-micro text-muted-foreground"
-                                >
-                                    <SearchHighlight
-                                        :text="formatCategories(song.kategorien)"
-                                        :terms="activeSearchTerms"
-                                    />
-                                </span>
-                            </span>
-                            <ChevronRight
-                                class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:translate-x-[3px] group-hover:text-primary"
-                                aria-hidden="true"
+                                />
+                            </button>
+
+                            <RowActionsTrigger
+                                :label="`Aktionen für ${song.titel}`"
+                                :active="showSongActions && selectedSongId === song.id"
+                                @open="openSongActions(song.id, $event)"
                             />
-                        </button>
+                        </div>
                     </template>
                 </div>
 
@@ -230,12 +243,13 @@
             align="end"
         />
 
-        <!-- Song actions (long-press / right-click menu) -->
+        <!-- Song actions (row `⋯` / long-press / right-click) -->
         <ActionSheet
             v-model:open="showSongActions"
             title="Aktionen"
             :actions="songSheetActions"
             :anchor="songAnchor"
+            align="end"
         />
 
         <!-- Which verses this service sings -->
@@ -295,7 +309,11 @@ import SongFilterPanel from '@/components/songlist/SongFilterPanel.vue';
 import SongSectionHeader from '@/components/songlist/SongSectionHeader.vue';
 import SongToolbar from '@/components/songlist/SongToolbar.vue';
 import { Button } from '@/components/ui/button';
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
+import {
+    ActionSheet,
+    type ActionSheetAction,
+    RowActionsTrigger,
+} from '@/components/ui/responsive-panel';
 import { Spinner } from '@/components/ui/spinner';
 import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 

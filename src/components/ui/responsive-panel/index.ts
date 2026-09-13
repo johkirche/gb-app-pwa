@@ -3,6 +3,7 @@ import type { FunctionalComponent } from 'vue';
 export { default as ActionSheet } from './ActionSheet.vue';
 export { default as PanelTitle } from './PanelTitle.vue';
 export { default as ResponsivePanel } from './ResponsivePanel.vue';
+export { default as RowActionsTrigger } from './RowActionsTrigger.vue';
 export { PANEL_CONTEXT, type PanelContext, type PanelSurface } from './context';
 
 /** One row of an ActionSheet (drop-in replacement for an ion-action-sheet button). */
