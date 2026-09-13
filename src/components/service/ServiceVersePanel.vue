@@ -24,38 +24,40 @@
             </Button>
         </div>
 
-        <p class="px-4 pb-2 pt-1 text-sm leading-snug text-muted-foreground">
-            Gesungen wird, was hier angehakt ist. Die übrigen Strophen stehen im Lied blass, damit
-            sie beim Mitlesen niemanden aus dem Takt bringen.
+        <p class="px-4 pb-1 pt-1 text-sm leading-snug text-muted-foreground">
+            Tippen Sie die Strophen an, die gesungen werden. Die übrigen stehen im Lied blass — so,
+            wie sie hier stehen.
         </p>
 
-        <ul class="px-2">
+        <!-- No control beside the verses: the row is the verse, set the way it
+             will be set in the song. A checkbox would be a second, weaker
+             statement of what the type already makes, in a vocabulary this book
+             does not otherwise speak. -->
+        <ul class="px-3 py-1">
             <li v-for="verse in verses" :key="verse.number">
                 <button
                     type="button"
-                    class="flex w-full items-start gap-3 rounded-sm px-2 py-2.5 text-left transition-colors hover:bg-muted active:bg-muted"
+                    class="flex w-full border-l-2 pr-1 text-left transition-colors hover:bg-muted active:bg-muted"
+                    :class="chosen.has(verse.number) ? 'border-gold' : 'border-transparent'"
                     :aria-pressed="chosen.has(verse.number)"
                     @click="toggle(verse.number)"
                 >
-                    <!-- The checkbox is the state, not the control: the whole
-                         row is the target, which is what a thumb needs on the
-                         lectern. -->
-                    <Checkbox
-                        :model-value="chosen.has(verse.number)"
-                        tabindex="-1"
-                        aria-hidden="true"
-                        class="pointer-events-none mt-1 shrink-0"
-                    />
-                    <span class="number-display min-w-5 shrink-0 text-[15px] leading-6">
-                        {{ verse.number }}.
-                    </span>
+                    <!-- The verse recedes, the row does not: dimming the button
+                         itself would take the tap feedback down with it, and on
+                         a phone that feedback is the only answer a tap gets. -->
                     <span
-                        class="line-clamp-2 min-w-0 flex-1 font-hymnal text-[15px] leading-6"
-                        :class="
-                            chosen.has(verse.number) ? 'text-foreground' : 'text-muted-foreground'
-                        "
+                        class="flex min-w-0 flex-1 items-baseline gap-3 py-2.5 pl-3 transition-opacity"
+                        :class="{ 'opacity-40': !chosen.has(verse.number) }"
                     >
-                        {{ verse.text }}
+                        <span class="number-display min-w-5 shrink-0 text-[15px]">
+                            {{ verse.number }}.
+                        </span>
+                        <!-- Three lines: enough of the verse to know which one
+                             it is, little enough that a seven-verse hymn is
+                             still a list rather than a page to scroll. -->
+                        <span class="line-clamp-3 min-w-0 flex-1 font-hymnal text-[15px] leading-6">
+                            {{ verse.text }}
+                        </span>
                     </span>
                 </button>
             </li>
@@ -82,7 +84,6 @@ import { toast } from 'vue-sonner';
 import { useServiceStore } from '@/stores/service';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { PanelTitle, ResponsivePanel } from '@/components/ui/responsive-panel';
 
 import type { Song } from '@/db';
