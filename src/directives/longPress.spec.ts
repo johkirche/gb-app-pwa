@@ -30,6 +30,7 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.useRealTimers();
+    document.documentElement.classList.remove('viewport-preview');
 });
 
 describe('v-long-press', () => {
@@ -72,6 +73,23 @@ describe('v-long-press', () => {
         vi.advanceTimersByTime(2000);
 
         expect(handler).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The one exception: the dev mobile preview frames the app with a mouse
+     * still on the other side of the glass, and the gesture is what it is
+     * there to rehearse.
+     */
+    it('honours a held mouse button inside the dev viewport preview', () => {
+        document.documentElement.classList.add('viewport-preview');
+
+        const handler = vi.fn();
+        const el = mountRow(handler).element;
+
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        vi.advanceTimersByTime(600);
+
+        expect(handler).toHaveBeenCalledWith(el);
     });
 
     it('swallows the click a long press synthesises, so the row does not also open', () => {

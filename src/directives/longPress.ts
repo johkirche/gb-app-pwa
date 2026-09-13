@@ -3,18 +3,30 @@ import type { Directive, DirectiveBinding } from 'vue';
 interface LongPressHTMLElement extends HTMLElement {
     _longPressTimeout?: ReturnType<typeof setTimeout>;
     _longPressHandler?: (el: HTMLElement) => void;
-    _longPressStart?: (e: TouchEvent) => void;
+    _longPressStart?: (e: TouchEvent | MouseEvent) => void;
     _longPressEnd?: () => void;
 }
 
 const LONG_PRESS_DURATION = 500; // milliseconds
 
 /**
- * Touch only, deliberately. Holding a mouse button down is not how anyone opens
- * a menu on a desktop — it also fires on an idle click-and-hold or the start of
- * a text selection, which is exactly the misfire this used to produce. The
- * pointer equivalents are the row's `⋯` button (see {@link RowActionsTrigger})
- * and the `contextmenu` event the rows also listen for.
+ * The dev mobile preview is an ordinary iframe, so a mouse inside it stays a
+ * mouse and the gesture the frame exists to rehearse would be the one thing
+ * the frame could not show. Honour a held button there — and only there. The
+ * class is set by DevViewportPreview on the framed instance alone, and a
+ * production build drops that component entirely.
+ */
+function isViewportPreview(): boolean {
+    return document.documentElement.classList.contains('viewport-preview');
+}
+
+/**
+ * Touch only, deliberately (bar the preview above). Holding a mouse button down
+ * is not how anyone opens a menu on a desktop — it also fires on an idle
+ * click-and-hold or the start of a text selection, which is exactly the misfire
+ * this used to produce. The pointer equivalents are the row's `⋯` button (see
+ * {@link RowActionsTrigger}) and the `contextmenu` event the rows also listen
+ * for.
  */
 export const longPressDirective: Directive = {
     mounted(el: LongPressHTMLElement, binding: DirectiveBinding<(el: HTMLElement) => void>) {
@@ -27,7 +39,9 @@ export const longPressDirective: Directive = {
 
         el._longPressHandler = binding.value;
 
-        el._longPressStart = (_e: TouchEvent) => {
+        el._longPressStart = (event: TouchEvent | MouseEvent) => {
+            if (event.type === 'mousedown' && !isViewportPreview()) return;
+
             isLongPress = false;
 
             el._longPressTimeout = setTimeout(() => {
@@ -65,6 +79,10 @@ export const longPressDirective: Directive = {
         el.addEventListener('touchend', el._longPressEnd);
         el.addEventListener('touchcancel', el._longPressEnd);
         el.addEventListener('touchmove', el._longPressEnd);
+
+        el.addEventListener('mousedown', el._longPressStart);
+        el.addEventListener('mouseup', el._longPressEnd);
+        el.addEventListener('mouseleave', el._longPressEnd);
     },
 
     unmounted(el: LongPressHTMLElement) {
@@ -74,12 +92,15 @@ export const longPressDirective: Directive = {
 
         if (el._longPressStart) {
             el.removeEventListener('touchstart', el._longPressStart);
+            el.removeEventListener('mousedown', el._longPressStart);
         }
 
         if (el._longPressEnd) {
             el.removeEventListener('touchend', el._longPressEnd);
             el.removeEventListener('touchcancel', el._longPressEnd);
             el.removeEventListener('touchmove', el._longPressEnd);
+            el.removeEventListener('mouseup', el._longPressEnd);
+            el.removeEventListener('mouseleave', el._longPressEnd);
         }
     },
 };
