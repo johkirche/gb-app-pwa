@@ -135,14 +135,17 @@
                         <div
                             v-for="song in section.songs"
                             :key="song.id"
-                            class="song-row group flex w-full items-center border-b border-border pr-2 transition-colors last:border-b-0 hover:bg-muted active:bg-muted"
+                            class="song-row group flex w-full items-center border-b border-border pr-2 transition-colors last:border-b-0 hover:bg-muted active:bg-muted data-[menu-open]:bg-muted"
                             :data-section="section.key"
+                            :data-menu-open="
+                                showSongActions && selectedSongId === song.id ? '' : undefined
+                            "
                             @contextmenu.prevent="openSongActions(song.id, anchorFromEvent($event))"
                         >
                             <button
                                 v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
                                 type="button"
-                                class="flex min-w-0 flex-1 select-none items-baseline gap-4 py-3.5 pl-2 text-left [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]"
+                                class="flex min-w-0 flex-1 select-none items-baseline gap-4 py-3.5 pl-2 pr-2 text-left [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]"
                                 @click="navigateToSong(song.id)"
                             >
                                 <span
@@ -182,12 +185,13 @@
                                     </span>
                                 </span>
                                 <ChevronRight
-                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:translate-x-[3px] group-hover:text-primary"
+                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:text-primary group-data-[menu-open]:text-primary lg:group-hover:-translate-x-7 lg:group-data-[menu-open]:-translate-x-7"
                                     aria-hidden="true"
                                 />
                             </button>
 
                             <RowActionsTrigger
+                                overlay
                                 :label="`Aktionen für ${song.titel}`"
                                 :active="showSongActions && selectedSongId === song.id"
                                 @open="openSongActions(song.id, $event)"
