@@ -18,31 +18,41 @@
         </VisuallyHidden>
 
         <div class="flex flex-col py-1 lg:p-1 lg:pt-0">
-            <button
-                v-for="(action, index) in mainActions"
-                :key="`${action.label}-${index}`"
-                type="button"
-                class="flex h-12 w-full shrink-0 items-center text-[15px] transition-colors hover:bg-muted active:bg-muted lg:h-9 lg:rounded-md lg:text-sm"
-                :class="action.role === 'destructive' ? 'text-destructive' : 'text-foreground'"
-                @click="select(action)"
-            >
-                <!-- Full-width tappable row; on phones the icon + label sit in a
-                     centred fixed-width block so icons form a column and labels
-                     share a start (mirrors the app's 'action-sheet-aligned'
-                     ion-action-sheet styling). In the desktop popover the same
-                     row reads as an ordinary left-aligned menu item. -->
-                <span
-                    class="mx-auto flex w-fit min-w-60 max-w-full items-center gap-3 px-4 lg:mx-0 lg:w-full lg:min-w-0 lg:gap-2.5 lg:px-2"
+            <template v-for="(group, groupIndex) in actionGroups" :key="groupIndex">
+                <!-- Between runs only: the rule is what says the rows above and
+                     below it are about different things. -->
+                <div
+                    v-if="groupIndex > 0"
+                    role="separator"
+                    class="my-1 h-px shrink-0 bg-border lg:-mx-1"
+                ></div>
+
+                <button
+                    v-for="(action, index) in group"
+                    :key="`${action.label}-${index}`"
+                    type="button"
+                    class="flex h-12 w-full shrink-0 items-center text-[15px] transition-colors hover:bg-muted active:bg-muted lg:h-9 lg:rounded-md lg:text-sm"
+                    :class="action.role === 'destructive' ? 'text-destructive' : 'text-foreground'"
+                    @click="select(action)"
                 >
-                    <component
-                        :is="action.icon"
-                        v-if="action.icon"
-                        class="size-5 shrink-0 lg:size-4"
-                        aria-hidden="true"
-                    />
-                    <span class="truncate">{{ action.label }}</span>
-                </span>
-            </button>
+                    <!-- Full-width tappable row; on phones the icon + label sit in a
+                         centred fixed-width block so icons form a column and labels
+                         share a start (mirrors the app's 'action-sheet-aligned'
+                         ion-action-sheet styling). In the desktop popover the same
+                         row reads as an ordinary left-aligned menu item. -->
+                    <span
+                        class="mx-auto flex w-fit min-w-60 max-w-full items-center gap-3 px-4 lg:mx-0 lg:w-full lg:min-w-0 lg:gap-2.5 lg:px-2"
+                    >
+                        <component
+                            :is="action.icon"
+                            v-if="action.icon"
+                            class="size-5 shrink-0 lg:size-4"
+                            aria-hidden="true"
+                        />
+                        <span class="truncate">{{ action.label }}</span>
+                    </span>
+                </button>
+            </template>
         </div>
 
         <!-- A popover dismisses by clicking away or pressing Escape, so the
@@ -90,6 +100,24 @@ const open = defineModel<boolean>('open', { required: true });
 
 const mainActions = computed(() => props.actions.filter((action) => action.role !== 'cancel'));
 const cancelActions = computed(() => props.actions.filter((action) => action.role === 'cancel'));
+
+/**
+ * The rows split into runs of a shared {@link ActionSheetAction.group}. Actions
+ * that name no group fall into one run with their neighbours, so a sheet that
+ * never mentions groups renders exactly as it did before.
+ */
+const actionGroups = computed(() => {
+    const groups: ActionSheetAction[][] = [];
+
+    for (const action of mainActions.value) {
+        const current = groups.at(-1);
+
+        if (current && current[0].group === action.group) current.push(action);
+        else groups.push([action]);
+    }
+
+    return groups;
+});
 
 /** Preserved app semantic (ion-action-sheet parity): run the handler first, then dismiss. */
 function select(action: ActionSheetAction): void {
