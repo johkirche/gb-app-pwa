@@ -1,0 +1,4 @@
+[submodule "directus-extensions/user-register"]
+	path = directus-extensions/user-register
+	url = git@github.com:johkirche/directus-user-register-extension.git
+	branch = feat/account-self-deletion
