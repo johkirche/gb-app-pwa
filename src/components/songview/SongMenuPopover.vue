@@ -14,23 +14,28 @@
             <div class="max-h-[70vh] overflow-y-auto p-3">
                 <!-- Actions Group -->
                 <p class="label-micro px-1 pb-2 pt-1 text-gold">Aktionen</p>
-                <!-- Marking a song and saying which of its verses are sung
-                     are one act, so they are one entry: it opens the
-                     Strophenwahl, which does the marking when it is saved.
-                     Once the song is on the plan the same entry is how the
-                     choice is changed, and removing it becomes its own row. -->
+                <!-- Marking and choosing verses are two errands, not one.
+                     Nearly every Sunday the whole hymn is sung, so marking it
+                     is one tap and asks nothing; the Strophenwahl sits under it
+                     for the rarer Sunday that wants three of seven, and marks
+                     the song itself when it is saved. -->
                 <button
-                    v-if="!isInService || canChooseVerses"
+                    v-if="!isInService"
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="handleMarkForService"
                 >
-                    <component
-                        :is="isInService ? ListOrdered : Church"
-                        class="size-4 shrink-0 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    {{ isInService ? serviceVersesLabel : 'Für Gottesdienst vormerken' }}
+                    <Church class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    Für Gottesdienst vormerken
+                </button>
+                <button
+                    v-if="canChooseVerses"
+                    type="button"
+                    class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
+                    @click="handleChooseVerses"
+                >
+                    <ListOrdered class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    {{ serviceVersesLabel }}
                 </button>
                 <button
                     v-if="isInService"
@@ -249,14 +254,13 @@ const emit = defineEmits<{
 const serviceStore = useServiceStore();
 const isInService = computed(() => serviceStore.isInPlan(props.songId));
 
-// A hymn of one verse has nothing to choose; marking it opens no panel, and
-// the entry that would change the choice is not offered either.
+// A hymn of one verse has nothing to choose, so it is offered no Strophenwahl.
 const verseCount = computed(() => props.song?.strophen?.length ?? 0);
 const canChooseVerses = computed(() => verseCount.value > 1);
 
-/** The entry's label once the song is on the plan: what it currently sings. */
+/** The entry's label: what the song currently sings, once it is on the plan. */
 const serviceVersesLabel = computed(() => {
-    const selection = serviceStore.versesFor(props.songId);
+    const selection = isInService.value ? serviceStore.versesFor(props.songId) : null;
     return selection ? `Strophen wählen · ${formatVerseNumbers(selection)}` : 'Strophen wählen';
 });
 
@@ -267,17 +271,9 @@ const showPlaylistModal = ref(false);
 const showVersePanel = ref(false);
 
 // Marking from inside the song is the fastest path during a service, so the
-// menu gets out of the way again straight after. Where there are verses to
-// choose the Strophenwahl takes over from here and confirms it itself.
+// menu gets out of the way again straight after.
 async function handleMarkForService() {
     menuOpen.value = false;
-
-    if (canChooseVerses.value) {
-        // Let the popover's focus trap release before the panel takes over.
-        await nextTick();
-        showVersePanel.value = true;
-        return;
-    }
 
     try {
         await serviceStore.markSong(props.songId);
@@ -286,6 +282,14 @@ async function handleMarkForService() {
         console.error('Failed to update the service selection:', err);
         toast.error('Die Auswahl konnte nicht gespeichert werden.');
     }
+}
+
+// The Strophenwahl confirms itself, and marks the song if it is not on the
+// plan yet. Let the popover's focus trap release before it takes over.
+async function handleChooseVerses() {
+    menuOpen.value = false;
+    await nextTick();
+    showVersePanel.value = true;
 }
 
 async function handleRemoveFromService() {

@@ -547,34 +547,60 @@ const sortSheetActions = computed<ActionSheetAction[]>(() => [
 const songSheetActions = computed<ActionSheetAction[]>(() => {
     const isFav = selectedSongId.value ? favoritesStore.isFavorite(selectedSongId.value) : false;
     const isInService = selectedSongId.value ? serviceStore.isInPlan(selectedSongId.value) : false;
-    // A hymn of one verse has nothing to choose, so marking it stays one tap.
+    // A hymn of one verse has nothing to choose, so it is offered no Strophenwahl.
     const canChooseVerses = (selectedSong.value?.strophen.length ?? 0) > 1;
     const verses = selectedSongId.value ? serviceStore.versesFor(selectedSongId.value) : null;
 
+    // Two subjects, drawn as two blocks. Favoriten and Playlisten are the
+    // reader's own shelves, kept for as long as they like; the Gottesdienst
+    // rows speak for one service and clear themselves when the day is over.
+    // Telling one from the other at a glance is the whole point of the rule
+    // between them.
     return [
         {
             label: isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
             icon: isFav ? HeartFilled : Heart,
+            group: 'collection',
             handler: () => {
                 if (selectedSongId.value) {
                     favoritesStore.toggleFavorite(selectedSongId.value);
                 }
             },
         },
-        // Marking a song and saying which of its verses are sung are one act:
-        // this opens the Strophenwahl, which does the marking when it is saved.
-        // Once the song is on the plan the same row changes the choice, and
-        // removing it becomes a row of its own.
-        ...(!isInService || canChooseVerses
+        {
+            label: 'Zu Playlist hinzufügen',
+            icon: ListMusic,
+            group: 'collection',
+            handler: () => {
+                showPlaylistModal.value = true;
+            },
+        },
+        // Marking and choosing verses are two errands, not one. Nearly every
+        // Sunday the whole hymn is sung, so marking it is one tap and asks
+        // nothing; the Strophenwahl sits under it for the rarer Sunday that
+        // wants three of seven, and marks the song itself when it is saved.
+        ...(!isInService
             ? [
                   {
-                      label: isInService
-                          ? verses
+                      label: 'Für Gottesdienst vormerken',
+                      icon: Church,
+                      group: 'service',
+                      handler: () => markForService(),
+                  },
+              ]
+            : []),
+        ...(canChooseVerses
+            ? [
+                  {
+                      label:
+                          isInService && verses
                               ? `Strophen wählen · ${formatVerseNumbers(verses)}`
-                              : 'Strophen wählen'
-                          : 'Für Gottesdienst vormerken',
-                      icon: isInService ? ListOrdered : Church,
-                      handler: () => markForService(canChooseVerses),
+                              : 'Strophen wählen',
+                      icon: ListOrdered,
+                      group: 'service',
+                      handler: () => {
+                          showVersePanel.value = true;
+                      },
                   },
               ]
             : []),
@@ -583,17 +609,11 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
                   {
                       label: 'Aus Gottesdienst entfernen',
                       icon: Church,
+                      group: 'service',
                       handler: () => removeFromService(),
                   },
               ]
             : []),
-        {
-            label: 'Zu Playlist hinzufügen',
-            icon: ListMusic,
-            handler: () => {
-                showPlaylistModal.value = true;
-            },
-        },
         {
             label: 'Abbrechen',
             role: 'cancel' as const,
@@ -602,15 +622,9 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
 });
 
 // The Gottesdienst tab appears with the first song marked, so the toast is
-// what explains where the song just went. Where there are verses to choose the
-// Strophenwahl takes over from here and confirms it itself.
-async function markForService(canChooseVerses: boolean) {
+// what explains where the song just went.
+async function markForService() {
     if (!selectedSongId.value) return;
-
-    if (canChooseVerses) {
-        showVersePanel.value = true;
-        return;
-    }
 
     try {
         await serviceStore.markSong(selectedSongId.value);
