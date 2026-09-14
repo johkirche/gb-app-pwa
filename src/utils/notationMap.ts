@@ -116,6 +116,22 @@ export function systemRect(root: ParentNode, system: string | null): SVGGraphics
 }
 
 /**
+ * Every note the engraving carries, ascending.
+ *
+ * Read off the document rather than counted: a map ends where gb-scripts could
+ * still check it against the MusicXML, so it may stop before the music does,
+ * and nothing may assume the ordinals run unbroken to a known last one.
+ */
+export function mappedNotes(root: ParentNode): number[] {
+    const seen = new Set<number>();
+    for (const element of root.querySelectorAll('[data-note]')) {
+        const ordinal = Number(element.getAttribute('data-note'));
+        if (Number.isInteger(ordinal) && ordinal >= 0) seen.add(ordinal);
+    }
+    return [...seen].sort((a, b) => a - b);
+}
+
+/**
  * The verse numbers written at a note, ascending.
  *
  * Read off the document rather than assumed: a note can carry "2" and "3"

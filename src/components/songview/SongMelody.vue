@@ -18,6 +18,7 @@
                 :canvas-style="canvasStyle"
                 :highlight-notes="settings?.highlightNotes ?? true"
                 :show-playhead="settings?.showPlayhead ?? true"
+                @pick-note="seekToNote"
             />
         </div>
 
@@ -44,6 +45,9 @@
                     <div
                         ref="notationRef"
                         class="notation-canvas [&_svg]:h-auto [&_svg]:w-full"
+                        @pointercancel="onNotationPointerCancel"
+                        @pointerdown="onNotationPointerDown"
+                        @pointerup="onNotationPointerUp"
                     ></div>
                     <NotationPlayhead v-if="playhead" ref="osmdPlayheadRef" :box="playhead" />
                 </div>
@@ -80,6 +84,7 @@ import type { NotationBeyondFit, XmlDisplaySettings } from '@/db';
 import type { HymnInstrumentPlayer } from '@/services/instrumentPlayer';
 import { type NotationMark, verseForPass } from '@/utils/notationMap';
 
+import { type NoteTarget, TAP_SLOP, noteAtPoint, stepForNote } from './notationHit';
 import { type PlayheadBox, type Rect, playheadBox } from './notationPlayhead';
 
 const props = defineProps<{
@@ -757,7 +762,24 @@ async function restartPlayback() {
 async function seek(fraction: number) {
     if (!stepPositions.length) return;
     const target = Math.max(0, Math.min(1, fraction)) * sheetLength;
-    const step = stepForPosition(target);
+    await jumpTo(stepForPosition(target));
+}
+
+/**
+ * Jump to a note the reader tapped on the page.
+ *
+ * The note is all the engraving can say — one notehead is one note however
+ * often it is sung — so which time through it is decided here, and decided as
+ * the nearest one: a tap just ahead of the mark means the pass being sung, not
+ * the first pass of a song already on its second time round.
+ */
+async function seekToNote(note: number) {
+    const step = stepForNote(stepToNote, note, currentStep);
+    if (step !== null) await jumpTo(step);
+}
+
+async function jumpTo(step: number) {
+    if (!stepPositions.length) return;
 
     if (!playbackEngine) {
         // The soundfont has never been fetched, so there is nothing to jump in
@@ -1020,6 +1042,59 @@ function osmdNeighbour(at: NotationMark | null, system: Element): Element | null
     // One on another system does not bound this beat — there the beat runs to
     // the end of its own system.
     return element.closest('g.staffline') === system ? element : null;
+}
+
+// ---------------------------------------------------------------------------
+// Tapping the re-set notation
+//
+// The same errand as on the Notenbild, answered in the same terms — a note
+// ordinal, which `seekToNote` turns into a pass. What differs is only where the
+// noteheads come from: there they are named in the map, here they have to be
+// asked of OSMD's own layout.
+// ---------------------------------------------------------------------------
+
+let notationTapFrom: { x: number; y: number } | null = null;
+
+function onNotationPointerDown(event: PointerEvent) {
+    notationTapFrom = { x: event.clientX, y: event.clientY };
+}
+
+function onNotationPointerCancel() {
+    notationTapFrom = null;
+}
+
+function onNotationPointerUp(event: PointerEvent) {
+    const from = notationTapFrom;
+    notationTapFrom = null;
+    if (!from) return;
+    // Dragging is how a wide sheet is scrolled sideways, and a drag ends in a
+    // pointerup like any other. Only one that stayed put is asking for a note.
+    if (Math.hypot(event.clientX - from.x, event.clientY - from.y) > TAP_SLOP) return;
+
+    // A sheet that could not be measured offers no targets, and that is the
+    // whole guard: there is nothing to tap on music the playback cannot follow.
+    const note = noteAtPoint(event.clientX, event.clientY, notationTargets());
+    if (note !== null) void seekToNote(note);
+}
+
+/** Every note that can be tapped, with the staffline it stands in. Measured at
+ *  the tap rather than kept: OSMD rewrites this canvas on every render, and the
+ *  sheet scrolls inside its box. */
+function notationTargets(): NoteTarget[] {
+    const rows = new Map<Element, Rect>();
+    const targets: NoteTarget[] = [];
+    for (let note = 0; note < notesInOrder.length; note++) {
+        const element: Element | undefined = graphicalFor(notesInOrder[note])?.getSVGGElement?.();
+        const staffline = element?.closest('g.staffline');
+        if (!element || !staffline) continue;
+        let row = rows.get(staffline);
+        if (!row) {
+            row = staffline.getBoundingClientRect();
+            rows.set(staffline, row);
+        }
+        targets.push({ note, head: element.getBoundingClientRect(), system: row });
+    }
+    return targets;
 }
 
 // Where the music stands *between* two notes.
@@ -1385,6 +1460,13 @@ onBeforeUnmount(async () => {
 .notation-scroll {
     justify-content: center;
     justify-content: safe center;
+}
+
+/* A tap moves the music to the note under it — offered only once OSMD has
+   actually drawn notes to tap, which is asked of the canvas rather than kept
+   beside it, so it cannot fall out of step with what the tap will find. */
+.notation-canvas:has(g.vf-stavenote) {
+    cursor: pointer;
 }
 
 /* Own stacking context, so the band behind the engraving stops there instead
