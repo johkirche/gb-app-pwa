@@ -843,9 +843,14 @@ async function jumpTo(step: number) {
         // The soundfont has never been fetched, so there is nothing to jump in
         // yet. The engraving can still follow: walk the cursor there, mark the
         // note, and keep the step so the first play tap starts on it.
+        //
+        // Settled before it is shown, in that order: the mark is drawn from
+        // where the music stands, so drawing it first draws the step the reader
+        // asked for last time — a mark one tap behind the finger.
         pendingSeek = step;
-        moveCursorToStep(step);
         settleAt(step);
+        moveCursorToStep(step);
+        showPosition();
         return;
     }
 
@@ -883,12 +888,13 @@ function settleAt(step: number) {
     emitProgress(stepPositions[step] ?? 0);
 }
 
+/** Walk the engine's cursor to a step, and no more than that: what the reader
+ *  sees is `showPosition`'s errand, and it has to come after the step is settled. */
 function moveCursorToStep(step: number) {
     const cursor = osmd?.cursor;
     if (!cursor) return;
     cursor.reset();
     for (let i = 0; i < step; i++) cursor.next();
-    showPosition();
 }
 
 // ---------------------------------------------------------------------------
