@@ -867,23 +867,7 @@ function refreshMark() {
 function markAt(step: number): NotationMark | null {
     const note = stepToNote[step];
     if (note === undefined || note < 0) return null;
-    return { note, next: nextNoteAfter(step), pass: stepToVerse[step] ?? 0, follow: false };
-}
-
-/**
- * The note the beat runs to.
- *
- * Taken from the playback's own reckoning, never from the order the notes are
- * drawn in: over a repeat's jump the next note drawn is not the next note sung.
- * The scan skips a run of steps that hold the same note — a rest belongs to the
- * note before it — and finds nothing once the music has no note left to reach.
- */
-function nextNoteAfter(step: number): number | null {
-    const note = stepToNote[step];
-    for (let ahead = step + 1; ahead < stepToNote.length; ahead++) {
-        if (stepToNote[ahead] >= 0 && stepToNote[ahead] !== note) return stepToNote[ahead];
-    }
-    return null;
+    return { note, pass: stepToVerse[step] ?? 0, follow: false };
 }
 
 /** Mark where the music stands, on whichever engraving is showing. */
@@ -1008,7 +992,7 @@ function updateOsmdBand(at: NotationMark | null, follow: boolean) {
         layer.getBoundingClientRect(),
         bounds,
         osmdNotes.map((note) => note.getBoundingClientRect()),
-        osmdSuccessor(at, firstSystem)?.getBoundingClientRect() ?? null,
+        osmdNeighbour(at, firstSystem)?.getBoundingClientRect() ?? null,
         sameSystem,
     );
 
@@ -1017,18 +1001,21 @@ function updateOsmdBand(at: NotationMark | null, follow: boolean) {
     nextTick(() => sweepPlayheadLine());
 }
 
-/** The notehead the band runs to, within this staffline. Where the sheet could
- *  not be mapped there is nothing to ask, so document order answers instead —
- *  a second staff is written out as its own staffline after the first, so that
- *  order is only musical order inside one. */
-function osmdSuccessor(at: NotationMark | null, system: Element): Element | null {
+/** The notehead the band runs to, within this staffline: the one printed after
+ *  this note, which over a repeat is not the one sung after it — see
+ *  `playheadBox`. Where the sheet could not be mapped there is no ordinal to
+ *  ask for, so document order answers instead — a second staff is written out
+ *  as its own staffline after the first, so that order is only musical order
+ *  inside one. */
+function osmdNeighbour(at: NotationMark | null, system: Element): Element | null {
     if (!at) {
         const drawn = Array.from(system.querySelectorAll('g.vf-stavenote'));
         const index = drawn.indexOf(osmdNotes[0]);
         return index < 0 ? null : (drawn[index + 1] ?? null);
     }
-    if (at.next === null) return null;
-    const element: Element | undefined = graphicalFor(notesInOrder[at.next])?.getSVGGElement?.();
+    const element: Element | undefined = graphicalFor(
+        notesInOrder[at.note + 1],
+    )?.getSVGGElement?.();
     if (!element) return null;
     // One on another system does not bound this beat — there the beat runs to
     // the end of its own system.

@@ -41,8 +41,6 @@
 export interface NotationMark {
     /** Ordinal of the sounding note */
     note: number;
-    /** Ordinal of the note this beat runs to, or null at the end of the music */
-    next: number | null;
     /** How often this note has been sung already — 0 on the first pass */
     pass: number;
     /** Whether the beat should be brought into view */

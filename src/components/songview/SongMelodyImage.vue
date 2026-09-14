@@ -186,12 +186,12 @@ function updateBand(host: Element, head: SVGGraphicsElement, at: NotationMark) {
         return;
     }
 
-    // The successor comes from the playback's own reckoning, never from
-    // document order: over a repeat's jump the next note drawn is not the next
-    // note sung. One on another system does not bound this beat either — there
-    // the beat runs to the end of its own system.
-    const successor = at.next === null ? null : noteHead(host, at.next);
-    const bounded = successor && systemOf(successor) === system ? successor : null;
+    // The band stops at the note printed after this one, which over a repeat is
+    // not the note sung after it — see `playheadBox`. One on another system
+    // does not bound this beat — there the beat runs to the end of its own
+    // system.
+    const neighbour = noteHead(host, at.note + 1);
+    const bounded = neighbour && systemOf(neighbour) === system ? neighbour : null;
 
     const sameSystem = system !== null && system === litSystem;
     playhead.value = playheadBox(
