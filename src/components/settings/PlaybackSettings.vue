@@ -58,6 +58,28 @@
             />
         </div>
 
+        <!-- Das Tempo wird sonst in Worten gefragt — langsam, normal,
+             schnell — weil das die Frage ist, auf die ein Gesangbuchleser eine
+             Antwort hat. Wer die Zahl will, bekommt sie hier. -->
+        <div class="flex items-center justify-between gap-4 px-2 py-3">
+            <div class="flex min-w-0 items-center gap-4">
+                <Gauge class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <div class="min-w-0">
+                    <Label for="settings-exact-tempo" class="text-[15px] font-normal">
+                        Genaues Tempo
+                    </Label>
+                    <p class="text-sm text-muted-foreground">
+                        Das Tempo zusätzlich in Schlägen pro Minute einstellen
+                    </p>
+                </div>
+            </div>
+            <Switch
+                id="settings-exact-tempo"
+                :model-value="exactTempo"
+                @update:model-value="preferencesStore.setExactTempo($event)"
+            />
+        </div>
+
         <!-- Ausgabe auf ein angeschlossenes Instrument. Standardmäßig aus, und
              das mit Absicht: der erste MIDI-Zugriff löst eine Berechtigungs-
              abfrage aus, die niemand ungefragt sehen soll. -->
@@ -139,7 +161,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 
-import { AlertCircle, Highlighter, Piano, SeparatorVertical } from 'lucide-vue-next';
+import { AlertCircle, Gauge, Highlighter, Piano, SeparatorVertical } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import { usePreferencesStore } from '@/stores/preferences';
@@ -174,6 +196,7 @@ const devices = computed(() => midi.outputs.value);
 const hasAccess = computed(() => midi.hasAccess.value);
 const accessError = computed(() => midi.accessError.value);
 const midiEnabled = computed(() => preferencesStore.midiOutputEnabled);
+const exactTempo = computed(() => preferencesStore.exactTempo);
 
 // With nothing chosen and one instrument connected, that one is what plays —
 // the picker says so rather than standing empty.

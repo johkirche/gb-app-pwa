@@ -59,6 +59,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // nobody looking up a hymn should be asked about MIDI hardware.
     const midiOutputEnabled = ref(false);
     const midiOutputId = ref('');
+    // Off by default: the transport asks for the tempo in words, and the BPM
+    // behind them is a control for whoever comes looking for it.
+    const exactTempo = ref(false);
     const isLoading = ref(false);
 
     // Actions
@@ -75,6 +78,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 keepScreenAwake.value = prefs.keepScreenAwake ?? true;
                 midiOutputEnabled.value = prefs.midiOutputEnabled ?? false;
                 midiOutputId.value = prefs.midiOutputId ?? '';
+                exactTempo.value = prefs.exactTempo ?? false;
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -94,6 +98,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             keepScreenAwake: keepScreenAwake.value,
             midiOutputEnabled: midiOutputEnabled.value,
             midiOutputId: midiOutputId.value,
+            exactTempo: exactTempo.value,
         });
     }
 
@@ -160,6 +165,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setExactTempo(enabled: boolean) {
+        try {
+            exactTempo.value = enabled;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the tempo setting:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -171,6 +186,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         keepScreenAwake.value = true;
         midiOutputEnabled.value = false;
         midiOutputId.value = '';
+        exactTempo.value = false;
     }
 
     // Initialize store on creation
@@ -184,6 +200,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         keepScreenAwake,
         midiOutputEnabled,
         midiOutputId,
+        exactTempo,
         isLoading,
 
         // Actions
@@ -194,6 +211,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setKeepScreenAwake,
         setMidiOutputEnabled,
         setMidiOutputId,
+        setExactTempo,
         resetToDefaults,
 
         // Initialization promise

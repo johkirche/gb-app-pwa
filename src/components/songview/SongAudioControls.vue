@@ -1,5 +1,8 @@
 <template>
-    <div class="page-col flex flex-col gap-1.5 py-2">
+    <!-- A container, so the transport can answer to its own width rather than
+         to the viewport's: it is the same bar on a phone and in the middle of a
+         wide page, and only its own measure says whether a word still fits. -->
+    <div class="page-col @container flex flex-col gap-1.5 py-2">
         <!-- Where the song stands, and how to move it there -->
         <div class="flex items-center gap-3">
             <span class="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
@@ -20,24 +23,64 @@
             </span>
         </div>
 
-        <!-- How playback behaves on the left, the transport in the middle,
-             tempo on the right: the middle then stays on the page's axis
-             whatever the two sides are as wide as. -->
-        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <div class="flex items-center justify-self-start">
+        <!-- The play button owns the middle column and holds nothing else, so
+             the two 1fr columns beside it stay equal and it sits on the page's
+             axis whatever they come to hold. Each of those columns then runs
+             from the page's edge to the transport: the settings — how often,
+             how fast — at the outside, the two controls that act on the music
+             now drawn in beside the play button. -->
+        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+            <div class="flex min-w-0 items-center justify-between gap-1">
+                <Button
+                    ref="repeatTriggerRef"
+                    variant="ghost"
+                    size="sm"
+                    class="h-10 min-w-10 gap-1.5 px-1.5"
+                    :class="repeats ? 'text-foreground' : 'text-muted-foreground'"
+                    :aria-label="repeatLabel(repeatTimes)"
+                    aria-haspopup="dialog"
+                    :aria-expanded="repeatPanelOpen"
+                    @click="repeatPanelOpen = !repeatPanelOpen"
+                >
+                    <Repeat class="!size-5" aria-hidden="true" />
+                    <span v-if="repeatBadgeText" class="number-display text-[13px]">
+                        {{ repeatBadgeText }}
+                    </span>
+                </Button>
+
                 <Button
                     variant="ghost"
                     size="icon"
-                    :class="
-                        loopEnabled ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-                    "
-                    :aria-pressed="loopEnabled"
-                    aria-label="Wiederholung"
-                    @click="$emit('update:loopEnabled', !loopEnabled)"
+                    class="text-muted-foreground"
+                    :disabled="!canRewind"
+                    aria-label="Zum Anfang"
+                    @click="$emit('stop')"
                 >
-                    <Repeat class="!size-5" aria-hidden="true" />
+                    <SkipBack class="!size-5" aria-hidden="true" />
                 </Button>
+            </div>
 
+            <Button
+                size="icon"
+                :class="
+                    cn(
+                        'size-12 rounded-full transition-shadow',
+                        // A quiet halo while the song runs, so the state
+                        // reads from across a room, not only from the icon.
+                        isPlaying &&
+                            'shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary)_18%,transparent)]',
+                    )
+                "
+                :aria-label="isPlaying ? 'Pause' : 'Wiedergabe'"
+                @click="$emit('togglePlay')"
+            >
+                <LoaderCircle v-if="isLoading" class="!size-5 animate-spin" aria-hidden="true" />
+                <Pause v-else-if="isPlaying" class="!size-5 fill-current" aria-hidden="true" />
+                <!-- A triangle centres optically a hair right of centre -->
+                <Play v-else class="!size-5 translate-x-px fill-current" aria-hidden="true" />
+            </Button>
+
+            <div class="flex min-w-0 items-center justify-between gap-1">
                 <!-- Silent playback: the page still follows the song note by
                      note, there is just nothing to hear. -->
                 <Button
@@ -51,100 +94,83 @@
                     <VolumeX v-if="muted" class="!size-5" aria-hidden="true" />
                     <Volume2 v-else class="!size-5" aria-hidden="true" />
                 </Button>
-            </div>
 
-            <div class="flex items-center gap-2 justify-self-center">
+                <!-- Tempo in a word, not in beats per minute: nobody looking up
+                     a hymn wants to be asked for a number, and the one behind
+                     the word is offered to whoever turns it on in the settings.
+                     See playbackTempo. -->
                 <Button
+                    ref="tempoTriggerRef"
                     variant="ghost"
-                    size="icon"
-                    class="text-muted-foreground"
-                    :disabled="!canRewind"
-                    aria-label="Zum Anfang"
-                    @click="$emit('stop')"
+                    size="sm"
+                    class="h-10 min-w-10 gap-1.5 px-1.5 text-muted-foreground"
+                    :aria-label="`Tempo: ${tempoLabel}`"
+                    aria-haspopup="dialog"
+                    :aria-expanded="tempoPanelOpen"
+                    @click="tempoPanelOpen = !tempoPanelOpen"
                 >
-                    <SkipBack class="!size-5" aria-hidden="true" />
-                </Button>
-
-                <Button
-                    size="icon"
-                    :class="
-                        cn(
-                            'size-12 rounded-full transition-shadow',
-                            // A quiet halo while the song runs, so the state
-                            // reads from across a room, not only from the icon.
-                            isPlaying &&
-                                'shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary)_18%,transparent)]',
-                        )
-                    "
-                    :aria-label="isPlaying ? 'Pause' : 'Wiedergabe'"
-                    @click="$emit('togglePlay')"
-                >
-                    <LoaderCircle
-                        v-if="isLoading"
-                        class="!size-5 animate-spin"
-                        aria-hidden="true"
-                    />
-                    <Pause v-else-if="isPlaying" class="!size-5 fill-current" aria-hidden="true" />
-                    <!-- A triangle centres optically a hair right of centre -->
-                    <Play v-else class="!size-5 translate-x-px fill-current" aria-hidden="true" />
-                </Button>
-            </div>
-
-            <div class="flex items-center gap-1 justify-self-end">
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Tempo verringern"
-                    @click="$emit('decreaseTempo')"
-                >
-                    <Minus aria-hidden="true" />
-                </Button>
-                <span
-                    class="min-w-[58px] text-center text-sm font-medium tabular-nums text-muted-foreground"
-                >
-                    {{ tempo }} BPM
-                </span>
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Tempo erhöhen"
-                    @click="$emit('increaseTempo')"
-                >
-                    <Plus aria-hidden="true" />
+                    <component :is="tempoIcon" class="!size-5" aria-hidden="true" />
+                    <!-- Narrower than this and the word would have to be cut
+                         short, which says less than the icon on its own does.
+                         The button is named either way, so nothing is lost to
+                         a reader who is listening rather than looking. -->
+                    <span class="hidden truncate text-[13px] @min-[330px]:inline">
+                        {{ tempoLabel }}
+                    </span>
                 </Button>
             </div>
         </div>
+
+        <SongRepeatPanel
+            v-model:open="repeatPanelOpen"
+            :times="repeatTimes"
+            :verse-count="verseCount"
+            :verse-hint="verseHint"
+            :anchor="repeatAnchor"
+            @update:times="$emit('update:repeatTimes', $event)"
+        />
+
+        <SongTempoPanel
+            v-model:open="tempoPanelOpen"
+            :tempo="tempo"
+            :exact-tempo="exactTempo"
+            :anchor="tempoAnchor"
+            @update:tempo="$emit('update:tempo', $event)"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 
-import {
-    LoaderCircle,
-    Minus,
-    Pause,
-    Play,
-    Plus,
-    Repeat,
-    SkipBack,
-    Volume2,
-    VolumeX,
-} from 'lucide-vue-next';
+import { LoaderCircle, Pause, Play, Repeat, SkipBack, Volume2, VolumeX } from 'lucide-vue-next';
 
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 
+import type { PanelAnchor } from '@/lib/anchor';
 import { cn } from '@/lib/utils';
+
+import SongRepeatPanel from './SongRepeatPanel.vue';
+import SongTempoPanel from './SongTempoPanel.vue';
+import { REPEAT_ONCE, repeatBadge, repeatLabel } from './playbackRepeat';
+import { presetForTempo } from './playbackTempo';
 
 const props = defineProps<{
     isPlaying: boolean;
     /** The soundfont is being fetched — the first tap costs seconds */
     isLoading?: boolean;
     hasPaused: boolean;
-    loopEnabled: boolean;
+    /** How often the song is played through — 1 is once, Infinity is endless */
+    repeatTimes: number;
+    /** How many verses are to be sung, which is what the repeat count opens on */
+    verseCount: number;
+    /** What that number counts, where it is not simply the hymn's verses */
+    verseHint?: string;
     muted: boolean;
     tempo: number;
+    /** Whether this reader has asked for the tempo in BPM as well as in words */
+    exactTempo: boolean;
     /** Seconds played, and the song's length at the current tempo */
     position: number;
     duration: number;
@@ -155,9 +181,8 @@ const emit = defineEmits<{
     stop: [];
     /** A position on the bar, as a fraction of the song */
     seek: [fraction: number];
-    increaseTempo: [];
-    decreaseTempo: [];
-    'update:loopEnabled': [value: boolean];
+    'update:tempo': [bpm: number];
+    'update:repeatTimes': [times: number];
     'update:muted': [value: boolean];
 }>();
 
@@ -170,6 +195,26 @@ const shownPosition = computed(() => scrubPosition.value ?? props.position);
 // disabled at that point anyway.
 const sliderMax = computed(() => (props.duration > 0 ? props.duration : 1));
 const canRewind = computed(() => props.hasPaused || props.position > 0);
+
+const repeats = computed(() => props.repeatTimes !== REPEAT_ONCE);
+const repeatBadgeText = computed(() => repeatBadge(props.repeatTimes));
+
+const tempoPreset = computed(() => presetForTempo(props.tempo));
+const tempoIcon = computed(() => tempoPreset.value.icon);
+// With the exact control on, the number is what the reader is steering by and
+// the word would only take room from it.
+const tempoLabel = computed(() =>
+    props.exactTempo ? `${props.tempo} BPM` : tempoPreset.value.label,
+);
+
+// Both panels open off the button that carries them, so on a wide screen the
+// popover stands over its own control rather than in the corner of the page.
+const repeatPanelOpen = ref(false);
+const tempoPanelOpen = ref(false);
+const repeatTriggerRef = ref<{ $el?: HTMLElement } | null>(null);
+const tempoTriggerRef = ref<{ $el?: HTMLElement } | null>(null);
+const repeatAnchor = computed<PanelAnchor>(() => repeatTriggerRef.value?.$el ?? null);
+const tempoAnchor = computed<PanelAnchor>(() => tempoTriggerRef.value?.$el ?? null);
 
 function onScrub(value: number[] | undefined) {
     if (value?.length) scrubPosition.value = value[0];

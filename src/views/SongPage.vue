@@ -57,7 +57,7 @@
                     :settings="xmlSettings"
                     :is-playing="isPlaying"
                     :tempo="tempo"
-                    :loop="loopEnabled"
+                    :repeat="repeatTimes"
                     :muted="isMuted"
                     @play-started="isPlaying = true"
                     @play-stopped="isPlaying = false"
@@ -136,19 +136,20 @@
             class="shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]"
         >
             <SongAudioControls
-                v-model:loop-enabled="loopEnabled"
                 v-model:muted="isMuted"
+                v-model:repeat-times="repeatTimes"
+                v-model:tempo="tempo"
                 :is-playing="isPlaying"
                 :is-loading="engineLoading"
                 :has-paused="hasPaused"
-                :tempo="tempo"
+                :verse-count="sungVerseCount"
+                :verse-hint="sungVerseHint"
+                :exact-tempo="exactTempo"
                 :position="playbackPosition"
                 :duration="playbackDuration"
                 @toggle-play="togglePlay"
                 @stop="stopPlayback"
                 @seek="seekPlayback"
-                @increase-tempo="increaseTempo"
-                @decrease-tempo="decreaseTempo"
             />
         </footer>
     </div>
@@ -181,6 +182,8 @@ import SongLoadingState from '@/components/songview/SongLoadingState.vue';
 import SongMelody from '@/components/songview/SongMelody.vue';
 import SongMenuPopover from '@/components/songview/SongMenuPopover.vue';
 import SongVerses from '@/components/songview/SongVerses.vue';
+import { REPEAT_ONCE } from '@/components/songview/playbackRepeat';
+import { TEMPO_DEFAULT } from '@/components/songview/playbackTempo';
 
 import type { Song } from '@/db';
 import { type VerseSelection, formatVerseSelection, isVerseSung } from '@/services/servicePlans';
@@ -192,7 +195,7 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { pageScale, xmlSettings, keepScreenAwake } = storeToRefs(preferencesStore);
+const { pageScale, xmlSettings, keepScreenAwake, exactTempo } = storeToRefs(preferencesStore);
 
 const { getFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
@@ -223,11 +226,14 @@ const songId = computed(() => route.params.id as string);
 // Playback state
 const isPlaying = ref(false);
 const hasPaused = ref(false);
-const loopEnabled = ref(false);
+// How often the melody is played through: one pass per verse is what the
+// Wiederholen panel proposes, and one pass is a song that does not repeat.
+// See playbackRepeat.
+const repeatTimes = ref(REPEAT_ONCE);
 // Silent playback: the notation still follows the song note by note, which is
 // what a reader wants when they only need to find their place on the page.
 const isMuted = ref(false);
-const tempo = ref(120);
+const tempo = ref(TEMPO_DEFAULT);
 // The first play tap fetches the soundfont, which takes seconds — the
 // transport says so rather than looking unresponsive.
 const engineLoading = ref(false);
@@ -278,6 +284,18 @@ const lyricsInNotation = computed(() => {
 const serviceStore = useServiceStore();
 
 const serviceVerses = computed<VerseSelection>(() => serviceStore.versesFor(songId.value));
+
+// What the Wiederholen panel opens on: one pass per verse that is actually
+// sung. A service that takes three of seven verses is asking for three passes,
+// not seven — the Strophenwahl has already said so, and the transport should
+// not make the reader say it again.
+const sungVerseCount = computed(
+    () => serviceVerses.value?.length ?? song.value?.strophen?.length ?? 0,
+);
+
+const sungVerseHint = computed(() =>
+    serviceVerses.value ? 'Für die gewählten Strophen' : 'Für alle Strophen',
+);
 
 const serviceVerseHint = computed(() =>
     serviceVerses.value
@@ -463,25 +481,10 @@ function onPlaybackProgress(value: { position: number; duration: number }) {
     playbackDuration.value = value.duration;
 }
 
-// The song ran out. With Wiederholung on the renderer starts it over itself,
-// so only the one-off case has anything to reset here.
+// The song is over — which is the last pass of a repeat, not the end of every
+// one: the renderer counts them and only says so once it has come to rest.
 function onPlaybackEnded() {
-    if (!loopEnabled.value) {
-        hasPaused.value = false;
-    }
-}
-
-// Tempo controls
-function increaseTempo() {
-    if (tempo.value < 200) {
-        tempo.value += 10;
-    }
-}
-
-function decreaseTempo() {
-    if (tempo.value > 60) {
-        tempo.value -= 10;
-    }
+    hasPaused.value = false;
 }
 
 // --- The song page and the device it is held in ---------------------------

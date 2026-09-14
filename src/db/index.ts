@@ -171,6 +171,12 @@ export interface PreferencesData {
     midiOutputEnabled?: boolean;
     /** Which MIDI output was chosen. Empty means "the only one connected". */
     midiOutputId?: string;
+    /**
+     * Steer the playback tempo in beats per minute as well as in words.
+     * Off by default: the transport asks in langsam / normal / schnell, which
+     * is the question a hymnal reader has an answer to. See playbackTempo.
+     */
+    exactTempo?: boolean;
 }
 
 // Favorites: id == song id

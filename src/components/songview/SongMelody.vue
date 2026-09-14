@@ -101,6 +101,7 @@ import {
 } from './notationGeometry';
 import { type NoteTarget, TAP_SLOP, noteAtPoint, stepForNote } from './notationHit';
 import { type PlayheadBox, type Rect, playheadBox } from './notationPlayhead';
+import { REPEAT_ONCE, clampRepeat } from './playbackRepeat';
 
 const props = defineProps<{
     /** The MusicXML sheet — the clock, and the second engraving */
@@ -114,7 +115,8 @@ const props = defineProps<{
     settings?: XmlDisplaySettings;
     isPlaying?: boolean;
     tempo?: number;
-    loop?: boolean;
+    /** How often the song is played through — 1 is once, Infinity is endless */
+    repeat?: number;
     /** Follow the song on screen with nothing to hear */
     muted?: boolean;
 }>();
@@ -487,6 +489,10 @@ let clockRunning = false;
 let pendingSeek: number | null = null;
 /** Which of those steps is sounding — where the sweeping line starts from */
 let currentStep = 0;
+/** How many times the song has been played through since it last came to rest.
+ *  Counted against `repeat`; a pause and a seek leave it alone, because neither
+ *  of them is a pass. */
+let passesPlayed = 0;
 /** Set between asking the engine to play and its first sounded note */
 let awaitingFirstNote = false;
 let firstNoteHandle = 0;
@@ -557,6 +563,7 @@ function emitProgress(position = currentPosition()) {
 function resetPosition() {
     stopClock();
     currentStep = 0;
+    passesPlayed = 0;
     syncPosition(0);
     clearHighlight();
     emitProgress(0);
@@ -790,14 +797,24 @@ function stopClock() {
 // The engine plays a score to its end and then simply keeps ticking — nothing
 // in it knows the sheet is over. The clock does, so the ending is ours to act
 // on: either go round again, or come to rest at the beginning.
+//
+// How often is counted in passes, not in repeats: the reader asked for four
+// because there are four verses, and the fourth one ends the song. The count
+// is kept here rather than in the transport because the decision has to be
+// made in the same tick the sheet runs out — a parent told about it would
+// answer one render too late, with the music already ticking past the end.
 function reachedEnd() {
     stopClock();
-    emit('ended');
-    if (props.loop) {
+    passesPlayed++;
+    if (passesPlayed < clampRepeat(props.repeat ?? REPEAT_ONCE)) {
         restartPlayback();
-    } else {
-        stopPlayback();
+        return;
     }
+    // Only now is the song over. Anything listening for the end — the
+    // transport coming back to rest, the lock screen — means this moment, not
+    // the end of a verse with another one owed.
+    emit('ended');
+    stopPlayback();
 }
 
 async function restartPlayback() {

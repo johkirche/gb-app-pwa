@@ -516,12 +516,62 @@
                 />
             </section>
 
+            <!-- ================= Wiedergabe ================= -->
+            <section class="mt-20">
+                <div class="flex items-center gap-4">
+                    <h2 class="shrink-0 font-display text-2xl font-semibold">Wiedergabe</h2>
+                    <Separator class="flex-1" />
+                    <span class="label-micro shrink-0 text-muted-foreground">07</span>
+                </div>
+                <p class="mt-2 text-sm text-muted-foreground">
+                    Die Leiste am Fuß des Liedes. Die Wiedergabetaste steht in der Mitte der Seite,
+                    unabhängig davon, was links und rechts von ihr liegt; Wiederholung und Tempo
+                    fragen in Worten und öffnen ihre eigene Auswahl.
+                </p>
+                <div class="mt-8 space-y-10">
+                    <div>
+                        <p class="label-micro text-muted-foreground">Transport</p>
+                        <!-- Pulled out to the page's own edges: the transport
+                             is a full-width bar at the foot of a song, and a
+                             demo in a narrower box would show a layout no
+                             reader ever gets. -->
+                        <div class="-mx-5 mt-4 border-y border-border bg-background sm:-mx-8">
+                            <SongAudioControls
+                                v-model:muted="demoMuted"
+                                v-model:repeat-times="demoRepeatTimes"
+                                v-model:tempo="demoTempo"
+                                :is-playing="demoPlaying"
+                                :has-paused="demoPlaying"
+                                :verse-count="4"
+                                :exact-tempo="demoExactTempo"
+                                :position="demoPlaying ? 42 : 0"
+                                :duration="138"
+                                @toggle-play="demoPlaying = !demoPlaying"
+                                @stop="demoPlaying = false"
+                            />
+                        </div>
+                        <div class="mt-4 flex flex-wrap items-center gap-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                @click="demoExactTempo = !demoExactTempo"
+                            >
+                                {{ demoExactTempo ? 'Tempo in Worten' : 'Genaues Tempo (BPM)' }}
+                            </Button>
+                            <span class="text-sm text-muted-foreground">
+                                {{ demoTempo }} BPM · {{ repeatLabel(demoRepeatTimes) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ================= Status ================= -->
             <section class="mt-20">
                 <div class="flex items-center gap-4">
                     <h2 class="shrink-0 font-display text-2xl font-semibold">Status</h2>
                     <Separator class="flex-1" />
-                    <span class="label-micro shrink-0 text-muted-foreground">07</span>
+                    <span class="label-micro shrink-0 text-muted-foreground">08</span>
                 </div>
                 <div class="mt-8 space-y-10">
                     <div>
@@ -605,6 +655,9 @@ import { toast } from 'vue-sonner';
 import { useConfirm } from '@/composables/useConfirm';
 import { useTheme } from '@/composables/useTheme';
 
+import SongAudioControls from '@/components/songview/SongAudioControls.vue';
+import { REPEAT_ONCE, repeatLabel } from '@/components/songview/playbackRepeat';
+import { TEMPO_DEFAULT } from '@/components/songview/playbackTempo';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -764,6 +817,15 @@ async function demoConfirmDestructive() {
     });
     toast(ok ? 'Lied gelöscht.' : 'Vorgang abgebrochen.');
 }
+
+// The transport, with something to show: a song part-played, four verses to
+// repeat over, and the exact tempo switchable right here rather than through
+// the settings page.
+const demoPlaying = ref(false);
+const demoMuted = ref(false);
+const demoRepeatTimes = ref(REPEAT_ONCE);
+const demoTempo = ref(TEMPO_DEFAULT);
+const demoExactTempo = ref(false);
 
 const actionSheetOpen = ref(false);
 const actionSheetAnchor = ref<PanelAnchor>(null);
