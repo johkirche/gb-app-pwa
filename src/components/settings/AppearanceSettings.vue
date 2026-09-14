@@ -18,51 +18,6 @@
             </ToggleGroup>
         </div>
 
-        <!-- Shown once it has been chosen, and not before. The choice is only
-             ever met by enlarging a song past the width the page can show it
-             at, and a setting that can only be found again by zooming back in
-             to look for it is a setting that is lost. Until then the default
-             holds and there is nothing here to say.
-
-             Two cards rather than two words: „Notenbild behalten" and „Zeilen
-             neu umbrechen" name a difference that is far easier to see. -->
-        <fieldset
-            v-if="beyondFitChosen"
-            class="min-w-0 px-2 py-3"
-            aria-labelledby="settings-beyond-fit-label"
-        >
-            <div class="flex items-center gap-4">
-                <Image class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <div class="min-w-0">
-                    <p id="settings-beyond-fit-label" class="text-[15px]">Stark vergrößert</p>
-                    <p class="text-sm text-muted-foreground">
-                        Was aus den Noten wird, wenn sie breiter sind als die Seite
-                    </p>
-                </div>
-            </div>
-
-            <div class="mt-3 grid grid-cols-2 gap-3">
-                <label
-                    v-for="option in BEYOND_FIT_MODES"
-                    :key="option.value"
-                    class="flex cursor-pointer flex-col rounded-lg border border-border p-3 transition-colors hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
-                >
-                    <input
-                        v-model="beyondFit"
-                        type="radio"
-                        name="settings-beyond-fit"
-                        :value="option.value"
-                        class="sr-only"
-                    />
-                    <SongBeyondFitPreview :mode="option.value" />
-                    <span class="mt-2.5 text-[15px] font-medium">{{ option.title }}</span>
-                    <span class="mt-0.5 text-sm leading-snug text-muted-foreground">
-                        {{ option.description }}
-                    </span>
-                </label>
-            </div>
-        </fieldset>
-
         <!-- One size for the song page: notation and verses alike. They are set
              at the same size in the book, so two controls could only pull them
              apart. The sample under the slider is that page in miniature — a
@@ -124,7 +79,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { Contrast, Image, Lightbulb, Type } from 'lucide-vue-next';
+import { Contrast, Lightbulb, Type } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import { usePreferencesStore } from '@/stores/preferences';
@@ -133,31 +88,11 @@ import { useTheme } from '@/composables/useTheme';
 import { isWakeLockSupported } from '@/composables/useWakeLock';
 
 import SettingsList from '@/components/settings/SettingsList.vue';
-import SongBeyondFitPreview from '@/components/songview/SongBeyondFitPreview.vue';
 import SongScalePreview from '@/components/songview/SongScalePreview.vue';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-
-import type { NotationBeyondFit } from '@/db';
-
-const BEYOND_FIT_MODES: ReadonlyArray<{
-    value: NotationBeyondFit;
-    title: string;
-    description: string;
-}> = [
-    {
-        value: 'reflow',
-        title: 'Zeilen neu umbrechen',
-        description: 'Neu gesetzt, dafür ganz auf dem Bildschirm.',
-    },
-    {
-        value: 'engraving',
-        title: 'Notenbild behalten',
-        description: 'Der Satz aus dem Buch, seitlich verschiebbar.',
-    },
-];
 
 const preferencesStore = usePreferencesStore();
 // useTheme owns persistence ('settings.theme') and applies the `dark` class, so
@@ -177,12 +112,6 @@ const pageScaleSlider = computed<number[] | undefined>({
             preferencesStore.setPageScale(scale);
         }
     },
-});
-
-const beyondFitChosen = computed(() => preferencesStore.beyondFitChosen);
-const beyondFit = computed<NotationBeyondFit>({
-    get: () => preferencesStore.beyondFit,
-    set: (value) => preferencesStore.setNotationBeyondFit(value),
 });
 
 function onThemeModeChange(value: AcceptableValue | AcceptableValue[]) {

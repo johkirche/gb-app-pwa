@@ -40,8 +40,11 @@
             >
                 <!-- The melody: the book's own engraving, with the re-set
                      notation behind it as the clock the playback runs on — and
-                     in front of it only where the reader has enlarged the page
-                     past the width it can be shown at. -->
+                     in front of it once the reader has enlarged the page past
+                     the width the engraving can be shown whole at, which is the
+                     point at which only re-breaking the systems can still show
+                     it. The melody makes that call itself; there is nothing here
+                     to ask. -->
                 <SongMelody
                     v-if="hasMelodyImage || hasMelodyXml"
                     ref="melodyRef"
@@ -52,7 +55,6 @@
                     :image-loading="imageLoading"
                     :scale="pageScale"
                     :settings="xmlSettings"
-                    :beyond-fit="beyondFit"
                     :is-playing="isPlaying"
                     :tempo="tempo"
                     :loop="loopEnabled"
@@ -64,23 +66,8 @@
                     @progress="onPlaybackProgress"
                     @rendered="onNotationRendered"
                     @render-failed="onNotationRenderFailed"
-                    @update:overflows="melodyOverflows = $event"
                     @update:shows-engraving="showsEngraving = $event"
                 />
-
-                <!-- The one question the reader owns, asked only where it
-                     arises: past the fit width both answers are defensible, and
-                     below it there is nothing to decide. The label names what
-                     tapping it does, and the choice is remembered. -->
-                <div v-if="offerBeyondFit" class="notation-col -mt-3 mb-6 flex justify-center">
-                    <button
-                        type="button"
-                        class="rounded px-2 py-1 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-                        @click="chooseBeyondFit"
-                    >
-                        {{ beyondFit === 'reflow' ? 'Notenbild behalten' : 'Zeilen neu umbrechen' }}
-                    </button>
-                </div>
 
                 <!-- Only worth saying where there is no engraving to fall back
                      on. With the Notenbild on screen a missing sheet costs the
@@ -205,7 +192,7 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { pageScale, beyondFit, xmlSettings, keepScreenAwake } = storeToRefs(preferencesStore);
+const { pageScale, xmlSettings, keepScreenAwake } = storeToRefs(preferencesStore);
 
 const { getFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
@@ -225,7 +212,6 @@ const melodyRef = ref<InstanceType<typeof SongMelody> | null>(null);
 // Whether the melody has outgrown the page, and which engraving that has left
 // on screen. Both are the melody view's to report — only it knows how wide the
 // drawing came out.
-const melodyOverflows = ref(false);
 const showsEngraving = ref(true);
 
 // Current song
@@ -302,13 +288,6 @@ const serviceVerseHint = computed(() =>
 // The choice only exists where both engravings do and the page has been
 // enlarged past what it can show. Fall back under the fit width and it goes
 // away again, whatever was chosen — the setting governs nothing else.
-const offerBeyondFit = computed(
-    () => melodyOverflows.value && hasMelodyImage.value && hasMelodyXml.value,
-);
-
-function chooseBeyondFit() {
-    preferencesStore.setNotationBeyondFit(beyondFit.value === 'reflow' ? 'engraving' : 'reflow');
-}
 
 // Load the MusicXML sheet. Falls back to an on-demand network fetch (stored
 // back into Dexie) when the blob is missing locally.

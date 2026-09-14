@@ -34,14 +34,21 @@
                 class="notation-scroll flex overflow-x-auto overflow-y-hidden"
                 :style="scrollBoxStyle"
             >
-                <!-- The engraving is laid out at the printed page's geometry and
-                     only then scaled into the column, so the systems break where
-                     the book breaks them at every width. Notengröße scales the
-                     picture; it must not reach the layout, or the breaks move.
+                <!-- Below the fit width the sheet is laid out at the printed
+                     page's geometry and only then scaled into the column, so the
+                     systems break where the book breaks them and the two views
+                     agree line for line. Past it there is no width left to scale
+                     into, so it is set again on the width there is and fills the
+                     box exactly — nothing to scroll sideways to, which is the
+                     whole reason for going over.
                      The layer carries that width so the playhead can be measured
                      against it — OSMD owns the canvas below and rewrites it on
                      every render, so nothing of ours may live inside it. -->
-                <div ref="layerRef" class="notation-layer relative shrink-0" :style="canvasStyle">
+                <div
+                    ref="layerRef"
+                    class="notation-layer relative shrink-0"
+                    :style="reflowing ? fittedCanvasStyle : canvasStyle"
+                >
                     <div
                         ref="notationRef"
                         class="notation-canvas [&_svg]:h-auto [&_svg]:w-full"
@@ -80,10 +87,18 @@ import { useNotationScale } from '@/composables/useNotationScale';
 import NotationPlayhead from '@/components/songview/NotationPlayhead.vue';
 import SongMelodyImage from '@/components/songview/SongMelodyImage.vue';
 
-import type { NotationBeyondFit, XmlDisplaySettings } from '@/db';
+import type { XmlDisplaySettings } from '@/db';
 import type { HymnInstrumentPlayer } from '@/services/instrumentPlayer';
 import { type NotationMark, verseForPass } from '@/utils/notationMap';
 
+import {
+    PRINT_HOST_PX,
+    PRINT_SIDE_MARGIN,
+    PRINT_SPACE_ABOVE_PT,
+    PRINT_SPACE_BELOW_PT,
+    PRINT_STAFF_SPACE_PT,
+    reflowZoomFor,
+} from './notationGeometry';
 import { type NoteTarget, TAP_SLOP, noteAtPoint, stepForNote } from './notationHit';
 import { type PlayheadBox, type Rect, playheadBox } from './notationPlayhead';
 
@@ -97,8 +112,6 @@ const props = defineProps<{
     imageLoading: boolean;
     scale?: number;
     settings?: XmlDisplaySettings;
-    /** What the melody becomes once it outgrows the page */
-    beyondFit: NotationBeyondFit;
     isPlaying?: boolean;
     tempo?: number;
     loop?: boolean;
@@ -114,9 +127,6 @@ const emit = defineEmits<{
     (e: 'progress', value: { position: number; duration: number }): void;
     (e: 'rendered', info: { lyricsDrawn: boolean }): void;
     (e: 'renderFailed', reason: 'corrupt' | 'engine'): void;
-    /** Whether the melody has outgrown the page — the only point at which the
-     *  choice between the two engravings arises, and is offered */
-    (e: 'update:overflows', value: boolean): void;
     /** Which of the two is on screen right now */
     (e: 'update:showsEngraving', value: boolean): void;
 }>();
@@ -163,10 +173,11 @@ function detectDarkMode() {
 // How wide the drawn melody gets. Measured once for the column and handed to
 // both engravings, so one scale means the same thing in either — and so the
 // question of whether it still fits is asked once. See useNotationScale.
-const { scrollBoxStyle, canvasStyle, overflowsPage } = useNotationScale(
-    containerRef,
-    computed(() => props.scale ?? 1),
-);
+const { scrollBoxStyle, canvasStyle, fittedCanvasStyle, boxWidth, drawnWidth, overflowsPage } =
+    useNotationScale(
+        containerRef,
+        computed(() => props.scale ?? 1),
+    );
 
 // The engraving counts as present while it is still loading, so a song does not
 // flash the re-set notation on its way to the page it actually has.
@@ -175,20 +186,78 @@ const hasEngraving = computed(() => !!props.svgMarkup || !!props.imageUrl || pro
 /**
  * Which of the two is on screen.
  *
- * Below the fit width there is nothing to decide: the engraving is the book's
- * own setting and is already larger on a phone than in print, so it wins
- * everywhere. Past it the systems can only be pushed sideways, and re-breaking
- * them onto the width there is becomes worth offering — that, and only that, is
- * what the setting governs. A song with no engraving at all has no choice to
- * make, and neither has one whose sheet never arrived.
+ * Below the fit width the engraving wins outright: it is the book's own setting
+ * and on a phone it is already 1.56× the printed page. Past it the engraving can
+ * only be pushed sideways — a fixed picture cannot re-break — so the reader is
+ * handed the one that can, and it does (see `reflowing`).
+ *
+ * Nothing is asked of the reader here. The engraving is better until it cannot
+ * be shown whole, and then it is not; that is a fact about the width, not a
+ * matter of taste, and a reader who has just made the notes bigger is telling
+ * us they want to read them, not that they want a question. A song with no
+ * engraving at all has nothing to choose between, and neither has one whose
+ * sheet never arrived.
  */
 const showOsmd = computed(() => {
     if (!hasEngraving.value) return true;
     if (!props.fileBlob) return false;
-    return overflowsPage.value && props.beyondFit === 'reflow';
+    return overflowsPage.value;
 });
 
-watch(overflowsPage, (value) => emit('update:overflows', value), { immediate: true });
+/**
+ * Whether the sheet is laid out on the width the reader has, rather than on the
+ * printed page.
+ *
+ * This is what „past the fit width" is for. Below it the sheet keeps the book's
+ * own system breaks and is scaled, so the two views agree line for line and
+ * switching between them moves nothing. Past it that would only push the music
+ * off the side of the screen, so the breaks are released and OSMD sets the music
+ * again onto the width there actually is — at the note size the scale asks for,
+ * which is the whole point of having asked for it.
+ */
+const reflowing = computed(() => showOsmd.value && overflowsPage.value);
+
+/** The scale the reader set, in the units the layout understands — see
+ *  `reflowZoomFor`, which is where that conversion is explained. */
+const reflowZoom = computed(() => reflowZoomFor(drawnWidth.value ?? PRINT_HOST_PX));
+
+/** How long the width has to hold still before the sheet is set again on it */
+const REFLOW_SETTLE_MS = 160;
+
+let reflowHandle = 0;
+
+/**
+ * Set the sheet again whenever the page it is being set on changes.
+ *
+ * Only while that page is the reader's. On the printed one the geometry is
+ * fixed and the scale is a width and nothing more, which is exactly what keeps
+ * the two views agreeing line for line below the fit width — letting the scale
+ * reach the layout there would move the book's breaks.
+ *
+ * Debounced, because this is a full re-engraving and the scale arrives from a
+ * slider: a drag would otherwise re-set the whole sheet on every frame of it.
+ * The key collapses to one value while the printed page is in use, so crossing
+ * the fit width re-engraves once in either direction and nothing after that.
+ */
+watch(
+    () =>
+        reflowing.value
+            ? `${Math.round(boxWidth.value ?? 0)}|${reflowZoom.value.toFixed(3)}`
+            : 'print',
+    () => {
+        if (!osmd || !isInitialized || !osmd.Sheet) return;
+        if (reflowHandle) clearTimeout(reflowHandle);
+        reflowHandle = window.setTimeout(() => {
+            reflowHandle = 0;
+            try {
+                renderNotation();
+            } catch (error) {
+                console.error('Could not set the sheet on the new width:', error);
+            }
+        }, REFLOW_SETTLE_MS);
+    },
+);
+
 watch(showOsmd, (value) => emit('update:showsEngraving', !value), { immediate: true });
 
 function getOsmdOptions() {
@@ -199,8 +268,8 @@ function getOsmdOptions() {
     const fg = isDarkMode.value ? '#e5e5e5' : '#000000';
     return {
         // The host is sized to the print block for every render (see
-        // renderAtPrintGeometry); letting OSMD re-lay-out on resize would
-        // measure the column instead and move the system breaks.
+        // renderNotation); letting OSMD re-lay-out on resize would measure
+        // the column instead, and at the wrong moment.
         autoResize: false,
         backend: 'svg' as const,
         // Song title/composer live in the page header — never render them inside the score.
@@ -242,7 +311,7 @@ async function initOsmd() {
             if (wasDark !== isDarkMode.value && osmd) {
                 (osmd as any).setOptions(getOsmdOptions());
                 try {
-                    renderAtPrintGeometry();
+                    renderNotation();
                 } catch {
                     // No sheet loaded (blob missing/failed) — OSMD 1.9.9
                     // render() throws without a sheet; nothing to re-render.
@@ -260,27 +329,8 @@ async function initOsmd() {
     }
 }
 
-// Lay the sheet out on the printed hymnal's page rather than on OSMD's own.
-//
-// The Notenbild is the book's engraving verbatim, and its geometry is the same
-// for all 564 songs: a 249.44pt block holding a 240.96pt system, drawn with a
-// 3.81pt staff space, 8.36pt above the first staff line and ~20.5pt below the
-// last. OSMD measures in units of one staff space and draws it as 10px at
-// zoom 1, which gives the conversion below and lets every print measurement be
-// stated as itself.
-const PRINT_BLOCK_WIDTH_PT = 249.44;
-const PRINT_SYSTEM_WIDTH_PT = 240.96;
-const PRINT_STAFF_SPACE_PT = 3.81;
-const PRINT_SPACE_ABOVE_PT = 8.36;
-const PRINT_SPACE_BELOW_PT = 20.5;
-/** One print point in OSMD pixels (OSMD draws a staff space as 10px at zoom 1) */
-const PX_PER_PT = 10 / PRINT_STAFF_SPACE_PT;
-/** Width the host is given while OSMD lays the sheet out */
-const PRINT_HOST_PX = PRINT_BLOCK_WIDTH_PT * PX_PER_PT;
-/** Page margins in OSMD units, i.e. what is left of the block beside the system */
-const PRINT_SIDE_MARGIN = (PRINT_BLOCK_WIDTH_PT - PRINT_SYSTEM_WIDTH_PT) / 2 / PRINT_STAFF_SPACE_PT;
-
-// Put the sheet on the printed page: its margins, and the system breaks the
+// Put the sheet on the page it is being set on: the printed block's margins
+// either way (see notationGeometry), and the system breaks the
 // engraver chose. Also collapse the inter-system gap when lyrics are hidden —
 // otherwise OSMD leaves the space it would have used for lyrics empty.
 function applyEngravingTweaks() {
@@ -294,8 +344,11 @@ function applyEngravingTweaks() {
     rules.SystemLeftMargin = 0;
     rules.SystemRightMargin = 0;
 
-    // The converter now writes the book's own breaks as <print new-system>.
-    rules.NewSystemAtXMLNewSystemAttribute = true;
+    // The converter writes the book's own breaks as <print new-system>, and they
+    // are honoured for as long as the sheet is being set on the printed page.
+    // Past the fit width they are exactly what has to go: holding a system that
+    // no longer fits is what pushed the music off the side of the screen.
+    rules.NewSystemAtXMLNewSystemAttribute = !reflowing.value;
 
     // The lyrics are set at the book's size too. OSMD's own default is 2.0
     // staff spaces; the hymnal sets Optima at 2.7, which is why its lyrics read
@@ -310,6 +363,11 @@ function applyEngravingTweaks() {
     // width it gets: every system is still justified to the full block, so the
     // notes end up spaced as before. Measured over 60 songs, 58 then break
     // exactly where the book breaks them; at OSMD's own spacing only 44 do.
+    //
+    // They are kept when the breaks are released, too, though nothing is being
+    // reproduced there any more: they are what the book's own density is worth
+    // in OSMD's terms, so a re-break lands on it. Lied 8 at 1.5× comes out at
+    // the book's two bars a line; at OSMD's own spacing it goes straight to one.
     rules.VoiceSpacingMultiplierVexflow = 0.25;
     rules.VoiceSpacingAddendVexflow = 0.3;
 
@@ -357,7 +415,7 @@ async function loadAndRender() {
             await osmd.load(text);
         }
 
-        renderAtPrintGeometry();
+        renderNotation();
 
         emit('rendered', { lyricsDrawn: lyricsDrawn() });
 
@@ -1212,11 +1270,17 @@ async function initPlayback() {
 // SVG OSMD writes carries a matching viewBox, so making it fluid scales the
 // whole engraving into the column exactly as the Notenbild's own SVG scales —
 // which is what puts the two views at the same size.
-function renderAtPrintGeometry() {
+function renderNotation() {
     if (!osmd || !notationRef.value) return;
     const host = notationRef.value;
     const hostWidth = host.style.width;
-    host.style.width = `${PRINT_HOST_PX}px`;
+    // Which page the sheet is being set on — the printed one, or the reader's.
+    // The rules have to be restated either way: whether the book's breaks are
+    // honoured is part of them, and it changes with the width.
+    applyEngravingTweaks();
+    const onReadersPage = reflowing.value;
+    (osmd as unknown as { zoom: number }).zoom = onReadersPage ? reflowZoom.value : 1;
+    host.style.width = `${onReadersPage ? (boxWidth.value ?? PRINT_HOST_PX) : PRINT_HOST_PX}px`;
     try {
         osmd.render();
     } finally {
@@ -1341,9 +1405,8 @@ watch(
         if (osmd && isInitialized) {
             // setOptions accepts a partial options object
             (osmd as any).setOptions(getOsmdOptions());
-            applyEngravingTweaks();
             try {
-                renderAtPrintGeometry();
+                renderNotation();
             } catch {
                 // No sheet loaded (blob missing/failed) — nothing re-rendered,
                 // so there is no state change to announce.
@@ -1424,6 +1487,10 @@ onMounted(() => {
 
 onBeforeUnmount(async () => {
     stopClock();
+    if (reflowHandle) {
+        clearTimeout(reflowHandle);
+        reflowHandle = 0;
+    }
     if (layerObserver) {
         layerObserver.disconnect();
         layerObserver = null;
