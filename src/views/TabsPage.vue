@@ -109,6 +109,7 @@
 
         <!-- Mobile (< lg): bottom tab bar -->
         <nav
+            ref="bottomBar"
             class="border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
             aria-label="Hauptnavigation"
         >
@@ -130,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import {
     ChevronsUpDown,
@@ -151,6 +152,7 @@ import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
 
 import { useAuth } from '@/composables/useAuth';
+import { useBottomBarInset } from '@/composables/useBottomBarInset';
 import { useConfirm } from '@/composables/useConfirm';
 
 import {
@@ -165,6 +167,11 @@ const route = useRoute();
 const router = useRouter();
 const { user, isLoggedIn, logout } = useAuth();
 const { confirm } = useConfirm();
+
+// Toasts live in the app shell, clear of the router, so the tab bar has to say
+// how much of the bottom edge it takes for them to sit above it.
+const bottomBar = ref<HTMLElement | null>(null);
+useBottomBarInset(bottomBar);
 
 const { hasSelection } = storeToRefs(useServiceStore());
 const { serviceTab } = storeToRefs(usePreferencesStore());
