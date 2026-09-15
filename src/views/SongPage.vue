@@ -19,7 +19,12 @@
             </template>
         </SongHeader>
 
-        <main class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <!-- Also the swipe surface: a flick across it turns to the song either
+             side, except where it begins on notation that scrolls sideways. -->
+        <main
+            ref="mainRef"
+            class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+        >
             <!-- Loading State -->
             <SongLoadingState v-if="isLoading" />
 
@@ -143,37 +148,52 @@
             </div>
         </main>
 
-        <!-- Docked audio transport: opaque, above the safe area -->
+        <!-- Docked under the page, opaque, above the safe area: the audio
+             transport while there is one, and beneath it the way to the songs
+             either side — the running head of whatever is being read. -->
         <footer
-            v-if="song && showControls && hasMelodyXml && notationState === 'ready'"
-            class="shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]"
+            v-if="showTransport || neighbours"
+            class="shrink-0 bg-background pb-[env(safe-area-inset-bottom)]"
         >
-            <SongAudioControls
-                v-model:loop-enabled="loopEnabled"
-                v-model:muted="isMuted"
-                :is-playing="isPlaying"
-                :is-loading="engineLoading"
-                :has-paused="hasPaused"
-                :tempo="tempo"
-                :position="playbackPosition"
-                :duration="playbackDuration"
-                @toggle-play="togglePlay"
-                @stop="stopPlayback"
-                @seek="seekPlayback"
-                @increase-tempo="increaseTempo"
-                @decrease-tempo="decreaseTempo"
+            <div v-if="showTransport" class="border-t border-border">
+                <SongAudioControls
+                    v-model:loop-enabled="loopEnabled"
+                    v-model:muted="isMuted"
+                    :is-playing="isPlaying"
+                    :is-loading="engineLoading"
+                    :has-paused="hasPaused"
+                    :tempo="tempo"
+                    :position="playbackPosition"
+                    :duration="playbackDuration"
+                    @toggle-play="togglePlay"
+                    @stop="stopPlayback"
+                    @seek="seekPlayback"
+                    @increase-tempo="increaseTempo"
+                    @decrease-tempo="decreaseTempo"
+                />
+            </div>
+            <SongNavBar
+                v-if="neighbours"
+                :label="neighbours.label"
+                :position="neighbours.position"
+                :total="neighbours.total"
+                :prev="neighbours.prev"
+                :next="neighbours.next"
+                @prev="goToNeighbour(neighbours.prev)"
+                @next="goToNeighbour(neighbours.next)"
             />
         </footer>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { Church, Music } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
+import { neighboursIn, useNavigationContextStore } from '@/stores/navigationContext';
 import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
@@ -184,6 +204,7 @@ import {
     useMediaSession,
 } from '@/composables/useMediaSession';
 import { useStoredFiles } from '@/composables/useStoredFiles';
+import { useSwipeNavigation } from '@/composables/useSwipeNavigation';
 import { useWakeLock } from '@/composables/useWakeLock';
 
 import SongAudioControls from '@/components/songview/SongAudioControls.vue';
@@ -193,15 +214,17 @@ import SongHeader from '@/components/songview/SongHeader.vue';
 import SongLoadingState from '@/components/songview/SongLoadingState.vue';
 import SongMelody from '@/components/songview/SongMelody.vue';
 import SongMenuPopover from '@/components/songview/SongMenuPopover.vue';
+import SongNavBar from '@/components/songview/SongNavBar.vue';
 import SongVerses from '@/components/songview/SongVerses.vue';
 
 import type { Song } from '@/db';
 import { type VerseSelection, formatVerseSelection, isVerseSung } from '@/services/servicePlans';
 import { authorFilterName } from '@/utils/authorFormat';
-import { songByNumber } from '@/utils/hymnNumber';
+import { hymnPath, songByNumber } from '@/utils/hymnNumber';
 import { sanitizeNotationSvg } from '@/utils/notationSvg';
 
 const route = useRoute();
+const router = useRouter();
 const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
@@ -222,6 +245,7 @@ const notationState = ref<
 
 // Refs
 const melodyRef = ref<InstanceType<typeof SongMelody> | null>(null);
+const mainRef = ref<HTMLElement | null>(null);
 
 // Whether the melody has outgrown the page, and which engraving that has left
 // on screen. Both are the melody view's to report — only it knows how wide the
@@ -263,6 +287,11 @@ const playbackEngaged = ref(false);
 
 // Display options
 const showControls = ref(true);
+
+const showTransport = computed(
+    () =>
+        !!song.value && showControls.value && hasMelodyXml.value && notationState.value === 'ready',
+);
 
 // Check if song has a Notenbild: the vector engraving, or — for songs cached
 // before notentext_svg was synced — one of the legacy raster files.
@@ -424,6 +453,9 @@ function loadSong() {
     melodyXmlBlob.value = null;
     loadMelodyImage();
     loadMelodyXml();
+    // Paging to the next hymn starts it at the top, the way turning a page
+    // does — the scroll position belonged to the song that was left.
+    mainRef.value?.scrollTo({ top: 0 });
 }
 
 // Load song on mount and when route changes
@@ -521,6 +553,82 @@ function decreaseTempo() {
         tempo.value -= 10;
     }
 }
+
+// --- The songs either side ------------------------------------------------
+//
+// Vor and Zurück walk the order the reader was browsing: the list as it was
+// sorted and filtered, the playlist, the service. The screen that was left
+// says which (see the navigationContext store). A song reached any other way
+// — a shared link, a cold start — is walked as the book: by number.
+const navigationContext = useNavigationContextStore();
+
+const songById = computed(() => new Map(songs.value.map((s) => [s.id, s])));
+
+// The whole book by hymn number, unnumbered songs at the end.
+const bookOrder = computed(() =>
+    [...songs.value]
+        .sort((a, b) => (a.index > 0 ? a.index : Infinity) - (b.index > 0 ? b.index : Infinity))
+        .map((s) => s.id),
+);
+
+// The context's order, minus any id the library cannot show — a playlist can
+// hold a song this device has not downloaded, and a neighbour that cannot be
+// opened would leave the reader stuck against it.
+const contextOrder = computed(
+    () => navigationContext.context?.songIds.filter((id) => songById.value.has(id)) ?? null,
+);
+
+const neighbours = computed(() => {
+    const current = song.value;
+    if (!current) return null;
+
+    const inContext = contextOrder.value ? neighboursIn(contextOrder.value, current.id) : null;
+    const walk = inContext?.position ? inContext : neighboursIn(bookOrder.value, current.id);
+    // Only worth a bar where there is somewhere to go.
+    if (walk.total <= 1) return null;
+
+    return {
+        label: inContext?.position ? navigationContext.context!.label : 'Gesangbuch',
+        position: walk.position,
+        total: walk.total,
+        prev: walk.prevId ? (songById.value.get(walk.prevId) ?? null) : null,
+        next: walk.nextId ? (songById.value.get(walk.nextId) ?? null) : null,
+    };
+});
+
+// Replace, not push: however far the reader pages, Zurück still leaves to the
+// list they came from rather than back through every song they passed. The
+// address is the hymn's number, so that what the bar shows can be copied.
+function goToNeighbour(target: Song | null) {
+    if (!target) return;
+    void router.replace(hymnPath(target));
+}
+
+useSwipeNavigation(mainRef, {
+    onSwipeLeft: () => goToNeighbour(neighbours.value?.next ?? null),
+    onSwipeRight: () => goToNeighbour(neighbours.value?.prev ?? null),
+});
+
+// The arrow keys at a desk. Not from inside anything that has its own use for
+// them — a text field, the size slider, an open menu.
+function onKeydown(event: KeyboardEvent) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (
+        target?.closest(
+            'input, textarea, select, [contenteditable="true"], [role="slider"], [role="dialog"], [role="menu"]',
+        )
+    ) {
+        return;
+    }
+    goToNeighbour(
+        (event.key === 'ArrowLeft' ? neighbours.value?.prev : neighbours.value?.next) ?? null,
+    );
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
 // --- The song page and the device it is held in ---------------------------
 
