@@ -880,7 +880,8 @@ async function jumpTo(step: number) {
     // is playing, even though its clock has not started yet.
     const wasPlaying = clockRunning || awaitingFirstNote;
     stopClock();
-    // jumpToStep pauses the engine and walks the cursor to the step.
+    // jumpToStep pauses the engine and points its scheduler at the step —
+    // patched to sound that step first; see patches/osmd-audio-player.
     playbackEngine.jumpToStep(step);
     settleAt(step);
     showPosition();

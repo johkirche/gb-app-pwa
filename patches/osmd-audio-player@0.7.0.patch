@@ -1,0 +1,56 @@
+diff --git a/dist/PlaybackEngine.js b/dist/PlaybackEngine.js
+index 4670ca08a07a8ec00c3a6ccf8acd6bac79c942f4..373261db85e80a52c2102a2c5ff4653332b8b7d6 100644
+--- a/dist/PlaybackEngine.js
++++ b/dist/PlaybackEngine.js
+@@ -137,18 +137,19 @@ export default class PlaybackEngine {
+     }
+     jumpToStep(step) {
+         this.pause();
+-        if (this.currentIterationStep > step) {
+-            this.cursor.reset();
+-            this.currentIterationStep = 0;
+-        }
+-        while (this.currentIterationStep < step) {
++        step = Math.max(0, Math.min(step, this.iterationSteps));
++        // The scheduler's step queue starts on the first note, so its index
++        // is the iteration step itself: the step jumped to is the first one
++        // to sound. The cursor is advanced as each note fires (see
++        // iterationCallback), except for the very first step, so it has to
++        // wait one step short of the target to land on it as it sounds.
++        this.cursor.reset();
++        const cursorStep = Math.max(0, step - 1);
++        for (let i = 0; i < cursorStep; i++) {
+             this.cursor.next();
+-            ++this.currentIterationStep;
+         }
+-        let schedulerStep = this.currentIterationStep;
+-        if (this.currentIterationStep > 0 && this.currentIterationStep < this.iterationSteps)
+-            ++schedulerStep;
+-        this.scheduler.setIterationStep(schedulerStep);
++        this.currentIterationStep = step;
++        this.scheduler.setIterationStep(step);
+     }
+     setBpm(bpm) {
+         this.playbackSettings.bpm = bpm;
+diff --git a/dist/PlaybackScheduler.js b/dist/PlaybackScheduler.js
+index 0ec93e51bad2b63feac94addffdea110a995f81e..71272cf81f6e4e4cdc2f4a94c2b8ba76d8b6ae1b 100644
+--- a/dist/PlaybackScheduler.js
++++ b/dist/PlaybackScheduler.js
+@@ -39,6 +39,8 @@ export default class PlaybackScheduler {
+         if (!this.schedulerIntervalHandle) {
+             this.schedulerIntervalHandle = window.setInterval(() => this.scheduleIterationStep(), this.scheduleInterval);
+         }
++        // A note due now is due now, not at the first tick of the interval.
++        this.scheduleIterationStep();
+     }
+     setIterationStep(step) {
+         step = Math.min(this.stepQueue.steps.length - 1, step);
+@@ -57,7 +59,7 @@ export default class PlaybackScheduler {
+         this.currentTick = 0;
+         this.currentTickTimestamp = 0;
+         this.stepQueueIndex = 0;
+-        clearInterval(this.scheduleInterval);
++        clearInterval(this.schedulerIntervalHandle);
+         this.schedulerIntervalHandle = null;
+     }
+     loadNotes(currentVoiceEntries) {
