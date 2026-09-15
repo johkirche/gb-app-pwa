@@ -2,7 +2,7 @@ import { ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type ServiceTabMode, type XmlDisplaySettings, db } from '@/db';
+import { type ServiceTabMode, type SongPagingMode, type XmlDisplaySettings, db } from '@/db';
 
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
@@ -51,6 +51,11 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // 'auto' keeps the tab bar as it was for everyone who never holds a service;
     // whoever leads the music pins it once and always has it.
     const serviceTab = ref<ServiceTabMode>('auto');
+    // Playlists and the Gottesdienst by default: those orders were put
+    // together to be sung through, so the next song is a real question there.
+    // From the Liederliste it is a habit some readers want and others find a
+    // bar in the way of the verses — so it is theirs to switch on.
+    const songPaging = ref<SongPagingMode>('lists');
     // On by default: the phone on the hymnal stand dimming in verse three is
     // what this is for, and the lock is only ever held while a song is open
     // and on screen. Whoever would rather have the battery turns it off.
@@ -75,6 +80,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 pageScale.value = prefs.pageScale ?? migrateLegacyScale(prefs);
                 xmlSettings.value = { ...DEFAULT_XML_SETTINGS, ...(prefs.xmlSettings || {}) };
                 serviceTab.value = prefs.serviceTab ?? 'auto';
+                songPaging.value = prefs.songPaging ?? 'lists';
                 keepScreenAwake.value = prefs.keepScreenAwake ?? true;
                 midiOutputEnabled.value = prefs.midiOutputEnabled ?? false;
                 midiOutputId.value = prefs.midiOutputId ?? '';
@@ -95,6 +101,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             // reactive proxy behind xmlSettings.value (DataCloneError).
             xmlSettings: { ...xmlSettings.value },
             serviceTab: serviceTab.value,
+            songPaging: songPaging.value,
             keepScreenAwake: keepScreenAwake.value,
             midiOutputEnabled: midiOutputEnabled.value,
             midiOutputId: midiOutputId.value,
@@ -131,6 +138,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
             await persist();
         } catch (err) {
             console.error('Error saving the Gottesdienst tab setting:', err);
+            throw err;
+        }
+    }
+
+    async function setSongPaging(mode: SongPagingMode) {
+        try {
+            songPaging.value = mode;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the song paging setting:', err);
             throw err;
         }
     }
@@ -183,6 +200,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         pageScale.value = 1.0;
         xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
         serviceTab.value = 'auto';
+        songPaging.value = 'lists';
         keepScreenAwake.value = true;
         midiOutputEnabled.value = false;
         midiOutputId.value = '';
@@ -197,6 +215,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         pageScale,
         xmlSettings,
         serviceTab,
+        songPaging,
         keepScreenAwake,
         midiOutputEnabled,
         midiOutputId,
@@ -208,6 +227,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setPageScale,
         setXmlSetting,
         setServiceTab,
+        setSongPaging,
         setKeepScreenAwake,
         setMidiOutputEnabled,
         setMidiOutputId,

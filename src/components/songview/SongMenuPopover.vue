@@ -54,6 +54,18 @@
                     <ListMusic class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     Zu Playlist hinzufügen
                 </button>
+                <!-- On a phone this is where sharing lives; from desktop width
+                     up the header carries its own share button, so the entry
+                     steps back rather than offer the same thing twice. -->
+                <button
+                    v-if="song"
+                    type="button"
+                    class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted lg:hidden"
+                    @click="handleShare"
+                >
+                    <Share2 class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    Lied teilen
+                </button>
 
                 <!-- Display Settings Group -->
                 <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
@@ -203,12 +215,14 @@ import {
     ListOrdered,
     Music,
     Settings,
+    Share2,
     Type,
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 
 import { useServiceStore } from '@/stores/service';
 
+import { shareSong } from '@/composables/useShareSong';
 import { isWakeLockSupported } from '@/composables/useWakeLock';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
@@ -313,6 +327,12 @@ function onScaleChange(value: number[] | undefined) {
 // settings button the menu itself hangs from.
 const menuTriggerRef = ref<{ $el?: HTMLElement } | null>(null);
 const menuAnchor = computed<PanelAnchor>(() => menuTriggerRef.value?.$el ?? null);
+
+function handleShare() {
+    if (!props.song) return;
+    menuOpen.value = false;
+    void shareSong(props.song);
+}
 
 async function handleAddToPlaylist() {
     // Close the popover first, then open the playlist modal — the popover's

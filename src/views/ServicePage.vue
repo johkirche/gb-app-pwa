@@ -116,7 +116,7 @@
                         :reorder-mode="reorderMode"
                         :verse-labels="verseLabels"
                         :active-song-id="songSheetOpen ? songSheetSong?.id : null"
-                        @song-click="(song) => router.push(`/songs/${song.id}`)"
+                        @song-click="openSong"
                         @song-context-menu="showSongActions"
                         @reorder="handleReorder"
                     />
@@ -194,6 +194,7 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
+import { useNavigationContextStore } from '@/stores/navigationContext';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
@@ -232,6 +233,7 @@ const { confirm } = useConfirm();
 const serviceStore = useServiceStore();
 const songsStore = useSongsStore();
 const playlistsStore = usePlaylistsStore();
+const navigationContext = useNavigationContextStore();
 
 const { plan, isLoading, hasSelection, entryCount } = storeToRefs(serviceStore);
 const { songs: allSongs } = storeToRefs(songsStore);
@@ -249,6 +251,17 @@ const songs = computed<Song[]>(() => {
 });
 
 const missingCount = computed(() => entryCount.value - songs.value.length);
+
+// The service goes along into the song: during the Gottesdienst the next hymn
+// is one swipe away instead of a trip back to this list.
+function openSong(song: Song) {
+    navigationContext.setContext({
+        kind: 'service',
+        label: 'Gottesdienst',
+        songIds: songs.value.map((entry) => entry.id),
+    });
+    router.push(`/songs/${song.id}`);
+}
 
 // Which verses each song is down for, phrased once here. Only the songs whose
 // verses were narrowed down appear — for the rest the plan says the whole hymn,

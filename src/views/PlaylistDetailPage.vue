@@ -164,6 +164,7 @@ import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
+import { useNavigationContextStore } from '@/stores/navigationContext';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
@@ -195,6 +196,7 @@ const router = useRouter();
 const playlistsStore = usePlaylistsStore();
 const songsStore = useSongsStore();
 const serviceStore = useServiceStore();
+const navigationContext = useNavigationContextStore();
 const { confirm } = useConfirm();
 
 const { isLoading: isLoadingPlaylists } = storeToRefs(playlistsStore);
@@ -367,7 +369,14 @@ function navigateToAddSongs() {
     router.push(`/playlists/${playlist.value.id}/add-songs`);
 }
 
+// The playlist goes along: during a service every hymn used to mean a trip
+// back here, now the song page pages through the list in its order.
 function navigateToSong(songId: string) {
+    navigationContext.setContext({
+        kind: 'playlist',
+        label: playlist.value?.name || 'Playlist',
+        songIds: resolvedSongs.value.map((song) => song.id),
+    });
     router.push(`/songs/${songId}`);
 }
 </script>

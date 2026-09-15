@@ -82,6 +82,7 @@ import { ChevronRight, Heart } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 
 import { useFavoritesStore } from '@/stores/favorites';
+import { useNavigationContextStore } from '@/stores/navigationContext';
 import { useSongsStore } from '@/stores/songs';
 
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
@@ -93,6 +94,7 @@ import type { Category } from '@/db';
 const router = useRouter();
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
+const navigationContext = useNavigationContextStore();
 
 // Favorited songs, in the order they were added (newest first)
 const favoritedSongs = computed(() => {
@@ -103,6 +105,11 @@ const favoritedSongs = computed(() => {
 });
 
 function navigateToSong(id: string) {
+    navigationContext.setContext({
+        kind: 'favorites',
+        label: 'Favoriten',
+        songIds: favoritedSongs.value.map((song) => song.id),
+    });
     router.push(`/songs/${id}`);
 }
 

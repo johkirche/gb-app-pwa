@@ -295,6 +295,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import { useFavoritesStore } from '@/stores/favorites';
+import { useNavigationContextStore } from '@/stores/navigationContext';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
@@ -329,6 +330,7 @@ import { pickSongOfTheWeek } from '@/utils/songOfTheWeek';
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
 const serviceStore = useServiceStore();
+const navigationContext = useNavigationContextStore();
 const { songs, isLoading, error, lastSyncTime, hasSongs, isSyncing, syncProgress } =
     storeToRefs(songsStore);
 const { isLoggedIn } = useSessionAccess();
@@ -456,7 +458,7 @@ function applyWeiseFromQuery() {
 }
 
 // Sorting - applied to filtered songs
-const { sortMode, showHeaders, showIndexScroll, sortedSections, indexItems } =
+const { sortMode, showHeaders, showIndexScroll, sortedSections, sortedSongs, indexItems } =
     useSongSorting(filteredSongs);
 
 // UI State. Each panel keeps the element (or click point) it was opened from —
@@ -508,7 +510,7 @@ const songOfTheWeekMeta = computed(() => {
 
 function openSongOfTheWeek() {
     if (!songOfTheWeek.value) return;
-    router.push(`/songs/${songOfTheWeek.value.id}`);
+    navigateToSong(songOfTheWeek.value.id);
 }
 
 const isIndexScrollerVisible = computed(() => {
@@ -731,8 +733,24 @@ function updateActiveSection() {
     }
 }
 
-// Navigate to song detail page
+// What the bar under a song calls this list. A reader who searched or filtered
+// is paging through what they found, and the bar should say so rather than
+// claim the whole list.
+const browsingLabel = computed(() => {
+    if (isSearchActive.value) return 'Suchergebnisse';
+    if (hasActiveFilters.value) return 'Gefilterte Lieder';
+    return 'Liederliste';
+});
+
+// Navigate to song detail page. The list as it is on screen — sorted and
+// filtered as the reader left it — goes with them, so Vor and Zurück on the
+// song page walk these rows in this order.
 function navigateToSong(songId: string) {
+    navigationContext.setContext({
+        kind: 'list',
+        label: browsingLabel.value,
+        songIds: sortedSongs.value.map((song) => song.id),
+    });
     router.push(`/songs/${songId}`);
 }
 
