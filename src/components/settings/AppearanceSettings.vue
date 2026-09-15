@@ -123,6 +123,12 @@
                 <ToggleGroupItem value="always" class="flex-1">Überall</ToggleGroupItem>
                 <ToggleGroupItem value="never" class="flex-1">Aus</ToggleGroupItem>
             </ToggleGroup>
+
+            <!-- The foot of a song page as the setting leaves it — the same
+                 sample-under-the-control that the size slider has. -->
+            <div class="mt-4 rounded-md border border-border bg-muted/40 px-3 py-3">
+                <SongPagingPreview :mode="songPaging" />
+            </div>
         </div>
 
         <!-- Left out entirely where the platform has no Screen Wake Lock API:
@@ -161,6 +167,7 @@ import { isWakeLockSupported } from '@/composables/useWakeLock';
 
 import SettingsList from '@/components/settings/SettingsList.vue';
 import SongBeyondFitPreview from '@/components/songview/SongBeyondFitPreview.vue';
+import SongPagingPreview from '@/components/songview/SongPagingPreview.vue';
 import SongScalePreview from '@/components/songview/SongScalePreview.vue';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
