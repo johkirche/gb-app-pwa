@@ -388,6 +388,13 @@ function applyEngravingTweaks() {
     // stays, so the tuned breaks stay with it.
     rules.MaximumLyricsElongationFactor = reflowing.value ? LYRIC_ELONGATION_LIMIT : 2.5;
 
+    // How far a bar's last word may hang over the barline. OSMD allows 3.4
+    // staff spaces, and a word that long lands on the next bar's first word,
+    // which sits right behind the line. Measured over 110 songs at 1.5×, 3.4
+    // leaves words touching in 29 of them and 1.0 in 13, for 6% more lines.
+    // Again only past the fit width; the printed page keeps OSMD's own.
+    rules.LyricOverlapAllowedIntoNextMeasure = reflowing.value ? 1.0 : 3.4;
+
     // Finale justifies the closing system whenever the music fills it, which is
     // most songs. Left unstretched it is the one system that shows the tightened
     // spacing raw, and its words end up crowded into the left half.

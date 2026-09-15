@@ -41,9 +41,9 @@ describe('widthWithLyricRoom', () => {
         const m = measure(laidOut);
         const seen: number[][] = [];
         widthWithLyricRoom(rules, calculator, passSeeing(seen), [m], tight);
-        // First note stays; every gap shrinks by 4.5 / 12.
+        // Every position shrinks by 4.5 / 12, the first note's offset included.
         const ratio = tight / 12;
-        expect(seen[0]).toEqual(laidOut.map((x) => 2 + (x - 2) * ratio));
+        expect(seen[0]).toEqual(laidOut.map((x) => x * ratio));
         expect(m.staffEntries.map((e) => e.PositionAndShape.RelativePosition.x)).toEqual(laidOut);
     });
 

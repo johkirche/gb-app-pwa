@@ -31,12 +31,13 @@ import type {
  * truth about the words.
  *
  * So, while reflowing, the note positions are handed to the second step in
- * the width the first step claimed: the first note stays where it is (its
- * offset from the barline is fixed, whatever the measure's width) and every
- * gap after it is scaled down by the same ratio the figure was. The widening
- * that comes out is then in the same units it is applied to, and the measure
- * ends up as wide as its words. Pickup measures are left alone: VexFlow's
- * minimum for a partial measure is not a width the notes are laid out in.
+ * the width the first step claimed, every one scaled by the same ratio the
+ * figure was. That is the world the step reasons in — a measure that holds
+ * its notes in proportion and moves every one of them when it is widened —
+ * and in it the widening comes out in the units it is applied to, so the
+ * measure ends up as wide as its words. Pickup measures are left alone:
+ * VexFlow's minimum for a partial measure is not a width the notes are laid
+ * out in.
  *
  * OSMD builds a fresh calculator for every sheet it loads, so this has to be
  * asked again after each `load()`; it is idempotent for one calculator.
@@ -73,7 +74,11 @@ function entryPositions(measures: GraphicalMeasure[]) {
  * Run OSMD's width pass with the notes moved into the width it is widening.
  *
  * `tight` is OSMD's shrunken minimum for the measure; the notes were laid out
- * in VexFlow's own minimum, which this recovers from OSMD's formula.
+ * in VexFlow's own minimum, which this recovers from OSMD's formula. Every
+ * position is scaled by the ratio of the two, the offset of the first note
+ * included: that is the world the pass reasons in, where a measure of width
+ * `tight` holds its notes in proportion and widening it by a factor moves
+ * every note by that factor.
  */
 export function widthWithLyricRoom(
     rules: Pick<EngravingRules, 'VoiceSpacingMultiplierVexflow' | 'VoiceSpacingAddendVexflow'>,
@@ -94,9 +99,8 @@ export function widthWithLyricRoom(
     const ratio = tight / vexflowMinimum;
     const positions = entryPositions(measures);
     const laidOut = positions.map((position) => position.x);
-    const firstNote = Math.min(...laidOut);
     positions.forEach((position, i) => {
-        position.x = firstNote + (laidOut[i] - firstNote) * ratio;
+        position.x = laidOut[i] * ratio;
     });
     try {
         return pass.call(calculator, measures, tight);
