@@ -69,6 +69,7 @@
                     :tempo="tempo"
                     :repeat="repeatTimes"
                     :muted="isMuted"
+                    :seekable="showTransport"
                     @play-started="isPlaying = true"
                     @play-stopped="isPlaying = false"
                     @ended="onPlaybackEnded"
