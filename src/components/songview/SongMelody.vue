@@ -119,6 +119,10 @@ const props = defineProps<{
     repeat?: number;
     /** Follow the song on screen with nothing to hear */
     muted?: boolean;
+    /** Whether a tap on a note may move the music. Off with the transport:
+     *  a page read without one has nothing to move, and a Gottesdienst is
+     *  read that way. */
+    seekable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -849,6 +853,7 @@ async function seek(fraction: number) {
  * the first pass of a song already on its second time round.
  */
 async function seekToNote(note: number) {
+    if (props.seekable === false) return;
     const step = stepForNote(stepToNote, note, currentStep);
     if (step !== null) await jumpTo(step);
 }
@@ -875,7 +880,8 @@ async function jumpTo(step: number) {
     // is playing, even though its clock has not started yet.
     const wasPlaying = clockRunning || awaitingFirstNote;
     stopClock();
-    // jumpToStep pauses the engine and walks the cursor to the step.
+    // jumpToStep pauses the engine and points its scheduler at the step —
+    // patched to sound that step first; see patches/osmd-audio-player.
     playbackEngine.jumpToStep(step);
     settleAt(step);
     showPosition();

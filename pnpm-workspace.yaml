@@ -8,3 +8,5 @@ allowBuilds:
   sharp: true
   vue-demi: true
   workerd: true
+patchedDependencies:
+  osmd-audio-player@0.7.0: patches/osmd-audio-player@0.7.0.patch
