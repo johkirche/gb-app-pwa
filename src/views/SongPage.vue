@@ -198,6 +198,7 @@ import SongVerses from '@/components/songview/SongVerses.vue';
 import type { Song } from '@/db';
 import { type VerseSelection, formatVerseSelection, isVerseSung } from '@/services/servicePlans';
 import { authorFilterName } from '@/utils/authorFormat';
+import { songByNumber } from '@/utils/hymnNumber';
 import { sanitizeNotationSvg } from '@/utils/notationSvg';
 
 const route = useRoute();
@@ -231,8 +232,14 @@ const showsEngraving = ref(true);
 // Current song
 const song = ref<Song | null>(null);
 
-// Song ID from route
-const songId = computed(() => route.params.id as string);
+// The id everything on this page keys on. Read off the resolved song, not the
+// URL: the page is reached under /songs/:id and under /lied/:nummer alike, and
+// only the record knows its own id under both.
+const songId = computed(() => song.value?.id ?? '');
+
+// Both routes render this view. Anything else means the page is on its way out
+// and the params have already gone — nothing to load then.
+const isSongRoute = computed(() => route.name === 'Song' || route.name === 'SongByNumber');
 
 // Playback state
 const isPlaying = ref(false);
@@ -389,24 +396,34 @@ async function loadMelodyImage() {
     }
 }
 
-// Find song by ID
-function loadSong() {
-    const songId = route.params.id as string;
-    if (songId) {
-        song.value = songs.value.find((s) => s.id === songId) || null;
-        // Reset notation outcome before loading the next song's assets
-        notationState.value = 'loading';
-        notationLyricsDrawn.value = false;
-        // The melody view drops the engine built for the previous sheet, so the
-        // transport has to come back to rest with it — otherwise it would go on
-        // showing "Pause" over a song that is not playing.
-        resetPlayback();
-        // Both assets, every time: the engraving is what is shown and the sheet
-        // is what the playback is clocked by, so neither is optional any more.
-        melodyXmlBlob.value = null;
-        loadMelodyImage();
-        loadMelodyXml();
+// The song the address names: by record id under /songs/:id, by hymn number
+// under /lied/:nummer. Null where the library holds no such song — which on a
+// cold start may only mean it has not been read from IndexedDB yet; the watch
+// on `songs` below tries again once it has.
+function resolveRouteSong(): Song | null {
+    const id = route.params.id;
+    if (typeof id === 'string' && id) {
+        return songs.value.find((s) => s.id === id) ?? null;
     }
+    return songByNumber(songs.value, route.params.nummer as string | undefined);
+}
+
+function loadSong() {
+    if (!isSongRoute.value) return;
+
+    song.value = resolveRouteSong();
+    // Reset notation outcome before loading the next song's assets
+    notationState.value = 'loading';
+    notationLyricsDrawn.value = false;
+    // The melody view drops the engine built for the previous sheet, so the
+    // transport has to come back to rest with it — otherwise it would go on
+    // showing "Pause" over a song that is not playing.
+    resetPlayback();
+    // Both assets, every time: the engraving is what is shown and the sheet
+    // is what the playback is clocked by, so neither is optional any more.
+    melodyXmlBlob.value = null;
+    loadMelodyImage();
+    loadMelodyXml();
 }
 
 // Load song on mount and when route changes
@@ -415,7 +432,7 @@ onMounted(() => {
 });
 
 watch(
-    () => route.params.id,
+    () => [route.params.id, route.params.nummer],
     () => {
         loadSong();
     },

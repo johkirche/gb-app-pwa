@@ -158,6 +158,24 @@ const routes: Array<RouteRecordRaw> = [
         component: SongPage,
         meta: { access: 'library' },
     },
+    // The hymn by its number: the address a bulletin prints and a message to
+    // the choir carries, and the one the share button hands out. Same view as
+    // /songs/:id — the page resolves the number itself against the library,
+    // rather than a guard redirecting to the id, so that a number the device
+    // has not downloaded yet shows the page's own "nicht gefunden" state and
+    // resolves on its own the moment the songs arrive. Nothing here needs the
+    // network: the global guard already waits for the IndexedDB read before
+    // any 'library' route is entered, so a cold, offline open works.
+    {
+        path: '/lied',
+        redirect: '/tabs/lieder',
+    },
+    {
+        path: '/lied/:nummer(\\d+)',
+        name: 'SongByNumber',
+        component: SongPage,
+        meta: { access: 'library' },
+    },
     // Reachable without a session on purpose: the page reports what is stored
     // on the device and can delete it, both of which work offline. Only the
     // sync itself needs an account, and the page says so where the button is.
