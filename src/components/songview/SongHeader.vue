@@ -7,8 +7,18 @@
         <span>{{ songTitle }}</span>
         <template #trailing>
             <!-- The link that leaves here names the hymn by its number, which
-                 is what a bulletin prints and a choir passes around. -->
-            <Button v-if="song" variant="ghost" size="icon" aria-label="Lied teilen" @click="share">
+                 is what a bulletin prints and a choir passes around. Only from
+                 desktop width up: a phone's header has the title to carry and
+                 three icons already crowd it, so there the entry lives in the
+                 menu (see SongMenuPopover). -->
+            <Button
+                v-if="song"
+                variant="ghost"
+                size="icon"
+                class="hidden lg:inline-flex"
+                aria-label="Lied teilen"
+                @click="share"
+            >
                 <Share2 class="!size-5" aria-hidden="true" />
             </Button>
             <Button
