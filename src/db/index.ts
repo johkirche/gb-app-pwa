@@ -150,6 +150,15 @@ export interface XmlDisplaySettings {
  */
 export type ServiceTabMode = 'auto' | 'always';
 
+/**
+ * When the song page offers Vor and Zurück to the songs either side.
+ * 'lists' — only inside a playlist or the Gottesdienst, where the order was
+ *           put together to be sung through; the default
+ * 'always' — also from the Liederliste, the Favoriten and by number
+ * 'never'  — the page ends at the credits, as it used to
+ */
+export type SongPagingMode = 'lists' | 'always' | 'never';
+
 export interface PreferencesData {
     id: string;
     /**
@@ -175,6 +184,8 @@ export interface PreferencesData {
     xmlSettings?: XmlDisplaySettings;
     /** Optional so records stored before the Gottesdienst tab existed stay valid. */
     serviceTab?: ServiceTabMode;
+    /** Optional so records stored before song paging existed stay valid. */
+    songPaging?: SongPagingMode;
     /**
      * Hold a screen wake lock while a song is open, so the page does not dim
      * mid-verse. Optional so records stored before it existed stay valid; the

@@ -6,6 +6,7 @@ import {
     type MelodyDisplayMode,
     type NotationBeyondFit,
     type ServiceTabMode,
+    type SongPagingMode,
     type XmlDisplaySettings,
     db,
 } from '@/db';
@@ -81,6 +82,11 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // 'auto' keeps the tab bar as it was for everyone who never holds a service;
     // whoever leads the music pins it once and always has it.
     const serviceTab = ref<ServiceTabMode>('auto');
+    // Playlists and the Gottesdienst by default: those orders were put
+    // together to be sung through, so the next song is a real question there.
+    // From the Liederliste it is a habit some readers want and others find a
+    // bar in the way of the verses — so it is theirs to switch on.
+    const songPaging = ref<SongPagingMode>('lists');
     // On by default: the phone on the hymnal stand dimming in verse three is
     // what this is for, and the lock is only ever held while a song is open
     // and on screen. Whoever would rather have the battery turns it off.
@@ -114,6 +120,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                     migrateLegacyMelodyMode(storedMode === 'abc' ? undefined : storedMode);
                 xmlSettings.value = { ...DEFAULT_XML_SETTINGS, ...(prefs.xmlSettings || {}) };
                 serviceTab.value = prefs.serviceTab ?? 'auto';
+                songPaging.value = prefs.songPaging ?? 'lists';
                 keepScreenAwake.value = prefs.keepScreenAwake ?? true;
                 midiOutputEnabled.value = prefs.midiOutputEnabled ?? false;
                 midiOutputId.value = prefs.midiOutputId ?? '';
@@ -134,6 +141,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             // reactive proxy behind xmlSettings.value (DataCloneError).
             xmlSettings: { ...xmlSettings.value },
             serviceTab: serviceTab.value,
+            songPaging: songPaging.value,
             keepScreenAwake: keepScreenAwake.value,
             midiOutputEnabled: midiOutputEnabled.value,
             midiOutputId: midiOutputId.value,
@@ -183,6 +191,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setSongPaging(mode: SongPagingMode) {
+        try {
+            songPaging.value = mode;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the song paging setting:', err);
+            throw err;
+        }
+    }
+
     async function setKeepScreenAwake(enabled: boolean) {
         try {
             keepScreenAwake.value = enabled;
@@ -222,6 +240,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         notationBeyondFit.value = null;
         xmlSettings.value = { ...DEFAULT_XML_SETTINGS };
         serviceTab.value = 'auto';
+        songPaging.value = 'lists';
         keepScreenAwake.value = true;
         midiOutputEnabled.value = false;
         midiOutputId.value = '';
@@ -238,6 +257,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         beyondFitChosen,
         xmlSettings,
         serviceTab,
+        songPaging,
         keepScreenAwake,
         midiOutputEnabled,
         midiOutputId,
@@ -249,6 +269,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setNotationBeyondFit,
         setXmlSetting,
         setServiceTab,
+        setSongPaging,
         setKeepScreenAwake,
         setMidiOutputEnabled,
         setMidiOutputId,

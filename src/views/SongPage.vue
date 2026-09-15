@@ -565,7 +565,14 @@ function decreaseTempo() {
 // sorted and filtered, the playlist, the service. The screen that was left
 // says which (see the navigationContext store). A song reached any other way
 // — a shared link, a cold start — is walked as the book: by number.
+//
+// Offered by default only inside a playlist or the Gottesdienst, where the
+// order was put together to be sung through. Everywhere else the bar is
+// opt-in (Einstellungen › Anzeige), and where it is not shown the swipe and
+// the arrow keys stay quiet too — a page that turns without a bar to say so
+// would be a page that turns by accident.
 const navigationContext = useNavigationContextStore();
+const { songPaging } = storeToRefs(preferencesStore);
 
 const songById = computed(() => new Map(songs.value.map((s) => [s.id, s])));
 
@@ -585,15 +592,23 @@ const contextOrder = computed(
 
 const neighbours = computed(() => {
     const current = song.value;
-    if (!current) return null;
+    if (!current || songPaging.value === 'never') return null;
 
+    const context = navigationContext.context;
     const inContext = contextOrder.value ? neighboursIn(contextOrder.value, current.id) : null;
-    const walk = inContext?.position ? inContext : neighboursIn(bookOrder.value, current.id);
+    const walkingContext = !!inContext?.position;
+
+    if (songPaging.value === 'lists') {
+        const sungThrough = context?.kind === 'playlist' || context?.kind === 'service';
+        if (!walkingContext || !sungThrough) return null;
+    }
+
+    const walk = walkingContext ? inContext! : neighboursIn(bookOrder.value, current.id);
     // Only worth a bar where there is somewhere to go.
     if (walk.total <= 1) return null;
 
     return {
-        label: inContext?.position ? navigationContext.context!.label : 'Gesangbuch',
+        label: walkingContext ? context!.label : 'Gesangbuch',
         position: walk.position,
         total: walk.total,
         prev: walk.prevId ? (songById.value.get(walk.prevId) ?? null) : null,
