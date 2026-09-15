@@ -19,7 +19,7 @@
                 <span v-if="prev.index" class="number-display text-base leading-none">
                     {{ prev.index }}
                 </span>
-                <span class="hidden truncate text-[13px] font-normal lg:inline">
+                <span class="hidden min-w-0 truncate text-[13px] font-normal lg:inline">
                     {{ prev.titel }}
                 </span>
             </span>
@@ -42,7 +42,7 @@
             @click="emit('next')"
         >
             <span v-if="next" class="flex min-w-0 items-baseline gap-1.5">
-                <span class="hidden truncate text-[13px] font-normal lg:inline">
+                <span class="hidden min-w-0 truncate text-[13px] font-normal lg:inline">
                     {{ next.titel }}
                 </span>
                 <span v-if="next.index" class="number-display text-base leading-none">
