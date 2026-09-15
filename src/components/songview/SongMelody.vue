@@ -91,6 +91,7 @@ import type { XmlDisplaySettings } from '@/db';
 import type { HymnInstrumentPlayer } from '@/services/instrumentPlayer';
 import { type NotationMark, verseForPass } from '@/utils/notationMap';
 
+import { LYRIC_ELONGATION_LIMIT, reserveLyricRoom } from './lyricRoom';
 import {
     PRINT_HOST_PX,
     PRINT_SIDE_MARGIN,
@@ -378,6 +379,15 @@ function applyEngravingTweaks() {
     // it only widens a note whose lyric needs the room.
     rules.HorizontalBetweenLyricsDistance = 0.9;
 
+    // How much wider than its notes a measure may be made for its words. OSMD
+    // stops at 2.5×, which is plenty against its own spacing but not against
+    // the tightened one: with the notes a quarter as close, a bar of four words
+    // honestly needs about five. Only past the fit width, where the minimum
+    // decides the layout — see lyricRoom, which is what makes the factor come
+    // out honest in the first place. On the printed page OSMD's own limit
+    // stays, so the tuned breaks stay with it.
+    rules.MaximumLyricsElongationFactor = reflowing.value ? LYRIC_ELONGATION_LIMIT : 2.5;
+
     // Finale justifies the closing system whenever the music fills it, which is
     // most songs. Left unstretched it is the one system that shows the tightened
     // spacing raw, and its words end up crowded into the left half.
@@ -403,6 +413,13 @@ async function loadAndRender() {
 
         const arrayBuffer = await props.fileBlob.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
+
+        // OSMD measures every word once, as it lays the sheet out, in the face
+        // the options name. Measured before that face has arrived, the words
+        // are as wide as the fallback's, and the room they get is wrong for
+        // the rest of the song. Nothing to wait for where the font API is
+        // missing (tests) or the face fails: the fallback is then the truth.
+        await document.fonts?.load?.('1em GbOptima').catch(() => undefined);
 
         const isMxl = bytes[0] === 0x50 && bytes[1] === 0x4b;
 
@@ -1302,6 +1319,9 @@ function renderNotation() {
     // honoured is part of them, and it changes with the width.
     applyEngravingTweaks();
     const onReadersPage = reflowing.value;
+    // Past the fit width the words have to be allowed to widen their measures
+    // for real; on the printed page the book's breaks make that moot.
+    reserveLyricRoom(osmd, onReadersPage);
     (osmd as unknown as { zoom: number }).zoom = onReadersPage ? reflowZoom.value : 1;
     host.style.width = `${onReadersPage ? (boxWidth.value ?? PRINT_HOST_PX) : PRINT_HOST_PX}px`;
     try {
