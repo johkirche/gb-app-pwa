@@ -170,8 +170,10 @@ const routes: Array<RouteRecordRaw> = [
         path: '/lied',
         redirect: '/tabs/lieder',
     },
+    // The number may carry the title behind a hyphen (/lied/122-grosser-gott)
+    // so the link reads as well as it types; only the number is looked at.
     {
-        path: '/lied/:nummer(\\d+)',
+        path: '/lied/:nummer(\\d+)-:slug([a-z0-9-]*)?',
         name: 'SongByNumber',
         component: SongPage,
         meta: { access: 'library' },

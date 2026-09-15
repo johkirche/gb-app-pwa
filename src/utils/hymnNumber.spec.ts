@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Song } from '@/db';
-import { hymnLink, hymnPath, parseHymnNumber, songByNumber } from '@/utils/hymnNumber';
+import { hymnLink, hymnPath, hymnSlug, parseHymnNumber, songByNumber } from '@/utils/hymnNumber';
 
-function song(index: number, id = `id-${index}`): Song {
+function song(index: number, id = `id-${index}`, titel = `Lied ${index}`): Song {
     return {
         id,
         index,
-        titel: `Lied ${index}`,
+        titel,
         strophen: [],
         textAutoren: [],
         melodieAutoren: [],
@@ -55,12 +55,36 @@ describe('songByNumber', () => {
     });
 });
 
-describe('hymnLink', () => {
-    it('teilt ein Lied unter seiner Nummer', () => {
-        expect(hymnPath(song(122))).toBe('/lied/122');
-        expect(hymnLink(song(122), 'https://gesangbuch.example')).toBe(
-            'https://gesangbuch.example/lied/122',
+describe('hymnSlug', () => {
+    it('macht aus dem Titel ein lesbares Adressstück', () => {
+        expect(hymnSlug('Großer Gott, wir loben dich')).toBe('grosser-gott-wir-loben-dich');
+        expect(hymnSlug('O Heiland, reiß die Himmel auf')).toBe('o-heiland-reiss-die-himmel-auf');
+    });
+
+    it('schreibt Umlaute aus, statt sie zu verlieren', () => {
+        expect(hymnSlug('Wie schön leuchtet der Morgenstern')).toBe(
+            'wie-schoen-leuchtet-der-morgenstern',
         );
+        expect(hymnSlug('Über allem')).toBe('ueber-allem');
+    });
+
+    it('lässt Satzzeichen und Rand-Striche weg', () => {
+        expect(hymnSlug('„Kommt her zu mir!"')).toBe('kommt-her-zu-mir');
+        expect(hymnSlug('  ')).toBe('');
+    });
+});
+
+describe('hymnLink', () => {
+    it('teilt ein Lied unter seiner Nummer, mit dem Titel dahinter', () => {
+        const lied = song(122, 'id-122', 'Großer Gott, wir loben dich');
+        expect(hymnPath(lied)).toBe('/lied/122-grosser-gott-wir-loben-dich');
+        expect(hymnLink(lied, 'https://gesangbuch.example')).toBe(
+            'https://gesangbuch.example/lied/122-grosser-gott-wir-loben-dich',
+        );
+    });
+
+    it('kommt ohne Titel mit der Nummer allein aus', () => {
+        expect(hymnPath(song(7, 'id-7', '!!!'))).toBe('/lied/7');
     });
 
     it('fällt ohne Nummer auf die Kennung zurück', () => {
@@ -69,7 +93,7 @@ describe('hymnLink', () => {
 
     it('verträgt einen Origin mit Schrägstrich am Ende', () => {
         expect(hymnLink(song(5), 'https://gesangbuch.example/')).toBe(
-            'https://gesangbuch.example/lied/5',
+            'https://gesangbuch.example/lied/5-lied-5',
         );
     });
 });

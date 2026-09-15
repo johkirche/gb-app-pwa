@@ -32,7 +32,7 @@ describe('shareDataFor (Issue #34)', () => {
         expect(shareDataFor(song, 'https://gesangbuch.example')).toEqual({
             title: '122. Großer Gott, wir loben dich',
             text: '122. Großer Gott, wir loben dich – Gesangbuch der Johannischen Kirche',
-            url: 'https://gesangbuch.example/lied/122',
+            url: 'https://gesangbuch.example/lied/122-grosser-gott-wir-loben-dich',
         });
     });
 
@@ -87,7 +87,9 @@ describe('shareSong', () => {
 
         await expect(shareSong(song)).resolves.toBe('shared');
         expect(share).toHaveBeenCalledWith(
-            expect.objectContaining({ url: `${window.location.origin}/lied/122` }),
+            expect.objectContaining({
+                url: `${window.location.origin}/lied/122-grosser-gott-wir-loben-dich`,
+            }),
         );
         expect(toastSuccess).not.toHaveBeenCalled();
     });
@@ -107,7 +109,9 @@ describe('shareSong', () => {
         stubPointer(false);
 
         await expect(shareSong(song)).resolves.toBe('copied');
-        expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/lied/122`);
+        expect(writeText).toHaveBeenCalledWith(
+            `${window.location.origin}/lied/122-grosser-gott-wir-loben-dich`,
+        );
         expect(toastSuccess).toHaveBeenCalledWith('Link kopiert', expect.anything());
     });
 
