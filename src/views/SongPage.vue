@@ -1,6 +1,11 @@
 <template>
     <div class="flex h-full flex-col bg-background">
-        <SongHeader :song-id="songId" :song-index="song?.index" :song-title="song?.titel">
+        <SongHeader
+            :song-id="songId"
+            :song-index="song?.index"
+            :song-title="song?.titel"
+            :song="song"
+        >
             <template #menu>
                 <SongMenuPopover
                     v-model:show-controls="showControls"
