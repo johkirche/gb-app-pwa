@@ -49,11 +49,16 @@ Stating the type in rem is only half of it: the layout then has to survive the
 type getting bigger. `tests/e2e/readability-scale.spec.ts` walks the shell at
 50%, 100% and 200% and fails on anything that leaves the side of a 390px phone
 — which is how the Einstellungen overview was caught truncating its summaries
-into the void. Playwright starts the dev server itself (port 8100, reusing one
-that is already up), so the run is one command:
+into the void. It walks it three times over — Chromium, Firefox and WebKit —
+because a rem is only as good as the engine laying it out, and WebKit is not
+Safari's alone: every browser on iOS is WebKit underneath, Chrome included.
+Playwright starts the dev server itself (port 8100, reusing one that is
+already up), so the run is one command:
 
 ```sh
-pnpm test:e2e            # add --ui to step through it
+pnpm exec playwright install   # once per clone: the three engines
+pnpm test:e2e                  # --ui to step through it
+pnpm test:e2e --project=webkit # or narrow it to the engine that failed
 ```
 
 Add a new page to that spec. The usual cause of a failure is a flex or grid

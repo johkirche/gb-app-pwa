@@ -24,11 +24,29 @@ export default defineConfig({
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
     },
+    /*
+     * All three engines, in one run. Between them they are every browser the
+     * hymnal is opened in: Chrome, Edge, Brave, Opera and the Android WebView
+     * are Chromium; Safari *and every browser on iOS* — Chrome on an iPhone
+     * included — are WebKit, which on a pew full of phones is the one that
+     * would otherwise go unwatched. All three ship with Playwright, so this
+     * needs nothing installed on the machine and behaves the same in CI.
+     *
+     * Branded Chrome or Edge would be `channel: 'chrome' | 'msedge'` on a
+     * fourth project. They are Chromium too, so they add codecs and a user
+     * agent rather than layout — and they fail wherever that browser is not
+     * installed, which is why they are not here.
+     *
+     * The devices give each engine its own user agent; the 390px phone the
+     * spec actually measures at is its own `test.use`. Full mobile emulation
+     * is deliberately not used: `isMobile` is Chromium- and WebKit-only, and
+     * an overflow guard that ran differently per engine would be worth less
+     * than one narrow viewport that runs identically on all three.
+     */
     projects: [
-        {
-            name: 'chromium',
-            use: { ...devices['Desktop Chrome'] },
-        },
+        { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+        { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+        { name: 'webkit', use: { ...devices['Desktop Safari'] } },
     ],
     webServer: {
         command: 'pnpm dev',
