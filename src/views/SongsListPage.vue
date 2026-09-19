@@ -137,11 +137,15 @@
                 <!-- Songs List with Sections -->
                 <div v-else class="songs-list">
                     <template v-for="section in sortedSections" :key="section.key">
-                        <!-- Section Header (only shown when showHeaders is true) -->
+                        <!-- Section heading. Always in the document — it is how a
+                             screen reader walks 500 hymns — but only inked in the
+                             sort modes where a divider tells the reader something
+                             the rows do not already say. -->
                         <SongSectionHeader
-                            v-if="showHeaders"
                             :section-key="section.key"
                             :label="section.label"
+                            :spoken-label="section.spokenLabel"
+                            :visually-hidden="!showHeaders"
                         />
 
                         <!-- Songs in this section. The row is a wrapper, not the
