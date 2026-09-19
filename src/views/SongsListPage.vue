@@ -26,6 +26,21 @@
             @set-index-range="setIndexRange"
         />
 
+        <!-- Index rail: overlays <main> but stays outside it so it never scrolls;
+             bounds-el hands it that box to center on. It is absolutely
+             positioned at z-30, so it paints over the list wherever it sits in
+             the markup — and it sits here, ahead of the list, because that is
+             where it belongs in the tab order. Behind the list it would be a
+             jump control a keyboard only reaches after scrolling past
+             everything it jumps over. -->
+        <IndexScroll
+            v-if="isIndexScrollerVisible"
+            :items="indexItems"
+            :active-key="activeSection"
+            :bounds-el="scrollRef"
+            @select="scrollToSection"
+        />
+
         <main
             ref="scrollRef"
             class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
@@ -209,16 +224,6 @@
                 </div>
             </div>
         </main>
-
-        <!-- Index rail: overlays <main> but stays outside it so it never scrolls;
-             bounds-el hands it that box to center on. -->
-        <IndexScroll
-            v-if="isIndexScrollerVisible"
-            :items="indexItems"
-            :active-key="activeSection"
-            :bounds-el="scrollRef"
-            @select="scrollToSection"
-        />
 
         <!-- Filter panel: popover from lg up, bottom sheet below -->
         <SongFilterPanel

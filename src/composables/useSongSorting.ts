@@ -43,14 +43,29 @@ const NUMBER_SCROLL_GROUP_SIZE = 15; // Number of songs per index group for numb
 
 export interface SongSection {
     key: string;
+    /** What the divider and the rail draw: a letter, a number, a category name. */
     label: string;
+    /**
+     * What a screen reader says instead, for the rail's button and the
+     * section's heading alike. "A" and "300" are legible in a column of their
+     * peers and meaningless read out alone, and "#" is announced as
+     * punctuation — so every section states the sentence its glyph stands for.
+     *
+     * Not named `ariaLabel`: it reaches SongSectionHeader as a prop, and Vue
+     * would have to guess whether `:aria-label` meant the prop or the DOM
+     * attribute of the same name.
+     */
+    spokenLabel: string;
     songs: Song[];
     categoryIndex?: string; // For category sorting
 }
 
 export interface IndexItem {
     key: string;
+    /** What the rail draws: one or two glyphs, read in a column of its peers. */
     label: string;
+    /** What a screen reader says instead — the label alone means nothing to it. */
+    ariaLabel?: string;
 }
 
 /**
@@ -96,6 +111,7 @@ export function useSongSorting(songs: Ref<Song[]>) {
         return sortedSections.value.map((section) => ({
             key: section.key,
             label: section.label,
+            ariaLabel: section.spokenLabel,
         }));
     });
 
@@ -137,11 +153,18 @@ function groupByIndex(songs: Song[]): SongSection[] {
     // Convert to sections with proper labels
     return Array.from(groups.entries())
         .sort(([a], [b]) => a - b)
-        .map(([key, groupSongs]) => ({
-            key: String(key),
-            label: String(key), // "1", "15", "30", etc.
-            songs: groupSongs,
-        }));
+        .map(([key, groupSongs]) => {
+            // The real ends of the block, not the nominal ones: numbering has
+            // gaps, and the last block stops wherever the hymnal does.
+            const first = groupSongs[0].index;
+            const last = groupSongs[groupSongs.length - 1].index;
+            return {
+                key: String(key),
+                label: String(key), // "1", "15", "30", etc.
+                spokenLabel: first === last ? `Lied ${first}` : `Lieder ${first} bis ${last}`,
+                songs: groupSongs,
+            };
+        });
 }
 
 // The combining marks NFD splits off a base letter: Ä → A + ¨
@@ -195,6 +218,7 @@ function groupByAlphabet(songs: Song[]): SongSection[] {
         .map(([letter, groupSongs]) => ({
             key: letter,
             label: letter,
+            spokenLabel: letter === '#' ? 'Zahlen und Zeichen' : `Buchstabe ${letter}`,
             songs: groupSongs,
         }));
 }
@@ -230,9 +254,11 @@ function groupByCategory(songs: Song[]): SongSection[] {
 
     for (const [, { category, songs: categorySongs }] of groups) {
         if (categorySongs.length >= MIN_CATEGORY_ENTRIES) {
+            const label = category.name?.trim() || 'Unbenannt';
             mainCategories.push({
                 key: String(category.index),
-                label: category.name?.trim() || 'Unbenannt',
+                label,
+                spokenLabel: label,
                 categoryIndex: category.index,
                 songs: [...categorySongs].sort((a, b) => a.titel.localeCompare(b.titel, 'de')),
             });
@@ -269,6 +295,7 @@ function groupByCategory(songs: Song[]): SongSection[] {
         mainCategories.push({
             key: 'sonstige',
             label: 'Sonstige',
+            spokenLabel: 'Sonstige',
             songs: [...smallCategorySongs].sort((a, b) => a.titel.localeCompare(b.titel, 'de')),
         });
     }
@@ -278,6 +305,7 @@ function groupByCategory(songs: Song[]): SongSection[] {
         mainCategories.push({
             key: 'unkategorisiert',
             label: 'Unkategorisiert',
+            spokenLabel: 'Unkategorisiert',
             songs: [...uncategorizedSongs].sort((a, b) => a.titel.localeCompare(b.titel, 'de')),
         });
     }

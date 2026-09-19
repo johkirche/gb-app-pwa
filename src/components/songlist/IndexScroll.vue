@@ -4,25 +4,33 @@
         class="index-scroll"
         :class="{ dragging: isDragging }"
         :style="{ top: bandTop + 'px', height: bandHeight + 'px' }"
+        role="toolbar"
+        aria-orientation="vertical"
+        aria-label="Register – zum Abschnitt springen"
         @touchstart.prevent="onTouchStart"
         @touchmove.prevent="onTouchMove"
         @touchend="onTouchEnd"
         @mousedown.prevent="onMouseDown"
+        @keydown="onKeydown"
     >
         <div ref="itemsContainerRef" class="index-items">
-            <div
-                v-for="item in displayItems"
+            <button
+                v-for="(item, slot) in displayItems"
                 :key="item.originalIndex"
+                type="button"
                 class="index-item"
                 :class="{
                     current: item.key === activeDisplayKey,
                     pressed: item.key === pressedDisplayKey,
                 }"
                 :data-key="item.key"
-                @click="onItemClick(item.key)"
+                :tabindex="slot === focusSlot ? 0 : -1"
+                :aria-label="item.ariaLabel ?? item.label"
+                :aria-current="item.key === activeDisplayKey ? 'location' : undefined"
+                @click="onItemClick(item.key, slot)"
             >
                 <span class="index-label">{{ item.label }}</span>
-            </div>
+            </button>
         </div>
 
         <!-- Floating indicator shown during drag -->
@@ -31,6 +39,7 @@
                 v-if="isDragging && currentDragItem"
                 class="drag-indicator"
                 :style="{ top: indicatorTop + 'px' }"
+                aria-hidden="true"
             >
                 {{ currentDragItem.label }}
             </div>
@@ -41,10 +50,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
-export interface IndexItem {
-    key: string;
-    label: string;
-}
+import type { IndexItem } from '@/composables/useSongSorting';
 
 interface DisplayItem extends IndexItem {
     originalIndex: number;
@@ -71,11 +77,15 @@ const currentDragItem = ref<IndexItem | null>(null);
 // trails the press.
 const pressedDisplayKey = ref<string | null>(null);
 const indicatorTop = ref(0);
+// Which label carries the rail's single tab stop. See "Keyboard handling".
+const focusSlot = ref(0);
 
 // Breathing room kept above and below the rail inside its band.
 const BAND_INSET = 8;
 const CONTAINER_PADDING = 12; // 6px top + 6px bottom on .index-scroll
-const FALLBACK_ITEM_HEIGHT = 21;
+// Mirrors `min-height` on .index-item, which is WCAG 2.5.8's 24px target floor
+// — the guard in IndexScroll.spec.ts fails if the two drift apart.
+const FALLBACK_ITEM_HEIGHT = 24;
 
 // The band the strip lives in, measured from the bounds element rather than the
 // viewport: a guessed header height cannot track a toolbar that grows (filter
@@ -275,8 +285,65 @@ function updateFromPosition(clientY: number) {
     }
 }
 
-function onItemClick(key: string) {
+function onItemClick(key: string, slot: number) {
+    focusSlot.value = slot;
     emit('select', key);
+}
+
+// --- Keyboard handling ----------------------------------------------------
+
+// The rail is a toolbar with a roving tab stop: one Tab reaches it, then Up and
+// Down walk the labels and Enter jumps. Thirty tab stops sitting between the
+// toolbar and the list would be worse for a keyboard reader than no rail at
+// all, since they would have to pass through every one of them.
+
+// Park the tab stop on the section the list is actually showing, so Tab lands
+// where the reader already is rather than back at the top of the alphabet.
+// This moves the stop only, never the focus: the rail must not pull focus out
+// from under someone who is scrolling the list with a finger.
+watch([activeDisplayKey, displayItems], ([key, items]) => {
+    const idx = key ? items.findIndex((d) => d.key === key) : -1;
+    focusSlot.value = idx >= 0 ? idx : Math.min(focusSlot.value, Math.max(0, items.length - 1));
+});
+
+function itemElements(): HTMLElement[] {
+    return [...(itemsContainerRef.value?.querySelectorAll<HTMLElement>('.index-item') ?? [])];
+}
+
+// Where an arrow key steps from. Read off the focused element rather than
+// `focusSlot`, which the watcher above moves as the list scrolls.
+function currentSlot(elements: HTMLElement[]): number {
+    const focused = elements.indexOf(document.activeElement as HTMLElement);
+    return focused >= 0 ? focused : focusSlot.value;
+}
+
+function onKeydown(event: KeyboardEvent) {
+    const elements = itemElements();
+    if (elements.length === 0) return;
+    const from = currentSlot(elements);
+
+    let to: number;
+    switch (event.key) {
+        case 'ArrowDown':
+            to = from + 1;
+            break;
+        case 'ArrowUp':
+            to = from - 1;
+            break;
+        case 'Home':
+            to = 0;
+            break;
+        case 'End':
+            to = elements.length - 1;
+            break;
+        default:
+            // Enter and Space belong to the buttons; the rest to the page.
+            return;
+    }
+
+    event.preventDefault();
+    focusSlot.value = Math.min(elements.length - 1, Math.max(0, to));
+    elements[focusSlot.value].focus();
 }
 </script>
 
@@ -324,14 +391,28 @@ function onItemClick(key: string) {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* px, like the rest of the rail: 26x24 is WCAG 2.5.8's target floor, which
+       is stated in device pixels and describes the finger, not the type. */
     min-width: 26px;
-    min-height: 21px;
+    min-height: 24px;
     padding: 3px 5px;
+    -webkit-tap-highlight-color: transparent;
     color: var(--muted-foreground);
-    cursor: inherit;
     transition: all 0.15s ease;
     border-radius: 4px;
     flex-shrink: 0;
+}
+
+/* Outspecifies the global `button { cursor: pointer }` in main.css: the whole
+   rail is one scrub surface, so the labels take its grab hand. */
+.index-scroll .index-item {
+    cursor: inherit;
+}
+
+/* The rail clips its own column, so the global 2px outset ring would be cut in
+   half. Draw it inside the chip instead. */
+.index-item:focus-visible {
+    outline-offset: -2px;
 }
 
 .index-item:hover {
