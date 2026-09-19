@@ -92,6 +92,12 @@ They are read by `playwright.config.ts` in Node and never reach the bundle.
 Only the recording uses them; a replay stubs the login, so no password and no
 real token is ever written into a fixture.
 
+Onboarding is a two-step wizard, so the recording walks it: „Weiter" past the
+install prompt, then the download starts on its own and the run sits out about
+90 MB, printing each phase as it goes. The fixture is a `.zip`, not a bare
+`.har` — Playwright then stores each response as its own entry instead of
+base64'ing all 90 MB into one JSON document and parsing it whole per context.
+
 **The recording never gets committed.** It holds real hymn texts and engravings,
 which are not ours to redistribute, so `tests/e2e/fixtures/` is git-ignored. A
 clone without one reports the backend specs as skipped and says what to run —

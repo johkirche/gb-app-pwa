@@ -22,7 +22,14 @@ import { existsSync } from 'node:fs';
  * Directus schema moves — a replay that no longer matches is the signal.
  */
 
-const HAR = 'tests/e2e/fixtures/directus.har';
+/*
+ * .zip, not .har: the book is ~90 MB of notation files, and a plain .har would
+ * hold every one of them base64'd inside a single JSON document — inflated by a
+ * third and parsed whole into memory for each browser context. A .zip path
+ * makes Playwright store each response as its own entry and default
+ * updateContent to 'attach', so a lookup reads one file instead of the lot.
+ */
+const HAR = 'tests/e2e/fixtures/directus.har.zip';
 
 /**
  * Whether this clone has a recording yet. A spec that needs the backend says
@@ -90,7 +97,8 @@ export const test = base.extend({
             // instead of passing the suite on live data.
             update: RECORDING,
             updateMode: 'minimal',
-            updateContent: 'embed',
+            // updateContent is left to default: 'attach' for a .zip, which is
+            // the point of using one.
             notFound: RECORDING ? 'fallback' : 'abort',
         });
 
