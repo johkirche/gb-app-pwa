@@ -64,3 +64,41 @@ pnpm test:e2e --project=webkit # or narrow it to the engine that failed
 Add a new page to that spec. The usual cause of a failure is a flex or grid
 item without `min-w-0`: neither will shrink below its content's min-content
 width, and a `truncate`d line's min-content is the whole unbroken string.
+
+## End-to-end tests
+
+The suite runs on Playwright, on all three engines, against a dev server it
+starts itself:
+
+```sh
+pnpm test:e2e                  # --ui to step through, --project=webkit to narrow
+```
+
+**The backend is recorded, not faked.** The app talks to exactly three things —
+a GraphQL endpoint, Directus' auth routes, and `/assets/<id>` for the two
+notation files a song carries. A hand-built fake of that would drift from the
+real schema the moment someone adds a field and would go on passing while it
+did. So the suite records the real traffic into a HAR and replays it: what the
+tests run against is not an imitation of the backend but a photograph of it.
+
+```sh
+pnpm test:e2e:record           # once, and again whenever the schema moves
+```
+
+Recording needs a real Directus account in `.env` — `E2E_DIRECTUS_EMAIL` and
+`E2E_DIRECTUS_PASSWORD`, **without** a `VITE_` prefix, because anything carrying
+that prefix is inlined verbatim into the built JS and shipped to every visitor.
+They are read by `playwright.config.ts` in Node and never reach the bundle.
+Only the recording uses them; a replay stubs the login, so no password and no
+real token is ever written into a fixture.
+
+**The recording never gets committed.** It holds real hymn texts and engravings,
+which are not ours to redistribute, so `tests/e2e/fixtures/` is git-ignored. A
+clone without one reports the backend specs as skipped and says what to run —
+it does not quietly pass having tested nothing.
+
+On a replay, anything the recording cannot answer is aborted rather than let
+through, so a request that would have reached the real backend fails the test
+instead of turning the suite into a live integration run by accident. When
+replay starts failing on requests that used to match, the schema has moved:
+re-record.

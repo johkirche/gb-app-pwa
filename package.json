@@ -12,6 +12,7 @@
         "generate:icons": "node scripts/generate-icons.mjs",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
+        "test:e2e:record": "cross-env E2E_RECORD=1 playwright test --project=chromium --workers=1",
         "test:unit": "vitest",
         "lint": "eslint .",
         "format": "prettier --write src/ --ignore-path dist/",

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { loadEnv } from 'vite';
 
 /*
  * The e2e suite exists to watch the shell under the reader's Größe, so it runs
@@ -8,6 +9,15 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const PORT = 8100;
 const baseURL = `http://localhost:${PORT}`;
+
+/*
+ * The suite reads .env the same way the app does, through Vite, so there is one
+ * place the backend URL is written down. The empty prefix loads the unprefixed
+ * names too: the recording run needs a real Directus account, and those must
+ * *not* be VITE_ — anything with that prefix is inlined verbatim into the built
+ * JS and shipped to every visitor (see .env.example).
+ */
+Object.assign(process.env, loadEnv('development', process.cwd(), ''));
 
 export default defineConfig({
     testDir: './tests/e2e',
