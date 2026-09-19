@@ -7,7 +7,7 @@
                 <input
                     v-model="query"
                     type="text"
-                    class="min-w-0 flex-1 bg-transparent py-2 text-[16px] text-foreground outline-none placeholder:text-muted-foreground"
+                    class="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-foreground outline-none placeholder:text-muted-foreground"
                     :placeholder="searchPlaceholder"
                 />
                 <button
@@ -42,7 +42,7 @@
                     @click="$emit('toggle', option.value)"
                 >
                     <span
-                        class="flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors"
+                        class="flex size-[1.125rem] shrink-0 items-center justify-center rounded-[5px] border transition-colors"
                         :class="
                             isSelected(option.value)
                                 ? 'border-primary bg-primary text-primary-foreground'
@@ -56,7 +56,7 @@
                     <slot name="glyph" :option="option" />
 
                     <span
-                        class="min-w-0 flex-1 truncate text-[15px] leading-tight"
+                        class="min-w-0 flex-1 truncate text-[0.9375rem] leading-tight"
                         :class="isSelected(option.value) ? 'font-medium' : undefined"
                     >
                         <SearchHighlight :text="option.label" :terms="terms" />

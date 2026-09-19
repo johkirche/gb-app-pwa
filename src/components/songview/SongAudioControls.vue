@@ -5,7 +5,9 @@
     <div class="page-col @container flex flex-col gap-1.5 py-2">
         <!-- Where the song stands, and how to move it there -->
         <div class="flex items-center gap-3">
-            <span class="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+            <span
+                class="w-9 shrink-0 text-right text-[0.6875rem] tabular-nums text-muted-foreground"
+            >
                 {{ formatTime(shownPosition) }}
             </span>
             <Slider
@@ -18,7 +20,7 @@
                 @update:model-value="onScrub"
                 @value-commit="onCommit"
             />
-            <span class="w-9 shrink-0 text-[11px] tabular-nums text-muted-foreground">
+            <span class="w-9 shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground">
                 {{ formatTime(duration) }}
             </span>
         </div>
@@ -43,7 +45,7 @@
                     @click="repeatPanelOpen = !repeatPanelOpen"
                 >
                     <Repeat class="!size-5" aria-hidden="true" />
-                    <span v-if="repeatBadgeText" class="number-display text-[13px]">
+                    <span v-if="repeatBadgeText" class="number-display text-[0.8125rem]">
                         {{ repeatBadgeText }}
                     </span>
                 </Button>
@@ -114,7 +116,7 @@
                          short, which says less than the icon on its own does.
                          The button is named either way, so nothing is lost to
                          a reader who is listening rather than looking. -->
-                    <span class="hidden truncate text-[13px] @min-[330px]:inline">
+                    <span class="hidden truncate text-[0.8125rem] @min-[330px]:inline">
                         {{ tempoLabel }}
                     </span>
                 </Button>

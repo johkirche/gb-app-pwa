@@ -31,7 +31,7 @@
                     v-for="(action, index) in group"
                     :key="`${action.label}-${index}`"
                     type="button"
-                    class="flex h-12 w-full shrink-0 items-center text-[15px] transition-colors hover:bg-muted active:bg-muted lg:h-9 lg:rounded-md lg:text-sm"
+                    class="flex h-12 w-full shrink-0 items-center text-[0.9375rem] transition-colors hover:bg-muted active:bg-muted lg:h-9 lg:rounded-md lg:text-sm"
                     :class="action.role === 'destructive' ? 'text-destructive' : 'text-foreground'"
                     @click="select(action)"
                 >
@@ -62,7 +62,7 @@
                 v-for="(action, index) in cancelActions"
                 :key="`${action.label}-${index}`"
                 type="button"
-                class="flex h-12 w-full items-center justify-center text-[15px] font-medium text-foreground transition-colors hover:bg-muted active:bg-muted"
+                class="flex h-12 w-full items-center justify-center text-[0.9375rem] font-medium text-foreground transition-colors hover:bg-muted active:bg-muted"
                 @click="select(action)"
             >
                 {{ action.label }}

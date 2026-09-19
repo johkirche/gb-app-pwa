@@ -357,6 +357,12 @@ function onItemClick(key: string) {
     transition: none;
 }
 
+/* The one place in the app that stays in px while everything else follows the
+   reader's Größe (see main.css). The rail is not read, it is aimed at: ~30
+   labels stacked inside the viewport's height, with `overflow: hidden` behind
+   them. Enlarging the type would not enlarge the rail — it would drop the last
+   letters off the bottom, and the reader who asked for bigger type would lose
+   the fastest way into the list. The list it scrolls does grow. */
 .index-label {
     font-size: 11.5px;
     font-weight: 600;

@@ -8,7 +8,9 @@
             {{ songCount }} {{ songCount === 1 ? 'Lied' : 'Lieder' }} · Erstellt am
             {{ formattedDate }}
         </p>
-        <div class="rule-flourish mt-6 w-full max-w-[12rem] text-[9px]" aria-hidden="true">✦</div>
+        <div class="rule-flourish mt-6 w-full max-w-[12rem] text-[0.5625rem]" aria-hidden="true">
+            ✦
+        </div>
     </div>
 </template>
 

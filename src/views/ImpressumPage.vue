@@ -17,7 +17,7 @@
                         </h2>
                         <Separator class="flex-1" />
                     </div>
-                    <div class="mt-5 space-y-5 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-5 text-[0.9375rem] leading-relaxed">
                         <div>
                             <h3 class="text-sm font-semibold">Anbieter</h3>
                             <p class="mt-1 italic text-gold">
@@ -46,7 +46,7 @@
                         <h2 class="shrink-0 font-display text-2xl font-semibold">Kontakt</h2>
                         <Separator class="flex-1" />
                     </div>
-                    <div class="mt-5 space-y-5 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-5 text-[0.9375rem] leading-relaxed">
                         <div>
                             <h3 class="text-sm font-semibold">E-Mail</h3>
                             <p class="mt-1">
@@ -75,7 +75,7 @@
                         </h2>
                         <Separator class="flex-1" />
                     </div>
-                    <div class="mt-5 text-[15px] leading-relaxed">
+                    <div class="mt-5 text-[0.9375rem] leading-relaxed">
                         <p class="italic text-gold">[TODO: Von der Organisation zu ergänzen]</p>
                     </div>
                 </section>

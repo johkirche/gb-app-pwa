@@ -21,7 +21,7 @@
             <div class="flex min-w-0 items-center gap-4">
                 <Highlighter class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="min-w-0">
-                    <Label for="settings-highlight-notes" class="text-[15px] font-normal">
+                    <Label for="settings-highlight-notes" class="text-[0.9375rem] font-normal">
                         Noten hervorheben
                     </Label>
                     <p class="text-sm text-muted-foreground">
@@ -43,7 +43,7 @@
                     aria-hidden="true"
                 />
                 <div class="min-w-0">
-                    <Label for="settings-show-playhead" class="text-[15px] font-normal">
+                    <Label for="settings-show-playhead" class="text-[0.9375rem] font-normal">
                         Abspielbalken
                     </Label>
                     <p class="text-sm text-muted-foreground">
@@ -65,7 +65,7 @@
             <div class="flex min-w-0 items-center gap-4">
                 <Gauge class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="min-w-0">
-                    <Label for="settings-exact-tempo" class="text-[15px] font-normal">
+                    <Label for="settings-exact-tempo" class="text-[0.9375rem] font-normal">
                         Genaues Tempo
                     </Label>
                     <p class="text-sm text-muted-foreground">
@@ -88,7 +88,7 @@
                 <div class="flex min-w-0 items-center gap-4">
                     <Piano class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div class="min-w-0">
-                        <Label for="settings-midi-output" class="text-[15px] font-normal">
+                        <Label for="settings-midi-output" class="text-[0.9375rem] font-normal">
                             MIDI-Ausgabe
                         </Label>
                         <p class="text-sm text-muted-foreground">
@@ -137,7 +137,9 @@
                 </p>
 
                 <div v-else class="flex items-center justify-between gap-4">
-                    <Label for="settings-midi-device" class="text-[15px] font-normal">Gerät</Label>
+                    <Label for="settings-midi-device" class="text-[0.9375rem] font-normal">
+                        Gerät
+                    </Label>
                     <Select :model-value="selectedDevice" @update:model-value="onSelectDevice">
                         <SelectTrigger id="settings-midi-device" class="h-9 w-48">
                             <SelectValue />

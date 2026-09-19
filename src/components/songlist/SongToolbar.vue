@@ -41,7 +41,7 @@
                         ref="searchInputRef"
                         v-model="localSearchQuery"
                         type="text"
-                        class="min-w-0 flex-1 bg-transparent py-2 text-[16px] text-foreground outline-none placeholder:text-muted-foreground"
+                        class="min-w-0 flex-1 bg-transparent py-2 text-[1rem] text-foreground outline-none placeholder:text-muted-foreground"
                         placeholder="Suchen..."
                         @input="onSearchInput"
                         @keyup.escape="collapseSearch"
@@ -74,7 +74,7 @@
                         <SlidersHorizontal aria-hidden="true" />
                         <span
                             v-if="activeFilterCount > 0"
-                            class="absolute right-0.5 top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-destructive px-0.5 text-[10px] font-semibold leading-none text-destructive-foreground"
+                            class="absolute right-0.5 top-1 flex h-[0.9375rem] min-w-[0.9375rem] items-center justify-center rounded-full bg-destructive px-0.5 text-[0.625rem] font-semibold leading-none text-destructive-foreground"
                         >
                             {{ activeFilterCount }}
                         </span>
@@ -90,12 +90,12 @@
                         aria-label="Sortierung ändern"
                         @click="onOpenSort"
                     >
-                        <ArrowUpDown class="h-[18px] w-[18px]" aria-hidden="true" />
+                        <ArrowUpDown class="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
                         <span
-                            class="absolute bottom-1 right-0.5 flex h-[15px] w-[15px] items-center justify-center rounded-full bg-primary text-primary-foreground"
+                            class="absolute bottom-1 right-0.5 flex h-[0.9375rem] w-[0.9375rem] items-center justify-center rounded-full bg-primary text-primary-foreground"
                             aria-hidden="true"
                         >
-                            <component :is="currentSortIcon" class="h-[9px] w-[9px]" />
+                            <component :is="currentSortIcon" class="h-[0.5625rem] w-[0.5625rem]" />
                         </span>
                     </button>
                 </Transition>
@@ -188,7 +188,10 @@
 
         <!-- Results count -->
         <Transition name="results-fade">
-            <div v-if="showResultsCount" class="page-col pb-2 text-[13px] text-muted-foreground">
+            <div
+                v-if="showResultsCount"
+                class="page-col pb-2 text-[0.8125rem] text-muted-foreground"
+            >
                 <span>{{ resultCount }} {{ resultCount === 1 ? 'Lied' : 'Lieder' }} gefunden</span>
             </div>
         </Transition>

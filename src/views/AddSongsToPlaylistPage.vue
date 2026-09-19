@@ -77,7 +77,7 @@
                                 @update:model-value="toggleSong(song.id)"
                             />
                             <span class="min-w-0 flex-1">
-                                <span class="block break-words text-[15px] leading-snug">
+                                <span class="block break-words text-[0.9375rem] leading-snug">
                                     <!-- Der Abstand zum Titel steckt im Text selbst: zwischen
                                          zwei Elementen wirft der Template-Compiler den
                                          Zwischenraum im Markup weg. -->
@@ -100,7 +100,7 @@
                                 </span>
                                 <span
                                     v-if="isInPlaylist(song.id)"
-                                    class="mt-0.5 flex items-center gap-1 text-[13px] text-green-600 dark:text-green-500"
+                                    class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-green-600 dark:text-green-500"
                                 >
                                     <CircleCheck class="size-4" aria-hidden="true" />
                                     Bereits in Playlist

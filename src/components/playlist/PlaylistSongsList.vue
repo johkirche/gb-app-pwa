@@ -44,21 +44,21 @@
                      what the playlist stores, it is counted on the list screen,
                      and the reader needs somewhere to remove it from. -->
                 <span v-if="!entry.song" class="min-w-0 flex-1 text-muted-foreground">
-                    <span class="block font-display text-[17px] italic leading-snug">
+                    <span class="block font-display text-[1.0625rem] italic leading-snug">
                         Lied derzeit nicht verfügbar
                     </span>
-                    <span class="mt-0.5 block text-[11px] uppercase tracking-[0.14em]">
+                    <span class="mt-0.5 block text-[0.6875rem] uppercase tracking-[0.14em]">
                         Nach dem Synchronisieren wieder da
                     </span>
                 </span>
 
                 <span v-else class="min-w-0 flex-1">
-                    <span class="block break-words font-display text-[17px] leading-snug">
+                    <span class="block break-words font-display text-[1.0625rem] leading-snug">
                         {{ entry.song.titel }}
                     </span>
                     <span
                         v-if="entry.song.kategorien.length > 0"
-                        class="mt-0.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground"
+                        class="mt-0.5 block text-[0.6875rem] uppercase tracking-[0.14em] text-muted-foreground"
                     >
                         {{ formatCategories(entry.song.kategorien) }}
                     </span>

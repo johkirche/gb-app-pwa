@@ -44,7 +44,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">
+                                <p class="text-[0.9375rem]">
                                     {{ isLoggedIn ? 'Angemeldet' : 'Nicht angemeldet' }}
                                 </p>
                                 <p class="text-sm leading-relaxed text-muted-foreground">
@@ -60,7 +60,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Lieder</p>
+                                <p class="text-[0.9375rem]">Lieder</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ songsCount }} Lieder gespeichert
                                 </p>
@@ -74,7 +74,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Notendateien (SVG &amp; MusicXML)</p>
+                                <p class="text-[0.9375rem]">Notendateien (SVG &amp; MusicXML)</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ filesCount }} Dateien gespeichert
                                 </p>
@@ -88,7 +88,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Speicherplatz</p>
+                                <p class="text-[0.9375rem]">Speicherplatz</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ formatBytes(storage.usage) }} von
                                     {{ formatBytes(storage.quota) }} belegt
@@ -103,7 +103,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Letzte Synchronisierung</p>
+                                <p class="text-[0.9375rem]">Letzte Synchronisierung</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ formatSyncTime(lastSyncTime) }}
                                 </p>

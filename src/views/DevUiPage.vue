@@ -8,7 +8,9 @@
                 <h1 class="mt-3 font-display text-5xl font-semibold tracking-tight sm:text-6xl">
                     Gesangbuch
                 </h1>
-                <p class="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+                <p
+                    class="mx-auto mt-4 max-w-md text-[0.9375rem] leading-relaxed text-muted-foreground"
+                >
                     Der visuelle Grundton der neuen Anwendung: warmes Papier, Kirchenblau und
                     sparsames Gold. Prüfen Sie Palette und Komponenten bitte in beiden Farbwelten —
                     am Telefon und am Schreibtisch.
@@ -25,7 +27,10 @@
                         <ToggleGroupItem value="system">System</ToggleGroupItem>
                     </ToggleGroup>
                 </div>
-                <div class="rule-flourish mx-auto mt-12 max-w-xs text-[10px]" aria-hidden="true">
+                <div
+                    class="rule-flourish mx-auto mt-12 max-w-xs text-[0.625rem]"
+                    aria-hidden="true"
+                >
                     ✦
                 </div>
             </header>
@@ -51,7 +56,7 @@
                         </div>
                         <div class="border-t bg-card px-3 py-2">
                             <p class="text-xs font-medium">{{ swatch.label }}</p>
-                            <p class="text-[11px] text-muted-foreground">{{ swatch.token }}</p>
+                            <p class="text-[0.6875rem] text-muted-foreground">{{ swatch.token }}</p>
                         </div>
                     </div>
                 </div>
@@ -80,7 +85,7 @@
                     </div>
                     <div>
                         <p class="label-micro text-muted-foreground">Fließtext · Albert Sans</p>
-                        <p class="mt-3 max-w-prose text-[15px] leading-relaxed">
+                        <p class="mt-3 max-w-prose text-[0.9375rem] leading-relaxed">
                             Dieses Gesangbuch begleitet Sie durch das Kirchenjahr. Die Gestaltung
                             bleibt bewusst ruhig und editorial: feine Linien statt schwerer Kästen,
                             eine Serifenschrift für alles Gesungene — damit die Lieder selbst im
@@ -97,7 +102,7 @@
                             <p class="number-display mt-2 text-5xl leading-none">142</p>
                         </div>
                     </div>
-                    <div class="rule-flourish text-[10px]" aria-hidden="true">✦</div>
+                    <div class="rule-flourish text-[0.625rem]" aria-hidden="true">✦</div>
                 </div>
             </section>
 
@@ -133,7 +138,7 @@
                                 >
                                     {{ song.number }}
                                 </span>
-                                <span class="font-display text-[17px] leading-snug">
+                                <span class="font-display text-[1.0625rem] leading-snug">
                                     {{ song.title }}
                                 </span>
                             </button>
@@ -625,7 +630,9 @@
 
             <!-- ================= Fuß ================= -->
             <footer class="mt-24 text-center">
-                <div class="rule-flourish mx-auto max-w-xs text-[10px]" aria-hidden="true">✦</div>
+                <div class="rule-flourish mx-auto max-w-xs text-[0.625rem]" aria-hidden="true">
+                    ✦
+                </div>
                 <p class="mt-6 text-xs text-muted-foreground">
                     Nur in der Entwicklungsumgebung sichtbar · /dev/ui
                 </p>

@@ -7,7 +7,7 @@
         </div>
 
         <h1 class="text-center font-display text-3xl font-semibold">App installieren</h1>
-        <p class="mt-3 text-center text-[15px] leading-relaxed text-muted-foreground">
+        <p class="mt-3 text-center text-[0.9375rem] leading-relaxed text-muted-foreground">
             Installieren Sie das Gesangbuch als App auf Ihrem Gerät für schnellen Zugriff und
             Offline-Nutzung.
         </p>
@@ -77,7 +77,7 @@
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
                         <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
+                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
                                 Tippen Sie auf das
                                 <strong>Teilen-Symbol</strong>
                             </p>
@@ -90,7 +90,7 @@
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
                         <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
+                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
                                 Scrollen Sie nach unten und tippen Sie auf
                                 <strong>"Zum Home-Bildschirm"</strong>
                             </p>
@@ -103,7 +103,7 @@
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">3</span>
                         <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
+                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
                                 Tippen Sie auf
                                 <strong>"Hinzufügen"</strong>
                             </p>
@@ -118,7 +118,7 @@
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
                         <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
+                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
                                 Tippen Sie auf das
                                 <strong>Menü-Symbol</strong>
                                 (drei Punkte)
@@ -132,7 +132,7 @@
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
                         <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
+                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
                                 Wählen Sie
                                 <strong>"App installieren"</strong>
                                 oder
@@ -153,7 +153,7 @@
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
                         <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
+                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
                                 Klicken Sie auf das
                                 <strong>Installations-Symbol</strong>
                                 in der Adressleiste
@@ -168,7 +168,7 @@
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
                         <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[15px] leading-relaxed">
+                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
                                 Bestätigen Sie mit
                                 <strong>"Installieren"</strong>
                             </p>

@@ -79,16 +79,36 @@
     /* Flourish color for sparse editorial details (rules, song numbers, Lied der Woche) */
     --gold: #97783a;
     --radius: 0.375rem;
+    /* The reader's Groesse, as a plain factor. Written onto the root element
+       from the preferences store (see usePageScale) and read back here by the
+       root font size, which is how one setting reaches every rem in the app —
+       the Liederliste, the Playlisten and the Einstellungen included, not just
+       the song page. 1 until the stored preferences have loaded. */
+    --page-scale: 1;
+    /* What the app's chrome is allowed to take of it. The song page honours
+       --page-scale whole, down to 50% and up to 200%, because that is a page
+       being read. The shell around it is tapped, not read: at 50% its targets
+       would fall under the thumb, at 200% the tab bar and the header would eat
+       the list they exist to reach. So the chrome follows the reader into a
+       band it stays usable in, and the reading surface goes the whole way. */
+    --app-scale: clamp(0.85, var(--page-scale), 1.6);
     /* Width of the shared page column (header + content + the index strip's
-       anchor). Grows with the viewport: a column frozen at 48rem looks
+       anchor). Grows with the viewport: a column frozen at 768px looks
        stranded on a wide screen, and hymn lines are short and pre-broken, so
-       the wider measure costs nothing in readability. */
-    --page-col-max: 48rem;
+       the wider measure costs nothing in readability.
+       Stated in px, not rem, on purpose: this is a measure of the device, and
+       a column that grew with the root size would enlarge the type and the
+       line it has to fill by the same factor — the reader would drag the
+       slider and watch nothing change. */
+    --page-col-max: 768px;
     /* Width the engraving is allowed to reach. A hymn system is a fixed print
        column (~250px in the baked SVG); stretched across the desktop page column
        it reads as a poster instead of a hymnal, so it stops near printed size.
-       On phone widths the cap never bites. */
-    --notation-max: 40rem;
+       On phone widths the cap never bites. Px for the same reason as
+       --page-col-max, and one more: the engraving is already drawn at
+       --page-scale by SongMelody, so a rem cap would apply the reader's
+       setting to it a second time. */
+    --notation-max: 640px;
     /* The printed page in one number.
        Optima is set at 2.83 staff spaces in the book, and a staff space is
        3.81pt of a 249.44pt block — so the verse type is the notation's width
@@ -131,13 +151,13 @@
 
 @media (min-width: 1280px) {
     :root {
-        --page-col-max: 56rem;
+        --page-col-max: 896px;
     }
 }
 
 @media (min-width: 1536px) {
     :root {
-        --page-col-max: 64rem;
+        --page-col-max: 1024px;
     }
 }
 
@@ -180,6 +200,19 @@
     body,
     #app {
         height: 100%;
+    }
+
+    /* Where Groesse becomes the whole app's size. Every rem in the codebase —
+       Tailwind's type scale, its spacing, the radii — is measured from here, so
+       one declaration moves the Liederliste, the Playlisten, the Einstellungen
+       and the song page's chrome together.
+       The base is 100%, not 16px: that is whatever the reader has already set
+       as their browser's text size, and this multiplies it instead of throwing
+       it away. Tailwind's breakpoints are rem in a media query, which resolves
+       against the browser default rather than this value, so the layout still
+       changes at the widths it always did. */
+    html {
+        font-size: calc(100% * var(--app-scale, 1));
     }
 
     body {
@@ -265,6 +298,21 @@
 }
 
 @layer utilities {
+    /* iOS Safari zooms the page when it focuses a field set under 16px. That
+       was invisible while the viewport was locked; with pinch-zoom back (see
+       index.html) it is live, and it leaves the reader zoomed in on a search
+       box they have to pinch their way out of. So a field never states less
+       than 16px, and grows past it with the reader's Groesse.
+       In the utilities layer and selector-heavy on purpose: it has to outrank
+       the text-* utility sitting on the field itself. */
+    @media (pointer: coarse) {
+        input:not([type='checkbox']):not([type='radio']):not([type='range']),
+        select,
+        textarea {
+            font-size: max(1rem, 16px);
+        }
+    }
+
     /* Scroll without a visible bar — for containers that carry their own
        position affordance (the A-Z/number index strip) and for the phone
        preview, where a desktop scrollbar would break the illusion. */
@@ -281,6 +329,23 @@
 }
 
 @layer components {
+    /* vue-sonner ships its type at 13px and its action button at 12px, from a
+       stylesheet the app only imports. Toasts are where the app says the things
+       it most needs read — the session has lapsed, the Gesangbuch is downloaded
+       — so they follow the reader's Größe like everything else. Stated as the
+       rem the vendor's px were worth at the default size, so nothing moves for
+       a reader who has not touched the setting. */
+    [data-sonner-toast][data-styled='true'] {
+        font-size: 0.8125rem;
+    }
+
+    [data-sonner-toast][data-styled='true'] [data-button] {
+        font-size: 0.75rem;
+        height: auto;
+        min-height: 1.5rem;
+        padding-block: 0.25rem;
+    }
+
     /* One column geometry shared by a page's header and its content, so the
        title, the rows and the toolbar actions sit on the same vertical axis.
        (Headers span their container; only their INNER content uses this.) */
