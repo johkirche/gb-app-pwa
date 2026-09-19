@@ -46,14 +46,14 @@ where it is, which is right for device geometry (`--page-col-max`,
 the reader reads.
 
 Stating the type in rem is only half of it: the layout then has to survive the
-type getting bigger. `tests/e2e/specs/readability-scale.cy.ts` walks the shell
-at 50%, 100% and 200% and fails on anything that leaves the side of a 390px
-phone — which is how the Einstellungen overview was caught truncating its
-summaries into the void. It needs a dev server:
+type getting bigger. `tests/e2e/readability-scale.spec.ts` walks the shell at
+50%, 100% and 200% and fails on anything that leaves the side of a 390px phone
+— which is how the Einstellungen overview was caught truncating its summaries
+into the void. Playwright starts the dev server itself (port 8100, reusing one
+that is already up), so the run is one command:
 
 ```sh
-pnpm dev                 # port 8100
-pnpm cypress run --config baseUrl=http://localhost:8100
+pnpm test:e2e            # add --ui to step through it
 ```
 
 Add a new page to that spec. The usual cause of a failure is a flex or grid
