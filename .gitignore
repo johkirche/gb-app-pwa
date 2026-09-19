@@ -46,3 +46,7 @@ tests/assets/2026-08-05_gesangbuch_innenteil_choräle_1.pdf
 # The Directus user-register extension lives in its own repo - clone it here if you
 # need it locally, but it is not part of this repo (a submodule broke the CF build)
 directus-extensions/
+
+# Cypress run artefacts (readability-scale.cy.ts leaves these behind on failure)
+tests/e2e/screenshots/
+tests/e2e/videos/
