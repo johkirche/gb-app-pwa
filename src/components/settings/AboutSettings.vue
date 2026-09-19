@@ -3,7 +3,7 @@
         <div class="flex items-center gap-4 px-2 py-3">
             <Info class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
-                <p class="text-[15px]">Version</p>
+                <p class="text-[0.9375rem]">Version</p>
                 <p class="text-sm text-muted-foreground">{{ APP_VERSION }}</p>
             </div>
         </div>
@@ -14,7 +14,7 @@
         >
             <Mail class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
-                <p class="text-[15px]">Kontakt &amp; Hilfe</p>
+                <p class="text-[0.9375rem]">Kontakt &amp; Hilfe</p>
                 <p class="truncate text-sm text-muted-foreground">{{ SUPPORT_EMAIL }}</p>
             </div>
         </a>
@@ -25,7 +25,7 @@
             @click="router.push('/datenschutz')"
         >
             <ShieldCheck class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <p class="flex-1 text-[15px]">Datenschutz</p>
+            <p class="flex-1 text-[0.9375rem]">Datenschutz</p>
             <ChevronRight class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
 
@@ -35,7 +35,7 @@
             @click="router.push('/impressum')"
         >
             <FileText class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <p class="flex-1 text-[15px]">Impressum</p>
+            <p class="flex-1 text-[0.9375rem]">Impressum</p>
             <ChevronRight class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
     </SettingsList>

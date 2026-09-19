@@ -32,7 +32,9 @@
                             aria-hidden="true"
                         />
                         <span class="min-w-0 flex-1">
-                            <span class="block text-[15px] font-medium">{{ preset.label }}</span>
+                            <span class="block text-[0.9375rem] font-medium">
+                                {{ preset.label }}
+                            </span>
                             <span class="block text-sm text-muted-foreground">
                                 {{ preset.hint }}
                             </span>

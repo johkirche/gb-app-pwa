@@ -12,7 +12,7 @@
         <div class="flex items-center gap-4 px-2 py-3">
             <User class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
-                <p class="text-[15px]">E-Mail</p>
+                <p class="text-[0.9375rem]">E-Mail</p>
                 <p class="truncate text-sm text-muted-foreground">
                     {{ user?.email || 'Nicht angemeldet' }}
                 </p>
@@ -27,7 +27,7 @@
         >
             <SquarePen class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
-                <p class="text-[15px]">Name</p>
+                <p class="text-[0.9375rem]">Name</p>
                 <p class="truncate text-sm text-muted-foreground">
                     {{ displayName }}
                 </p>
@@ -41,7 +41,7 @@
             @click="handleLogout"
         >
             <LogOut class="size-5 shrink-0 text-destructive" aria-hidden="true" />
-            <p class="text-[15px] text-destructive">Abmelden</p>
+            <p class="text-[0.9375rem] text-destructive">Abmelden</p>
         </button>
     </SettingsList>
 

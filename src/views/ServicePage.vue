@@ -96,7 +96,7 @@
                     >
                         <Label for="service-date" class="flex items-center gap-2.5 font-normal">
                             <CalendarDays
-                                class="size-[18px] shrink-0 text-muted-foreground"
+                                class="size-[1.125rem] shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
                             Gilt für
@@ -109,7 +109,7 @@
                             class="h-9 w-auto shrink-0"
                         />
                     </div>
-                    <p class="mt-2 px-1 text-[13px] text-muted-foreground">{{ expiryHint }}</p>
+                    <p class="mt-2 px-1 text-[0.8125rem] text-muted-foreground">{{ expiryHint }}</p>
 
                     <ServiceSongsList
                         :songs="songs"
@@ -122,7 +122,10 @@
                     />
 
                     <!-- Songs on the plan whose record is not on this device -->
-                    <p v-if="missingCount > 0" class="mt-3 px-2 text-[13px] text-muted-foreground">
+                    <p
+                        v-if="missingCount > 0"
+                        class="mt-3 px-2 text-[0.8125rem] text-muted-foreground"
+                    >
                         {{ missingCount }}
                         {{ missingCount === 1 ? 'Lied ist' : 'Lieder sind' }} auf diesem Gerät nicht
                         vorhanden. Synchronisieren Sie das Gesangbuch, um

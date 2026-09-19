@@ -32,7 +32,7 @@
                                     />
                                 </span>
                                 <span class="min-w-0 flex-1">
-                                    <span class="block text-[15px] font-medium leading-tight">
+                                    <span class="block text-[0.9375rem] font-medium leading-tight">
                                         Favoriten
                                     </span>
                                     <span class="mt-0.5 block text-sm text-muted-foreground">
@@ -64,7 +64,7 @@
                                 </span>
                                 <span class="min-w-0 flex-1">
                                     <span
-                                        class="block break-words text-[15px] font-medium leading-tight"
+                                        class="block break-words text-[0.9375rem] font-medium leading-tight"
                                     >
                                         {{ playlist.name }}
                                     </span>

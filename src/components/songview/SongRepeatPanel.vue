@@ -27,7 +27,7 @@
                     >
                         <Play class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                         <span class="min-w-0 flex-1">
-                            <span class="block text-[15px] font-medium">Einmal</span>
+                            <span class="block text-[0.9375rem] font-medium">Einmal</span>
                             <span class="block text-sm text-muted-foreground">
                                 Ohne Wiederholung
                             </span>
@@ -53,7 +53,7 @@
                     >
                         <Repeat class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                         <span class="min-w-0 flex-1">
-                            <span class="block text-[15px] font-medium">
+                            <span class="block text-[0.9375rem] font-medium">
                                 <span class="number-display">{{ count }}</span>
                                 Durchgänge
                             </span>
@@ -115,7 +115,7 @@
                             aria-hidden="true"
                         />
                         <span class="min-w-0 flex-1">
-                            <span class="block text-[15px] font-medium">Endlos</span>
+                            <span class="block text-[0.9375rem] font-medium">Endlos</span>
                             <span class="block text-sm text-muted-foreground">
                                 Bis Sie anhalten
                             </span>

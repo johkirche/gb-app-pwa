@@ -28,6 +28,7 @@ import { usePreferencesStore } from '@/stores/preferences';
 import { useUserStore } from '@/stores/user';
 
 import { syncMidiPreference } from '@/composables/useMidiOutput';
+import { usePageScale } from '@/composables/usePageScale';
 import { useTheme } from '@/composables/useTheme';
 
 import { ConfirmHost } from '@/components/ui/confirm';
@@ -50,6 +51,12 @@ const { isDark, initTheme } = useTheme();
 // has never asked for MIDI never hears about it. Watched rather than read once:
 // the preferences load asynchronously, and the settings page writes here too.
 const preferencesStore = usePreferencesStore();
+
+// Größe is the whole app's, not the song page's: hung on the root element here,
+// so the Liederliste, the Playlisten and the Einstellungen grow with the song
+// page instead of staying at whatever size they were built at.
+usePageScale();
+
 watch(
     () => [preferencesStore.midiOutputEnabled, preferencesStore.midiOutputId] as const,
     ([enabled, deviceId]) => {

@@ -29,7 +29,7 @@
                     v-for="section in sections"
                     :key="section.key"
                     type="button"
-                    class="flex shrink-0 items-center gap-2 border-b-2 pb-3 pt-2 text-[15px] transition-colors"
+                    class="flex shrink-0 items-center gap-2 border-b-2 pb-3 pt-2 text-[0.9375rem] transition-colors"
                     :class="
                         section.key === activeKey
                             ? 'border-primary font-medium text-foreground'
@@ -50,7 +50,14 @@
                  collapsing to nothing between them. -->
             <div class="grid overflow-hidden">
                 <Transition :name="transition">
-                    <div :key="activeKey ?? 'root'" class="col-start-1 row-start-1">
+                    <!-- min-w-0: a grid item will not shrink under its own
+                         min-content width, and every row here sets its summary
+                         `truncate` — one unbreakable line whose min-content is
+                         the whole string. Without this the pane grows past the
+                         phone as the reader's Größe goes up, and the parent's
+                         overflow-hidden cuts the summaries off mid-word instead
+                         of letting them ellipsise. -->
+                    <div :key="activeKey ?? 'root'" class="col-start-1 row-start-1 min-w-0">
                         <div
                             class="page-col space-y-10 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6"
                         >
@@ -70,7 +77,7 @@
                                         aria-hidden="true"
                                     />
                                     <div class="min-w-0 flex-1">
-                                        <p class="text-[15px]">{{ section.title }}</p>
+                                        <p class="text-[0.9375rem]">{{ section.title }}</p>
                                         <p class="truncate text-sm text-muted-foreground">
                                             {{ section.summary }}
                                         </p>

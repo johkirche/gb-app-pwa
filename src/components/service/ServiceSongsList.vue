@@ -29,13 +29,13 @@
                 <!-- The position in the service, not the hymn number — that one
                      stays with the title, where it is read out from. -->
                 <span
-                    class="number-display flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-[13px] leading-none text-muted-foreground"
+                    class="number-display flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-[0.8125rem] leading-none text-muted-foreground"
                     aria-hidden="true"
                 >
                     {{ position + 1 }}
                 </span>
                 <span class="min-w-0 flex-1">
-                    <span class="block break-words font-display text-[17px] leading-snug">
+                    <span class="block break-words font-display text-[1.0625rem] leading-snug">
                         <span v-if="song.index" class="number-display mr-0.5 text-lg">
                             {{ song.index }}.
                         </span>

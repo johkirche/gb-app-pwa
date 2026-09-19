@@ -7,7 +7,7 @@
         </div>
 
         <h1 class="text-center font-display text-3xl font-semibold">Inhalte herunterladen</h1>
-        <p class="mt-3 text-center text-[15px] leading-relaxed text-muted-foreground">
+        <p class="mt-3 text-center text-[0.9375rem] leading-relaxed text-muted-foreground">
             Das Gesangbuch wird jetzt einmalig heruntergeladen (ca. 90&nbsp;MB), damit alle Lieder
             und Noten auch ohne Internetverbindung verfügbar sind.
         </p>
@@ -15,19 +15,19 @@
         <ul class="mt-8 divide-y divide-border rounded-lg border border-border px-4">
             <li class="flex items-center gap-4 py-3">
                 <Music class="size-5 shrink-0 text-primary" aria-hidden="true" />
-                <span class="text-[15px]">Alle Lieder und Texte</span>
+                <span class="text-[0.9375rem]">Alle Lieder und Texte</span>
             </li>
             <li class="flex items-center gap-4 py-3">
                 <Image class="size-5 shrink-0 text-primary" aria-hidden="true" />
-                <span class="text-[15px]">Notendateien zum Offline-Lesen</span>
+                <span class="text-[0.9375rem]">Notendateien zum Offline-Lesen</span>
             </li>
             <li class="flex items-center gap-4 py-3">
                 <Wifi class="size-5 shrink-0 text-primary" aria-hidden="true" />
-                <span class="text-[15px]">WLAN-Verbindung empfohlen</span>
+                <span class="text-[0.9375rem]">WLAN-Verbindung empfohlen</span>
             </li>
             <li v-if="storageEstimate" class="flex items-center gap-4 py-3">
                 <Server class="size-5 shrink-0 text-primary" aria-hidden="true" />
-                <span class="text-[15px]">
+                <span class="text-[0.9375rem]">
                     Freier Speicher:
                     {{ formatBytes(storageEstimate.quota - storageEstimate.usage) }}
                 </span>

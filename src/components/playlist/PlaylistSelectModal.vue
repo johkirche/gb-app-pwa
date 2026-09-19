@@ -43,7 +43,7 @@
                 @click.stop="navigateToCreate"
             >
                 <CirclePlus class="size-6 shrink-0 text-primary" aria-hidden="true" />
-                <span class="min-w-0 flex-1 text-[15px] font-medium text-primary">
+                <span class="min-w-0 flex-1 text-[0.9375rem] font-medium text-primary">
                     Neue Playlist erstellen
                 </span>
                 <ChevronRight class="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
@@ -69,7 +69,9 @@
                             {{ playlist.emoji }}
                         </span>
                         <span class="min-w-0 flex-1">
-                            <span class="block break-words text-[15px] font-medium leading-tight">
+                            <span
+                                class="block break-words text-[0.9375rem] font-medium leading-tight"
+                            >
                                 {{ playlist.name }}
                             </span>
                             <span class="mt-0.5 block text-sm text-muted-foreground">

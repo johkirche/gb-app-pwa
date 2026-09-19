@@ -19,7 +19,7 @@
                 <span v-if="prev.index" class="number-display text-base leading-none">
                     {{ prev.index }}
                 </span>
-                <span class="hidden min-w-0 truncate text-[13px] font-normal lg:inline">
+                <span class="hidden min-w-0 truncate text-[0.8125rem] font-normal lg:inline">
                     {{ prev.titel }}
                 </span>
             </span>
@@ -27,7 +27,7 @@
 
         <div class="min-w-0 flex-1 text-center" aria-live="polite">
             <p class="label-micro truncate text-muted-foreground">{{ label }}</p>
-            <p v-if="total > 0" class="text-[13px] leading-tight text-muted-foreground">
+            <p v-if="total > 0" class="text-[0.8125rem] leading-tight text-muted-foreground">
                 <span class="number-display">{{ position }}</span>
                 von
                 <span class="number-display">{{ total }}</span>
@@ -42,7 +42,7 @@
             @click="emit('next')"
         >
             <span v-if="next" class="flex min-w-0 items-baseline gap-1.5">
-                <span class="hidden min-w-0 truncate text-[13px] font-normal lg:inline">
+                <span class="hidden min-w-0 truncate text-[0.8125rem] font-normal lg:inline">
                     {{ next.titel }}
                 </span>
                 <span v-if="next.index" class="number-display text-base leading-none">

@@ -90,7 +90,7 @@
              under it, where a line of centred text read as a second, disabled
              one. -->
         <div class="sticky bottom-0 z-20 mt-2 border-t border-border bg-popover px-4 py-3">
-            <p class="mb-2 text-center text-[13px] text-muted-foreground">
+            <p class="mb-2 text-center text-[0.8125rem] text-muted-foreground">
                 {{ summary }}
             </p>
             <Button class="w-full" :disabled="chosen.size === 0" @click="save">

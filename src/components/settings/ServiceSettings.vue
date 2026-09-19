@@ -4,7 +4,7 @@
             <div class="flex min-w-0 items-center gap-4">
                 <Church class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="min-w-0">
-                    <Label for="settings-service-tab" class="text-[15px] font-normal">
+                    <Label for="settings-service-tab" class="text-[0.9375rem] font-normal">
                         Tab immer anzeigen
                     </Label>
                     <p class="text-sm text-muted-foreground">
@@ -27,7 +27,7 @@
         >
             <CalendarDays class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0 flex-1">
-                <p class="text-[15px]">Vorgemerkte Lieder</p>
+                <p class="text-[0.9375rem]">Vorgemerkte Lieder</p>
                 <p class="truncate text-sm text-muted-foreground">
                     {{ serviceSelectionLabel }}
                 </p>

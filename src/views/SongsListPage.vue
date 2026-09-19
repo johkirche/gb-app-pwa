@@ -62,7 +62,7 @@
                                 {{ songOfTheWeek.titel }}
                             </span>
                             <span
-                                class="mt-1.5 block text-[11px] tracking-[0.14em] text-muted-foreground"
+                                class="mt-1.5 block text-[0.6875rem] tracking-[0.14em] text-muted-foreground"
                             >
                                 {{ songOfTheWeekMeta }}
                             </span>
@@ -164,7 +164,7 @@
                                 </span>
                                 <span class="flex min-w-0 flex-1 flex-col gap-1">
                                     <span
-                                        class="font-display text-[17px] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
+                                        class="font-display text-[1.0625rem] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
                                     >
                                         <SearchHighlight
                                             :text="song.titel"
@@ -201,7 +201,10 @@
                 </div>
 
                 <!-- Last Sync Info -->
-                <div v-if="lastSyncTime" class="py-6 text-center text-[13px] text-muted-foreground">
+                <div
+                    v-if="lastSyncTime"
+                    class="py-6 text-center text-[0.8125rem] text-muted-foreground"
+                >
                     <p>Zuletzt synchronisiert: {{ formatSyncTime(lastSyncTime) }}</p>
                 </div>
             </div>

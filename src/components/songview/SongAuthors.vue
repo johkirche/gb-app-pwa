@@ -6,7 +6,7 @@
             <component
                 :is="line.icon"
                 v-if="line.icon"
-                class="mt-0.5 size-[18px] shrink-0 text-muted-foreground"
+                class="mt-0.5 size-[1.125rem] shrink-0 text-muted-foreground"
                 aria-hidden="true"
             />
             <span :class="line.isCopyright ? 'text-sm text-muted-foreground' : 'text-foreground'">

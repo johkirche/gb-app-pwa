@@ -8,7 +8,7 @@
         aria-hidden="true"
     >
         <div
-            class="flex h-full items-center justify-center gap-2 text-[13px] text-muted-foreground"
+            class="flex h-full items-center justify-center gap-2 text-[0.8125rem] text-muted-foreground"
         >
             <RefreshCw
                 class="size-4 shrink-0"

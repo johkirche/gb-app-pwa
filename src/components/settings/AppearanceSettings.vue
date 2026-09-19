@@ -3,7 +3,7 @@
         <div class="px-2 py-3">
             <div class="flex items-center gap-4">
                 <Contrast class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <p class="text-[15px]">Farbschema</p>
+                <p class="text-[0.9375rem]">Farbschema</p>
             </div>
             <ToggleGroup
                 type="single"
@@ -18,15 +18,20 @@
             </ToggleGroup>
         </div>
 
-        <!-- One size for the song page: notation and verses alike. They are set
-             at the same size in the book, so two controls could only pull them
-             apart. The sample under the slider is that page in miniature — a
-             percentage on its own says nothing about how big the type gets. -->
+        <!-- One size for the app: notation, verses, and every list and setting
+             around them. Notation and verses are set at the same size in the
+             book, so two controls could only pull them apart — and a reader who
+             enlarges the songs and then cannot read the Liederliste that leads
+             to them has been given half a setting. The song page takes the
+             factor whole; the shell around it follows into a band it stays
+             tappable in (see --app-scale). The sample under the slider is that
+             page in miniature — a percentage on its own says nothing about how
+             big the type gets. -->
         <div class="px-2 py-3">
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
                     <Type class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    <p class="text-[15px]">Größe (Lieder)</p>
+                    <p class="text-[0.9375rem]">Größe</p>
                 </div>
                 <span class="number-display text-lg leading-none">
                     {{ Math.round(pageScale * 100) }}%
@@ -39,7 +44,7 @@
                     :min="0.5"
                     :max="2"
                     :step="0.1"
-                    aria-label="Größe (Lieder)"
+                    aria-label="Größe"
                     class="flex-1"
                 />
                 <span class="shrink-0 text-xs text-muted-foreground">200%</span>
@@ -61,7 +66,7 @@
             <div class="flex items-center gap-4">
                 <ArrowLeftRight class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="min-w-0">
-                    <p class="text-[15px]">Blättern zwischen Liedern</p>
+                    <p class="text-[0.9375rem]">Blättern zwischen Liedern</p>
                     <p class="text-sm text-muted-foreground">
                         {{ songPagingHint }}
                     </p>
@@ -92,7 +97,7 @@
             <div class="flex min-w-0 items-center gap-4">
                 <Lightbulb class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="min-w-0">
-                    <Label for="settings-keep-awake" class="text-[15px] font-normal">
+                    <Label for="settings-keep-awake" class="text-[0.9375rem] font-normal">
                         Bildschirm anlassen
                     </Label>
                     <p class="text-sm text-muted-foreground">
