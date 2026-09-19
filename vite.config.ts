@@ -8,6 +8,8 @@ import { type ConfigEnv, type Plugin, type UserConfig, defineConfig, loadEnv } f
 import { VitePWA } from 'vite-plugin-pwa';
 import vueDevTools from 'vite-plugin-vue-devtools';
 
+import { pwaManifest } from './src/config/pwaManifest';
+
 // pnpm's strict node_modules does not hoist vite-plugin-pwa's workbox-window
 // dependency to the root, but the plugin's 'virtual:pwa-register' module imports
 // 'workbox-window' from a virtual path that resolves against the project root.
@@ -69,41 +71,7 @@ export default defineConfig({
                 'logo.svg',
                 'logo-black.png',
             ],
-            manifest: {
-                name: 'Johannische Kirche Gesangbuch',
-                short_name: 'Gesangbuch',
-                description: 'Das digitale Gesangbuch der Johannischen Kirche',
-                theme_color: '#273c77',
-                background_color: '#ffffff',
-                display: 'standalone',
-                orientation: 'portrait',
-                scope: '/',
-                start_url: '/',
-                icons: [
-                    {
-                        src: 'pwaicons/android/android-launchericon-192-192.png',
-                        sizes: '192x192',
-                        type: 'image/png',
-                    },
-                    {
-                        src: 'pwaicons/android/android-launchericon-512-512.png',
-                        sizes: '512x512',
-                        type: 'image/png',
-                    },
-                    {
-                        src: 'pwaicons/android/maskable-192.png',
-                        sizes: '192x192',
-                        type: 'image/png',
-                        purpose: 'maskable',
-                    },
-                    {
-                        src: 'pwaicons/android/maskable-512.png',
-                        sizes: '512x512',
-                        type: 'image/png',
-                        purpose: 'maskable',
-                    },
-                ],
-            },
+            manifest: pwaManifest,
             workbox: {
                 // Cache all assets for offline use
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
