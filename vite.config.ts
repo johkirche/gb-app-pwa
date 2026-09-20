@@ -7,6 +7,7 @@ import path from 'path';
 import { type ConfigEnv, type Plugin, type UserConfig, defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import vueDevTools from 'vite-plugin-vue-devtools';
+import { configDefaults } from 'vitest/config';
 
 import { pwaManifest } from './src/config/pwaManifest';
 
@@ -209,5 +210,10 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'jsdom',
+        // tests/e2e belongs to Playwright, and its specs are named *.spec.ts
+        // like the unit ones — vitest would otherwise load them and fail on a
+        // `test.use` it has no browser for. (Cypress's .cy.ts names kept the
+        // two apart by accident; nothing was ever declared.)
+        exclude: [...configDefaults.exclude, 'tests/e2e/**'],
     },
 });

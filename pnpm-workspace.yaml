@@ -2,7 +2,6 @@ packages:
   - .
 allowBuilds:
   core-js: true
-  cypress: true
   esbuild: true
   gl: true
   sharp: true
