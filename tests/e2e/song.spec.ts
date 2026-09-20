@@ -211,3 +211,129 @@ test('the tab bar survives the hymn page', async () => {
     await page.goBack();
     await expect(nav(page)).toBeVisible();
 });
+
+/*
+ * Issue #24 — what a sitting costs.
+ *
+ * The reader pages through hymn after hymn, and every one of them used to
+ * leave something behind: an audio context built whether or not anyone asked
+ * to hear anything, and an object URL holding its engraving in memory with
+ * nothing left to revoke it. The end of that arithmetic is a tab that reloads
+ * itself mid-service.
+ *
+ * Both are counted from inside the page rather than read out of a heap
+ * snapshot: the wrappers below say exactly which call did it, which a snapshot
+ * never does, and they run on all three engines.
+ */
+test('paging through hymns builds no audio engine and leaves nothing outstanding', async () => {
+    // Installed before the next document, so the counters are in place from
+    // the first line of app code. It only counts and delegates, so the rest of
+    // the file is unaffected by it.
+    await page.addInitScript(() => {
+        const w = window as unknown as Record<string, unknown>;
+        // Documents, not hymns: the whole point of the walk below is that it
+        // stays in one, and a reload would silently reset every count here.
+        w.__gbDocuments = ((w.__gbDocuments as number) ?? 0) + 1;
+        w.__gbContexts = 0;
+        const live = new Set<string>();
+        w.__gbBlobs = live;
+
+        const mint = URL.createObjectURL.bind(URL);
+        URL.createObjectURL = (object: Blob | MediaSource) => {
+            const url = mint(object);
+            live.add(url);
+            return url;
+        };
+        const release = URL.revokeObjectURL.bind(URL);
+        URL.revokeObjectURL = (url: string) => {
+            live.delete(url);
+            release(url);
+        };
+
+        // standardized-audio-context builds the platform's own context
+        // underneath, so wrapping the constructor here catches it whichever
+        // name this engine keeps it under.
+        // Recorded so the assertion below can prove it is watching something.
+        // A wrap that silently failed would report zero contexts forever.
+        const wrapped: string[] = [];
+        w.__gbWrapped = wrapped;
+        for (const name of ['AudioContext', 'webkitAudioContext']) {
+            const Original = w[name] as (new (...args: never[]) => unknown) | undefined;
+            if (typeof Original !== 'function') continue;
+            w[name] = new Proxy(Original, {
+                construct(target, args, newTarget) {
+                    w.__gbContexts = ((w.__gbContexts as number) ?? 0) + 1;
+                    return Reflect.construct(target, args as never[], newTarget);
+                },
+            });
+            wrapped.push(name);
+        }
+    });
+
+    // Ten hymns, each fetching and drawing its engraving, and three engines.
+    const HYMNS = 10;
+    test.setTimeout(180_000);
+
+    // The only full page load in this test. Everything after it is the app's
+    // own routing — a goto() per hymn would be no test at all, since a fresh
+    // document takes every object URL and context with it and the count would
+    // start from nothing each time.
+    await page.goto('/tabs/lieder');
+    const rows = page.locator('.song-row');
+    await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+    // The row's own button, not every button in it: each row also carries an
+    // actions menu, which at phone width is present but not clickable.
+    const openRow = (index: number) => rows.nth(index).locator('button').first();
+
+    // In and out of ten hymns the way a reader does it: open a row, read, come
+    // back to the list. Vor/Zurück on the song page would be the shorter walk,
+    // but the bar only appears for a playlist or a service (songPaging
+    // defaults to 'lists'), and the plain list is the common case.
+    const visited = new Set<string>();
+    for (let index = 0; index < HYMNS; index++) {
+        await openRow(index).click();
+        await page.waitForURL(/\/(songs|lied)\//, { timeout: 30_000 });
+        await expect(page.getByRole('img', { name: 'Notenbild' }).first()).toBeVisible({
+            timeout: 30_000,
+        });
+        visited.add(page.url());
+        await page.goBack();
+        await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+    }
+    expect(visited.size, 'the walk did not open ten different hymns').toBe(HYMNS);
+
+    const counts = await page.evaluate(() => {
+        const w = window as unknown as {
+            __gbDocuments: number;
+            __gbContexts: number;
+            __gbBlobs: Set<string>;
+            __gbWrapped: string[];
+        };
+        return {
+            documents: w.__gbDocuments,
+            contexts: w.__gbContexts,
+            outstanding: [...w.__gbBlobs].length,
+            wrapped: w.__gbWrapped,
+        };
+    });
+
+    // Without this the two counts below would mean nothing.
+    expect(counts.documents, 'the walk reloaded the page, so nothing accumulated').toBe(1);
+
+    // ...and so would the one after it, if nothing were being watched.
+    expect(counts.wrapped.length, 'no AudioContext constructor was wrapped').toBeGreaterThan(0);
+
+    // Nobody pressed play, so nothing should have been built to play with —
+    // the engine and its context are constructed on the first tap and not
+    // before. This is the half of the leak that browsing alone used to pay.
+    expect(counts.contexts, 'browsing built an audio engine nobody asked to hear').toBe(0);
+
+    // Every hymn in the recording carries its engraving as inline SVG, so the
+    // <img> path that mints an object URL is not the one exercised here — this
+    // is a floor, not a proof. What proves the URLs are handed back is
+    // src/composables/useStoredFiles.spec.ts; what this catches is any path
+    // that starts minting one per hymn and keeping it.
+    expect(counts.outstanding, `${HYMNS} hymns left object URLs outstanding`).toBeLessThanOrEqual(
+        1,
+    );
+});

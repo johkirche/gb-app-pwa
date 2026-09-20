@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { onScopeDispose, ref } from 'vue';
 
 import { useSongsStore } from '@/stores/songs';
 
@@ -10,6 +10,12 @@ export function useStoredFiles() {
 
     /**
      * Get a blob URL for a stored file
+     *
+     * The URL holds its blob in memory until it is revoked, and nothing revokes
+     * it for you — not a navigation, not the element that showed it being torn
+     * down. Whoever takes one is taking ownership of that memory and owes it a
+     * `releaseFileUrl` when it is replaced and when the holder goes away.
+     *
      * @param fileId The Directus file ID
      * @param filename The real download filename, stored alongside an
      *                 on-demand-fetched blob (instead of '<id>.bin')
@@ -24,15 +30,38 @@ export function useStoredFiles() {
     }
 
     /**
+     * Hand back a URL from `getFileUrl` and let its blob go.
+     *
+     * Null-tolerant, because every caller holds the URL in a ref that starts
+     * and ends as null, and guarding at each site would say the same thing
+     * five times over.
+     */
+    function releaseFileUrl(url: string | null | undefined): void {
+        if (url) URL.revokeObjectURL(url);
+    }
+
+    /**
      * Create a reactive image URL for a file
+     *
+     * Owned for the life of the calling scope: the URL is revoked when that
+     * scope is torn down, so a component using this one never has to think
+     * about it.
+     *
      * @param fileId The Directus file ID
      */
     function useFileUrl(fileId: string) {
         const url = ref<string | null>(null);
         const isLoading = ref(true);
+        // A scope that ends while the fetch is still out would otherwise be
+        // handed a URL with nobody left to revoke it.
+        let disposed = false;
 
         getFileUrl(fileId)
             .then((blobUrl) => {
+                if (disposed) {
+                    releaseFileUrl(blobUrl);
+                    return;
+                }
                 url.value = blobUrl;
             })
             .catch((err) => {
@@ -42,11 +71,18 @@ export function useStoredFiles() {
                 isLoading.value = false;
             });
 
+        onScopeDispose(() => {
+            disposed = true;
+            releaseFileUrl(url.value);
+            url.value = null;
+        });
+
         return { url, isLoading };
     }
 
     return {
         getFileUrl,
+        releaseFileUrl,
         useFileUrl,
     };
 }
