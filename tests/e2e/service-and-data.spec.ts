@@ -91,6 +91,78 @@ test('the download page reports what is on the device', async () => {
     await expect(page.getByText(/Es werden nur die Änderungen geladen/)).toBeVisible();
 });
 
+/** What the sync wrote down about itself, straight out of IndexedDB. */
+async function syncState(target: Page): Promise<{ lastSyncTime: string | null; files: number }> {
+    return target.evaluate(
+        () =>
+            new Promise<{ lastSyncTime: string | null; files: number }>((resolve, reject) => {
+                const open = indexedDB.open('GesangbuchDB');
+                open.onerror = () => reject(open.error);
+                open.onsuccess = () => {
+                    const db = open.result;
+                    const tx = db.transaction(['meta', 'files']);
+                    const stamp = tx.objectStore('meta').get('lastSyncTime');
+                    const files = tx.objectStore('files').count();
+                    tx.onerror = () => reject(tx.error);
+                    tx.oncomplete = () =>
+                        resolve({
+                            lastSyncTime:
+                                (stamp.result as { value?: string } | undefined)?.value ?? null,
+                            files: files.result,
+                        });
+                };
+            }),
+    );
+}
+
+test('a second sync leaves the blobs alone', async () => {
+    // The whole point of the manifest diff: pressing „Jetzt synchronisieren" to
+    // pick up two corrected verses must not re-fetch the notation files. The
+    // library this spec shares was synced in beforeAll and the recording has
+    // not moved since, so every blob is already on the device and nothing under
+    // /assets/ has any business being asked for again.
+    await page.goto('/download');
+    const sync = page.getByRole('button', { name: 'Jetzt synchronisieren' });
+    await expect(sync).toBeVisible({ timeout: 15_000 });
+
+    const before = await syncState(page);
+    expect(before.files, 'the shared library holds no files to skip').toBeGreaterThan(0);
+
+    const assetRequests: string[] = [];
+    const watch = (request: { url: () => string }) => {
+        if (request.url().includes('/assets/')) assetRequests.push(request.url());
+    };
+    page.on('request', watch);
+
+    const started = Date.now();
+    await sync.click();
+
+    // The timestamp is the store's own statement that a sync ran to the end:
+    // it is only written when nothing failed. A button that went back to
+    // enabled could just be a button that was never pressed.
+    await expect
+        .poll(async () => (await syncState(page)).lastSyncTime, { timeout: 120_000 })
+        .not.toBe(before.lastSyncTime);
+    const elapsed = Date.now() - started;
+    page.off('request', watch);
+
+    await expect(page.getByRole('heading', { name: 'Fehler' })).toHaveCount(0);
+    await expect(
+        page.getByRole('heading', { name: 'Unvollständige Synchronisierung' }),
+    ).toHaveCount(0);
+
+    expect(assetRequests, 'the sync re-fetched notation it already had').toEqual([]);
+
+    // And it kept what it had: the prune drops orphans, not the whole library.
+    expect((await syncState(page)).files).toBe(before.files);
+
+    // Seconds, not minutes. The recording is read off disk, so this is not a
+    // transfer time — it is the shape of the work: one manifest query and two
+    // diffs, against 1121 downloads.
+    console.log(`  ✓ second sync finished in ${elapsed} ms`);
+    expect(elapsed, 'a no-op sync should not take minutes').toBeLessThan(30_000);
+});
+
 test('the install page renders', async () => {
     await page.goto('/install-pwa');
     // Two headings carry that name: the page's own and the step's inside it.

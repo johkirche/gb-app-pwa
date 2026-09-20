@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 import tailwindcss from '@tailwindcss/vite';
-import legacy from '@vitejs/plugin-legacy';
 import vue from '@vitejs/plugin-vue';
 import { createRequire } from 'node:module';
 import path from 'path';
@@ -10,6 +9,7 @@ import vueDevTools from 'vite-plugin-vue-devtools';
 import { configDefaults } from 'vitest/config';
 
 import { pwaManifest } from './src/config/pwaManifest';
+import { precacheGlobPatterns, precacheMaxFileSize } from './src/config/pwaPrecache';
 
 // pnpm's strict node_modules does not hoist vite-plugin-pwa's workbox-window
 // dependency to the root, but the plugin's 'virtual:pwa-register' module imports
@@ -52,78 +52,29 @@ export default defineConfig({
         enforceBackendUrl(),
         vue(),
         tailwindcss(),
-        legacy({
-            targets: ['defaults', 'not IE 11'],
-        }),
         vueDevTools(),
         VitePWA({
             registerType: 'prompt',
-            includeAssets: [
-                'favicon.ico',
-                'favicon.png',
-                'favicon-16x16.png',
-                'favicon-32x32.png',
-                'apple-touch-icon.png',
-                'apple-touch-icon-120.png',
-                'apple-touch-icon-152.png',
-                'apple-touch-icon-167.png',
-                'android-chrome-192x192.png',
-                'android-chrome-512x512.png',
-                'logo.svg',
-                'logo-black.png',
-            ],
             manifest: pwaManifest,
+            // The manifest's icons are not listed for the precache a second
+            // time: globPatterns already sweeps the whole build output, and
+            // naming them twice only duplicated their entries.
+            includeManifestIcons: false,
             workbox: {
-                // Cache all assets for offline use
-                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-                // Runtime caching for API requests
-                runtimeCaching: [
-                    {
-                        // Cache API requests
-                        urlPattern: /^https:\/\/.*\/items\/.*/i,
-                        handler: 'NetworkFirst',
-                        options: {
-                            cacheName: 'api-cache',
-                            expiration: {
-                                maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
-                            },
-                            cacheableResponse: {
-                                statuses: [0, 200],
-                            },
-                        },
-                    },
-                    {
-                        // Cache images
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'image-cache',
-                            expiration: {
-                                maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-                            },
-                        },
-                    },
-                    {
-                        // Cache fonts
-                        urlPattern: /\.(?:woff|woff2|ttf|eot)$/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'font-cache',
-                            expiration: {
-                                maxEntries: 20,
-                                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-                            },
-                        },
-                    },
-                ],
-                // The self-hosted soundfonts (public/soundfonts/*.js, ~2.7 MB each) must
-                // land in the precache so playback works offline before the first play.
-                // They match globPatterns '**/*.js', but workbox's default
-                // maximumFileSizeToCacheInBytes (2 MiB) would SILENTLY exclude them.
-                maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-                // Don't cache the service worker itself
+                globPatterns: precacheGlobPatterns,
+                maximumFileSizeToCacheInBytes: precacheMaxFileSize,
+                // Deliberately no runtimeCaching. At run time the app talks to
+                // exactly three things, and a workbox route can match none of
+                // them: the GraphQL endpoint and Directus' auth routes are
+                // POSTs, and /assets/<uuid> carries an Authorization header,
+                // has no file extension, and is stored in IndexedDB by the
+                // sync — caching it in the service worker would hold ~87 MB of
+                // notation twice. The three rules that used to stand here (a
+                // NetworkFirst on an /items/ REST path the app never requests,
+                // and extension matches for images and fonts that the precache
+                // answers first) could not fire once between them, and sent
+                // anyone debugging an offline failure looking in caches that
+                // are always empty.
                 cleanupOutdatedCaches: true,
             },
             devOptions: {
