@@ -189,6 +189,14 @@ export interface PreferencesData {
      * is the question a hymnal reader has an answer to. See playbackTempo.
      */
     exactTempo?: boolean;
+    /**
+     * Offer the Tonhöhe control in the transport: playing a hymn a few
+     * half-tones from where it is printed, for a congregation that cannot
+     * reach the key. Off by default — a reader looking up a hymn has no use
+     * for it, and the offset itself always starts at the printed key. See
+     * playbackPitch.
+     */
+    pitchControl?: boolean;
 }
 
 // Favorites: id == song id

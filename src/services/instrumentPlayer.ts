@@ -15,6 +15,16 @@ export interface HymnInstrumentPlayer extends InstrumentPlayer {
     /** Follow the song on screen with nothing to hear. */
     setMuted(muted: boolean): void;
     /**
+     * Play the hymn this many half-tones from where it is printed.
+     *
+     * It belongs to the sink and to nothing above it: the engine goes on
+     * walking the score as written, the cursor stands on the note the book
+     * prints, and only the number handed to the instrument moves. That is what
+     * makes it a playback offset rather than a transposition — the engraving
+     * on the page is never touched. See `playbackPitch` for the control.
+     */
+    setTranspose(semitones: number): void;
+    /**
      * How long after the moment it was scheduled for this sink's sound is
      * actually heard, in seconds.
      *
@@ -48,6 +58,29 @@ export const OSMD_HALFTONE_TO_MIDI = 12;
 
 /** ArticulationStyle.Staccato — kept local so the package import stays type-only. */
 export const ARTICULATION_STACCATO = 1;
+
+/**
+ * The MIDI note a written half-tone is to sound as — or null, where the offset
+ * has carried it off the keyboard.
+ *
+ * Both sinks go through this, so a hymn played an octave down sounds the same
+ * whether it goes to the soundfont or to an organ, and so the one place that
+ * knows a note number is bounded is the one place that checks. Dropped rather
+ * than clamped: a note folded back into range would sound in the wrong octave,
+ * which is a wrong note played confidently, while a dropped one is a gap the
+ * ear reads as the end of the register. Neither happens within the octave the
+ * transport offers — hymn melodies sit in the middle of the keyboard — but the
+ * engine also sounds whatever else a sheet carries.
+ */
+export function midiKeyFor(halfTone: number, semitones = 0): number | null {
+    const key = Math.round(halfTone) + OSMD_HALFTONE_TO_MIDI + semitones;
+    return key >= 0 && key <= 127 ? key : null;
+}
+
+/** An offset a sink can safely add to every note: whole half-tones, never NaN. */
+export function sanitizeTranspose(semitones: number): number {
+    return Number.isFinite(semitones) ? Math.round(semitones) : 0;
+}
 
 /**
  * Build the sink for the current output. Both branches are imported lazily:

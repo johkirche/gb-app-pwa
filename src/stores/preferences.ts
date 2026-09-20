@@ -68,6 +68,11 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // Off by default: the transport asks for the tempo in words, and the BPM
     // behind them is a control for whoever comes looking for it.
     const exactTempo = ref(false);
+    // Off by default: playing a hymn in another key is a question whoever
+    // leads the singing brings and a reader in a pew does not, so the control
+    // is theirs to switch on. The offset itself starts at the printed key
+    // every time either way — see playbackPitch.
+    const pitchControl = ref(false);
     const isLoading = ref(false);
 
     // Actions
@@ -86,6 +91,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 midiOutputEnabled.value = prefs.midiOutputEnabled ?? false;
                 midiOutputId.value = prefs.midiOutputId ?? '';
                 exactTempo.value = prefs.exactTempo ?? false;
+                pitchControl.value = prefs.pitchControl ?? false;
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -107,6 +113,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             midiOutputEnabled: midiOutputEnabled.value,
             midiOutputId: midiOutputId.value,
             exactTempo: exactTempo.value,
+            pitchControl: pitchControl.value,
         });
     }
 
@@ -193,6 +200,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setPitchControl(enabled: boolean) {
+        try {
+            pitchControl.value = enabled;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Tonhöhe setting:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -206,6 +223,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         midiOutputEnabled.value = false;
         midiOutputId.value = '';
         exactTempo.value = false;
+        pitchControl.value = false;
     }
 
     // Initialize store on creation
@@ -221,6 +239,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         midiOutputEnabled,
         midiOutputId,
         exactTempo,
+        pitchControl,
         isLoading,
 
         // Actions
@@ -233,6 +252,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setMidiOutputEnabled,
         setMidiOutputId,
         setExactTempo,
+        setPitchControl,
         resetToDefaults,
 
         // Initialization promise

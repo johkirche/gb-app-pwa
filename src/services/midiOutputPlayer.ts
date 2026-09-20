@@ -5,7 +5,8 @@ import type { IAudioContext } from 'standardized-audio-context';
 import {
     ARTICULATION_STACCATO,
     type HymnInstrumentPlayer,
-    OSMD_HALFTONE_TO_MIDI,
+    midiKeyFor,
+    sanitizeTranspose,
 } from '@/services/instrumentPlayer';
 
 /**
@@ -43,6 +44,7 @@ export class MidiOutputPlayer implements HymnInstrumentPlayer {
 
     private audioContext: IAudioContext | null = null;
     private muted = false;
+    private transpose = 0;
     private readonly channels = new Map<number, number>();
     /** Channels that have sounded, and therefore have to be silenced. */
     private readonly usedChannels = new Set<number>();
@@ -57,6 +59,18 @@ export class MidiOutputPlayer implements HymnInstrumentPlayer {
         this.channelFor(midiId);
         const instrument = this.instruments.find((i) => i.midiId === midiId);
         if (instrument) instrument.loaded = true;
+    }
+
+    /**
+     * Play this many half-tones from the printed key.
+     *
+     * Only what is sent from here on moves: a bar of hymn may already be
+     * sitting in the instrument's own queue in the old key. Nothing hangs
+     * either way — a note's off is queued with its on, so the pair always
+     * names the same key.
+     */
+    public setTranspose(semitones: number): void {
+        this.transpose = sanitizeTranspose(semitones);
     }
 
     public setMuted(muted: boolean): void {
@@ -89,8 +103,8 @@ export class MidiOutputPlayer implements HymnInstrumentPlayer {
         const startAt = performance.now() + aheadMs;
 
         for (const note of notes) {
-            const key = Math.round(note.note) + OSMD_HALFTONE_TO_MIDI;
-            if (key < 0 || key > 127) continue;
+            const key = midiKeyFor(note.note, this.transpose);
+            if (key === null) continue;
 
             let seconds = note.duration;
             let gain = note.gain;

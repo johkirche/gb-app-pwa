@@ -4,14 +4,18 @@
     <ResponsivePanel
         :open="open"
         :anchor="anchor"
-        label="Tempo"
+        :label="title"
         side="top"
         align="end"
         popover-class="w-80"
         @update:open="emit('update:open', $event)"
     >
         <div class="space-y-3 p-4">
-            <PanelTitle>Tempo</PanelTitle>
+            <PanelTitle>{{ title }}</PanelTitle>
+
+            <!-- Named only where there is a second thing to tell it from. With
+                 the Tonhöhe off, this panel is the Tempo and says so above. -->
+            <p v-if="pitchControl" class="label-micro text-muted-foreground">Tempo</p>
 
             <ul class="space-y-2">
                 <li v-for="preset in TEMPO_PRESETS" :key="preset.key">
@@ -103,6 +107,64 @@
                     @update:model-value="onSlide"
                 />
             </div>
+
+            <!-- How high, under how fast: both are how this hymn is played, and
+                 a bar that carried them as two buttons crowded its own right
+                 side while the left stood half empty. Offered only where it was
+                 asked for: Einstellungen → Wiedergabe → „Tonhöhe ändern". -->
+            <div v-if="pitchControl" class="space-y-3 border-t border-border pt-3">
+                <p class="label-micro text-muted-foreground">Tonhöhe</p>
+
+                <div class="flex items-center justify-between gap-3">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        :disabled="transpose <= PITCH_MIN"
+                        aria-label="Tiefer spielen"
+                        @click="emit('update:transpose', stepPitch(transpose, -1))"
+                    >
+                        <Minus aria-hidden="true" />
+                    </Button>
+                    <!-- The key the hymn sounds in, where the sheet named one at
+                         all — that is the answer a leader came for, and the
+                         half-tones below it only say which way it was moved. -->
+                    <span class="min-w-0 flex-1 text-center">
+                        <span class="block text-lg font-medium leading-tight">{{ sounding }}</span>
+                        <span class="block text-sm text-muted-foreground">
+                            {{ pitchHint(transpose) }}
+                        </span>
+                    </span>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        :disabled="transpose >= PITCH_MAX"
+                        aria-label="Höher spielen"
+                        @click="emit('update:transpose', stepPitch(transpose, 1))"
+                    >
+                        <Plus aria-hidden="true" />
+                    </Button>
+                </div>
+
+                <!-- Said plainly, because the page does not move with the sound:
+                     a key name over an engraving in another key would otherwise
+                     read as a fault in the app rather than as the point of the
+                     control. Kept to one line, and to the same line in every
+                     state: this sentence is the only thing here that changes
+                     length, and a panel that grew a line as the reader stepped a
+                     half-tone would move the +/− out from under their thumb. -->
+                <p class="text-sm text-muted-foreground">{{ notice }}</p>
+
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="w-full gap-2"
+                    :disabled="transpose === PITCH_NONE"
+                    @click="emit('update:transpose', PITCH_NONE)"
+                >
+                    <RotateCcw class="size-4" aria-hidden="true" />
+                    Wie notiert spielen
+                </Button>
+            </div>
         </div>
     </ResponsivePanel>
 </template>
@@ -110,7 +172,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { Check, Gauge, Minus, Plus } from 'lucide-vue-next';
+import { Check, Gauge, Minus, Plus, RotateCcw } from 'lucide-vue-next';
 
 import { Button } from '@/components/ui/button';
 import { PanelTitle, ResponsivePanel } from '@/components/ui/responsive-panel';
@@ -118,6 +180,17 @@ import { Slider } from '@/components/ui/slider';
 
 import type { PanelAnchor } from '@/lib/anchor';
 
+import {
+    PITCH_MAX,
+    PITCH_MIN,
+    PITCH_NONE,
+    type SongKey,
+    germanKeyName,
+    pitchHint,
+    pitchLabel,
+    soundingKeyName,
+    stepPitch,
+} from './playbackPitch';
 import {
     TEMPO_MAX,
     TEMPO_MIN,
@@ -134,16 +207,45 @@ const props = defineProps<{
     tempo: number;
     /** Whether this reader has asked for the BPM control as well as the words */
     exactTempo: boolean;
+    /** How many half-tones the playback sounds from the printed key */
+    transpose: number;
+    /** The key the sheet is written in, where it states one */
+    songKey: SongKey | null;
+    /** Whether this reader has asked for the Tonhöhe control at all */
+    pitchControl: boolean;
     anchor?: PanelAnchor;
 }>();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
     'update:tempo': [bpm: number];
+    'update:transpose': [semitones: number];
 }>();
+
+/** One thing or two, and the panel is named for what it actually holds. */
+const title = computed(() => (props.pitchControl ? 'Wiedergabe' : 'Tempo'));
 
 /** Every tempo reads as a preset, including one set by hand — see presetForTempo. */
 const chosen = computed(() => presetForTempo(props.tempo));
+
+/** What is heard: the key it comes out in, or plain half-tones for a sheet that names none. */
+const sounding = computed(
+    () => soundingKeyName(props.songKey, props.transpose) ?? pitchLabel(props.transpose),
+);
+
+/** What the sheet on the page still says, which the offset never changes. */
+const printed = computed(() => (props.songKey ? germanKeyName(props.songKey) : null));
+
+const notice = computed(() => {
+    if (props.transpose === PITCH_NONE) {
+        return printed.value
+            ? `Die Noten stehen in ${printed.value}.`
+            : 'Verschiebt nur die Wiedergabe.';
+    }
+    return printed.value
+        ? `Die Noten bleiben in ${printed.value}.`
+        : 'Nur die Wiedergabe, nicht die Noten.';
+});
 
 function onSlide(value: number[] | undefined) {
     if (value?.length) emit('update:tempo', clampTempo(value[0]));

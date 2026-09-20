@@ -205,6 +205,124 @@ test('a hymn can be favourited and shows up in Favoriten', async () => {
     await expect(page.getByText('Keine Favoriten')).toBeVisible();
 });
 
+/*
+ * Issue #31 — the Tonhöhe control.
+ *
+ * Two halves, and the second is the point: the offset has to reach the
+ * playback and must not reach the page. The engraving is the book's, in the
+ * book's key, and it is counted here before and after to say so.
+ *
+ * It is also off until it is asked for, so the walk starts by proving the
+ * transport carries no such button, and puts the switch back at the end —
+ * the library is shared with whatever runs next.
+ */
+test('the Tonhöhe control moves the playback and leaves the engraving alone', async () => {
+    await openFirstSong();
+    await expect(page.getByRole('button', { name: 'Wiedergabe' })).toBeVisible({
+        timeout: 30_000,
+    });
+    // Off, the settings button at the end of the bar is the Tempo and nothing
+    // else — no fifth control, and no mention of a key.
+    await expect(page.getByRole('button', { name: /^Tempo: / })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Wiedergabe: / })).toHaveCount(0);
+
+    // Asked for where it is offered, and nowhere else.
+    await page.goto('/tabs/einstellungen?bereich=wiedergabe');
+    const schalter = page.locator('#settings-pitch-control');
+    await expect(schalter).toBeVisible({ timeout: 15_000 });
+    await schalter.click();
+    await expect(schalter).toHaveAttribute('data-state', 'checked');
+    // The switch is written to IndexedDB, and navigating in the same breath
+    // aborts the write mid-transaction — the flipped switch would then be the
+    // only thing that ever knew about it.
+    await page.waitForTimeout(500);
+
+    await openFirstSong();
+    // On, the same button carries both — one settings end to the bar, not two.
+    const wiedergabe = page.getByRole('button', { name: /^Wiedergabe: / });
+    await expect(wiedergabe).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /^Tempo: / })).toHaveCount(0);
+    // It opens on the hymn as printed — the button names that key and says so.
+    const notiert = (await wiedergabe.getAttribute('aria-label')) ?? '';
+    expect(notiert, 'the control did not open on the printed key').toMatch(/Wie notiert$/);
+    // In the bar it still reads as the tempo: there is no key worth naming
+    // while the hymn is in the one it is printed in.
+    await expect(wiedergabe).toContainText(/Langsam|Normal|Schnell|BPM/);
+
+    const glyphs = await page.locator('.noten-svg svg path').count();
+    expect(glyphs, 'no engraving to hold still').toBeGreaterThan(40);
+
+    // Größe reaches the transport too: the bar gives up the word on the
+    // settings button before it gives up the side of the phone. This is the one
+    // place the readability walk cannot reach — it has no library behind it,
+    // and without one there is no hymn and no transport.
+    for (const scale of ['0.5', '2']) {
+        await page.evaluate(
+            (value) => document.documentElement.style.setProperty('--page-scale', value),
+            scale,
+        );
+        await page.waitForTimeout(300);
+        const sideways = await page.evaluate(
+            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        expect(sideways, `the transport leaves the phone at ${scale}×`).toBeLessThanOrEqual(1);
+    }
+    await page.evaluate(() => document.documentElement.style.removeProperty('--page-scale'));
+    await page.waitForTimeout(300);
+
+    await wiedergabe.click();
+    // Both settings are in the one panel now, tempo above and Tonhöhe below.
+    await expect(
+        page.getByText('Genaues Tempo').or(page.getByText('Normal')).first(),
+    ).toBeVisible();
+    // The panel says which half of the hymn moved, because the page did not —
+    // and says it on one line whatever the offset, so the +/− pair does not
+    // walk down the panel as the reader steps a half-tone at a time.
+    const hinweis = page.getByText(/^(Die Noten|Nur die Wiedergabe|Verschiebt)/);
+    await expect(hinweis).toBeVisible();
+    const zeile = (await hinweis.boundingBox())?.height ?? 0;
+    expect(zeile, 'the panel says nothing about the notes').toBeGreaterThan(0);
+
+    const hoeher = page.getByRole('button', { name: 'Höher spielen' });
+    await hoeher.click();
+    await hoeher.click();
+    await expect(page.getByText('2 Halbtöne höher')).toBeVisible();
+    await expect(hinweis).toBeVisible();
+    expect((await hinweis.boundingBox())?.height, 'the panel grew a line').toBe(zeile);
+    // Closed before the transport is read again: the panel is a modal sheet at
+    // this width and hides the page behind it from the accessibility tree.
+    await page.keyboard.press('Escape');
+
+    const verschoben = (await wiedergabe.getAttribute('aria-label')) ?? '';
+    expect(verschoben, 'the control still reads as the printed hymn').not.toBe(notiert);
+    expect(verschoben).toContain('2 Halbtöne höher');
+    // Both settings on one button: the word gives way to the key, and the
+    // tempo keeps the icon it always had — so a hymn that is faster AND in
+    // another key says both without asking the bar for more room.
+    await expect(wiedergabe).toContainText(/-(Dur|Moll)$|[+−]\d+$/);
+    expect(verschoben, 'the name no longer carries the tempo').toMatch(/Tempo \S+/);
+
+    // And the book is untouched: the same engraving, glyph for glyph.
+    expect(await page.locator('.noten-svg svg path').count()).toBe(glyphs);
+
+    await wiedergabe.click();
+    await page.getByRole('button', { name: 'Wie notiert spielen' }).click();
+    await page.keyboard.press('Escape');
+    await expect(wiedergabe).toHaveAttribute('aria-label', notiert);
+
+    // Switched off again, the control leaves the transport with it.
+    await page.goto('/tabs/einstellungen?bereich=wiedergabe');
+    await schalter.click();
+    await expect(schalter).toHaveAttribute('data-state', 'unchecked');
+    await page.waitForTimeout(500);
+    await openFirstSong();
+    await expect(page.getByRole('button', { name: 'Wiedergabe' })).toBeVisible({
+        timeout: 30_000,
+    });
+    await expect(page.getByRole('button', { name: /^Tempo: / })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Wiedergabe: / })).toHaveCount(0);
+});
+
 test('the tab bar survives the hymn page', async () => {
     await openFirstSong();
     // A song is opened from a tab and must come back to one.

@@ -80,6 +80,29 @@
             />
         </div>
 
+        <!-- Die Tonhöhe der Wiedergabe. Standardmäßig aus: wer ein Lied
+             nachschlägt, hat diese Frage nicht — wer die Gemeinde anstimmt,
+             schaltet sie einmal ein. Verschoben wird nur, was zu hören ist;
+             die Noten bleiben, wie sie gedruckt sind. -->
+        <div class="flex items-center justify-between gap-4 px-2 py-3">
+            <div class="flex min-w-0 items-center gap-4">
+                <ArrowUpDown class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <div class="min-w-0">
+                    <Label for="settings-pitch-control" class="text-[0.9375rem] font-normal">
+                        Tonhöhe ändern
+                    </Label>
+                    <p class="text-sm text-muted-foreground">
+                        Lieder höher oder tiefer abspielen, als sie notiert sind
+                    </p>
+                </div>
+            </div>
+            <Switch
+                id="settings-pitch-control"
+                :model-value="pitchControl"
+                @update:model-value="preferencesStore.setPitchControl($event)"
+            />
+        </div>
+
         <!-- Ausgabe auf ein angeschlossenes Instrument. Standardmäßig aus, und
              das mit Absicht: der erste MIDI-Zugriff löst eine Berechtigungs-
              abfrage aus, die niemand ungefragt sehen soll. -->
@@ -163,7 +186,14 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 
-import { AlertCircle, Gauge, Highlighter, Piano, SeparatorVertical } from 'lucide-vue-next';
+import {
+    AlertCircle,
+    ArrowUpDown,
+    Gauge,
+    Highlighter,
+    Piano,
+    SeparatorVertical,
+} from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import { usePreferencesStore } from '@/stores/preferences';
@@ -199,6 +229,7 @@ const hasAccess = computed(() => midi.hasAccess.value);
 const accessError = computed(() => midi.accessError.value);
 const midiEnabled = computed(() => preferencesStore.midiOutputEnabled);
 const exactTempo = computed(() => preferencesStore.exactTempo);
+const pitchControl = computed(() => preferencesStore.pitchControl);
 
 // With nothing chosen and one instrument connected, that one is what plays —
 // the picker says so rather than standing empty.

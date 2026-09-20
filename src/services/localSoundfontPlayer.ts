@@ -7,7 +7,8 @@ import type { IAudioContext } from 'standardized-audio-context';
 import {
     ARTICULATION_STACCATO,
     type HymnInstrumentPlayer,
-    OSMD_HALFTONE_TO_MIDI,
+    midiKeyFor,
+    sanitizeTranspose,
 } from '@/services/instrumentPlayer';
 
 /**
@@ -24,9 +25,9 @@ import {
  * changes: `instruments` lists ONLY the vendored instruments (PlaybackEngine
  * routes every unknown score instrument through its piano fallback, so midi ID
  * 0 must always be present), load() overrides nameToUrl to point at the local
- * files, and every note is shifted by OSMD_HALFTONE_TO_MIDI — the engine hands
- * over OSMD half-tones, which are an octave below the MIDI numbers this
- * soundfont is keyed by.
+ * files, and every note goes through midiKeyFor — the engine hands over OSMD
+ * half-tones, which are an octave below the MIDI numbers this soundfont is
+ * keyed by, and the reader's own playback offset is added in the same step.
  */
 
 export class LocalSoundfontPlayer implements HymnInstrumentPlayer {
@@ -38,6 +39,7 @@ export class LocalSoundfontPlayer implements HymnInstrumentPlayer {
     private players: Map<number, Player> = new Map();
     private audioContext: IAudioContext | null = null;
     private muted = false;
+    private transpose = 0;
 
     public init(audioContext: IAudioContext): void {
         this.audioContext = audioContext;
@@ -56,6 +58,19 @@ export class LocalSoundfontPlayer implements HymnInstrumentPlayer {
         this.muted = muted;
         if (!muted) return;
         for (const midiId of this.players.keys()) this.stop(midiId);
+    }
+
+    /**
+     * Play this many half-tones from the printed key.
+     *
+     * Notes already handed to the audio graph keep the pitch they were
+     * scheduled at — up to half a second of hymn still comes out in the old
+     * key. Cutting them off to make the change instant would put a hole in the
+     * music for the sake of a setting the reader moved while it played, so the
+     * new key simply starts where the buffer ends.
+     */
+    public setTranspose(semitones: number): void {
+        this.transpose = sanitizeTranspose(semitones);
     }
 
     /**
@@ -107,7 +122,9 @@ export class LocalSoundfontPlayer implements HymnInstrumentPlayer {
     public play(midiId: number, options: NotePlaybackInstruction): void {
         if (this.muted) return;
         this.verifyPlayerLoaded(midiId);
-        this.players.get(midiId)?.play(String(options.note + OSMD_HALFTONE_TO_MIDI), 0, {
+        const key = midiKeyFor(options.note, this.transpose);
+        if (key === null) return;
+        this.players.get(midiId)?.play(String(key), 0, {
             gain: options.gain,
             duration: options.duration,
         });
@@ -124,10 +141,12 @@ export class LocalSoundfontPlayer implements HymnInstrumentPlayer {
         this.applyDynamics(notes);
         // A copy, not a shift in place: the engine emits the ITERATION event
         // over this same array, and the page reads the notes back from it.
-        const pitched = notes.map((note) => ({
-            ...note,
-            note: note.note + OSMD_HALFTONE_TO_MIDI,
-        }));
+        const pitched: NotePlaybackInstruction[] = [];
+        for (const note of notes) {
+            const key = midiKeyFor(note.note, this.transpose);
+            if (key === null) continue;
+            pitched.push({ ...note, note: key });
+        }
         this.players.get(midiId)?.schedule(time, pitched);
     }
 
