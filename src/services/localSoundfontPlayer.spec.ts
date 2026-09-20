@@ -78,6 +78,46 @@ describe('LocalSoundfontPlayer – Oktavlage', () => {
     });
 });
 
+// Die Gemeinde erreicht die gedruckte Tonart nicht immer. Was dann verschoben
+// wird, ist der Weg zum Klang — der Satz auf der Seite bleibt, wie er steht.
+// Siehe playbackPitch.
+describe('LocalSoundfontPlayer – Tonhöhe der Wiedergabe', () => {
+    it('spielt um die eingestellten Halbtöne verschoben', () => {
+        player.setTranspose(-3);
+        player.schedule(CHURCH_ORGAN, 0, [note()]);
+        player.play(CHURCH_ORGAN, note());
+
+        expect(sampler.schedule.mock.calls[0][1][0].note).toBe(A_PRIME_MIDI - 3);
+        expect(sampler.play).toHaveBeenCalledWith(String(A_PRIME_MIDI - 3), 0, expect.anything());
+    });
+
+    it('lässt die Notenliste der Engine auch dabei unangetastet', () => {
+        const notes = [note()];
+        player.setTranspose(5);
+        player.schedule(CHURCH_ORGAN, 0, notes);
+
+        expect(notes[0].note).toBe(A_PRIME_HALFTONE);
+    });
+
+    it('lässt fallen, was durch die Verschiebung von der Klaviatur rutscht', () => {
+        player.setTranspose(12);
+        player.schedule(CHURCH_ORGAN, 0, [note({ note: 120 }), note()]);
+        player.play(CHURCH_ORGAN, note({ note: 120 }));
+
+        const [, scheduled] = sampler.schedule.mock.calls[0];
+        expect(scheduled).toHaveLength(1);
+        expect(scheduled[0].note).toBe(A_PRIME_MIDI + 12);
+        expect(sampler.play).not.toHaveBeenCalled();
+    });
+
+    it('nimmt nur ganze Halbtöne an', () => {
+        player.setTranspose(Number.NaN);
+        player.schedule(CHURCH_ORGAN, 0, [note()]);
+
+        expect(sampler.schedule.mock.calls[0][1][0].note).toBe(A_PRIME_MIDI);
+    });
+});
+
 // Die Maschine schiebt zwischen Klanggraph und Lautsprecher noch einen Puffer,
 // von dem die Wiedergabe-Uhr nichts weiß. Ungenannt läuft das Laufband genau um
 // diese Spanne vor der Musik her — immer gleich weit, immer in dieselbe

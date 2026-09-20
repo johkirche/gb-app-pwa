@@ -78,7 +78,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { AlertCircle } from 'lucide-vue-next';
-import type { OpenSheetMusicDisplay as OSMDType } from 'opensheetmusicdisplay';
+import type { KeyInstruction, OpenSheetMusicDisplay as OSMDType } from 'opensheetmusicdisplay';
 import type PlaybackEngineType from 'osmd-audio-player';
 import type { IAudioContext } from 'standardized-audio-context';
 
@@ -103,6 +103,7 @@ import {
 } from './notationGeometry';
 import { type NoteTarget, TAP_SLOP, noteAtPoint, stepForNote } from './notationHit';
 import { type PlayheadBox, type Rect, playheadBox } from './notationPlayhead';
+import type { SongKey } from './playbackPitch';
 import { REPEAT_ONCE, clampRepeat } from './playbackRepeat';
 
 const props = defineProps<{
@@ -121,6 +122,8 @@ const props = defineProps<{
     repeat?: number;
     /** Follow the song on screen with nothing to hear */
     muted?: boolean;
+    /** How many half-tones the playback sounds from the printed key */
+    transpose?: number;
     /** Whether a tap on a note may move the music. Off with the transport:
      *  a page read without one has nothing to move, and a Gottesdienst is
      *  read that way. */
@@ -134,6 +137,8 @@ const emit = defineEmits<{
     (e: 'engineLoading', value: boolean): void;
     (e: 'progress', value: { position: number; duration: number }): void;
     (e: 'rendered', info: { lyricsDrawn: boolean }): void;
+    /** The key the sheet is written in, as far as it says — null where it does not */
+    (e: 'update:songKey', value: SongKey | null): void;
     (e: 'renderFailed', reason: 'corrupt' | 'engine'): void;
     /** The play tap could not be honoured — no engine could be built */
     (e: 'playbackFailed'): void;
@@ -485,6 +490,7 @@ async function loadAndRender() {
         renderNotation();
 
         emit('rendered', { lyricsDrawn: lyricsDrawn() });
+        emit('update:songKey', readSongKey());
 
         // Invalidate any engine built for a previous sheet — playback is
         // constructed lazily on the first play tap (see startPlayback), so the
@@ -501,9 +507,36 @@ async function loadAndRender() {
         console.error('Failed to render MusicXML:', error);
         renderError.value = 'Fehler beim Rendern der Noten';
         emit('renderFailed', 'corrupt');
+        emit('update:songKey', null);
     } finally {
         loadsInFlight--;
     }
+}
+
+/**
+ * The key the sheet is written in — the one thing the Tonhöhe control needs
+ * from the score, and the only thing it reads off it.
+ *
+ * MusicXML states it as a signature (how many sharps or flats) and a mode, and
+ * OSMD hands both on unchanged. Anything but Dur or Moll — a church mode, a
+ * sheet that states no key at all — names no key that could be moved by name,
+ * so the control falls back to counting half-tones. Read by duck-typing rather
+ * than with instanceof: the instruction list is mixed (clef, key, rhythm) and
+ * matching on the two properties keeps the OSMD import type-only.
+ */
+function readSongKey(): SongKey | null {
+    const measure = osmd?.Sheet?.getFirstSourceMeasure?.();
+    for (const entry of measure?.FirstInstructionsStaffEntries ?? []) {
+        for (const instruction of entry?.Instructions ?? []) {
+            const key = instruction as Partial<KeyInstruction>;
+            if (typeof key.Key !== 'number' || typeof key.Mode !== 'number') continue;
+            // KeyEnum.major = 0, KeyEnum.minor = 1; the modes above them are
+            // not keys this names.
+            if (key.Mode !== 0 && key.Mode !== 1) return null;
+            return { fifths: key.Key, minor: key.Mode === 1 };
+        }
+    }
+    return null;
 }
 
 // Whether the engraving on screen sings the words under its notes: the sheet
@@ -1328,6 +1361,9 @@ async function initPlayback() {
         // connected MIDI instrument — the engine above cannot tell the two apart.
         player = await createInstrumentPlayer();
         player.setMuted(!!props.muted);
+        // The sink is built on the first play tap, which may be long after the
+        // reader set the key they want to sing in.
+        player.setTranspose(props.transpose ?? 0);
         context = new AudioContext();
         const engine = new PlaybackEngine(context, player);
         await engine.loadScore(osmd as any);
@@ -1572,6 +1608,17 @@ watch(
     () => props.muted,
     (muted) => {
         instrumentPlayer?.setMuted(!!muted);
+    },
+);
+
+// Only the sink hears about it: the sheet, the cursor and the clock all go on
+// in the printed key, which is what keeps this a playback offset rather than a
+// transposition of the page. Nothing to do while no engine is built — the one
+// that is built next reads the offset off the props.
+watch(
+    () => props.transpose,
+    (semitones) => {
+        instrumentPlayer?.setTranspose(semitones ?? 0);
     },
 );
 

@@ -137,6 +137,32 @@ describe('MidiOutputPlayer', () => {
         expect(sent(0xc0)).toHaveLength(0);
     });
 
+    // Die Gemeinde erreicht die gedruckte Tonart nicht immer; verschoben wird
+    // dann, was zum Instrument geht, und sonst nichts. Siehe playbackPitch.
+    it('spielt um die eingestellten Halbtöne verschoben', () => {
+        player.setTranspose(-3);
+        player.schedule(CHURCH_ORGAN, 0, [note()]);
+
+        expect(sent(0x90)[0][0][1]).toBe(A_PRIME_MIDI - 3);
+        // Das Note Off muss dieselbe Taste meinen, sonst hält der Ton.
+        expect(sent(0x80)[0][0][1]).toBe(A_PRIME_MIDI - 3);
+    });
+
+    it('lässt fallen, was durch die Verschiebung von der Klaviatur rutscht', () => {
+        player.setTranspose(12);
+        player.schedule(CHURCH_ORGAN, 0, [note({ note: 120 }), note()]);
+
+        expect(sent(0x90)).toHaveLength(1);
+        expect(sent(0x90)[0][0][1]).toBe(A_PRIME_MIDI + 12);
+    });
+
+    it('nimmt nur ganze Halbtöne an', () => {
+        player.setTranspose(Number.NaN);
+        player.schedule(CHURCH_ORGAN, 0, [note()]);
+
+        expect(sent(0x90)[0][0][1]).toBe(A_PRIME_MIDI);
+    });
+
     it('überlebt ein mitten im Lied abgezogenes Kabel', () => {
         output.send.mockImplementation(() => {
             throw new DOMException('device gone', 'InvalidStateError');
