@@ -69,6 +69,7 @@
                     :tempo="tempo"
                     :repeat="repeatTimes"
                     :muted="isMuted"
+                    :transpose="transpose"
                     :seekable="showTransport"
                     @play-started="isPlaying = true"
                     @play-stopped="isPlaying = false"
@@ -78,6 +79,7 @@
                     @rendered="onNotationRendered"
                     @render-failed="onNotationRenderFailed"
                     @playback-failed="onPlaybackFailed"
+                    @update:song-key="songKey = $event"
                     @update:shows-engraving="showsEngraving = $event"
                 />
 
@@ -154,12 +156,15 @@
                     v-model:muted="isMuted"
                     v-model:repeat-times="repeatTimes"
                     v-model:tempo="tempo"
+                    v-model:transpose="transpose"
                     :is-playing="isPlaying"
                     :is-loading="engineLoading"
                     :has-paused="hasPaused"
                     :verse-count="sungVerseCount"
                     :verse-hint="sungVerseHint"
                     :exact-tempo="exactTempo"
+                    :song-key="songKey"
+                    :pitch-control="pitchControl"
                     :position="playbackPosition"
                     :duration="playbackDuration"
                     @toggle-play="togglePlay"
@@ -212,6 +217,7 @@ import SongMelody from '@/components/songview/SongMelody.vue';
 import SongMenuPopover from '@/components/songview/SongMenuPopover.vue';
 import SongNavBar from '@/components/songview/SongNavBar.vue';
 import SongVerses from '@/components/songview/SongVerses.vue';
+import { PITCH_NONE, type SongKey } from '@/components/songview/playbackPitch';
 import { REPEAT_ONCE } from '@/components/songview/playbackRepeat';
 import { TEMPO_DEFAULT } from '@/components/songview/playbackTempo';
 
@@ -227,7 +233,8 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { pageScale, xmlSettings, keepScreenAwake, exactTempo } = storeToRefs(preferencesStore);
+const { pageScale, xmlSettings, keepScreenAwake, exactTempo, pitchControl } =
+    storeToRefs(preferencesStore);
 
 const { getFileUrl, releaseFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
@@ -293,6 +300,13 @@ const repeatTimes = ref(REPEAT_ONCE);
 // what a reader wants when they only need to find their place on the page.
 const isMuted = ref(false);
 const tempo = ref(TEMPO_DEFAULT);
+// How many half-tones the playback sounds from the printed key, and the key it
+// is printed in — the renderer reads the latter off the sheet. Unlike the
+// tempo, which is the leader's pace and carries from hymn to hymn, this is
+// reset by every song: a third below suits the hymn it was chosen for, and the
+// next one would simply be in an unasked-for key. See playbackPitch.
+const transpose = ref(PITCH_NONE);
+const songKey = ref<SongKey | null>(null);
 // The first play tap fetches the soundfont, which takes seconds — the
 // transport says so rather than looking unresponsive.
 const engineLoading = ref(false);
@@ -479,6 +493,8 @@ function loadSong() {
     // Reset notation outcome before loading the next song's assets
     notationState.value = 'loading';
     notationLyricsDrawn.value = false;
+    songKey.value = null;
+    transpose.value = PITCH_NONE;
     // The melody view drops the engine built for the previous sheet, so the
     // transport has to come back to rest with it — otherwise it would go on
     // showing "Pause" over a song that is not playing.
@@ -504,6 +520,13 @@ watch(
         loadSong();
     },
 );
+
+// Turned off in the settings, the control leaves the transport — and would
+// take the way back to the printed key with it. So it puts the hymn back as it
+// goes: a reader who switched it off is not asking to go on hearing it moved.
+watch(pitchControl, (on) => {
+    if (!on) transpose.value = PITCH_NONE;
+});
 
 // Also reload when songs are loaded
 watch(

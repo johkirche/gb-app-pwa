@@ -97,27 +97,49 @@
                     <Volume2 v-else class="!size-5" aria-hidden="true" />
                 </Button>
 
-                <!-- Tempo in a word, not in beats per minute: nobody looking up
-                     a hymn wants to be asked for a number, and the one behind
-                     the word is offered to whoever turns it on in the settings.
-                     See playbackTempo. -->
+                <!-- How the hymn is played: in a word, not in beats per minute
+                     — nobody looking up a hymn wants to be asked for a number,
+                     and the one behind the word is offered to whoever turns it
+                     on in the settings. With „Tonhöhe ändern" on, how high goes
+                     in beside how fast rather than taking a button of its own:
+                     two settings at this end and two controls at the other is
+                     the balance the bar was drawn at. See playbackTempo and
+                     playbackPitch. -->
                 <Button
-                    ref="tempoTriggerRef"
+                    ref="settingsTriggerRef"
                     variant="ghost"
                     size="sm"
-                    class="h-10 min-w-10 gap-1.5 px-1.5 text-muted-foreground"
-                    :aria-label="`Tempo: ${tempoLabel}`"
+                    class="h-10 min-w-10 gap-1.5 px-1.5"
+                    :class="transposed ? 'text-foreground' : 'text-muted-foreground'"
+                    :aria-label="settingsLabel"
                     aria-haspopup="dialog"
-                    :aria-expanded="tempoPanelOpen"
-                    @click="tempoPanelOpen = !tempoPanelOpen"
+                    :aria-expanded="panelOpen"
+                    @click="panelOpen = !panelOpen"
                 >
-                    <component :is="tempoIcon" class="!size-5" aria-hidden="true" />
+                    <component
+                        :is="settingsIcon"
+                        class="!size-5"
+                        :class="transposed && '@max-[20.625rem]:hidden'"
+                        aria-hidden="true"
+                    />
+                    <!-- Where the word has been given up, the tempo's icon
+                         stands aside for this one: a hymn sounding in another
+                         key than it stands in is the thing a bar too narrow for
+                         words still has to be able to say. -->
+                    <component
+                        :is="PITCH_ICON"
+                        v-if="transposed"
+                        class="!size-5 @min-[20.625rem]:hidden"
+                        aria-hidden="true"
+                    />
                     <!-- Narrower than this and the word would have to be cut
                          short, which says less than the icon on its own does.
                          The button is named either way, so nothing is lost to
-                         a reader who is listening rather than looking. -->
-                    <span class="hidden truncate text-[0.8125rem] @min-[330px]:inline">
-                        {{ tempoLabel }}
+                         a reader who is listening rather than looking. In rem,
+                         so that enlarging the app gives the word up before the
+                         bar runs off the side of the phone. -->
+                    <span class="hidden truncate text-[0.8125rem] @min-[20.625rem]:inline">
+                        {{ settingsBadge }}
                     </span>
                 </Button>
             </div>
@@ -132,12 +154,16 @@
             @update:times="$emit('update:repeatTimes', $event)"
         />
 
-        <SongTempoPanel
-            v-model:open="tempoPanelOpen"
+        <SongPlaybackPanel
+            v-model:open="panelOpen"
             :tempo="tempo"
             :exact-tempo="exactTempo"
-            :anchor="tempoAnchor"
+            :transpose="transpose"
+            :song-key="songKey"
+            :pitch-control="pitchControl"
+            :anchor="settingsAnchor"
             @update:tempo="$emit('update:tempo', $event)"
+            @update:transpose="$emit('update:transpose', $event)"
         />
     </div>
 </template>
@@ -153,8 +179,16 @@ import { Slider } from '@/components/ui/slider';
 import type { PanelAnchor } from '@/lib/anchor';
 import { cn } from '@/lib/utils';
 
+import SongPlaybackPanel from './SongPlaybackPanel.vue';
 import SongRepeatPanel from './SongRepeatPanel.vue';
-import SongTempoPanel from './SongTempoPanel.vue';
+import {
+    PITCH_ICON,
+    PITCH_NONE,
+    type SongKey,
+    pitchHint,
+    pitchLabel,
+    soundingKeyName,
+} from './playbackPitch';
 import { REPEAT_ONCE, repeatBadge, repeatLabel } from './playbackRepeat';
 import { presetForTempo } from './playbackTempo';
 
@@ -173,6 +207,12 @@ const props = defineProps<{
     tempo: number;
     /** Whether this reader has asked for the tempo in BPM as well as in words */
     exactTempo: boolean;
+    /** How many half-tones the playback sounds from the printed key */
+    transpose: number;
+    /** The key the sheet is written in, where it states one */
+    songKey: SongKey | null;
+    /** Whether this reader has asked for the Tonhöhe control at all */
+    pitchControl: boolean;
     /** Seconds played, and the song's length at the current tempo */
     position: number;
     duration: number;
@@ -184,6 +224,7 @@ const emit = defineEmits<{
     /** A position on the bar, as a fraction of the song */
     seek: [fraction: number];
     'update:tempo': [bpm: number];
+    'update:transpose': [semitones: number];
     'update:repeatTimes': [times: number];
     'update:muted': [value: boolean];
 }>();
@@ -202,21 +243,42 @@ const repeats = computed(() => props.repeatTimes !== REPEAT_ONCE);
 const repeatBadgeText = computed(() => repeatBadge(props.repeatTimes));
 
 const tempoPreset = computed(() => presetForTempo(props.tempo));
-const tempoIcon = computed(() => tempoPreset.value.icon);
 // With the exact control on, the number is what the reader is steering by and
 // the word would only take room from it.
 const tempoLabel = computed(() =>
     props.exactTempo ? `${props.tempo} BPM` : tempoPreset.value.label,
 );
 
+const transposed = computed(() => props.transpose !== PITCH_NONE);
+// The key it comes out in — which is the printed one until somebody moves it,
+// and plain half-tones for a sheet that states no key at all.
+const pitchButtonLabel = computed(
+    () => soundingKeyName(props.songKey, props.transpose) ?? pitchLabel(props.transpose),
+);
+
+// One button for both, and it shows both without asking for a second word's
+// worth of room: the icon has always said how fast — Turtle, note, Rabbit —
+// so the word beside it is free to say what key, from the moment there is a
+// key to say. Until then it says the tempo in words, as it always did.
+const settingsIcon = computed(() => tempoPreset.value.icon);
+const settingsBadge = computed(() =>
+    transposed.value ? pitchButtonLabel.value : tempoLabel.value,
+);
+// Spoken in full, because the word on the button is only ever one of the two.
+const settingsLabel = computed(() =>
+    props.pitchControl
+        ? `Wiedergabe: Tempo ${tempoLabel.value}, Tonhöhe ${pitchButtonLabel.value}, ${pitchHint(props.transpose)}`
+        : `Tempo: ${tempoLabel.value}`,
+);
+
 // Both panels open off the button that carries them, so on a wide screen the
 // popover stands over its own control rather than in the corner of the page.
 const repeatPanelOpen = ref(false);
-const tempoPanelOpen = ref(false);
+const panelOpen = ref(false);
 const repeatTriggerRef = ref<{ $el?: HTMLElement } | null>(null);
-const tempoTriggerRef = ref<{ $el?: HTMLElement } | null>(null);
+const settingsTriggerRef = ref<{ $el?: HTMLElement } | null>(null);
 const repeatAnchor = computed<PanelAnchor>(() => repeatTriggerRef.value?.$el ?? null);
-const tempoAnchor = computed<PanelAnchor>(() => tempoTriggerRef.value?.$el ?? null);
+const settingsAnchor = computed<PanelAnchor>(() => settingsTriggerRef.value?.$el ?? null);
 
 function onScrub(value: number[] | undefined) {
     if (value?.length) scrubPosition.value = value[0];

@@ -531,7 +531,8 @@
                 <p class="mt-2 text-sm text-muted-foreground">
                     Die Leiste am Fuß des Liedes. Die Wiedergabetaste steht in der Mitte der Seite,
                     unabhängig davon, was links und rechts von ihr liegt; Wiederholung und Tempo
-                    fragen in Worten und öffnen ihre eigene Auswahl.
+                    fragen in Worten und öffnen ihre eigene Auswahl. Die Tonhöhe kommt nur dazu, wo
+                    sie in den Einstellungen verlangt wurde.
                 </p>
                 <div class="mt-8 space-y-10">
                     <div>
@@ -545,10 +546,13 @@
                                 v-model:muted="demoMuted"
                                 v-model:repeat-times="demoRepeatTimes"
                                 v-model:tempo="demoTempo"
+                                v-model:transpose="demoTranspose"
                                 :is-playing="demoPlaying"
                                 :has-paused="demoPlaying"
                                 :verse-count="4"
                                 :exact-tempo="demoExactTempo"
+                                :song-key="DEMO_SONG_KEY"
+                                :pitch-control="demoPitchControl"
                                 :position="demoPlaying ? 42 : 0"
                                 :duration="138"
                                 @toggle-play="demoPlaying = !demoPlaying"
@@ -563,8 +567,16 @@
                             >
                                 {{ demoExactTempo ? 'Tempo in Worten' : 'Genaues Tempo (BPM)' }}
                             </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                @click="demoPitchControl = !demoPitchControl"
+                            >
+                                {{ demoPitchControl ? 'Ohne Tonhöhe' : 'Mit Tonhöhe' }}
+                            </Button>
                             <span class="text-sm text-muted-foreground">
-                                {{ demoTempo }} BPM · {{ repeatLabel(demoRepeatTimes) }}
+                                {{ demoTempo }} BPM · {{ repeatLabel(demoRepeatTimes) }} ·
+                                {{ soundingKeyName(DEMO_SONG_KEY, demoTranspose) }}
                             </span>
                         </div>
                     </div>
@@ -663,6 +675,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import { useTheme } from '@/composables/useTheme';
 
 import SongAudioControls from '@/components/songview/SongAudioControls.vue';
+import { PITCH_NONE, type SongKey, soundingKeyName } from '@/components/songview/playbackPitch';
 import { REPEAT_ONCE, repeatLabel } from '@/components/songview/playbackRepeat';
 import { TEMPO_DEFAULT } from '@/components/songview/playbackTempo';
 import {
@@ -833,6 +846,11 @@ const demoMuted = ref(false);
 const demoRepeatTimes = ref(REPEAT_ONCE);
 const demoTempo = ref(TEMPO_DEFAULT);
 const demoExactTempo = ref(false);
+// F-Dur, wie es in vielen Liedern des Buches steht — die Tonhöhe braucht eine
+// Tonart, um eine nennen zu können.
+const DEMO_SONG_KEY: SongKey = { fifths: -1, minor: false };
+const demoTranspose = ref(PITCH_NONE);
+const demoPitchControl = ref(true);
 
 const actionSheetOpen = ref(false);
 const actionSheetAnchor = ref<PanelAnchor>(null);
