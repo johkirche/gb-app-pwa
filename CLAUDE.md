@@ -74,7 +74,7 @@ starts itself:
 pnpm test:e2e                  # --ui to step through, --project=webkit to narrow
 ```
 
-Five specs, and they divide by what they need behind them:
+Six specs, and they divide by what they need behind them:
 
 - `public-pages.spec.ts` — the `access: 'public'` routes, with **no recording
   and no session**, which is the point: each has to work for someone who cannot
@@ -84,6 +84,18 @@ Five specs, and they divide by what they need behind them:
   IndexedDB. This is the only test of `src/api/`.
 - `song.spec.ts`, `playlists.spec.ts`, `service-and-data.spec.ts` — the reading
   app, against a synced library.
+- `offline.spec.ts` — the service worker, which every other context blocks. It
+  runs against the **built** app (`support/preview.ts`, a static server over
+  dist/) because the production worker and the dev one are different files with
+  different manifests, so it needs `pnpm build` first and skips with a message
+  if there is none. It lets the worker install, checks it stored every entry the
+  build listed, then aborts all traffic — the app's own origin included — and
+  asks for a hymn, engraving and all. It also fetches every entry in the
+  manifest from inside the offline page, which is the only thing that covers
+  the files nothing else reaches: the two 2.7 MB soundfonts load on the first
+  press of play, so no walk of the app touches them. Chromium and Firefox only
+  past the install: Playwright's WebKit will not let a worker answer a
+  navigation it has intercepted.
 
 A spec that needs the book calls `openLibrary()` once in `beforeAll` and shares
 it (`test.describe.configure({ mode: 'serial' })`), because syncing per test
