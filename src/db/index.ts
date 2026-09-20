@@ -168,9 +168,10 @@ export interface PreferencesData {
     /** Optional so records stored before song paging existed stay valid. */
     songPaging?: SongPagingMode;
     /**
-     * Hold a screen wake lock while a song is open, so the page does not dim
-     * mid-verse. Optional so records stored before it existed stay valid; the
-     * store supplies the default.
+     * Hold a screen wake lock while a song is open and in use, so the page does
+     * not dim mid-verse — a quarter of an hour without a touch drops it until
+     * the next one. Optional so records stored before it existed stay valid;
+     * the store supplies the default.
      */
     keepScreenAwake?: boolean;
     /**

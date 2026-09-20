@@ -57,8 +57,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // bar in the way of the verses — so it is theirs to switch on.
     const songPaging = ref<SongPagingMode>('lists');
     // On by default: the phone on the hymnal stand dimming in verse three is
-    // what this is for, and the lock is only ever held while a song is open
-    // and on screen. Whoever would rather have the battery turns it off.
+    // what this is for, and the lock is only ever held while a song is open, on
+    // screen and being used — a quarter of an hour untouched and it stands down
+    // by itself. Whoever would rather have the battery turns it off.
     const keepScreenAwake = ref(true);
     // Off by default: the first Web MIDI call raises a permission prompt, and
     // nobody looking up a hymn should be asked about MIDI hardware.

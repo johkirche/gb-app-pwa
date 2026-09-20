@@ -61,6 +61,7 @@ beforeEach(async () => {
 
 afterEach(() => {
     scope.stop();
+    vi.useRealTimers();
     Reflect.deleteProperty(navigator, 'wakeLock');
 });
 
@@ -121,6 +122,60 @@ describe('useWakeLock', () => {
         await settle();
         expect(request).toHaveBeenCalledTimes(2);
         expect(handle.isActive.value).toBe(true);
+    });
+
+    it('dimmt nach einer Viertelstunde ohne Berührung und kommt bei der nächsten zurück', async () => {
+        vi.useFakeTimers();
+        const { WAKE_LOCK_IDLE_MS } = await import('@/composables/useWakeLock');
+        const handle = scope.run(() => useWakeLock())!;
+
+        handle.request();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(handle.isActive.value).toBe(true);
+
+        // Kurz vor Schluss wird geblättert — die Viertelstunde beginnt von vorn.
+        await vi.advanceTimersByTimeAsync(WAKE_LOCK_IDLE_MS - 1000);
+        document.dispatchEvent(new Event('pointerdown'));
+        await vi.advanceTimersByTimeAsync(WAKE_LOCK_IDLE_MS - 1000);
+        expect(sentinels[0].released).toBe(false);
+        expect(handle.isActive.value).toBe(true);
+
+        // Danach rührt sich nichts mehr: das Display darf wieder dunkel werden.
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(sentinels[0].released).toBe(true);
+        expect(handle.isActive.value).toBe(false);
+
+        // Der Halter steht weiter — die nächste Berührung holt die Sperre zurück,
+        // ohne dass jemand den Schalter suchen muss.
+        document.dispatchEvent(new Event('pointerdown'));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(handle.isActive.value).toBe(true);
+    });
+
+    it('lässt die Viertelstunde mit der Rückkehr aus dem Hintergrund von vorn beginnen', async () => {
+        vi.useFakeTimers();
+        const { WAKE_LOCK_IDLE_MS } = await import('@/composables/useWakeLock');
+        const handle = scope.run(() => useWakeLock())!;
+
+        handle.request();
+        await vi.advanceTimersByTimeAsync(0);
+
+        // Das Telefon liegt fast die volle Zeit in der Tasche.
+        await vi.advanceTimersByTimeAsync(WAKE_LOCK_IDLE_MS - 1000);
+        setVisibility('hidden');
+        sentinels[0].fireRelease();
+        await vi.advanceTimersByTimeAsync(0);
+
+        setVisibility('visible');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(handle.isActive.value).toBe(true);
+
+        // Diese Zeit zählt nicht mit: nach der Rückkehr steht die volle Viertelstunde.
+        await vi.advanceTimersByTimeAsync(WAKE_LOCK_IDLE_MS - 1000);
+        expect(handle.isActive.value).toBe(true);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(handle.isActive.value).toBe(false);
     });
 
     it('bleibt ohne Plattform-Unterstützung folgenlos', async () => {

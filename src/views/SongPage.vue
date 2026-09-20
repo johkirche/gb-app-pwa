@@ -638,7 +638,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 // Verse three is exactly when the screen dims and the reader loses their place
 // fumbling to unlock. The hold stands while this page is open and on screen;
 // leaving it — or turning the setting off — drops it, and everything no-ops
-// where the platform has no wake lock at all.
+// where the platform has no wake lock at all. The lock itself also stands down
+// after a quarter of an hour in which the page went untouched, and comes back
+// with the next touch: a page forgotten face-up in the pew is not one being
+// read from.
 useWakeLock(() => keepScreenAwake.value);
 
 // Playback is a Web Audio scheduler, so nothing about it reaches the OS by

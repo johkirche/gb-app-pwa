@@ -28,6 +28,11 @@ import {
  * - `request()` rejects for reasons that are none of the caller's business
  *   (low battery, an OS policy, no support at all). All of them mean the same
  *   thing here — the screen dims as it always did — so they are swallowed.
+ *
+ * And one thing it does not: a hold is not a promise to burn the battery all
+ * afternoon. The lock also stands down after a quarter of an hour in which
+ * nobody touched the page, and the next touch takes it straight back — so the
+ * hold outlives the dimming and the reader never has to find the switch again.
  */
 
 /** One entry per caller currently asking for the screen to stay on. */
@@ -35,10 +40,28 @@ const holders = new Set<symbol>();
 
 const held = ref(false);
 
+/**
+ * How long a hold keeps the screen awake with nothing happening on the page.
+ * Long enough for any hymn and the words between two, short enough that a
+ * phone left face-up in the pew stops burning through the afternoon.
+ */
+export const WAKE_LOCK_IDLE_MS = 15 * 60 * 1000;
+
+/**
+ * What counts as the reader still being there. Deliberately not `scroll`: the
+ * app turns pages by scrolling them itself, and it must not be able to keep
+ * its own lock alive.
+ */
+const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel'] as const;
+
 let sentinel: WakeLockSentinel | null = null;
 /** Serializes request/release so two rapid holds cannot take two sentinels. */
 let queue: Promise<void> = Promise.resolve();
 let listening = false;
+
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+/** True once the quarter hour has run out; cleared by the next sign of life. */
+let idle = false;
 
 export function isWakeLockSupported(): boolean {
     return typeof navigator !== 'undefined' && 'wakeLock' in navigator;
@@ -53,8 +76,32 @@ function onSentinelRelease(event: Event) {
     }
 }
 
+function startIdleTimer() {
+    if (idleTimer !== null) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+        idleTimer = null;
+        idle = true;
+        sync();
+    }, WAKE_LOCK_IDLE_MS);
+}
+
+function stopIdleTimer() {
+    if (idleTimer !== null) clearTimeout(idleTimer);
+    idleTimer = null;
+    idle = false;
+}
+
+/** The reader is still there: the quarter hour starts over, and the lock with it. */
+function noteActivity() {
+    if (holders.size === 0) return;
+    startIdleTimer();
+    if (!idle) return;
+    idle = false;
+    sync();
+}
+
 async function step() {
-    const wanted = holders.size > 0 && document.visibilityState === 'visible';
+    const wanted = holders.size > 0 && !idle && document.visibilityState === 'visible';
 
     if (wanted && !sentinel) {
         try {
@@ -85,10 +132,26 @@ function sync() {
     queue = queue.then(step, step);
 }
 
+function onVisibilityChange() {
+    // Coming back to the page is the reader returning, so the quarter hour
+    // starts over with them — the one that ran while the page was in the
+    // background measured a screen that was never theirs to lose.
+    if (document.visibilityState === 'visible' && holders.size > 0) {
+        idle = false;
+        startIdleTimer();
+    }
+    sync();
+}
+
 function listen() {
     if (listening) return;
     listening = true;
-    document.addEventListener('visibilitychange', sync);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    // Capture, so a handler that stops propagation cannot hide the reader from
+    // us; passive, so nothing here can hold up a scroll.
+    for (const type of ACTIVITY_EVENTS) {
+        document.addEventListener(type, noteActivity, { capture: true, passive: true });
+    }
 }
 
 export interface WakeLockHandle {
@@ -96,14 +159,16 @@ export interface WakeLockHandle {
     isSupported: boolean;
     /** Whether a lock is actually held right now (by anyone). */
     isActive: Readonly<Ref<boolean>>;
-    /** Add this caller's hold. Idempotent. */
+    /** Add this caller's hold, and start its quarter hour. Idempotent. */
     request: () => void;
     /** Drop this caller's hold. Idempotent; runs by itself on scope dispose. */
     release: () => void;
 }
 
 /**
- * Keep the screen awake for as long as this caller says so.
+ * Keep the screen awake for as long as this caller says so — and as long as
+ * the page is being used: {@link WAKE_LOCK_IDLE_MS} without a touch, a key or
+ * a wheel drops the lock until the next one.
  *
  * Pass a reactive source to have the hold follow it, or leave it out and drive
  * the hold by hand. Either way the hold is dropped when the owning component
@@ -120,12 +185,16 @@ export function useWakeLock(source?: MaybeRefOrGetter<boolean>): WakeLockHandle 
     function request() {
         if (!isSupported || holders.has(id)) return;
         holders.add(id);
+        // Asking is itself a sign of life — opening a song starts the clock.
+        idle = false;
+        startIdleTimer();
         listen();
         sync();
     }
 
     function release() {
         if (!holders.delete(id)) return;
+        if (holders.size === 0) stopIdleTimer();
         sync();
     }
 
