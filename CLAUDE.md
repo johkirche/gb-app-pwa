@@ -74,6 +74,30 @@ starts itself:
 pnpm test:e2e                  # --ui to step through, --project=webkit to narrow
 ```
 
+Five specs, and they divide by what they need behind them:
+
+- `public-pages.spec.ts` — the `access: 'public'` routes, with **no recording
+  and no session**, which is the point: each has to work for someone who cannot
+  get in. It fails if one of them starts reaching off-origin to render.
+- `readability-scale.spec.ts` — the shell at 50%, 100% and 200% (see above).
+- `sync.spec.ts` — login, onboarding and the whole download, asserting rows in
+  IndexedDB. This is the only test of `src/api/`.
+- `song.spec.ts`, `playlists.spec.ts`, `service-and-data.spec.ts` — the reading
+  app, against a synced library.
+
+A spec that needs the book calls `openLibrary()` once in `beforeAll` and shares
+it (`test.describe.configure({ mode: 'serial' })`), because syncing per test
+would cost five seconds each to re-watch what `sync.spec.ts` already asserts.
+Anything that marks, favourites or creates puts it back afterwards, so the
+shared library is left as the next test expects it.
+
+Two things that will bite when adding a spec. Reach a tab with `openTab()`,
+never by pressing the tab bar: a hymn, a playlist and a settings section are all
+top-level routes with no bar on them, so a test that just finished something is
+never standing where it could press one. And scope text assertions to `main` —
+the desktop sidebar is in the document at phone widths too, hidden, and
+`getByText('Favoriten').first()` will happily find its link instead of the page.
+
 **The backend is recorded, not faked.** The app talks to exactly three things —
 a GraphQL endpoint, Directus' auth routes, and `/assets/<id>` for the two
 notation files a song carries. A hand-built fake of that would drift from the
