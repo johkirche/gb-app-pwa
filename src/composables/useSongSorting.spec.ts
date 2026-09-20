@@ -2,7 +2,12 @@ import { ref } from 'vue';
 
 import { describe, expect, it } from 'vitest';
 
-import { type SortMode, indexLetter, useSongSorting } from '@/composables/useSongSorting';
+import {
+    type SongRanks,
+    type SortMode,
+    indexLetter,
+    useSongSorting,
+} from '@/composables/useSongSorting';
 
 import type { Song } from '@/db';
 
@@ -94,5 +99,77 @@ describe('every section says what it is', () => {
         expect(indexItems.value.map((i) => i.ariaLabel)).toEqual(
             sortedSections.value.map((s) => s.spokenLabel),
         );
+    });
+});
+
+describe('Treffer nach Übereinstimmung', () => {
+    function song(index: number, titel: string): Song {
+        return {
+            id: `s${index}`,
+            index,
+            titel,
+            strophen: [],
+            textAutoren: [],
+            melodieAutoren: [],
+            noten: [],
+            notentextMxml: null,
+            kategorien: [],
+        };
+    }
+
+    const LIEDER = [song(1, 'Eins'), song(2, 'Zwei'), song(3, 'Drei')];
+
+    function sortingFor(ranks: SongRanks, mode: SortMode = 'index') {
+        const sorting = useSongSorting(ref(LIEDER), ref(ranks));
+        sorting.sortMode.value = mode;
+        return sorting;
+    }
+
+    it('stellt die Liste als einen Abschnitt hin, am besten passend zuerst', () => {
+        const { sortedSections } = sortingFor(
+            new Map([
+                ['s1', 4],
+                ['s2', 30],
+                ['s3', 12],
+            ]),
+        );
+
+        expect(sortedSections.value).toHaveLength(1);
+        expect(sortedSections.value[0].key).toBe('treffer');
+        expect(sortedSections.value[0].songs.map((s) => s.index)).toEqual([2, 3, 1]);
+    });
+
+    it('lässt bei Gleichstand die gewählte Sortierung entscheiden', () => {
+        const gleich: SongRanks = new Map([
+            ['s1', 4],
+            ['s2', 4],
+            ['s3', 4],
+        ]);
+
+        expect(sortingFor(gleich).sortedSections.value[0].songs.map((s) => s.index)).toEqual([
+            1, 2, 3,
+        ]);
+        expect(
+            sortingFor(gleich, 'alphabetical').sortedSections.value[0].songs.map((s) => s.titel),
+        ).toEqual(['Drei', 'Eins', 'Zwei']);
+    });
+
+    it('nimmt Register und Zwischenüberschriften zurück, solange gewertet wird', () => {
+        const { showHeaders, showIndexScroll } = sortingFor(new Map([['s1', 4]]), 'alphabetical');
+        expect(showHeaders.value).toBe(false);
+        expect(showIndexScroll.value).toBe(false);
+    });
+
+    it('stellt über nichts keinen Abschnitt hin', () => {
+        // Sonst sähe die leere Suche wie ein Ergebnis aus, und die Seite käme
+        // nie zu „Keine Ergebnisse".
+        const sorting = useSongSorting(ref([] as Song[]), ref(new Map() as SongRanks));
+        expect(sorting.sortedSections.value).toEqual([]);
+    });
+
+    it('lässt ohne Wertung alles, wie es war', () => {
+        const { sortedSections, showIndexScroll } = sortingFor(null, 'alphabetical');
+        expect(sortedSections.value.map((s) => s.label)).toEqual(['D', 'E', 'Z']);
+        expect(showIndexScroll.value).toBe(true);
     });
 });

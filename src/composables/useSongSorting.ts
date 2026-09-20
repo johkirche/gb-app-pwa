@@ -69,9 +69,19 @@ export interface IndexItem {
 }
 
 /**
+ * Wie gut jedes Lied zur Eingabe passt, nach Lied-id (siehe `songSearchRank`).
+ *
+ * Liegt eine solche Wertung an, ordnet sie die Liste und die Einteilung nach
+ * Nummer, Buchstabe oder Kategorie tritt zurück: wer eine Zeile eintippt, sucht
+ * ein bestimmtes Lied und keinen Platz im Buch, und ein A–Z-Register über acht
+ * Treffer ordnet nichts. Ohne Wertung (null) bleibt alles, wie es war.
+ */
+export type SongRanks = Map<string, number> | null;
+
+/**
  * Composable for song sorting and grouping logic
  */
-export function useSongSorting(songs: Ref<Song[]>) {
+export function useSongSorting(songs: Ref<Song[]>, ranks?: Ref<SongRanks>) {
     const sortMode = ref<SortMode>('index');
 
     // Get the current sort option config
@@ -79,15 +89,26 @@ export function useSongSorting(songs: Ref<Song[]>) {
         () => SORT_OPTIONS.find((opt) => opt.value === sortMode.value) || SORT_OPTIONS[0],
     );
 
+    const isRanked = computed(() => !!ranks?.value);
+
     // Check if headers should be shown for current sort mode
-    const showHeaders = computed(() => currentSortOption.value.showHeaders);
+    const showHeaders = computed(() => !isRanked.value && currentSortOption.value.showHeaders);
 
     // Check if index scroll should be shown for current sort mode
-    const showIndexScroll = computed(() => currentSortOption.value.showIndexScroll);
+    const showIndexScroll = computed(
+        () => !isRanked.value && currentSortOption.value.showIndexScroll,
+    );
 
     // Sort and group songs based on current mode
     const sortedSections = computed((): SongSection[] => {
         const songList = songs.value;
+        const ranking = ranks?.value;
+        // Kein Abschnitt über nichts: die Liste erkennt die leere Suche daran,
+        // dass keiner dasteht, und zeigt daraufhin „Keine Ergebnisse" samt dem
+        // Angebot, im Liedtext weiterzusuchen. Ein leerer Abschnitt sähe für sie
+        // aus wie ein Ergebnis und hätte die Seite stumm gelassen.
+        if (ranking)
+            return songList.length ? [rankedSection(songList, ranking, sortMode.value)] : [];
 
         switch (sortMode.value) {
             case 'index':
@@ -123,6 +144,30 @@ export function useSongSorting(songs: Ref<Song[]>) {
         sortedSections,
         sortedSongs,
         indexItems,
+    };
+}
+
+/**
+ * Die Treffer, nach Übereinstimmung geordnet — ein Abschnitt, keine Einteilung.
+ *
+ * Bei gleicher Wertung entscheidet die gewählte Sortierung, damit „nach
+ * Übereinstimmung" nicht heißt „in willkürlicher Reihenfolge": eine Suche nach
+ * einem einzelnen Wort trifft überall gleich lang und steht dann genau so da wie
+ * ohne Suche.
+ */
+function rankedSection(songs: Song[], ranks: Map<string, number>, mode: SortMode): SongSection {
+    const byMode =
+        mode === 'index'
+            ? (a: Song, b: Song) => a.index - b.index
+            : (a: Song, b: Song) => a.titel.localeCompare(b.titel, 'de');
+
+    return {
+        key: 'treffer',
+        label: 'Treffer',
+        spokenLabel: 'Treffer, nach Übereinstimmung geordnet',
+        songs: [...songs].sort(
+            (a, b) => (ranks.get(b.id) ?? 0) - (ranks.get(a.id) ?? 0) || byMode(a, b),
+        ),
     };
 }
 

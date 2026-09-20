@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { foldForSearch, highlightParts, matchesTerms, searchTerms } from '@/utils/search';
+import {
+    foldForSearch,
+    highlightParts,
+    longestRun,
+    matchesTerms,
+    searchTerms,
+    snippetAround,
+} from '@/utils/search';
 
 describe('Faltung', () => {
     it('nimmt Groß-/Kleinschreibung, Umlautpunkte und ß aus dem Vergleich', () => {
@@ -98,5 +105,93 @@ describe('Markierung', () => {
             { text: ' ist ', match: false },
             { text: 'Gott', match: true },
         ]);
+    });
+});
+
+describe('Ausschnitt um den Treffer', () => {
+    const ZEILE =
+        'Bis hierher hat mich Gott gebracht durch seine große Güte, bis hierher hat er Tag und Nacht bewahrt mein Herz und Gemüte';
+
+    it('schneidet an Wortgrenzen und sagt mit … an, wo etwas fehlt', () => {
+        const snippet = snippetAround(ZEILE, ['gute']);
+        expect(snippet).toBe(
+            '…mich Gott gebracht durch seine große Güte, bis hierher hat er Tag und Nacht…',
+        );
+    });
+
+    it('lässt das … weg, wo der Text selbst anfängt oder aufhört', () => {
+        expect(snippetAround('Bis hierher hat mich Gott gebracht', ['hierher'])).toBe(
+            'Bis hierher hat mich Gott gebracht',
+        );
+    });
+
+    it('nimmt die Stelle, an der die Suchwörter zusammenstehen', () => {
+        // „hierher" steht zweimal in der Zeile. Gezeigt wird das zweite, weil
+        // dort auch „nacht" liegt — die Stelle, nach der gefragt war.
+        expect(snippetAround(ZEILE, ['nacht', 'hierher'])).toBe(
+            '…seine große Güte, bis hierher hat er Tag und Nacht bewahrt mein Herz und…',
+        );
+    });
+
+    it('findet den Treffer auch über die Faltung — und schneidet im Original', () => {
+        // „gemute" ist ein Zeichen kürzer als „Gemüte"; ohne Rückrechnung läge
+        // der Schnitt daneben.
+        expect(snippetAround(ZEILE, ['gemute'])).toMatch(/Gemüte$/);
+    });
+
+    it('gibt null, wo kein Suchwort steht', () => {
+        expect(snippetAround(ZEILE, ['halleluja'])).toBeNull();
+        expect(snippetAround(ZEILE, [])).toBeNull();
+        expect(snippetAround('', ['gott'])).toBeNull();
+    });
+});
+
+describe('Kurze Suchwörter', () => {
+    const felder = ['ach lasst doch eure kinderherzen', 'vertrauen glaubenstreue nachfolge'];
+
+    it('zählen nur am Wortanfang — „er" steckt sonst in „Vertrauen"', () => {
+        expect(matchesTerms(['er'], felder)).toBe(false);
+        expect(matchesTerms(['sol'], ['im herzen sollt ihr flehn'])).toBe(true);
+    });
+
+    it('lassen lange Suchwörter mitten im Wort, wo das Deutsche sie braucht', () => {
+        expect(matchesTerms(['herzen'], felder)).toBe(true);
+    });
+
+    it('markieren, was sie auch gefunden haben, und nichts sonst', () => {
+        const marked = (text: string, terms: string[]) =>
+            highlightParts(text, terms)
+                .filter((part) => part.match)
+                .map((part) => part.text);
+
+        expect(marked('Vertrauen, Glaubenstreue', ['er'])).toEqual([]);
+        expect(marked('Ach lasst doch eure Kinderherzen', ['herzen'])).toEqual(['herzen']);
+    });
+});
+
+describe('Der längste ununterbrochene Zug', () => {
+    const TERMS = searchTerms('soll er drin im Herzen bleiben');
+
+    it('misst die eingetippte Zeile, wo sie wirklich so dasteht', () => {
+        const zeile = foldForSearch('Und soll er drin im Herzen bleiben, dann macht es rein');
+        // „soll er drin im herzen bleiben" — 30 Zeichen am Stück.
+        expect(longestRun(zeile, TERMS)).toBe(30);
+    });
+
+    it('misst nur das Stück, wo die Wörter auseinanderliegen', () => {
+        const zeile = foldForSearch('Im Herzen sollt ihr flehn und beten, wenn eure Sehnsucht');
+        // „im herzen soll" — bis „sollt" reicht es, dann bricht das t den Zug ab.
+        // Kürzer als die Zeile selbst, und genau darum steht sie weiter unten.
+        expect(longestRun(zeile, TERMS)).toBe(14);
+    });
+
+    it('zählt ein Wort, das nur zur Hälfte getroffen ist, nur zur Hälfte', () => {
+        // „soll" steckt in „sollt", aber das „t" bricht den Zug ab.
+        expect(longestRun(foldForSearch('ihr sollt beten'), ['soll'])).toBe(4);
+    });
+
+    it('bleibt bei null, wo nichts steht', () => {
+        expect(longestRun(foldForSearch('Lobet den Herren'), TERMS)).toBe(0);
+        expect(longestRun('', TERMS)).toBe(0);
     });
 });

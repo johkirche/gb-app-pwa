@@ -2,10 +2,13 @@ import { type Ref, computed, ref } from 'vue';
 
 import type { Song } from '@/db';
 import { authorFilterName } from '@/utils/authorFormat';
-import { foldForSearch, matchesTerms, searchTerms } from '@/utils/search';
+import { searchTerms } from '@/utils/search';
+import { type SearchScope, songMatchesTerms } from '@/utils/songSearch';
 
 export interface FilterState {
     searchQuery: string;
+    /** Ob die Suche auch durch die Strophen geht — sie tut es, bis jemand sie einengt. */
+    searchScope: SearchScope;
     selectedCategories: string[]; // Category names
     indexRange: { min: number; max: number } | null;
     selectedAuthors: string[]; // Author full names
@@ -35,46 +38,15 @@ export interface Melodie {
 function createDefaultFilters(): FilterState {
     return {
         searchQuery: '',
+        // Der Liedtext gehört zur Suche, nicht zu ihren Einstellungen: wer
+        // eine Zeile im Ohr hat, soll sie eintippen können, ohne vorher irgendwo
+        // etwas umgelegt zu haben. Eingeengt wird auf Wunsch (Suchoptionen).
+        searchScope: 'text',
         selectedCategories: [],
         indexRange: null,
         selectedAuthors: [],
         selectedMelodien: [],
     };
-}
-
-/**
- * Die Felder eines Liedes, in denen die Suche nachsieht — Titel, Liednummer,
- * Kategorien und die beteiligten Autoren. Der Autor steht hier mit vollem Namen
- * (nicht Vor- und Nachname getrennt wie früher), damit „johann bach" als zwei
- * UND-verknüpfte Wörter aufgeht.
- */
-export function songSearchFields(song: Song): string[] {
-    return [
-        song.titel,
-        song.index ? String(song.index) : '',
-        ...song.kategorien.map((cat) => cat.name),
-        ...[...song.textAutoren, ...song.melodieAutoren].map(authorFilterName),
-    ].filter(Boolean);
-}
-
-// Die gefalteten Suchfelder hängen am Lied selbst: gefiltert wird bei jedem
-// Tastendruck über den ganzen Bestand, und die Faltung ist daran der teuerste
-// Teil. Ein Sync tauscht die Lied-Objekte aus und damit auch ihre Einträge —
-// deshalb eine WeakMap und kein nach Hand zu leerender Cache.
-const foldedFields = new WeakMap<Song, string[]>();
-
-function songSearchHaystack(song: Song): string[] {
-    let folded = foldedFields.get(song);
-    if (!folded) {
-        folded = songSearchFields(song).map((field) => foldForSearch(field));
-        foldedFields.set(song, folded);
-    }
-    return folded;
-}
-
-/** Trifft die Eingabe dieses Lied? `terms` kommt aus `searchTerms`. */
-export function songMatchesTerms(song: Song, terms: string[]): boolean {
-    return matchesTerms(terms, songSearchHaystack(song));
 }
 
 /**
@@ -225,7 +197,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         // aber nicht alle im selben Feld — „luther 45" meint Lied 45 von Luther.
         const terms = activeSearchTerms.value;
         if (terms.length) {
-            result = result.filter((song) => songMatchesTerms(song, terms));
+            result = result.filter((song) => songMatchesTerms(song, terms, f.searchScope));
         }
 
         // Category filter
@@ -260,9 +232,30 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         return result;
     });
 
+    // Wie viele Lieder die Suche fände, wenn sie auch durch die Strophen ginge.
+    //
+    // Nur dann gerechnet, wenn die Titelsuche leer ausgegangen ist: ebendort
+    // steht das Angebot, im Liedtext weiterzusuchen, und nur dort ist der
+    // zweite Durchlauf über den Bestand die Antwort wert. Sonst 0 — nicht
+    // „unbekannt", denn gefragt wird danach nur an dieser einen Stelle.
+    const verseOnlyMatches = computed((): number => {
+        const terms = activeSearchTerms.value;
+        if (!terms.length || filters.value.searchScope === 'text') return 0;
+        if (filteredSongs.value.length > 0) return 0;
+
+        return songs.value.reduce(
+            (count, song) => count + (songMatchesTerms(song, terms, 'text') ? 1 : 0),
+            0,
+        );
+    });
+
     // Actions
     function setSearchQuery(query: string) {
         filters.value.searchQuery = query;
+    }
+
+    function setSearchScope(scope: SearchScope) {
+        filters.value.searchScope = scope;
     }
 
     function clearSearch() {
@@ -318,8 +311,8 @@ export function useSongFiltering(songs: Ref<Song[]>) {
     }
 
     function clearFiltersKeepSearch() {
-        const searchQuery = filters.value.searchQuery;
-        filters.value = { ...createDefaultFilters(), searchQuery };
+        const { searchQuery, searchScope } = filters.value;
+        filters.value = { ...createDefaultFilters(), searchQuery, searchScope };
     }
 
     return {
@@ -330,6 +323,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
         // Computed
         activeSearchTerms,
         isSearchActive,
+        verseOnlyMatches,
         hasActiveFilters,
         activeFilterCount,
         availableCategories,
@@ -340,6 +334,7 @@ export function useSongFiltering(songs: Ref<Song[]>) {
 
         // Actions
         setSearchQuery,
+        setSearchScope,
         clearSearch,
         toggleCategory,
         setIndexRange,

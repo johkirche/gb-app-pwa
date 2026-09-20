@@ -100,6 +100,35 @@
                     </button>
                 </Transition>
 
+                <!-- Suchoptionen. Die Suche geht von sich aus durch Titel und
+                     Liedtext; hier wird sie eingeengt, wenn jemand das will.
+                     Hinter einer Schaltfläche statt als Schalter in der Leiste,
+                     weil die Antwort fast immer dieselbe ist und eine
+                     Umschaltung, die niemand umlegt, nur Platz kostet — den
+                     Platz, an dem sonst der Titel steht. -->
+                <Popover v-if="isSearchExpanded">
+                    <PopoverTrigger as-child>
+                        <Button variant="ghost" size="icon" aria-label="Suchoptionen">
+                            <Settings2 aria-hidden="true" />
+                        </Button>
+                    </PopoverTrigger>
+                    <!-- 16rem wächst mit der Größe mit und ist bei 200 % auf
+                         einem 390px-Telefon breiter als das Telefon. Der
+                         verfügbare Platz kommt von Reka aus der Kollisionsprüfung
+                         (tests/e2e/readability-scale.spec.ts). -->
+                    <PopoverContent
+                        align="end"
+                        class="w-64 max-w-[var(--reka-popper-available-width)]"
+                    >
+                        <p class="label-micro text-muted-foreground">Suchen in</p>
+                        <SearchScopeToggle
+                            class="mt-2"
+                            :scope="searchScope"
+                            @update:scope="$emit('setSearchScope', $event)"
+                        />
+                    </PopoverContent>
+                </Popover>
+
                 <!-- Search toggle (always visible, on the right) -->
                 <Button
                     variant="ghost"
@@ -210,6 +239,7 @@ import {
     List,
     Music2,
     Search,
+    Settings2,
     SlidersHorizontal,
     Tag,
     User,
@@ -219,14 +249,18 @@ import {
 import type { Melodie } from '@/composables/useSongFiltering';
 import type { SortMode } from '@/composables/useSongSorting';
 
+import SearchScopeToggle from '@/components/songlist/SearchScopeToggle.vue';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import type { PanelAnchor } from '@/lib/anchor';
+import type { SearchScope } from '@/utils/songSearch';
 
 const props = withDefaults(
     defineProps<{
         title: string;
         searchQuery: string;
+        searchScope: SearchScope;
         selectedCategories: string[];
         selectedAuthors: string[];
         activeMelodien: Melodie[];
@@ -246,6 +280,7 @@ const props = withDefaults(
 const emit = defineEmits<{
     (e: 'back'): void;
     (e: 'search', query: string): void;
+    (e: 'setSearchScope', scope: SearchScope): void;
     (e: 'clearSearch'): void;
     (e: 'openFilters', anchor: PanelAnchor): void;
     (e: 'openSort', anchor: PanelAnchor): void;

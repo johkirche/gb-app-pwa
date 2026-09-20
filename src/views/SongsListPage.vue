@@ -7,6 +7,7 @@
             title="Lieder"
             :show-back="false"
             :search-query="filters.searchQuery"
+            :search-scope="filters.searchScope"
             :selected-categories="filters.selectedCategories"
             :selected-authors="filters.selectedAuthors"
             :active-melodien="activeMelodien"
@@ -17,6 +18,7 @@
             :result-count="filteredSongs.length"
             :total-count="songs.length"
             @search="setSearchQuery"
+            @set-search-scope="setSearchScope"
             @clear-search="clearSearch"
             @open-filters="toggleFilters"
             @open-sort="toggleSortOptions"
@@ -129,7 +131,25 @@
                     <p class="mt-2 text-muted-foreground">
                         Keine Lieder entsprechen den Filterkriterien.
                     </p>
-                    <Button variant="outline" class="mt-6" @click="clearAllFilters">
+                    <!-- Der Titel gibt nichts her, der Liedtext aber schon: das
+                         ist der Fall, für den es die Umschaltung gibt, und hier
+                         ist der Moment, in dem sie jemandem etwas nützt. Die
+                         Zahl steht dabei, damit das Angebot nicht ins Leere
+                         führt — ohne Treffer erscheint es gar nicht. -->
+                    <Button
+                        v-if="verseOnlyMatches > 0"
+                        class="mt-6"
+                        @click="setSearchScope('text')"
+                    >
+                        <FileText aria-hidden="true" />
+                        {{ verseOnlyMatches }}
+                        {{ verseOnlyMatches === 1 ? 'Lied' : 'Lieder' }} im Liedtext
+                    </Button>
+                    <Button
+                        variant="outline"
+                        :class="verseOnlyMatches > 0 ? 'mt-3' : 'mt-6'"
+                        @click="clearAllFilters"
+                    >
                         Filter zurücksetzen
                     </Button>
                 </div>
@@ -192,13 +212,28 @@
                                     </span>
                                     <span
                                         v-if="
-                                            sortMode !== 'category' &&
+                                            (!showHeaders || sortMode !== 'category') &&
                                             formatCategories(song.kategorien)
                                         "
                                         class="label-micro text-muted-foreground"
                                     >
                                         <SearchHighlight
                                             :text="formatCategories(song.kategorien)"
+                                            :terms="activeSearchTerms"
+                                        />
+                                    </span>
+                                    <!-- Warum dieses Lied hier steht, wenn es
+                                         nicht am Titel liegt: die Zeile, in der
+                                         das Suchwort wirklich vorkommt. -->
+                                    <span
+                                        v-if="verseHit(song)"
+                                        class="text-[0.8125rem] italic leading-snug text-muted-foreground [overflow-wrap:break-word]"
+                                    >
+                                        <span class="not-italic">
+                                            {{ verseHit(song)!.nummer }}.
+                                        </span>
+                                        <SearchHighlight
+                                            :text="verseHit(song)!.text"
                                             :terms="activeSearchTerms"
                                         />
                                     </span>
@@ -296,6 +331,7 @@ import {
     ChevronRight,
     Church,
     CloudDownload,
+    FileText,
     Heart,
     ListMusic,
     ListOrdered,
@@ -316,7 +352,7 @@ import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { usePullToRefresh } from '@/composables/usePullToRefresh';
 import { useSessionAccess } from '@/composables/useSessionAccess';
 import { useSongFiltering } from '@/composables/useSongFiltering';
-import { SORT_OPTIONS, useSongSorting } from '@/composables/useSongSorting';
+import { SORT_OPTIONS, type SongRanks, useSongSorting } from '@/composables/useSongSorting';
 
 import PlaylistSelectModal from '@/components/playlist/PlaylistSelectModal.vue';
 import ServiceVersePanel from '@/components/service/ServiceVersePanel.vue';
@@ -334,10 +370,11 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 
-import type { Category } from '@/db';
+import type { Category, Song } from '@/db';
 import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
 import { formatVerseNumbers } from '@/services/servicePlans';
 import { pickSongOfTheWeek } from '@/utils/songOfTheWeek';
+import { type VerseLine, songSearchRank, songVerseSnippet } from '@/utils/songSearch';
 
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
@@ -410,6 +447,7 @@ const {
     filteredSongs,
     activeSearchTerms,
     isSearchActive,
+    verseOnlyMatches,
     hasActiveFilters,
     activeFilterCount,
     availableCategories,
@@ -418,6 +456,7 @@ const {
     activeMelodien,
     indexRange,
     setSearchQuery,
+    setSearchScope,
     clearSearch,
     toggleCategory,
     setIndexRange,
@@ -428,6 +467,49 @@ const {
     clearAllFilters,
     clearFiltersKeepSearch,
 } = useSongFiltering(songs);
+
+// Warum ein Lied in der Trefferliste steht, wenn nicht wegen seines Titels.
+//
+// Beides einmal je Liste gerechnet und nicht einmal je Zeile: die Liederliste
+// setzt den ganzen gefilterten Bestand auf einmal, und die Vorlage fragt jede
+// Zeile mehrfach — ein Ausschnitt pro Frage wäre der halbe Bestand an Text pro
+// Bild.
+const verseHits = computed((): Map<string, VerseLine> => {
+    const hits = new Map<string, VerseLine>();
+    const terms = activeSearchTerms.value;
+    if (filters.value.searchScope !== 'text' || !terms.length) return hits;
+
+    for (const song of filteredSongs.value) {
+        const hit = songVerseSnippet(song, terms);
+        if (hit) hits.set(song.id, hit);
+    }
+
+    return hits;
+});
+
+function verseHit(song: Song): VerseLine | null {
+    return verseHits.value.get(song.id) ?? null;
+}
+
+// Wie nah jeder Treffer an der Eingabe liegt — der längste Zug, den die
+// Suchwörter an ihm ununterbrochen bedecken (songSearchRank). Er ordnet die
+// Liste: das Lied, in dem die eingetippte Zeile wirklich so dasteht, gehört
+// nach oben und nicht an seinen Platz im Buch.
+//
+// Erst ab zwei Suchwörtern. Ein einzelnes Wort bedeckt überall gleich viel,
+// hätte also nichts zu ordnen — und die Liste bliebe, gemessen an ihrer
+// Nummern-, Buchstaben- oder Kategorieneinteilung, grundlos zerlegt.
+const searchRanks = computed((): SongRanks => {
+    const terms = activeSearchTerms.value;
+    if (terms.length < 2) return null;
+
+    const ranks = new Map<string, number>();
+    for (const song of filteredSongs.value) {
+        ranks.set(song.id, songSearchRank(song, terms, filters.value.searchScope));
+    }
+
+    return ranks;
+});
 
 // Deep link from the song view: /tabs/lieder?autor=<Name> shows that author's
 // songs, /tabs/lieder?weise=<Melodie-id> die Lieder auf derselben Weise. The
@@ -471,7 +553,7 @@ function applyWeiseFromQuery() {
 
 // Sorting - applied to filtered songs
 const { sortMode, showHeaders, showIndexScroll, sortedSections, sortedSongs, indexItems } =
-    useSongSorting(filteredSongs);
+    useSongSorting(filteredSongs, searchRanks);
 
 // UI State. Each panel keeps the element (or click point) it was opened from —
 // that is what its desktop popover form hangs off.
