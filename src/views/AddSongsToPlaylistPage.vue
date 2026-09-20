@@ -98,6 +98,19 @@
                                         :terms="searchTerms"
                                     />
                                 </span>
+                                <!-- Die Zeile, in der das Suchwort steht —
+                                     dasselbe Versprechen wie in der Liederliste:
+                                     ein Treffer sagt, woher er kommt. -->
+                                <span
+                                    v-if="verseHit(song)"
+                                    class="mt-0.5 block break-words text-[0.8125rem] italic leading-snug text-muted-foreground"
+                                >
+                                    <span class="not-italic">{{ verseHit(song)!.nummer }}.</span>
+                                    <SearchHighlight
+                                        :text="verseHit(song)!.text"
+                                        :terms="searchTerms"
+                                    />
+                                </span>
                                 <span
                                     v-if="isInPlaylist(song.id)"
                                     class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-green-600 dark:text-green-500"
@@ -138,8 +151,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { useSongsStore } from '@/stores/songs';
 
-import { songMatchesTerms } from '@/composables/useSongFiltering';
-
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import BackButton from '@/components/shell/BackButton.vue';
 import { Button } from '@/components/ui/button';
@@ -148,8 +159,9 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 
-import type { Category } from '@/db';
+import type { Category, Song } from '@/db';
 import { searchTerms as toSearchTerms } from '@/utils/search';
+import { type VerseLine, songMatchesTerms, songVerseSnippet } from '@/utils/songSearch';
 
 const route = useRoute();
 const router = useRouter();
@@ -189,16 +201,37 @@ const playlistId = computed(() => route.params.id as string);
 const playlist = computed(() => playlistsStore.getPlaylistById(playlistId.value));
 
 // Gesucht wird wie in der Liederliste: die Wörter der Eingabe UND-verknüpft,
-// über Titel, Liednummer, Kategorien und Autoren, und unempfindlich gegen
-// Groß-/Kleinschreibung, Umlaute und Satzzeichen.
+// über Titel, Liednummer, Kategorien, Autoren und die Strophen, unempfindlich
+// gegen Groß-/Kleinschreibung, Umlaute und Satzzeichen. Die Einengung auf den
+// Titel gibt es hier nicht — dies ist ein Bildschirm, den man wieder verlässt,
+// und keiner, auf dem man sich einrichtet.
 const searchTerms = computed(() => toSearchTerms(searchQuery.value));
 
 const filteredSongs = computed(() => {
     const songs = [...allSongs.value].sort((a, b) => a.index - b.index);
     const terms = searchTerms.value;
     if (!terms.length) return songs;
-    return songs.filter((song) => songMatchesTerms(song, terms));
+    return songs.filter((song) => songMatchesTerms(song, terms, 'text'));
 });
+
+// Die getroffene Strophenzeile je Lied, einmal je Liste gerechnet — wie in der
+// Liederliste, und aus demselben Grund: die Vorlage fragt jede Zeile zweimal.
+const verseHits = computed((): Map<string, VerseLine> => {
+    const hits = new Map<string, VerseLine>();
+    const terms = searchTerms.value;
+    if (!terms.length) return hits;
+
+    for (const song of filteredSongs.value) {
+        const hit = songVerseSnippet(song, terms);
+        if (hit) hits.set(song.id, hit);
+    }
+
+    return hits;
+});
+
+function verseHit(song: Song): VerseLine | null {
+    return verseHits.value.get(song.id) ?? null;
+}
 
 // Check if song is already in playlist
 function isInPlaylist(songId: string): boolean {

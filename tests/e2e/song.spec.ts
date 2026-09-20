@@ -83,6 +83,66 @@ test('search narrows the list and clears again', async () => {
     expect(await page.locator('.song-row').count()).toBe(before);
 });
 
+test('a remembered line finds the hymn, and the row says where', async () => {
+    // The line is taken out of the recorded book rather than invented here:
+    // nothing in this file knows which hymns were recorded, and a phrase made
+    // up for the test would only assert that the search finds nothing.
+    await openFirstSong();
+    const verses = page.locator('main .verse-text');
+    await expect(verses.first()).toBeVisible({ timeout: 30_000 });
+    const verse = ((await verses.last().innerText()) || '').replace(/\s+/g, ' ').trim();
+    // Out of the middle of the last verse, so it is nowhere near a title.
+    const phrase = verse.split(' ').slice(2, 6).join(' ');
+    expect(phrase.length, 'the hymn carried no verse to search in').toBeGreaterThan(8);
+
+    await page.goto('/tabs/lieder');
+    await page
+        .getByRole('button', { name: 'Suchen', exact: true })
+        .click()
+        .catch(() => {});
+    const field = page.getByPlaceholder('Suchen...');
+    await expect(field).toBeVisible();
+    await field.fill(phrase);
+    await page.waitForTimeout(600);
+
+    // Nothing had to be switched on first: the verses are in the search.
+    const rows = page.locator('.song-row');
+    expect(await rows.count(), `the line was not found: ${phrase}`).toBeGreaterThan(0);
+
+    // And the row shows the line it found, not the opening of the verse it
+    // happens to sit in — the snippet is cut around where the words stand
+    // together.
+    const snippet = (await rows.first().innerText()).replace(/\s+/g, ' ');
+    expect(snippet, 'the row does not show the line it matched').toContain(phrase);
+
+    // Narrowing to the title takes it away again, and offers it back.
+    await page.getByRole('button', { name: 'Suchoptionen' }).click();
+    await page.getByRole('button', { name: 'Nur in Titeln und Nummern suchen' }).click();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    expect(await rows.count(), 'a title held the interior line').toBe(0);
+    await expect(page.getByRole('button', { name: /im Liedtext$/ })).toBeVisible();
+
+    // Back to searching the verses, and now on two words only — which half the
+    // book holds somewhere. The list is ordered by the longest run the words
+    // cover uninterrupted, so whatever stands first must hold them side by
+    // side; a hymn that merely has both, pages apart, cannot outrank that.
+    await page.getByRole('button', { name: 'Suchoptionen' }).click();
+    await page.getByRole('button', { name: 'Auch in den Strophen suchen' }).click();
+    await page.keyboard.press('Escape');
+    const pair = verse.split(' ').slice(2, 4).join(' ');
+    await field.fill(pair);
+    await page.waitForTimeout(600);
+
+    expect(await rows.count(), `nothing found for: ${pair}`).toBeGreaterThan(0);
+    const top = (await rows.first().innerText()).replace(/\s+/g, ' ').toLowerCase();
+    expect(top, 'the best match is not at the top').toContain(pair.toLowerCase());
+
+    // Put the list back the way the next test expects to find it.
+    await page.getByRole('button', { name: 'Suche löschen' }).click();
+    await page.waitForTimeout(600);
+});
+
 test('a hymn opens, and it is the one that was tapped', async () => {
     const { number, title } = await openFirstSong();
     expect(number, 'the row showed no hymn number').not.toBe('');

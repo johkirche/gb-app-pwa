@@ -103,13 +103,111 @@ export function searchTerms(query: string): string[] {
     return [...new Set(terms)];
 }
 
+// Ab wann ein Suchwort auch mitten in einem Wort zählt.
+//
+// Mitten im Wort zu suchen ist im Deutschen unverzichtbar: „herzen" muss die
+// „Kinderherzen" finden, „gnade" die „Gnadenzeit". Für kurze Wörter ist es
+// dagegen nur Rauschen — „er" steckt in „Vertrauen", „und" in „Sünden", und
+// wer eine Zeile eintippt, hat diese Treffer nie gemeint. Kurze Wörter zählen
+// deshalb nur am Wortanfang, wo sie entweder das Wort selbst sind („er") oder
+// sein Anfang („sol" in „sollt").
+//
+// Vier Zeichen, weil darunter im Deutschen fast nur Funktionswörter liegen und
+// darüber fast nur Bedeutungsträger.
+const MIN_INFIX_LENGTH = 4;
+
+function isWordStart(folded: string, at: number): boolean {
+    return at === 0 || folded[at - 1] === ' ';
+}
+
+/**
+ * Die Stellen, an denen ein Suchwort in einem gefalteten Text zählt — die
+ * gemeinsame Antwort für das Filtern, das Markieren und den Ausschnitt. Alle
+ * drei müssen dieselbe sein: eine Markierung an einer Stelle, die beim Filtern
+ * nicht gezählt hat, behauptet einen Treffer, den es nicht gab.
+ */
+export function termMatches(folded: string, term: string): number[] {
+    if (!term) return [];
+
+    const anywhere = term.length >= MIN_INFIX_LENGTH;
+    const hits: number[] = [];
+
+    // Weiter ab `at + 1`, nicht ab dem Ende des Treffers: „aa" kommt in „aaa"
+    // zweimal vor, und beide Stellen wollen gefunden sein.
+    let at = folded.indexOf(term);
+    while (at !== -1) {
+        if (anywhere || isWordStart(folded, at)) hits.push(at);
+        at = folded.indexOf(term, at + 1);
+    }
+
+    return hits;
+}
+
+/** Steht dieses Suchwort in diesem gefalteten Text? */
+function hasTerm(folded: string, term: string): boolean {
+    if (term.length >= MIN_INFIX_LENGTH) return folded.includes(term);
+
+    let at = folded.indexOf(term);
+    while (at !== -1) {
+        if (isWordStart(folded, at)) return true;
+        at = folded.indexOf(term, at + 1);
+    }
+
+    return false;
+}
+
 /**
  * Trägt eines der Felder jedes Suchwort? Die Felder kommen bereits gefaltet
  * herein — beim Filtern über den ganzen Bestand ist die Faltung der teuerste
  * Teil, und der Aufrufer kann sie sich merken.
  */
 export function matchesTerms(terms: string[], foldedFields: string[]): boolean {
-    return terms.every((term) => foldedFields.some((field) => field.includes(term)));
+    return terms.every((term) => foldedFields.some((field) => hasTerm(field, term)));
+}
+
+/**
+ * Der längste Zug, den die Suchwörter in diesem gefalteten Text ununterbrochen
+ * bedecken — in Zeichen gemessen.
+ *
+ * Das ist das Maß, an dem sich ablesen lässt, wie nah ein Fund an dem liegt, was
+ * jemand eingetippt hat. „soll er drin im Herzen bleiben" bedeckt in der Strophe,
+ * in der die Zeile wirklich steht, dreißig Zeichen am Stück; in einem Lied, das
+ * bloß „im" und „Herzen" an zwei Enden hat, sechs. Zwei Treffer gehören zum
+ * selben Zug, wenn sie sich überschneiden, aneinanderstoßen oder nur ein
+ * Leerzeichen zwischen sich haben — also genau dann, wenn sie auf dem Bildschirm
+ * als ein markiertes Stück erscheinen.
+ */
+export function longestRun(folded: string, terms: string[]): number {
+    const spans: Array<[number, number]> = [];
+    for (const term of terms) {
+        for (const at of termMatches(folded, term)) spans.push([at, at + term.length]);
+    }
+    if (!spans.length) return 0;
+
+    spans.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+    let best = 0;
+    let [start, end] = spans[0];
+
+    for (let i = 1; i < spans.length; i++) {
+        const [from, to] = spans[i];
+        if (from <= end || folded.slice(end, from) === ' ') {
+            end = Math.max(end, to);
+        } else {
+            best = Math.max(best, end - start);
+            start = from;
+            end = to;
+        }
+    }
+
+    return Math.max(best, end - start);
+}
+
+/** Wie viele der Suchwörter in diesem gefalteten Text stehen. */
+export function countTerms(folded: string, terms: string[]): number {
+    let count = 0;
+    for (const term of terms) if (hasTerm(folded, term)) count++;
+    return count;
 }
 
 /**
@@ -124,12 +222,8 @@ export function highlightParts(text: string, terms: string[]): TextPart[] {
     const hits: Array<[number, number]> = [];
 
     for (const term of terms) {
-        // Weiter ab `at + 1`, nicht ab dem Ende des Treffers: „aa" kommt in
-        // „aaa" zweimal vor, und beide Stellen wollen markiert sein.
-        let at = folded.value.indexOf(term);
-        while (at !== -1) {
+        for (const at of termMatches(folded.value, term)) {
             hits.push([folded.starts[at], folded.ends[at + term.length - 1]]);
-            at = folded.value.indexOf(term, at + 1);
         }
     }
 
@@ -158,4 +252,88 @@ export function highlightParts(text: string, terms: string[]): TextPart[] {
     if (cursor < text.length) parts.push({ text: text.slice(cursor), match: false });
 
     return parts;
+}
+
+/**
+ * Der Ausschnitt eines Textes um die Stelle, an der die Suchwörter
+ * zusammenstehen — die Zeile, mit der eine Trefferliste zeigt, *warum* ein Lied
+ * darin steht, wenn der Treffer nicht im Titel sitzt, sondern in einer Strophe.
+ *
+ * Nicht das erste Vorkommen, sondern das dichteste: wer „soll er drin im Herzen
+ * bleiben" eintippt, hat eine Zeile im Ohr, und „Im" steht schon im ersten Wort
+ * der Strophe. Gezeigt wird deshalb das Fenster, in dem die meisten
+ * verschiedenen Suchwörter beieinanderliegen — bei einer erinnerten Zeile ist
+ * das die Zeile selbst.
+ *
+ * Gesucht wird auf der gefalteten Fassung und über `starts`/`ends` in den
+ * Originaltext zurückgerechnet — aus demselben Grund wie in `highlightParts`:
+ * „grosser" ist ein Zeichen länger als „Großer", eine auf der Faltung gemessene
+ * Stelle läge im Original daneben. Geschnitten wird an Wortgrenzen, nie in den
+ * Treffer hinein, und „…" sagt an, wo etwas fehlt.
+ *
+ * Erwartet einen Text ohne Zeilenumbrüche: der Ausschnitt ist eine Zeile.
+ */
+export function snippetAround(text: string, terms: string[], radius = 40): string | null {
+    if (!text || !terms.length) return null;
+
+    const folded = foldWithSources(text);
+
+    // Jedes Vorkommen jedes Suchwortes, nach Stelle geordnet.
+    const hits: Array<{ at: number; to: number; term: number }> = [];
+    terms.forEach((term, index) => {
+        for (const at of termMatches(folded.value, term)) {
+            hits.push({ at, to: at + term.length - 1, term: index });
+        }
+    });
+    if (!hits.length) return null;
+    hits.sort((a, b) => a.at - b.at);
+
+    // Das Fenster mit den meisten verschiedenen Suchwörtern, bei Gleichstand das
+    // früheste. Zwei Zeiger über die Treffer: `counts` hält, was gerade im
+    // Fenster steht, `counts.size` also, wie viele verschiedene Wörter es sind.
+    const span = radius * 2;
+    const counts = new Map<number, number>();
+    let best = hits[0];
+    let bestTo = hits[0].to;
+    let bestScore = 0;
+    let right = 0;
+
+    for (let left = 0; left < hits.length; left++) {
+        while (right < hits.length && hits[right].at - hits[left].at <= span) {
+            counts.set(hits[right].term, (counts.get(hits[right].term) ?? 0) + 1);
+            right++;
+        }
+
+        if (counts.size > bestScore) {
+            bestScore = counts.size;
+            best = hits[left];
+            bestTo = hits[right - 1].to;
+        }
+
+        const remaining = (counts.get(hits[left].term) ?? 1) - 1;
+        if (remaining > 0) counts.set(hits[left].term, remaining);
+        else counts.delete(hits[left].term);
+    }
+
+    const hitFrom = folded.starts[best.at];
+    const hitTo = folded.ends[bestTo];
+
+    // Je breiter das Fenster selbst, desto weniger Rahmen darum — sonst wüchse
+    // der Ausschnitt mit der Zahl der Suchwörter, und eine Zeile bliebe es nicht.
+    const pad = Math.max(12, radius - Math.floor((hitTo - hitFrom) / 2));
+
+    let from = Math.max(0, hitFrom - pad);
+    let to = Math.min(text.length, hitTo + pad);
+
+    // An die nächste Wortgrenze rücken, solange das den Treffer nicht anschneidet.
+    if (from > 0) {
+        const space = text.indexOf(' ', from);
+        if (space !== -1 && space < hitFrom) from = space + 1;
+    }
+    if (to < text.length) {
+        const space = text.lastIndexOf(' ', to);
+        if (space > hitTo) to = space;
+    }
+
+    return `${from > 0 ? '…' : ''}${text.slice(from, to).trim()}${to < text.length ? '…' : ''}`;
 }
