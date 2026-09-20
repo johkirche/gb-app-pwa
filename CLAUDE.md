@@ -94,10 +94,16 @@ real token is ever written into a fixture.
 
 Onboarding is a two-step wizard, so the recording walks it: „Weiter" past the
 install prompt, then the download starts on its own and the run sits out the
-whole book, printing each phase as it goes. The fixture is a `.zip`, not a bare
-`.har` — Playwright then stores each response as its own entry instead of
-base64'ing every engraving into one JSON document and parsing it whole per
-context.
+whole book, printing each phase as it goes.
+
+The recorder is our own (`tests/e2e/support/recorder.ts`), not Playwright's
+`routeFromHAR`. The HAR tracer reads response bodies back out of Chromium after
+the fact, and at this scale every one of the 1121 asset bodies came back empty
+while the four GraphQL responses recorded fine — reproducible locally at 600
+requests, in every combination of its options. Ours intercepts the request and
+does the fetch itself, so the bytes are in hand before anything can evict them.
+Bodies are content-addressed and gzipped on disk, so identical files are stored
+once.
 
 **The recording never gets committed.** It holds real hymn texts and engravings,
 which are not ours to redistribute, so `tests/e2e/fixtures/` is git-ignored. A
