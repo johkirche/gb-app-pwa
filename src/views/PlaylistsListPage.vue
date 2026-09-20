@@ -32,7 +32,7 @@
                                     />
                                 </span>
                                 <span class="min-w-0 flex-1">
-                                    <span class="block text-[15px] font-medium leading-tight">
+                                    <span class="block text-[0.9375rem] font-medium leading-tight">
                                         Favoriten
                                     </span>
                                     <span class="mt-0.5 block text-sm text-muted-foreground">
@@ -43,15 +43,19 @@
                         </li>
 
                         <!-- Playlists -->
-                        <li v-for="playlist in sortedPlaylists" :key="playlist.id">
+                        <li
+                            v-for="playlist in sortedPlaylists"
+                            :key="playlist.id"
+                            class="group flex items-center rounded-sm pr-2 transition-colors hover:bg-muted active:bg-muted"
+                            @contextmenu.prevent="
+                                showActionSheet(playlist, anchorFromEvent($event))
+                            "
+                        >
                             <button
                                 v-long-press="(el: HTMLElement) => showActionSheet(playlist, el)"
                                 type="button"
-                                class="flex w-full select-none items-center gap-4 rounded-sm px-2 py-2.5 text-left transition-colors [-webkit-touch-callout:none] hover:bg-muted active:bg-muted"
+                                class="flex min-w-0 flex-1 select-none items-center gap-4 py-2.5 pl-2 text-left [-webkit-touch-callout:none]"
                                 @click="navigateToPlaylist(playlist.id)"
-                                @contextmenu.prevent="
-                                    showActionSheet(playlist, anchorFromEvent($event))
-                                "
                             >
                                 <span
                                     class="flex h-10 w-11 shrink-0 items-center justify-center rounded-md border border-border text-[1.375rem] leading-none"
@@ -60,7 +64,7 @@
                                 </span>
                                 <span class="min-w-0 flex-1">
                                     <span
-                                        class="block break-words text-[15px] font-medium leading-tight"
+                                        class="block break-words text-[0.9375rem] font-medium leading-tight"
                                     >
                                         {{ playlist.name }}
                                     </span>
@@ -71,6 +75,12 @@
                                     </span>
                                 </span>
                             </button>
+
+                            <RowActionsTrigger
+                                :label="`Aktionen für ${playlist.name}`"
+                                :active="actionSheetOpen && actionSheetPlaylist?.id === playlist.id"
+                                @open="showActionSheet(playlist, $event)"
+                            />
                         </li>
                     </ul>
                     <Separator v-if="hasPlaylists" />
@@ -115,6 +125,7 @@
             :title="actionSheetPlaylist?.name"
             :actions="actionSheetActions"
             :anchor="actionSheetAnchor"
+            align="end"
         />
     </div>
 </template>
@@ -133,7 +144,11 @@ import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
+import {
+    ActionSheet,
+    type ActionSheetAction,
+    RowActionsTrigger,
+} from '@/components/ui/responsive-panel';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 

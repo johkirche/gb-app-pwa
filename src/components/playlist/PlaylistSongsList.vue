@@ -8,19 +8,25 @@
         :animation="150"
         @update:model-value="handleReorder"
     >
-        <li v-for="entry in entries" :key="entry.id">
+        <!-- The row is the wrapper, not the button: the `⋯` menu trigger has to
+             sit beside whatever opens the song, never inside it. -->
+        <li
+            v-for="entry in entries"
+            :key="entry.id"
+            class="group flex items-center pr-2"
+            :class="
+                reorderMode || !entry.song
+                    ? ''
+                    : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
+            "
+            @contextmenu.prevent="handleSongContextMenu(entry, anchorFromEvent($event))"
+        >
             <component
                 :is="rowTag(entry)"
                 v-long-press="(el: HTMLElement) => handleSongLongPress(entry, el)"
                 :type="rowTag(entry) === 'button' ? 'button' : undefined"
-                class="flex w-full select-none items-center gap-4 px-2 py-2.5 text-left [-webkit-touch-callout:none]"
-                :class="
-                    reorderMode || !entry.song
-                        ? ''
-                        : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
-                "
+                class="flex min-w-0 flex-1 select-none items-center gap-4 py-2.5 pl-2 text-left [-webkit-touch-callout:none]"
                 @click="handleSongClick(entry)"
-                @contextmenu.prevent="handleSongContextMenu(entry, anchorFromEvent($event))"
             >
                 <span
                     class="number-display flex w-10 shrink-0 items-center justify-end text-lg leading-none"
@@ -38,21 +44,21 @@
                      what the playlist stores, it is counted on the list screen,
                      and the reader needs somewhere to remove it from. -->
                 <span v-if="!entry.song" class="min-w-0 flex-1 text-muted-foreground">
-                    <span class="block font-display text-[17px] italic leading-snug">
+                    <span class="block font-display text-[1.0625rem] italic leading-snug">
                         Lied derzeit nicht verfügbar
                     </span>
-                    <span class="mt-0.5 block text-[11px] uppercase tracking-[0.14em]">
+                    <span class="mt-0.5 block text-[0.6875rem] uppercase tracking-[0.14em]">
                         Nach dem Synchronisieren wieder da
                     </span>
                 </span>
 
                 <span v-else class="min-w-0 flex-1">
-                    <span class="block break-words font-display text-[17px] leading-snug">
+                    <span class="block break-words font-display text-[1.0625rem] leading-snug">
                         {{ entry.song.titel }}
                     </span>
                     <span
                         v-if="entry.song.kategorien.length > 0"
-                        class="mt-0.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground"
+                        class="mt-0.5 block text-[0.6875rem] uppercase tracking-[0.14em] text-muted-foreground"
                     >
                         {{ formatCategories(entry.song.kategorien) }}
                     </span>
@@ -66,6 +72,15 @@
                     <GripVertical class="size-5" aria-hidden="true" />
                 </span>
             </component>
+
+            <!-- Reordering has its own grip in that slot, and a row with no song
+                 has nothing to act on but removal, which the menu still offers. -->
+            <RowActionsTrigger
+                v-if="!reorderMode"
+                :label="`Aktionen für ${entry.song?.titel ?? 'dieses Lied'}`"
+                :active="activeEntryId === entry.id"
+                @open="handleSongContextMenu(entry, $event)"
+            />
         </li>
     </VueDraggable>
 </template>
@@ -73,6 +88,8 @@
 <script setup lang="ts">
 import { GripVertical } from 'lucide-vue-next';
 import { VueDraggable } from 'vue-draggable-plus';
+
+import { RowActionsTrigger } from '@/components/ui/responsive-panel';
 
 import type { Category } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
@@ -82,6 +99,8 @@ import type { PlaylistEntry } from '@/utils/playlistEntries';
 const props = defineProps<{
     entries: PlaylistEntry[];
     reorderMode: boolean;
+    /** The entry whose menu is open, so its `⋯` stays lit while it is. */
+    activeEntryId?: string | null;
 }>();
 
 const emit = defineEmits<{

@@ -9,6 +9,25 @@ interface LongPressHTMLElement extends HTMLElement {
 
 const LONG_PRESS_DURATION = 500; // milliseconds
 
+/**
+ * The dev mobile preview is an ordinary iframe, so a mouse inside it stays a
+ * mouse and the gesture the frame exists to rehearse would be the one thing
+ * the frame could not show. Honour a held button there — and only there. The
+ * class is set by DevViewportPreview on the framed instance alone, and a
+ * production build drops that component entirely.
+ */
+function isViewportPreview(): boolean {
+    return document.documentElement.classList.contains('viewport-preview');
+}
+
+/**
+ * Touch only, deliberately (bar the preview above). Holding a mouse button down
+ * is not how anyone opens a menu on a desktop — it also fires on an idle
+ * click-and-hold or the start of a text selection, which is exactly the misfire
+ * this used to produce. The pointer equivalents are the row's `⋯` button (see
+ * {@link RowActionsTrigger}) and the `contextmenu` event the rows also listen
+ * for.
+ */
 export const longPressDirective: Directive = {
     mounted(el: LongPressHTMLElement, binding: DirectiveBinding<(el: HTMLElement) => void>) {
         if (typeof binding.value !== 'function') {
@@ -20,7 +39,9 @@ export const longPressDirective: Directive = {
 
         el._longPressHandler = binding.value;
 
-        el._longPressStart = (_e: TouchEvent | MouseEvent) => {
+        el._longPressStart = (event: TouchEvent | MouseEvent) => {
+            if (event.type === 'mousedown' && !isViewportPreview()) return;
+
             isLongPress = false;
 
             el._longPressTimeout = setTimeout(() => {
@@ -41,7 +62,7 @@ export const longPressDirective: Directive = {
             }
         };
 
-        // Prevent click if it was a long press
+        // Prevent the click a finished touch still synthesises after a long press
         el.addEventListener(
             'click',
             (e: MouseEvent) => {
@@ -54,13 +75,11 @@ export const longPressDirective: Directive = {
             true,
         );
 
-        // Touch events
         el.addEventListener('touchstart', el._longPressStart, { passive: true });
         el.addEventListener('touchend', el._longPressEnd);
         el.addEventListener('touchcancel', el._longPressEnd);
         el.addEventListener('touchmove', el._longPressEnd);
 
-        // Mouse events (for desktop)
         el.addEventListener('mousedown', el._longPressStart);
         el.addEventListener('mouseup', el._longPressEnd);
         el.addEventListener('mouseleave', el._longPressEnd);

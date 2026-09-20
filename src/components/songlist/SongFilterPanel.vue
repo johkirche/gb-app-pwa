@@ -45,7 +45,7 @@
                 <Transition :name="transition">
                     <div
                         :key="view"
-                        class="col-start-1 row-start-1 flex min-h-0 flex-col"
+                        class="col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col"
                         :class="view === 'root' ? undefined : 'overflow-hidden'"
                     >
                         <!-- Level 1: what can be filtered, and what is set -->
@@ -73,11 +73,13 @@
                                 </span>
 
                                 <span class="min-w-0 flex-1">
-                                    <span class="block text-[15px] font-medium text-foreground">
+                                    <span
+                                        class="block text-[0.9375rem] font-medium text-foreground"
+                                    >
                                         {{ section.title }}
                                     </span>
                                     <span
-                                        class="block truncate text-[13px]"
+                                        class="block truncate text-[0.8125rem]"
                                         :class="
                                             section.count
                                                 ? 'text-foreground/70'

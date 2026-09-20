@@ -54,9 +54,9 @@
                     />
                     <h2 class="mt-4 font-display text-2xl font-semibold">Nichts vorgemerkt</h2>
                     <p class="mt-2 max-w-96 text-sm leading-relaxed text-muted-foreground">
-                        Merken Sie die Lieder dieses Gottesdienstes vor — im Lied selbst oder mit
-                        einem langen Druck auf einen Eintrag in der Liederliste. Sie liegen dann
-                        hier bereit und verschwinden von allein, wenn der Tag vorbei ist.
+                        Merken Sie die Lieder dieses Gottesdienstes vor — im Lied selbst oder über
+                        das Menü eines Eintrags in der Liederliste. Sie liegen dann hier bereit und
+                        verschwinden von allein, wenn der Tag vorbei ist.
                     </p>
                     <div class="mt-6 flex flex-col items-stretch gap-2">
                         <Button @click="router.push('/tabs/lieder')">
@@ -96,7 +96,7 @@
                     >
                         <Label for="service-date" class="flex items-center gap-2.5 font-normal">
                             <CalendarDays
-                                class="size-[18px] shrink-0 text-muted-foreground"
+                                class="size-[1.125rem] shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
                             Gilt für
@@ -109,19 +109,23 @@
                             class="h-9 w-auto shrink-0"
                         />
                     </div>
-                    <p class="mt-2 px-1 text-[13px] text-muted-foreground">{{ expiryHint }}</p>
+                    <p class="mt-2 px-1 text-[0.8125rem] text-muted-foreground">{{ expiryHint }}</p>
 
                     <ServiceSongsList
                         :songs="songs"
                         :reorder-mode="reorderMode"
                         :verse-labels="verseLabels"
-                        @song-click="(song) => router.push(`/songs/${song.id}`)"
+                        :active-song-id="songSheetOpen ? songSheetSong?.id : null"
+                        @song-click="openSong"
                         @song-context-menu="showSongActions"
                         @reorder="handleReorder"
                     />
 
                     <!-- Songs on the plan whose record is not on this device -->
-                    <p v-if="missingCount > 0" class="mt-3 px-2 text-[13px] text-muted-foreground">
+                    <p
+                        v-if="missingCount > 0"
+                        class="mt-3 px-2 text-[0.8125rem] text-muted-foreground"
+                    >
                         {{ missingCount }}
                         {{ missingCount === 1 ? 'Lied ist' : 'Lieder sind' }} auf diesem Gerät nicht
                         vorhanden. Synchronisieren Sie das Gesangbuch, um
@@ -147,12 +151,13 @@
             </div>
         </main>
 
-        <!-- Song context menu (long-press / right-click) -->
+        <!-- Song context menu (row `⋯` / long-press / right-click) -->
         <ActionSheet
             v-model:open="songSheetOpen"
             :title="songSheetSong?.titel"
             :actions="songSheetActions"
             :anchor="songSheetAnchor"
+            align="end"
         />
 
         <!-- Which verses this service sings -->
@@ -192,6 +197,7 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
+import { useNavigationContextStore } from '@/stores/navigationContext';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
@@ -230,6 +236,7 @@ const { confirm } = useConfirm();
 const serviceStore = useServiceStore();
 const songsStore = useSongsStore();
 const playlistsStore = usePlaylistsStore();
+const navigationContext = useNavigationContextStore();
 
 const { plan, isLoading, hasSelection, entryCount } = storeToRefs(serviceStore);
 const { songs: allSongs } = storeToRefs(songsStore);
@@ -247,6 +254,17 @@ const songs = computed<Song[]>(() => {
 });
 
 const missingCount = computed(() => entryCount.value - songs.value.length);
+
+// The service goes along into the song: during the Gottesdienst the next hymn
+// is one swipe away instead of a trip back to this list.
+function openSong(song: Song) {
+    navigationContext.setContext({
+        kind: 'service',
+        label: 'Gottesdienst',
+        songIds: songs.value.map((entry) => entry.id),
+    });
+    router.push(`/songs/${song.id}`);
+}
 
 // Which verses each song is down for, phrased once here. Only the songs whose
 // verses were narrowed down appear — for the rest the plan says the whole hymn,

@@ -30,7 +30,7 @@
             <Church class="size-12 text-muted-foreground" stroke-width="1.5" aria-hidden="true" />
             <p class="mt-3 text-sm text-muted-foreground">
                 Es liegt kein fertiger Ablauf vor. Merken Sie die Lieder einzeln vor — im Lied oder
-                über einen langen Druck in der Liste.
+                über das Menü eines Eintrags in der Liste.
             </p>
         </div>
 
@@ -58,11 +58,11 @@
                                 class="flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-xl leading-none"
                             >
                                 <template v-if="offer.emoji">{{ offer.emoji }}</template>
-                                <Church v-else class="size-[18px]" aria-hidden="true" />
+                                <Church v-else class="size-[1.125rem]" aria-hidden="true" />
                             </span>
                             <span class="min-w-0 flex-1">
                                 <span
-                                    class="block break-words text-[15px] font-medium leading-tight"
+                                    class="block break-words text-[0.9375rem] font-medium leading-tight"
                                 >
                                     {{ offer.title }}
                                 </span>

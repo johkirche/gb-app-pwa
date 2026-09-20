@@ -8,7 +8,9 @@
                 <h1 class="mt-3 font-display text-5xl font-semibold tracking-tight sm:text-6xl">
                     Gesangbuch
                 </h1>
-                <p class="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+                <p
+                    class="mx-auto mt-4 max-w-md text-[0.9375rem] leading-relaxed text-muted-foreground"
+                >
                     Der visuelle Grundton der neuen Anwendung: warmes Papier, Kirchenblau und
                     sparsames Gold. Prüfen Sie Palette und Komponenten bitte in beiden Farbwelten —
                     am Telefon und am Schreibtisch.
@@ -25,7 +27,10 @@
                         <ToggleGroupItem value="system">System</ToggleGroupItem>
                     </ToggleGroup>
                 </div>
-                <div class="rule-flourish mx-auto mt-12 max-w-xs text-[10px]" aria-hidden="true">
+                <div
+                    class="rule-flourish mx-auto mt-12 max-w-xs text-[0.625rem]"
+                    aria-hidden="true"
+                >
                     ✦
                 </div>
             </header>
@@ -51,7 +56,7 @@
                         </div>
                         <div class="border-t bg-card px-3 py-2">
                             <p class="text-xs font-medium">{{ swatch.label }}</p>
-                            <p class="text-[11px] text-muted-foreground">{{ swatch.token }}</p>
+                            <p class="text-[0.6875rem] text-muted-foreground">{{ swatch.token }}</p>
                         </div>
                     </div>
                 </div>
@@ -80,7 +85,7 @@
                     </div>
                     <div>
                         <p class="label-micro text-muted-foreground">Fließtext · Albert Sans</p>
-                        <p class="mt-3 max-w-prose text-[15px] leading-relaxed">
+                        <p class="mt-3 max-w-prose text-[0.9375rem] leading-relaxed">
                             Dieses Gesangbuch begleitet Sie durch das Kirchenjahr. Die Gestaltung
                             bleibt bewusst ruhig und editorial: feine Linien statt schwerer Kästen,
                             eine Serifenschrift für alles Gesungene — damit die Lieder selbst im
@@ -97,7 +102,7 @@
                             <p class="number-display mt-2 text-5xl leading-none">142</p>
                         </div>
                     </div>
-                    <div class="rule-flourish text-[10px]" aria-hidden="true">✦</div>
+                    <div class="rule-flourish text-[0.625rem]" aria-hidden="true">✦</div>
                 </div>
             </section>
 
@@ -133,7 +138,7 @@
                                 >
                                     {{ song.number }}
                                 </span>
-                                <span class="font-display text-[17px] leading-snug">
+                                <span class="font-display text-[1.0625rem] leading-snug">
                                     {{ song.title }}
                                 </span>
                             </button>
@@ -516,12 +521,62 @@
                 />
             </section>
 
+            <!-- ================= Wiedergabe ================= -->
+            <section class="mt-20">
+                <div class="flex items-center gap-4">
+                    <h2 class="shrink-0 font-display text-2xl font-semibold">Wiedergabe</h2>
+                    <Separator class="flex-1" />
+                    <span class="label-micro shrink-0 text-muted-foreground">07</span>
+                </div>
+                <p class="mt-2 text-sm text-muted-foreground">
+                    Die Leiste am Fuß des Liedes. Die Wiedergabetaste steht in der Mitte der Seite,
+                    unabhängig davon, was links und rechts von ihr liegt; Wiederholung und Tempo
+                    fragen in Worten und öffnen ihre eigene Auswahl.
+                </p>
+                <div class="mt-8 space-y-10">
+                    <div>
+                        <p class="label-micro text-muted-foreground">Transport</p>
+                        <!-- Pulled out to the page's own edges: the transport
+                             is a full-width bar at the foot of a song, and a
+                             demo in a narrower box would show a layout no
+                             reader ever gets. -->
+                        <div class="-mx-5 mt-4 border-y border-border bg-background sm:-mx-8">
+                            <SongAudioControls
+                                v-model:muted="demoMuted"
+                                v-model:repeat-times="demoRepeatTimes"
+                                v-model:tempo="demoTempo"
+                                :is-playing="demoPlaying"
+                                :has-paused="demoPlaying"
+                                :verse-count="4"
+                                :exact-tempo="demoExactTempo"
+                                :position="demoPlaying ? 42 : 0"
+                                :duration="138"
+                                @toggle-play="demoPlaying = !demoPlaying"
+                                @stop="demoPlaying = false"
+                            />
+                        </div>
+                        <div class="mt-4 flex flex-wrap items-center gap-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                @click="demoExactTempo = !demoExactTempo"
+                            >
+                                {{ demoExactTempo ? 'Tempo in Worten' : 'Genaues Tempo (BPM)' }}
+                            </Button>
+                            <span class="text-sm text-muted-foreground">
+                                {{ demoTempo }} BPM · {{ repeatLabel(demoRepeatTimes) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ================= Status ================= -->
             <section class="mt-20">
                 <div class="flex items-center gap-4">
                     <h2 class="shrink-0 font-display text-2xl font-semibold">Status</h2>
                     <Separator class="flex-1" />
-                    <span class="label-micro shrink-0 text-muted-foreground">07</span>
+                    <span class="label-micro shrink-0 text-muted-foreground">08</span>
                 </div>
                 <div class="mt-8 space-y-10">
                     <div>
@@ -575,7 +630,9 @@
 
             <!-- ================= Fuß ================= -->
             <footer class="mt-24 text-center">
-                <div class="rule-flourish mx-auto max-w-xs text-[10px]" aria-hidden="true">✦</div>
+                <div class="rule-flourish mx-auto max-w-xs text-[0.625rem]" aria-hidden="true">
+                    ✦
+                </div>
                 <p class="mt-6 text-xs text-muted-foreground">
                     Nur in der Entwicklungsumgebung sichtbar · /dev/ui
                 </p>
@@ -605,6 +662,9 @@ import { toast } from 'vue-sonner';
 import { useConfirm } from '@/composables/useConfirm';
 import { useTheme } from '@/composables/useTheme';
 
+import SongAudioControls from '@/components/songview/SongAudioControls.vue';
+import { REPEAT_ONCE, repeatLabel } from '@/components/songview/playbackRepeat';
+import { TEMPO_DEFAULT } from '@/components/songview/playbackTempo';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -764,6 +824,15 @@ async function demoConfirmDestructive() {
     });
     toast(ok ? 'Lied gelöscht.' : 'Vorgang abgebrochen.');
 }
+
+// The transport, with something to show: a song part-played, four verses to
+// repeat over, and the exact tempo switchable right here rather than through
+// the settings page.
+const demoPlaying = ref(false);
+const demoMuted = ref(false);
+const demoRepeatTimes = ref(REPEAT_ONCE);
+const demoTempo = ref(TEMPO_DEFAULT);
+const demoExactTempo = ref(false);
 
 const actionSheetOpen = ref(false);
 const actionSheetAnchor = ref<PanelAnchor>(null);

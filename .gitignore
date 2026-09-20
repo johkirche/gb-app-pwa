@@ -42,3 +42,18 @@ docs/private/
 
 # Local reference copy of the printed book (~45 MB) - never commit
 tests/assets/2026-08-05_gesangbuch_innenteil_choräle_1.pdf
+
+# The Directus user-register extension lives in its own repo - clone it here if you
+# need it locally, but it is not part of this repo (a submodule broke the CF build)
+directus-extensions/
+
+# Recorded backend fixtures: real hymn texts and engravings, which are not ours
+# to redistribute, plus whatever the recording session happened to carry.
+# Re-create with `pnpm test:e2e:record`, never commit.
+tests/e2e/fixtures/
+
+# Playwright run artefacts (readability-scale.spec.ts leaves these behind on failure)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

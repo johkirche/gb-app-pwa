@@ -44,7 +44,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">
+                                <p class="text-[0.9375rem]">
                                     {{ isLoggedIn ? 'Angemeldet' : 'Nicht angemeldet' }}
                                 </p>
                                 <p class="text-sm leading-relaxed text-muted-foreground">
@@ -60,7 +60,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Lieder</p>
+                                <p class="text-[0.9375rem]">Lieder</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ songsCount }} Lieder gespeichert
                                 </p>
@@ -74,7 +74,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Notendateien (SVG &amp; MusicXML)</p>
+                                <p class="text-[0.9375rem]">Notendateien (SVG &amp; MusicXML)</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ filesCount }} Dateien gespeichert
                                 </p>
@@ -88,7 +88,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Speicherplatz</p>
+                                <p class="text-[0.9375rem]">Speicherplatz</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ formatBytes(storage.usage) }} von
                                     {{ formatBytes(storage.quota) }} belegt
@@ -103,7 +103,7 @@
                             <div
                                 class="min-w-0 flex-1 lg:grid lg:grid-cols-[15rem_1fr] lg:items-baseline lg:gap-6"
                             >
-                                <p class="text-[15px]">Letzte Synchronisierung</p>
+                                <p class="text-[0.9375rem]">Letzte Synchronisierung</p>
                                 <p class="text-sm text-muted-foreground">
                                     {{ formatSyncTime(lastSyncTime) }}
                                 </p>
@@ -153,9 +153,10 @@
                                 class="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground"
                             >
                                 <template v-if="expectsFullDownload">
-                                    Geschätzte Downloadgröße: ca.
-                                    {{ formatBytes(ESTIMATED_SYNC_BYTES) }} &ndash; Freier Speicher:
-                                    {{ formatBytes(freeSpace) }}
+                                    Geschätzter Download: ca.
+                                    {{ formatBytes(ESTIMATED_TRANSFER_BYTES) }} &ndash; belegt dann
+                                    ca. {{ formatBytes(ESTIMATED_SYNC_BYTES) }} &ndash; Freier
+                                    Speicher: {{ formatBytes(freeSpace) }}
                                 </template>
                                 <template v-else>
                                     Es werden nur die Änderungen geladen &ndash; Freier Speicher:
@@ -334,6 +335,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 import {
     ESTIMATED_SYNC_BYTES,
+    ESTIMATED_TRANSFER_BYTES,
     REQUIRED_FREE_BYTES,
     type StorageSpace,
     formatBytes,
@@ -374,9 +376,9 @@ const freeSpace = computed(() =>
 );
 
 // Whether the next sync still has the whole book ahead of it. A sync only
-// fetches what changed, so the ~90 MB estimate — and the free-space gate built
-// on it — only speaks for a device that holds nothing yet, or one whose last
-// download broke off with files missing.
+// fetches what changed, so the full-download estimates — and the free-space
+// gate built on them — only speak for a device that holds nothing yet, or one
+// whose last download broke off with files missing.
 const expectsFullDownload = computed(() => songsCount.value === 0 || failedFiles.value.length > 0);
 
 // Load counts on mount
@@ -404,7 +406,7 @@ function confirmLowStorage(): Promise<boolean> {
     return confirm({
         title: 'Wenig Speicherplatz',
         message:
-            `Der Download benötigt schätzungsweise ${formatBytes(ESTIMATED_SYNC_BYTES)}, ` +
+            `Der Download belegt schätzungsweise ${formatBytes(ESTIMATED_SYNC_BYTES)} Speicherplatz, ` +
             `es sind aber nur noch ${formatBytes(freeSpace.value)} frei. Die Synchronisierung ` +
             'wird möglicherweise nicht vollständig abgeschlossen. Möchten Sie trotzdem fortfahren?',
         confirmText: 'Trotzdem fortfahren',

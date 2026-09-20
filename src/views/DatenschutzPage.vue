@@ -15,7 +15,7 @@
                         <h2 class="font-display text-2xl font-semibold">Verantwortlicher</h2>
                         <Separator class="min-w-10 flex-1" />
                     </div>
-                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p class="italic text-gold">
                             [TODO: Von der Organisation zu ergänzen – Name und Anschrift des
                             Verantwortlichen im Sinne der DSGVO sowie ggf. Kontaktdaten des
@@ -38,7 +38,7 @@
                         <h2 class="font-display text-2xl font-semibold">Überblick</h2>
                         <Separator class="min-w-10 flex-1" />
                     </div>
-                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p>
                             Diese App ist ein digitales Gesangbuch, das nach dem Herunterladen der
                             Inhalte weitgehend offline funktioniert. Personenbezogene Daten werden
@@ -56,7 +56,7 @@
                         </h2>
                         <Separator class="min-w-10 flex-1" />
                     </div>
-                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p>
                             Damit die App offline nutzbar ist, speichert sie Daten ausschließlich
                             lokal auf Ihrem Gerät:
@@ -120,7 +120,7 @@
                         <h2 class="font-display text-2xl font-semibold">Server-Anfragen</h2>
                         <Separator class="min-w-10 flex-1" />
                     </div>
-                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p>
                             Die App kommuniziert ausschließlich mit dem für sie konfigurierten
                             Backend der Johannischen Kirche (gb26-admin.johannische-kirche.org).
@@ -161,7 +161,7 @@
                         <h2 class="font-display text-2xl font-semibold">Keine Drittanbieter</h2>
                         <Separator class="min-w-10 flex-1" />
                     </div>
-                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p>
                             Die Notenwiedergabe lädt die benötigten Klangdateien (Soundfonts) von
                             derselben Quelle wie die App selbst; es finden dabei keine Anfragen an
@@ -178,7 +178,7 @@
                         </h2>
                         <Separator class="min-w-10 flex-1" />
                     </div>
-                    <div class="mt-5 space-y-3 text-[15px] leading-relaxed">
+                    <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p class="italic text-gold">
                             [TODO: Von der Organisation zu ergänzen – u.&nbsp;a. Rechtsgrundlagen
                             der Verarbeitung, Speicherdauer der serverseitig gespeicherten Daten

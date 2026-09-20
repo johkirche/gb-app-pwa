@@ -7,6 +7,13 @@
  * crossing the notehead as it is struck and reaching the next one exactly as
  * the band moves on.
  *
+ * The note it stops at is the next one *printed*, never the next one sung. Over
+ * a repeat the two part company, and the band is a mark on the page: it may not
+ * reach across a notehead that is standing silent. Sung order would let it, in
+ * both directions — forward over a 1. Klammer the second time through, and at a
+ * repeat barline that falls mid-system, where a beat with nothing to stop it ran
+ * on to the end of the line and covered the bars after the barline.
+ *
  * What differs between the two views is only where the rectangles come from:
  * the Notenbild hands over the invisible system `<rect>` gb-scripts laid over
  * the staff lines, the re-set notation the bounding box of its stafflines.
@@ -40,14 +47,15 @@ export const PLAYHEAD_GAP_RATIO = 0.035;
  * @param layer     the positioned box both marks are drawn in
  * @param system    the system the sounding note stands in
  * @param notes     the noteheads sounding — more than one on a chord
- * @param successor the next notehead, or null when the beat runs to the system's end
+ * @param neighbour the next notehead printed on this system, or null when the
+ *                  beat runs to the system's end
  * @param animate   whether to slide there, i.e. whether the system is unchanged
  */
 export function playheadBox(
     layer: Rect,
     system: Rect,
     notes: readonly Rect[],
-    successor: Rect | null,
+    neighbour: Rect | null,
     animate: boolean,
 ): PlayheadBox | null {
     if (!notes.length) return null;
@@ -70,11 +78,13 @@ export function playheadBox(
     }
 
     // The band holds for as long as the note sounds, so it runs up to where the
-    // next one starts — or to the end of the system, when there is none. A
-    // successor standing to the LEFT is a repeat jumping back within one
-    // system: nothing bounds this beat there either, so it runs to the end.
+    // next one starts — or to the end of the system, when there is none.
+    //
+    // Clear of the sounding note, not merely right of where it begins: the
+    // notes of a chord are one sounding and share a position, so a neighbour
+    // overlapping this one is part of it and bounds nothing.
     const gap = system.height * PLAYHEAD_GAP_RATIO;
-    const ahead = successor && successor.left >= noteLeft ? successor : null;
+    const ahead = neighbour && neighbour.left >= noteRight ? neighbour : null;
     const runsTo = ahead ? ahead.left : system.right + gap;
     const start = noteLeft - gap;
     const end = Math.max(runsTo - gap, noteRight + gap);

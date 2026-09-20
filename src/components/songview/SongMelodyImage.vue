@@ -28,6 +28,9 @@
                     role="img"
                     aria-label="Notenbild"
                     v-html="svgMarkup"
+                    @pointercancel="onPointerCancel"
+                    @pointerdown="onPointerDown"
+                    @pointerup="onPointerUp"
                 ></div>
                 <NotationPlayhead v-if="playhead" ref="playheadRef" :box="playhead" />
             </div>
@@ -63,6 +66,7 @@ import { Spinner } from '@/components/ui/spinner';
 
 import {
     type NotationMark,
+    mappedNotes,
     notationMapKind,
     noteHead,
     noteParts,
@@ -73,7 +77,8 @@ import {
     versesAtNote,
 } from '@/utils/notationMap';
 
-import { type PlayheadBox, playheadBox } from './notationPlayhead';
+import { type NoteTarget, TAP_SLOP, noteAtPoint } from './notationHit';
+import { type PlayheadBox, type Rect, playheadBox } from './notationPlayhead';
 
 const props = defineProps<{
     /** Sanitised markup of the vector Notenbild (`notentext_svg`) */
@@ -88,6 +93,11 @@ const props = defineProps<{
     highlightNotes: boolean;
     /** Show the band and the line that sweep the staff */
     showPlayhead: boolean;
+}>();
+
+const emit = defineEmits<{
+    /** A note the reader tapped, for the playback to move to */
+    (e: 'pickNote', note: number): void;
 }>();
 
 const scrollRef = ref<HTMLElement | null>(null);
@@ -186,12 +196,12 @@ function updateBand(host: Element, head: SVGGraphicsElement, at: NotationMark) {
         return;
     }
 
-    // The successor comes from the playback's own reckoning, never from
-    // document order: over a repeat's jump the next note drawn is not the next
-    // note sung. One on another system does not bound this beat either — there
-    // the beat runs to the end of its own system.
-    const successor = at.next === null ? null : noteHead(host, at.next);
-    const bounded = successor && systemOf(successor) === system ? successor : null;
+    // The band stops at the note printed after this one, which over a repeat is
+    // not the note sung after it — see `playheadBox`. One on another system
+    // does not bound this beat — there the beat runs to the end of its own
+    // system.
+    const neighbour = noteHead(host, at.note + 1);
+    const bounded = neighbour && systemOf(neighbour) === system ? neighbour : null;
 
     const sameSystem = system !== null && system === litSystem;
     playhead.value = playheadBox(
@@ -229,6 +239,68 @@ function sweep(progress: number) {
 function refresh() {
     if (!standing) return;
     mark({ ...standing, follow: false });
+}
+
+// ---------------------------------------------------------------------------
+// Tapping the page to move the music there
+//
+// The engraving is the transport a singer actually reads: asking for the third
+// line means putting a finger on it, not hunting the spot on a scrubber that
+// happens to correspond. The tap is answered in the map's own terms — a note
+// ordinal — and the playback decides which time through that note it means, so
+// a repeat sends the reader to the pass they are nearest rather than always to
+// the first.
+// ---------------------------------------------------------------------------
+
+let tapFrom: { x: number; y: number } | null = null;
+
+function onPointerDown(event: PointerEvent) {
+    tapFrom = { x: event.clientX, y: event.clientY };
+}
+
+function onPointerCancel() {
+    tapFrom = null;
+}
+
+function onPointerUp(event: PointerEvent) {
+    const from = tapFrom;
+    tapFrom = null;
+    if (!from) return;
+    // Dragging is how a wide engraving is scrolled sideways, and a drag ends in
+    // a pointerup like any other. Only one that stayed put is asking for a note.
+    if (Math.hypot(event.clientX - from.x, event.clientY - from.y) > TAP_SLOP) return;
+
+    // An engraving with no map offers no targets, and that is the whole guard:
+    // there is nothing to tap on a sheet the playback cannot follow.
+    const note = noteAtPoint(event.clientX, event.clientY, noteTargets());
+    if (note !== null) emit('pickNote', note);
+}
+
+/**
+ * Every note that can be tapped, with the row it stands in.
+ *
+ * Measured at the tap rather than kept: the engraving is scaled to the column
+ * and scrolls inside it, so every one of these boxes moves with the page.
+ */
+function noteTargets(): NoteTarget[] {
+    const host = hostRef.value;
+    if (!host) return [];
+
+    const rows = new Map<string, Rect | null>();
+    const targets: NoteTarget[] = [];
+    for (const note of mappedNotes(host)) {
+        const head = noteHead(host, note);
+        const system = systemOf(head);
+        if (!head || system === null) continue;
+        if (!rows.has(system)) {
+            const rect = systemRect(host, system);
+            rows.set(system, rect?.getBoundingClientRect() ?? null);
+        }
+        const row = rows.get(system);
+        if (!row) continue;
+        targets.push({ note, head: head.getBoundingClientRect(), system: row });
+    }
+    return targets;
 }
 
 // Every element the mark hung on has just been replaced.
@@ -270,6 +342,13 @@ defineExpose({ mark, clearMark, sweep, refresh });
    falling through to the page's own background and disappearing. */
 .notation-layer {
     isolation: isolate;
+}
+
+/* A tap moves the music to the note under it — but only where the engraving
+   carries the map that can say which note that is. Asked of the document
+   itself, so it cannot fall out of step with what the tap will actually find. */
+.noten-svg:has([data-note]) {
+    cursor: pointer;
 }
 
 /* The baked export hard-codes black on the staff lines, stems and barlines it

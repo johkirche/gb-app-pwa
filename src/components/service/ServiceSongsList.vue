@@ -8,28 +8,34 @@
         :animation="150"
         @update:model-value="handleReorder"
     >
-        <li v-for="(song, position) in songs" :key="song.id">
+        <!-- The row is the wrapper, not the button: the `⋯` menu trigger has to
+             sit beside whatever opens the song, never inside it. -->
+        <li
+            v-for="(song, position) in songs"
+            :key="song.id"
+            class="group flex items-center pr-2"
+            :class="
+                reorderMode ? '' : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
+            "
+            @contextmenu.prevent="handleContextMenu(song, anchorFromEvent($event))"
+        >
             <component
                 :is="reorderMode ? 'div' : 'button'"
                 v-long-press="(el: HTMLElement) => handleLongPress(song, el)"
                 :type="reorderMode ? undefined : 'button'"
-                class="flex w-full select-none items-center gap-4 px-2 py-3 text-left [-webkit-touch-callout:none]"
-                :class="
-                    reorderMode ? '' : 'rounded-sm transition-colors hover:bg-muted active:bg-muted'
-                "
+                class="flex min-w-0 flex-1 select-none items-center gap-4 py-3 pl-2 text-left [-webkit-touch-callout:none]"
                 @click="handleClick(song)"
-                @contextmenu.prevent="handleContextMenu(song, anchorFromEvent($event))"
             >
                 <!-- The position in the service, not the hymn number — that one
                      stays with the title, where it is read out from. -->
                 <span
-                    class="number-display flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-[13px] leading-none text-muted-foreground"
+                    class="number-display flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-[0.8125rem] leading-none text-muted-foreground"
                     aria-hidden="true"
                 >
                     {{ position + 1 }}
                 </span>
                 <span class="min-w-0 flex-1">
-                    <span class="block break-words font-display text-[17px] leading-snug">
+                    <span class="block break-words font-display text-[1.0625rem] leading-snug">
                         <span v-if="song.index" class="number-display mr-0.5 text-lg">
                             {{ song.index }}.
                         </span>
@@ -56,6 +62,14 @@
                     <GripVertical class="size-5" aria-hidden="true" />
                 </span>
             </component>
+
+            <!-- Reordering has its own grip in that slot. -->
+            <RowActionsTrigger
+                v-if="!reorderMode"
+                :label="`Aktionen für ${song.titel}`"
+                :active="activeSongId === song.id"
+                @open="handleContextMenu(song, $event)"
+            />
         </li>
     </VueDraggable>
 </template>
@@ -63,6 +77,8 @@
 <script setup lang="ts">
 import { GripVertical } from 'lucide-vue-next';
 import { VueDraggable } from 'vue-draggable-plus';
+
+import { RowActionsTrigger } from '@/components/ui/responsive-panel';
 
 import type { Category, Song } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
@@ -77,6 +93,8 @@ const props = defineProps<{
      * phrased: the row renders what the plan says, it does not read the plan.
      */
     verseLabels?: Record<string, string>;
+    /** The song whose menu is open, so its `⋯` stays lit while it is. */
+    activeSongId?: string | null;
 }>();
 
 const emit = defineEmits<{

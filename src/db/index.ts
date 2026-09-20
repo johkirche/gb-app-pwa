@@ -116,25 +116,6 @@ export interface Playlist {
 
 // Preferences types
 
-/**
- * @deprecated The melody is the book's own engraving now, and the re-set
- * notation is only reached by zooming past the fit width — see
- * NotationBeyondFit. Read once on load to carry an existing setting over.
- */
-export type MelodyDisplayMode = 'image' | 'xml';
-
-/**
- * What the melody becomes once it has been enlarged past the width the page can
- * show — the only point at which the two renderings are both defensible.
- *
- * - 'engraving' keeps the book's own setting, pushed sideways
- * - 'reflow' hands the song to the re-set notation, which breaks the systems
- *   onto the width there is
- *
- * Below the fit width there is nothing to decide and this is not consulted.
- */
-export type NotationBeyondFit = 'engraving' | 'reflow';
-
 export interface XmlDisplaySettings {
     showMeasureNumbers: boolean;
     showLyrics: boolean;
@@ -150,6 +131,15 @@ export interface XmlDisplaySettings {
  */
 export type ServiceTabMode = 'auto' | 'always';
 
+/**
+ * When the song page offers Vor and Zurück to the songs either side.
+ * 'lists' — only inside a playlist or the Gottesdienst, where the order was
+ *           put together to be sung through; the default
+ * 'always' — also from the Liederliste, the Favoriten and by number
+ * 'never'  — the page ends at the credits, as it used to
+ */
+export type SongPagingMode = 'lists' | 'always' | 'never';
+
 export interface PreferencesData {
     id: string;
     /**
@@ -162,23 +152,26 @@ export interface PreferencesData {
     notationScale?: number;
     /** @deprecated Read once on load to carry an existing setting over to pageScale. */
     textSize?: 'small' | 'medium' | 'large' | 'xlarge';
-    /** @deprecated Read once on load to carry an existing setting over to notationBeyondFit. */
-    melodyDisplayMode?: MelodyDisplayMode;
     /**
-     * Undefined until the reader has actually been asked — which only happens
-     * by enlarging a song past the fit width. Until then the default holds and
-     * the setting is not shown anywhere, because there is nothing it would
-     * change; once chosen it appears in Einstellungen, so it can be found again
-     * without zooming back in to look for it.
+     * @deprecated Which of the two notations to show, and later what to do once
+     * the page was outgrown. Neither is a choice any more: below the fit width
+     * the engraving is simply better, and past it only the re-set notation can
+     * show the song whole. Records written before that still carry these; they
+     * are read by nothing and written by nothing.
      */
-    notationBeyondFit?: NotationBeyondFit;
+    melodyDisplayMode?: 'image' | 'xml';
+    /** @deprecated See melodyDisplayMode. */
+    notationBeyondFit?: 'engraving' | 'reflow';
     xmlSettings?: XmlDisplaySettings;
     /** Optional so records stored before the Gottesdienst tab existed stay valid. */
     serviceTab?: ServiceTabMode;
+    /** Optional so records stored before song paging existed stay valid. */
+    songPaging?: SongPagingMode;
     /**
-     * Hold a screen wake lock while a song is open, so the page does not dim
-     * mid-verse. Optional so records stored before it existed stay valid; the
-     * store supplies the default.
+     * Hold a screen wake lock while a song is open and in use, so the page does
+     * not dim mid-verse — a quarter of an hour without a touch drops it until
+     * the next one. Optional so records stored before it existed stay valid;
+     * the store supplies the default.
      */
     keepScreenAwake?: boolean;
     /**
@@ -190,6 +183,12 @@ export interface PreferencesData {
     midiOutputEnabled?: boolean;
     /** Which MIDI output was chosen. Empty means "the only one connected". */
     midiOutputId?: string;
+    /**
+     * Steer the playback tempo in beats per minute as well as in words.
+     * Off by default: the transport asks in langsam / normal / schnell, which
+     * is the question a hymnal reader has an answer to. See playbackTempo.
+     */
+    exactTempo?: boolean;
 }
 
 // Favorites: id == song id

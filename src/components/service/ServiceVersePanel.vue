@@ -1,12 +1,14 @@
 <template>
+    <!-- No snap points: a sheet parked at 75 % cannot scroll — vaul reads every
+         drag inside a part-open sheet as a drag of the sheet itself, so a hymn
+         of six verses had to be pulled up to full height before its list would
+         move at all. Sized to its content instead, capped by the drawer's own
+         max height, the list scrolls the way a list should. -->
     <ResponsivePanel
         :open="isOpen"
         :anchor="anchor"
         label="Strophen wählen"
-        :snap-points="snapPoints"
-        :initial-snap-point="0.75"
-        drawer-class="h-full max-h-[97dvh]"
-        popover-class="w-80"
+        popover-class="w-96"
         @update:open="onOpenChange"
     >
         <div
@@ -24,38 +26,58 @@
             </Button>
         </div>
 
-        <p class="px-4 pb-1 pt-1 text-sm leading-snug text-muted-foreground">
-            Tippen Sie die Strophen an, die gesungen werden. Die übrigen stehen im Lied blass — so,
-            wie sie hier stehen.
+        <!-- The panel opens with every verse chosen, so "tap the verses that are
+             sung" described the opposite of what the first tap does. The text
+             now says what the marks mean, and the marks say which way a tap
+             goes. -->
+        <p class="px-4 pb-2 pt-1 text-sm leading-snug text-muted-foreground">
+            Angehakte Strophen werden gesungen — tippen Sie eine Strophe an, um sie an- oder
+            abzuwählen. Die übrigen stehen im Lied blass, so wie hier.
         </p>
 
-        <!-- No control beside the verses: the row is the verse, set the way it
-             will be set in the song. A checkbox would be a second, weaker
-             statement of what the type already makes, in a vocabulary this book
-             does not otherwise speak. -->
-        <ul class="px-3 py-1">
+        <!-- The row carries a real checkmark. Dimming the text alone was the
+             whole of the answer before, and on a lectern, at arm's length, a
+             verse that is merely paler than its neighbour is not a state anyone
+             can read — least of all when every verse starts out chosen and
+             nothing is pale yet. -->
+        <ul class="space-y-2 px-4 py-1">
             <li v-for="verse in verses" :key="verse.number">
                 <button
                     type="button"
-                    class="flex w-full border-l-2 pr-1 text-left transition-colors hover:bg-muted active:bg-muted"
-                    :class="chosen.has(verse.number) ? 'border-gold' : 'border-transparent'"
+                    class="flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
+                    :class="
+                        chosen.has(verse.number)
+                            ? 'border-gold/50 bg-gold/5'
+                            : 'border-border bg-transparent'
+                    "
                     :aria-pressed="chosen.has(verse.number)"
                     @click="toggle(verse.number)"
                 >
+                    <span
+                        class="flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors"
+                        :class="
+                            chosen.has(verse.number)
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-muted-foreground/40 text-transparent'
+                        "
+                        aria-hidden="true"
+                    >
+                        <Check class="size-4" :stroke-width="3" />
+                    </span>
                     <!-- The verse recedes, the row does not: dimming the button
                          itself would take the tap feedback down with it, and on
                          a phone that feedback is the only answer a tap gets. -->
                     <span
-                        class="flex min-w-0 flex-1 items-baseline gap-3 py-2.5 pl-3 transition-opacity"
-                        :class="{ 'opacity-40': !chosen.has(verse.number) }"
+                        class="flex min-w-0 flex-1 items-baseline gap-2.5 transition-opacity"
+                        :class="{ 'opacity-45': !chosen.has(verse.number) }"
                     >
-                        <span class="number-display min-w-5 shrink-0 text-[15px]">
+                        <span class="number-display min-w-5 shrink-0 text-base">
                             {{ verse.number }}.
                         </span>
                         <!-- Three lines: enough of the verse to know which one
                              it is, little enough that a seven-verse hymn is
                              still a list rather than a page to scroll. -->
-                        <span class="line-clamp-3 min-w-0 flex-1 font-hymnal text-[15px] leading-6">
+                        <span class="line-clamp-3 min-w-0 flex-1 font-hymnal text-base leading-6">
                             {{ verse.text }}
                         </span>
                     </span>
@@ -64,14 +86,16 @@
         </ul>
 
         <!-- Sticky so the choice can be saved without scrolling back down a
-             seven-verse hymn. -->
+             seven-verse hymn. The summary sits above the button rather than
+             under it, where a line of centred text read as a second, disabled
+             one. -->
         <div class="sticky bottom-0 z-20 mt-2 border-t border-border bg-popover px-4 py-3">
-            <Button class="w-full" :disabled="chosen.size === 0" @click="save">
-                {{ isInPlan ? 'Auswahl sichern' : 'Vormerken' }}
-            </Button>
-            <p class="mt-2 text-center text-[13px] text-muted-foreground">
+            <p class="mb-2 text-center text-[0.8125rem] text-muted-foreground">
                 {{ summary }}
             </p>
+            <Button class="w-full" :disabled="chosen.size === 0" @click="save">
+                {{ isInPlan ? 'Auswahl sichern' : 'Zum Gottesdienst vormerken' }}
+            </Button>
         </div>
     </ResponsivePanel>
 </template>
@@ -79,6 +103,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import { Check } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 
 import { useServiceStore } from '@/stores/service';
@@ -100,10 +125,14 @@ import { verseText } from '@/utils/verses';
  *
  * It is the step between „vormerken" and the plan: the order of service names
  * two or three verses of a seven-verse hymn, and until that is written down
- * everybody at the lectern has to remember it. Opening it is therefore how a
- * song is marked at all — the panel does the marking itself, so its three call
- * sites (the song menu, the long press in the list, the Gottesdienst page) have
- * nothing to repeat.
+ * everybody at the lectern has to remember it.
+ *
+ * It is not the way a song gets marked, though — that is one tap of its own in
+ * the menu above, on the whole hymn, which is what is sung most Sundays.
+ * Choosing verses is the rarer errand, and it does the marking too so that a
+ * song that only wanted three verses never needs both. Its three call sites
+ * (the song menu, the row menu in the list, the Gottesdienst page) have nothing
+ * to repeat.
  */
 const props = defineProps<{
     isOpen: boolean;
@@ -120,10 +149,6 @@ const emit = defineEmits<{
 }>();
 
 const serviceStore = useServiceStore();
-
-// Sheet snap points, as everywhere else in the app. It opens higher than the
-// other panels because the list it shows is what is being decided.
-const snapPoints = [0.5, 0.75, 1];
 
 const verses = computed(() =>
     (props.song?.strophen ?? []).map((strophe, index) => ({

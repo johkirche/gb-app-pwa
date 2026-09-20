@@ -14,7 +14,7 @@
                 v-for="tab in tabs"
                 :key="tab.to"
                 :to="tab.to"
-                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] transition-colors"
+                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.9375rem] transition-colors"
                 :class="
                     isActive(tab.to)
                         ? 'bg-accent font-medium text-accent-foreground'
@@ -32,9 +32,9 @@
                 v-for="link in quickLinks"
                 :key="link.to"
                 :to="link.to"
-                class="flex items-center gap-3 rounded-lg px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                class="flex items-center gap-3 rounded-lg px-3 py-2 text-[0.875rem] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-                <component :is="link.icon" class="h-[18px] w-[18px]" aria-hidden="true" />
+                <component :is="link.icon" class="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
                 {{ link.label }}
             </RouterLink>
 
@@ -46,7 +46,7 @@
                         aria-label="Kontomenü"
                     >
                         <span
-                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-[15px] font-semibold text-accent-foreground"
+                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-[0.9375rem] font-semibold text-accent-foreground"
                             aria-hidden="true"
                         >
                             <template v-if="initials">{{ initials }}</template>
@@ -109,6 +109,7 @@
 
         <!-- Mobile (< lg): bottom tab bar -->
         <nav
+            ref="bottomBar"
             class="border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
             aria-label="Hauptnavigation"
         >
@@ -117,11 +118,15 @@
                     v-for="tab in tabs"
                     :key="tab.to"
                     :to="tab.to"
-                    class="flex min-w-0 flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition-colors"
+                    class="flex min-w-0 flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[0.6875rem] font-medium transition-colors"
                     :class="isActive(tab.to) ? 'text-primary' : 'text-muted-foreground'"
                     :aria-current="isActive(tab.to) ? 'page' : undefined"
                 >
-                    <component :is="tab.icon" class="h-[22px] w-[22px]" aria-hidden="true" />
+                    <component
+                        :is="tab.icon"
+                        class="h-[1.375rem] w-[1.375rem]"
+                        aria-hidden="true"
+                    />
                     <span class="w-full truncate px-0.5 text-center">{{ tab.label }}</span>
                 </RouterLink>
             </div>
@@ -130,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import {
     ChevronsUpDown,
@@ -151,6 +156,7 @@ import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
 
 import { useAuth } from '@/composables/useAuth';
+import { useBottomBarInset } from '@/composables/useBottomBarInset';
 import { useConfirm } from '@/composables/useConfirm';
 
 import {
@@ -165,6 +171,11 @@ const route = useRoute();
 const router = useRouter();
 const { user, isLoggedIn, logout } = useAuth();
 const { confirm } = useConfirm();
+
+// Toasts live in the app shell, clear of the router, so the tab bar has to say
+// how much of the bottom edge it takes for them to sit above it.
+const bottomBar = ref<HTMLElement | null>(null);
+useBottomBarInset(bottomBar);
 
 const { hasSelection } = storeToRefs(useServiceStore());
 const { serviceTab } = storeToRefs(usePreferencesStore());

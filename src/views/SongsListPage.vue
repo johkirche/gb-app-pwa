@@ -26,6 +26,21 @@
             @set-index-range="setIndexRange"
         />
 
+        <!-- Index rail: overlays <main> but stays outside it so it never scrolls;
+             bounds-el hands it that box to center on. It is absolutely
+             positioned at z-30, so it paints over the list wherever it sits in
+             the markup — and it sits here, ahead of the list, because that is
+             where it belongs in the tab order. Behind the list it would be a
+             jump control a keyboard only reaches after scrolling past
+             everything it jumps over. -->
+        <IndexScroll
+            v-if="isIndexScrollerVisible"
+            :items="indexItems"
+            :active-key="activeSection"
+            :bounds-el="scrollRef"
+            @select="scrollToSection"
+        />
+
         <main
             ref="scrollRef"
             class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
@@ -62,7 +77,7 @@
                                 {{ songOfTheWeek.titel }}
                             </span>
                             <span
-                                class="mt-1.5 block text-[11px] tracking-[0.14em] text-muted-foreground"
+                                class="mt-1.5 block text-[0.6875rem] tracking-[0.14em] text-muted-foreground"
                             >
                                 {{ songOfTheWeekMeta }}
                             </span>
@@ -122,83 +137,97 @@
                 <!-- Songs List with Sections -->
                 <div v-else class="songs-list">
                     <template v-for="section in sortedSections" :key="section.key">
-                        <!-- Section Header (only shown when showHeaders is true) -->
+                        <!-- Section heading. Always in the document — it is how a
+                             screen reader walks 500 hymns — but only inked in the
+                             sort modes where a divider tells the reader something
+                             the rows do not already say. -->
                         <SongSectionHeader
-                            v-if="showHeaders"
                             :section-key="section.key"
                             :label="section.label"
+                            :spoken-label="section.spokenLabel"
+                            :visually-hidden="!showHeaders"
                         />
 
-                        <!-- Songs in this section -->
-                        <button
+                        <!-- Songs in this section. The row is a wrapper, not the
+                             button itself: the `⋯` menu trigger has to sit beside
+                             the button that opens the song, never inside it. -->
+                        <div
                             v-for="song in section.songs"
                             :key="song.id"
-                            v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
-                            type="button"
-                            class="song-row group flex w-full select-none items-baseline gap-4 border-b border-border py-3.5 pl-2 pr-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] last:border-b-0 hover:bg-muted active:bg-muted"
+                            class="song-row group flex w-full items-center border-b border-border pr-2 transition-colors last:border-b-0 hover:bg-muted active:bg-muted data-[menu-open]:bg-muted"
                             :data-section="section.key"
-                            @click="navigateToSong(song.id)"
+                            :data-menu-open="
+                                showSongActions && selectedSongId === song.id ? '' : undefined
+                            "
                             @contextmenu.prevent="openSongActions(song.id, anchorFromEvent($event))"
                         >
-                            <span
-                                class="number-display w-10 shrink-0 text-right text-lg leading-none"
+                            <button
+                                v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
+                                type="button"
+                                class="flex min-w-0 flex-1 select-none items-baseline gap-4 py-3.5 pl-2 pr-2 text-left [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]"
+                                @click="navigateToSong(song.id)"
                             >
-                                <SearchHighlight
-                                    v-if="song.index"
-                                    :text="String(song.index)"
-                                    :terms="activeSearchTerms"
-                                />
                                 <span
-                                    v-else
-                                    class="inline-block h-1.5 w-1.5 rotate-45 bg-muted-foreground/60"
+                                    class="number-display w-10 shrink-0 text-right text-lg leading-none"
+                                >
+                                    <SearchHighlight
+                                        v-if="song.index"
+                                        :text="String(song.index)"
+                                        :terms="activeSearchTerms"
+                                    />
+                                    <span
+                                        v-else
+                                        class="inline-block h-1.5 w-1.5 rotate-45 bg-muted-foreground/60"
+                                        aria-hidden="true"
+                                    ></span>
+                                </span>
+                                <span class="flex min-w-0 flex-1 flex-col gap-1">
+                                    <span
+                                        class="font-display text-[1.0625rem] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
+                                    >
+                                        <SearchHighlight
+                                            :text="song.titel"
+                                            :terms="activeSearchTerms"
+                                        />
+                                    </span>
+                                    <span
+                                        v-if="
+                                            sortMode !== 'category' &&
+                                            formatCategories(song.kategorien)
+                                        "
+                                        class="label-micro text-muted-foreground"
+                                    >
+                                        <SearchHighlight
+                                            :text="formatCategories(song.kategorien)"
+                                            :terms="activeSearchTerms"
+                                        />
+                                    </span>
+                                </span>
+                                <ChevronRight
+                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:text-primary group-data-[menu-open]:text-primary lg:group-hover:-translate-x-7 lg:group-data-[menu-open]:-translate-x-7"
                                     aria-hidden="true"
-                                ></span>
-                            </span>
-                            <span class="flex min-w-0 flex-1 flex-col gap-1">
-                                <span
-                                    class="font-display text-[17px] leading-snug [overflow-wrap:break-word] [word-break:break-word]"
-                                >
-                                    <SearchHighlight
-                                        :text="song.titel"
-                                        :terms="activeSearchTerms"
-                                    />
-                                </span>
-                                <span
-                                    v-if="
-                                        sortMode !== 'category' && formatCategories(song.kategorien)
-                                    "
-                                    class="label-micro text-muted-foreground"
-                                >
-                                    <SearchHighlight
-                                        :text="formatCategories(song.kategorien)"
-                                        :terms="activeSearchTerms"
-                                    />
-                                </span>
-                            </span>
-                            <ChevronRight
-                                class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:translate-x-[3px] group-hover:text-primary"
-                                aria-hidden="true"
+                                />
+                            </button>
+
+                            <RowActionsTrigger
+                                overlay
+                                :label="`Aktionen für ${song.titel}`"
+                                :active="showSongActions && selectedSongId === song.id"
+                                @open="openSongActions(song.id, $event)"
                             />
-                        </button>
+                        </div>
                     </template>
                 </div>
 
                 <!-- Last Sync Info -->
-                <div v-if="lastSyncTime" class="py-6 text-center text-[13px] text-muted-foreground">
+                <div
+                    v-if="lastSyncTime"
+                    class="py-6 text-center text-[0.8125rem] text-muted-foreground"
+                >
                     <p>Zuletzt synchronisiert: {{ formatSyncTime(lastSyncTime) }}</p>
                 </div>
             </div>
         </main>
-
-        <!-- Index rail: overlays <main> but stays outside it so it never scrolls;
-             bounds-el hands it that box to center on. -->
-        <IndexScroll
-            v-if="isIndexScrollerVisible"
-            :items="indexItems"
-            :active-key="activeSection"
-            :bounds-el="scrollRef"
-            @select="scrollToSection"
-        />
 
         <!-- Filter panel: popover from lg up, bottom sheet below -->
         <SongFilterPanel
@@ -230,12 +259,13 @@
             align="end"
         />
 
-        <!-- Song actions (long-press / right-click menu) -->
+        <!-- Song actions (row `⋯` / long-press / right-click) -->
         <ActionSheet
             v-model:open="showSongActions"
             title="Aktionen"
             :actions="songSheetActions"
             :anchor="songAnchor"
+            align="end"
         />
 
         <!-- Which verses this service sings -->
@@ -277,6 +307,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import { useFavoritesStore } from '@/stores/favorites';
+import { useNavigationContextStore } from '@/stores/navigationContext';
 import { useServiceStore } from '@/stores/service';
 import { useSongsStore } from '@/stores/songs';
 
@@ -295,7 +326,11 @@ import SongFilterPanel from '@/components/songlist/SongFilterPanel.vue';
 import SongSectionHeader from '@/components/songlist/SongSectionHeader.vue';
 import SongToolbar from '@/components/songlist/SongToolbar.vue';
 import { Button } from '@/components/ui/button';
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/responsive-panel';
+import {
+    ActionSheet,
+    type ActionSheetAction,
+    RowActionsTrigger,
+} from '@/components/ui/responsive-panel';
 import { Spinner } from '@/components/ui/spinner';
 import SearchHighlight from '@/components/utils/SearchHighlight.vue';
 
@@ -307,6 +342,7 @@ import { pickSongOfTheWeek } from '@/utils/songOfTheWeek';
 const songsStore = useSongsStore();
 const favoritesStore = useFavoritesStore();
 const serviceStore = useServiceStore();
+const navigationContext = useNavigationContextStore();
 const { songs, isLoading, error, lastSyncTime, hasSongs, isSyncing, syncProgress } =
     storeToRefs(songsStore);
 const { isLoggedIn } = useSessionAccess();
@@ -434,7 +470,7 @@ function applyWeiseFromQuery() {
 }
 
 // Sorting - applied to filtered songs
-const { sortMode, showHeaders, showIndexScroll, sortedSections, indexItems } =
+const { sortMode, showHeaders, showIndexScroll, sortedSections, sortedSongs, indexItems } =
     useSongSorting(filteredSongs);
 
 // UI State. Each panel keeps the element (or click point) it was opened from —
@@ -486,7 +522,7 @@ const songOfTheWeekMeta = computed(() => {
 
 function openSongOfTheWeek() {
     if (!songOfTheWeek.value) return;
-    router.push(`/songs/${songOfTheWeek.value.id}`);
+    navigateToSong(songOfTheWeek.value.id);
 }
 
 const isIndexScrollerVisible = computed(() => {
@@ -525,34 +561,60 @@ const sortSheetActions = computed<ActionSheetAction[]>(() => [
 const songSheetActions = computed<ActionSheetAction[]>(() => {
     const isFav = selectedSongId.value ? favoritesStore.isFavorite(selectedSongId.value) : false;
     const isInService = selectedSongId.value ? serviceStore.isInPlan(selectedSongId.value) : false;
-    // A hymn of one verse has nothing to choose, so marking it stays one tap.
+    // A hymn of one verse has nothing to choose, so it is offered no Strophenwahl.
     const canChooseVerses = (selectedSong.value?.strophen.length ?? 0) > 1;
     const verses = selectedSongId.value ? serviceStore.versesFor(selectedSongId.value) : null;
 
+    // Two subjects, drawn as two blocks. Favoriten and Playlisten are the
+    // reader's own shelves, kept for as long as they like; the Gottesdienst
+    // rows speak for one service and clear themselves when the day is over.
+    // Telling one from the other at a glance is the whole point of the rule
+    // between them.
     return [
         {
             label: isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen',
             icon: isFav ? HeartFilled : Heart,
+            group: 'collection',
             handler: () => {
                 if (selectedSongId.value) {
                     favoritesStore.toggleFavorite(selectedSongId.value);
                 }
             },
         },
-        // Marking a song and saying which of its verses are sung are one act:
-        // this opens the Strophenwahl, which does the marking when it is saved.
-        // Once the song is on the plan the same row changes the choice, and
-        // removing it becomes a row of its own.
-        ...(!isInService || canChooseVerses
+        {
+            label: 'Zu Playlist hinzufügen',
+            icon: ListMusic,
+            group: 'collection',
+            handler: () => {
+                showPlaylistModal.value = true;
+            },
+        },
+        // Marking and choosing verses are two errands, not one. Nearly every
+        // Sunday the whole hymn is sung, so marking it is one tap and asks
+        // nothing; the Strophenwahl sits under it for the rarer Sunday that
+        // wants three of seven, and marks the song itself when it is saved.
+        ...(!isInService
             ? [
                   {
-                      label: isInService
-                          ? verses
+                      label: 'Für Gottesdienst vormerken',
+                      icon: Church,
+                      group: 'service',
+                      handler: () => markForService(),
+                  },
+              ]
+            : []),
+        ...(canChooseVerses
+            ? [
+                  {
+                      label:
+                          isInService && verses
                               ? `Strophen wählen · ${formatVerseNumbers(verses)}`
-                              : 'Strophen wählen'
-                          : 'Für Gottesdienst vormerken',
-                      icon: isInService ? ListOrdered : Church,
-                      handler: () => markForService(canChooseVerses),
+                              : 'Strophen wählen',
+                      icon: ListOrdered,
+                      group: 'service',
+                      handler: () => {
+                          showVersePanel.value = true;
+                      },
                   },
               ]
             : []),
@@ -561,17 +623,11 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
                   {
                       label: 'Aus Gottesdienst entfernen',
                       icon: Church,
+                      group: 'service',
                       handler: () => removeFromService(),
                   },
               ]
             : []),
-        {
-            label: 'Zu Playlist hinzufügen',
-            icon: ListMusic,
-            handler: () => {
-                showPlaylistModal.value = true;
-            },
-        },
         {
             label: 'Abbrechen',
             role: 'cancel' as const,
@@ -580,15 +636,9 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
 });
 
 // The Gottesdienst tab appears with the first song marked, so the toast is
-// what explains where the song just went. Where there are verses to choose the
-// Strophenwahl takes over from here and confirms it itself.
-async function markForService(canChooseVerses: boolean) {
+// what explains where the song just went.
+async function markForService() {
     if (!selectedSongId.value) return;
-
-    if (canChooseVerses) {
-        showVersePanel.value = true;
-        return;
-    }
 
     try {
         await serviceStore.markSong(selectedSongId.value);
@@ -695,8 +745,24 @@ function updateActiveSection() {
     }
 }
 
-// Navigate to song detail page
+// What the bar under a song calls this list. A reader who searched or filtered
+// is paging through what they found, and the bar should say so rather than
+// claim the whole list.
+const browsingLabel = computed(() => {
+    if (isSearchActive.value) return 'Suchergebnisse';
+    if (hasActiveFilters.value) return 'Gefilterte Lieder';
+    return 'Liederliste';
+});
+
+// Navigate to song detail page. The list as it is on screen — sorted and
+// filtered as the reader left it — goes with them, so Vor and Zurück on the
+// song page walk these rows in this order.
 function navigateToSong(songId: string) {
+    navigationContext.setContext({
+        kind: 'list',
+        label: browsingLabel.value,
+        songIds: sortedSongs.value.map((song) => song.id),
+    });
     router.push(`/songs/${songId}`);
 }
 

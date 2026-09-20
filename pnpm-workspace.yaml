@@ -2,9 +2,10 @@ packages:
   - .
 allowBuilds:
   core-js: true
-  cypress: true
   esbuild: true
   gl: true
   sharp: true
   vue-demi: true
   workerd: true
+patchedDependencies:
+  osmd-audio-player@0.7.0: patches/osmd-audio-player@0.7.0.patch

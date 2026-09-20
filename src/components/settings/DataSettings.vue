@@ -7,7 +7,7 @@
         >
             <CloudDownload class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0 flex-1">
-                <p class="text-[15px]">Heruntergeladene Inhalte</p>
+                <p class="text-[0.9375rem]">Heruntergeladene Inhalte</p>
                 <p class="text-sm text-muted-foreground">
                     {{ songsCount }} Lieder, {{ filesCount }} Dateien
                 </p>
@@ -20,7 +20,7 @@
         <div class="flex items-center gap-4 px-2 py-3">
             <Server class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
-                <p class="text-[15px]">Dauerhafte Speicherung</p>
+                <p class="text-[0.9375rem]">Dauerhafte Speicherung</p>
                 <p class="text-sm leading-relaxed text-muted-foreground">
                     {{ persistedStatusText }}
                 </p>
@@ -34,7 +34,7 @@
         >
             <Download class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
-                <p class="text-[15px]">Daten exportieren</p>
+                <p class="text-[0.9375rem]">Daten exportieren</p>
                 <p class="text-sm text-muted-foreground">
                     Playlists und Favoriten als Datei sichern
                 </p>
@@ -48,7 +48,7 @@
         >
             <CloudUpload class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
-                <p class="text-[15px]">Daten importieren</p>
+                <p class="text-[0.9375rem]">Daten importieren</p>
                 <p class="text-sm text-muted-foreground">
                     Aus einer Sicherungsdatei wiederherstellen
                 </p>
@@ -62,7 +62,7 @@
         >
             <Smartphone class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0 flex-1">
-                <p class="text-[15px]">App installieren</p>
+                <p class="text-[0.9375rem]">App installieren</p>
                 <p class="text-sm text-muted-foreground">
                     Installieren Sie die App auf Ihrem Gerät
                 </p>

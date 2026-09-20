@@ -3,13 +3,11 @@ import { type Ref, computed, onBeforeUnmount, onMounted, ref } from 'vue';
 /**
  * How wide the drawn notation gets, for both melody views.
  *
- * The scale is applied as a width, never as a re-layout, so the system breaks
- * never move with it. Two widths come out of it: the notation is DRAWN at the
- * column times the scale, and the box that shows it grows with it —
- * symmetrically, out of the notation column and into the free width of the
- * page — until it reaches the page's edge. Only past that (phone widths, where
- * there is no free width to grow into) does the box stay put and the drawing
- * scroll inside it.
+ * The notation is DRAWN at the column times the scale, and the box that shows
+ * it grows with it — symmetrically, out of the notation column and into the
+ * free width of the page — until it reaches the page's edge. Only past that
+ * (phone widths, where there is no free width to grow into) does the box stay
+ * put, and what happens then is the whole of `overflowsPage` below.
  *
  * The Notenbild and the MusicXML view share this so that one scale means the
  * same thing in both, which is what lets a single control drive the page.
@@ -30,30 +28,46 @@ export function useNotationScale(containerRef: Ref<HTMLElement | null>, scale: R
         columnWidth.value === null ? null : columnWidth.value * (scale.value ?? 1),
     );
 
+    /** What the reader can actually see at once: the drawing, or the page. */
+    const boxWidth = computed(() =>
+        drawnWidth.value === null
+            ? null
+            : Math.min(drawnWidth.value, availableWidth.value ?? drawnWidth.value),
+    );
+
     const scrollBoxStyle = computed((): Record<string, string> => {
-        if (drawnWidth.value === null || columnWidth.value === null) return {};
-        const boxWidth = Math.min(drawnWidth.value, availableWidth.value ?? drawnWidth.value);
+        if (boxWidth.value === null || columnWidth.value === null) return {};
         return {
-            width: `${boxWidth}px`,
+            width: `${boxWidth.value}px`,
             // Negative once the box outgrows the column: that is what lets it
             // spread to both sides instead of running off to the right.
-            marginInline: `${(columnWidth.value - boxWidth) / 2}px`,
+            marginInline: `${(columnWidth.value - boxWidth.value) / 2}px`,
         };
     });
 
+    /** For a drawing that keeps the engraved setting: as wide as it was drawn,
+     *  which past the fit width means wider than the box, and it scrolls. */
     const canvasStyle = computed(
         (): Record<string, string> =>
             drawnWidth.value === null ? {} : { width: `${drawnWidth.value}px` },
     );
 
+    /** For a drawing that was re-broken onto the width it has: exactly the box,
+     *  so there is nothing left to scroll to. */
+    const fittedCanvasStyle = computed(
+        (): Record<string, string> =>
+            boxWidth.value === null ? {} : { width: `${boxWidth.value}px` },
+    );
+
     /**
      * Whether the drawing has outgrown the page — the fit width, past which the
-     * notation can only be pushed sideways.
+     * engraved setting can only be pushed sideways.
      *
      * This is the whole of the question the two renderers answer differently:
      * below it the engraving is the right size everywhere (on a phone it is
-     * already 1.56× the printed book), and only past it does the choice between
-     * keeping the engraved setting and re-breaking the systems arise.
+     * already 1.56× the printed book) and is what the reader should have, and
+     * past it only re-breaking the systems can give them the size they asked
+     * for AND the whole line at once.
      */
     const overflowsPage = computed(
         () =>
@@ -102,9 +116,11 @@ export function useNotationScale(containerRef: Ref<HTMLElement | null>, scale: R
     return {
         columnWidth,
         drawnWidth,
+        boxWidth,
         overflowsPage,
         scrollBoxStyle,
         canvasStyle,
+        fittedCanvasStyle,
         measureWidths,
     };
 }

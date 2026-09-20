@@ -7,6 +7,9 @@ import path from 'path';
 import { type ConfigEnv, type Plugin, type UserConfig, defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import vueDevTools from 'vite-plugin-vue-devtools';
+import { configDefaults } from 'vitest/config';
+
+import { pwaManifest } from './src/config/pwaManifest';
 
 // pnpm's strict node_modules does not hoist vite-plugin-pwa's workbox-window
 // dependency to the root, but the plugin's 'virtual:pwa-register' module imports
@@ -69,41 +72,7 @@ export default defineConfig({
                 'logo.svg',
                 'logo-black.png',
             ],
-            manifest: {
-                name: 'Johannische Kirche Gesangbuch',
-                short_name: 'Gesangbuch',
-                description: 'Das digitale Gesangbuch der Johannischen Kirche',
-                theme_color: '#273c77',
-                background_color: '#ffffff',
-                display: 'standalone',
-                orientation: 'portrait',
-                scope: '/',
-                start_url: '/',
-                icons: [
-                    {
-                        src: 'pwaicons/android/android-launchericon-192-192.png',
-                        sizes: '192x192',
-                        type: 'image/png',
-                    },
-                    {
-                        src: 'pwaicons/android/android-launchericon-512-512.png',
-                        sizes: '512x512',
-                        type: 'image/png',
-                    },
-                    {
-                        src: 'pwaicons/android/maskable-192.png',
-                        sizes: '192x192',
-                        type: 'image/png',
-                        purpose: 'maskable',
-                    },
-                    {
-                        src: 'pwaicons/android/maskable-512.png',
-                        sizes: '512x512',
-                        type: 'image/png',
-                        purpose: 'maskable',
-                    },
-                ],
-            },
+            manifest: pwaManifest,
             workbox: {
                 // Cache all assets for offline use
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
@@ -241,5 +210,10 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'jsdom',
+        // tests/e2e belongs to Playwright, and its specs are named *.spec.ts
+        // like the unit ones — vitest would otherwise load them and fail on a
+        // `test.use` it has no browser for. (Cypress's .cy.ts names kept the
+        // two apart by accident; nothing was ever declared.)
+        exclude: [...configDefaults.exclude, 'tests/e2e/**'],
     },
 });

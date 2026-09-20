@@ -100,6 +100,8 @@ function staffY(line: number): number {
     fill: currentColor;
 }
 
+/* SVG user units inside the viewBox, not CSS px: this scales with the
+   drawing, not with the root font size. */
 .preview-note text {
     font-family: var(--font-hymnal);
     font-size: 9px;

@@ -12,19 +12,35 @@ export interface StorageSpace {
 }
 
 /**
- * Estimated size of a full content download (songs + note files), shown to the
- * user before syncing.
+ * What a full download costs — over the wire, and on the device.
  *
- * Measured against the production backend on 2026-08-18 (aggregate over
- * directus_files, the file types the sync actually stores):
- *   SVG notation        565 files   86.6 MB   <- one per song since 2026-08-18
- *   legacy PNG notation 261 files    2.7 MB
- *   MusicXML            564 files    0.9 MB
- *                                  ≈ 90 MB
- * Re-measure when the notation set changes; the previous figure (15 MB) dated
- * from before full SVG coverage.
+ * These are two different numbers and the gap is wide, so the app stopped
+ * quoting one for both. The backend serves the notation gzipped, and an
+ * engraving is a text document: it arrives at a fraction of the size it then
+ * occupies once the browser has unpacked it into a Blob in IndexedDB.
+ *
+ * Measured against the production backend on 2026-09-20, after the notation
+ * set was re-exported with reduced coordinate precision and repeated glyph
+ * outlines hoisted into <defs>/<use> (see gb-scripts):
+ *
+ *                        files   transfer   stored
+ *   SVG notation           565     7.4 MB   50.9 MB   <- was 25.1 / 95.2 MB
+ *   MusicXML               564     0.9 MB    0.9 MB   <- .mxl is already zipped
+ *                                 ≈ 8 MB   ≈ 52 MB
+ *
+ * The legacy PNG notation (261 files, 2.7 MB) is deliberately left out: the
+ * sync has not fetched it since the Notenbild moved to notentext_svg — see
+ * collectSyncFileIds in api/songs.api.ts — and counting it only ever made the
+ * quote too high.
+ *
+ * Re-measure when the notation set changes.
  */
-export const ESTIMATED_SYNC_BYTES = 90 * 1024 * 1024;
+
+/** What the reader's data plan pays: the compressed size on the wire. */
+export const ESTIMATED_TRANSFER_BYTES = 8 * 1024 * 1024;
+
+/** What the device gives up: the unpacked size in IndexedDB. */
+export const ESTIMATED_SYNC_BYTES = 52 * 1024 * 1024;
 
 /**
  * Free space the pre-sync check demands. Kept above ESTIMATED_SYNC_BYTES so a
@@ -32,7 +48,7 @@ export const ESTIMATED_SYNC_BYTES = 90 * 1024 * 1024;
  * eviction headroom). The real backstop stays the QuotaExceededError handling
  * during the download itself.
  */
-export const REQUIRED_FREE_BYTES = 130 * 1024 * 1024;
+export const REQUIRED_FREE_BYTES = 75 * 1024 * 1024;
 
 // Ask the browser to protect IndexedDB content from automatic eviction.
 export async function requestPersistentStorage(): Promise<boolean> {
