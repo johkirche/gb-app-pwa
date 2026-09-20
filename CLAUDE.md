@@ -74,7 +74,7 @@ starts itself:
 pnpm test:e2e                  # --ui to step through, --project=webkit to narrow
 ```
 
-Six specs, and they divide by what they need behind them:
+Seven specs, and they divide by what they need behind them:
 
 - `public-pages.spec.ts` — the `access: 'public'` routes, with **no recording
   and no session**, which is the point: each has to work for someone who cannot
@@ -96,6 +96,14 @@ Six specs, and they divide by what they need behind them:
   press of play, so no walk of the app touches them. Chromium and Firefox only
   past the install: Playwright's WebKit will not let a worker answer a
   navigation it has intercepted.
+- `update.spec.ts` — „Eine neue Version des Gesangbuchs ist verfügbar.", the
+  path that only exists on the *second* deploy. It serves a copy of dist/ it
+  owns and rewrites `sw.js` underneath the browser, which is all a deploy is
+  from the worker's side. Each version appends a marker that answers to a
+  message, so "did the new worker take over?" is asked rather than inferred.
+  All three engines — it never cuts the network, so WebKit is fine here. Needs
+  `pnpm build` too, and no backend at all: the worker registers on mount and
+  the toast is in App.vue, so the login page is enough.
 
 A spec that needs the book calls `openLibrary()` once in `beforeAll` and shares
 it (`test.describe.configure({ mode: 'serial' })`), because syncing per test
