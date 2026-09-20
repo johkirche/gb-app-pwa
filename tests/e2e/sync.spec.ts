@@ -21,6 +21,27 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
 
 test.skip(!RECORDING && !hasRecording, NO_RECORDING);
 
+/*
+ * Not on WebKit, and not for want of trying.
+ *
+ * The sync stores each notation file as a Blob in IndexedDB, and WebKit in an
+ * ephemeral browser context cannot store a Blob there at all — measured: a
+ * five-byte one aborts the transaction with no error object, while an
+ * ArrayBuffer or a string of a megabyte goes in fine. The download loop treats
+ * the first storage failure as a full disk and marks every remaining file
+ * failed, which is why this surfaced as all 1121 files failing at once with
+ * nothing wrong on the network.
+ *
+ * Real Safari, with persistent storage, stores Blobs perfectly well, so this is
+ * the test environment's limit rather than the app's. What the spec covers —
+ * manifest, delta, token refresh, IndexedDB rows — is engine-independent, and
+ * the readability walk still runs on all three.
+ */
+test.skip(
+    ({ browserName }) => browserName === 'webkit',
+    'WebKit cannot store Blobs in IndexedDB in an ephemeral context',
+);
+
 const email = process.env.E2E_DIRECTUS_EMAIL;
 const password = process.env.E2E_DIRECTUS_PASSWORD;
 

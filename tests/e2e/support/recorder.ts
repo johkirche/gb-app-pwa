@@ -50,6 +50,21 @@ function keyFor(method: string, url: string, postData: string | null): string {
 /** Response headers worth keeping: enough to be a faithful reply, no more. */
 const KEEP_HEADERS = new Set(['content-type', 'cache-control', 'etag', 'last-modified']);
 
+/**
+ * The backend is a different origin, and every asset request carries an
+ * Authorization header — which makes it a non-simple cross-origin request, so
+ * the browser wants a preflight and a CORS-bearing reply. Those headers are
+ * synthesised here rather than replayed: Chromium and Firefox accept a fulfil
+ * without them, WebKit does not, and a recording made before anyone noticed
+ * should not have to be taken again for it.
+ */
+function corsHeaders(origin: string | undefined): Record<string, string> {
+    return {
+        'access-control-allow-origin': origin || '*',
+        'access-control-expose-headers': 'Content-Range',
+    };
+}
+
 function load(): Map<string, Recorded> {
     if (!existsSync(INDEX)) return new Map();
     const rows = JSON.parse(readFileSync(INDEX, 'utf8')) as Recorded[];
@@ -135,6 +150,27 @@ export async function serveRecording(context: BrowserContext, urlGlob: string) {
 
     await context.route(urlGlob, async (route: Route) => {
         const request = route.request();
+        const origin = request.headers()['origin'];
+
+        // Preflights never reached the recorder — the browser issues them below
+        // the level route handlers see — so they are answered from first
+        // principles instead of from the fixture.
+        if (request.method() === 'OPTIONS') {
+            await route.fulfill({
+                status: 204,
+                headers: {
+                    ...corsHeaders(origin),
+                    'access-control-allow-methods': 'GET, POST, OPTIONS',
+                    'access-control-allow-headers':
+                        request.headers()['access-control-request-headers'] ||
+                        'authorization, content-type',
+                    'access-control-max-age': '86400',
+                },
+                body: '',
+            });
+            return;
+        }
+
         const hit = index.get(keyFor(request.method(), request.url(), request.postData()));
         if (!hit) {
             missing.push(`${request.method()} ${request.url()}`);
@@ -142,7 +178,11 @@ export async function serveRecording(context: BrowserContext, urlGlob: string) {
             return;
         }
         const body = hit.file ? gunzipSync(readFileSync(join(BODIES, hit.file))) : Buffer.alloc(0);
-        await route.fulfill({ status: hit.status, headers: hit.headers, body });
+        await route.fulfill({
+            status: hit.status,
+            headers: { ...hit.headers, ...corsHeaders(origin) },
+            body,
+        });
     });
 
     return () => missing;
