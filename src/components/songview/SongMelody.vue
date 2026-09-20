@@ -80,6 +80,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AlertCircle } from 'lucide-vue-next';
 import type { OpenSheetMusicDisplay as OSMDType } from 'opensheetmusicdisplay';
 import type PlaybackEngineType from 'osmd-audio-player';
+import type { IAudioContext } from 'standardized-audio-context';
 
 import { midiRouteKey } from '@/composables/useMidiOutput';
 import { useNotationScale } from '@/composables/useNotationScale';
@@ -134,6 +135,8 @@ const emit = defineEmits<{
     (e: 'progress', value: { position: number; duration: number }): void;
     (e: 'rendered', info: { lyricsDrawn: boolean }): void;
     (e: 'renderFailed', reason: 'corrupt' | 'engine'): void;
+    /** The play tap could not be honoured — no engine could be built */
+    (e: 'playbackFailed'): void;
     /** Which of the two is on screen right now */
     (e: 'update:showsEngraving', value: boolean): void;
 }>();
@@ -156,12 +159,24 @@ let playbackEngine: PlaybackEngineType | null = null;
 // Kept beside the engine because muting lives here rather than in the engine:
 // osmd-audio-player carries a masterVolume it never applies.
 let instrumentPlayer: HymnInstrumentPlayer | null = null;
+// Held because the engine never gives it back, and it has to be closed by
+// hand. A context is a real allocation on the machine — a hardware output
+// stream and its thread — and browsers cap how many a page may have (Chrome
+// at six), so leaking one per song does not merely grow memory: the seventh
+// hymn of a sitting simply refuses to make a sound.
+let audioContext: IAudioContext | null = null;
 // The engine's own state enum, kept from the lazy import so its state can be
 // read without pulling the module in eagerly. It lives one level down: the
 // package's entry point re-exports the engine and nothing else.
 let playbackStates: typeof import('osmd-audio-player/dist/PlaybackEngine').PlaybackState | null =
     null;
 let isInitialized = false;
+// Which load is the current one, and whether any is still out. The token
+// settles who wins a race between two songs; the count is what tells every
+// other path that the sheet under it is in the middle of being replaced and
+// must not be drawn right now.
+let loadToken = 0;
+let loadsInFlight = 0;
 let themeObserver: MutationObserver | null = null;
 // In-flight guard for the lazy (multi-second) engine construction: without
 // it, play→pause→play during init would build two engines that both play,
@@ -256,6 +271,11 @@ watch(
         if (reflowHandle) clearTimeout(reflowHandle);
         reflowHandle = window.setTimeout(() => {
             reflowHandle = 0;
+            // A drag that lands while the next sheet is still loading would
+            // set a sheet that is halfway replaced, and blank the score. The
+            // load ends in a render of its own at the current width, so
+            // standing down here loses nothing.
+            if (loadsInFlight > 0) return;
             try {
                 renderNotation();
             } catch (error) {
@@ -317,6 +337,9 @@ async function initOsmd() {
             detectDarkMode();
             if (wasDark !== isDarkMode.value && osmd) {
                 (osmd as any).setOptions(getOsmdOptions());
+                // As with the display settings: the colours are set now and a
+                // load still out will draw in them.
+                if (loadsInFlight > 0) return;
                 try {
                     renderNotation();
                 } catch {
@@ -419,10 +442,20 @@ function applyEngravingTweaks() {
 async function loadAndRender() {
     if (!osmd || !props.fileBlob) return;
 
+    // Paging through hymns issues one of these per song, and each awaits a
+    // blob read, a font and a parse. Left unguarded the slower of two loads
+    // finishes last and wins, putting the previous hymn's sheet under the
+    // current hymn's title — and every await below is a place the component
+    // may already have been torn down.
+    const token = ++loadToken;
+    const superseded = () => token !== loadToken || !osmd;
+
+    loadsInFlight++;
     try {
         renderError.value = null;
 
         const arrayBuffer = await props.fileBlob.arrayBuffer();
+        if (superseded()) return;
         const bytes = new Uint8Array(arrayBuffer);
 
         // OSMD measures every word once, as it lays the sheet out, in the face
@@ -431,6 +464,7 @@ async function loadAndRender() {
         // the rest of the song. Nothing to wait for where the font API is
         // missing (tests) or the face fails: the fallback is then the truth.
         await document.fonts?.load?.('1em GbOptima').catch(() => undefined);
+        if (superseded()) return;
 
         const isMxl = bytes[0] === 0x50 && bytes[1] === 0x4b;
 
@@ -444,6 +478,9 @@ async function loadAndRender() {
             const text = new TextDecoder('utf-8').decode(bytes);
             await osmd.load(text);
         }
+        // load() replaces the sheet in place, so a superseded run has already
+        // done its damage by getting here — but it must not now draw it.
+        if (superseded()) return;
 
         renderNotation();
 
@@ -452,21 +489,20 @@ async function loadAndRender() {
         // Invalidate any engine built for a previous sheet — playback is
         // constructed lazily on the first play tap (see startPlayback), so the
         // soundfont is never fetched just because a song was opened.
-        if (playbackEngine) {
-            try {
-                await playbackEngine.stop();
-            } catch {
-                // ignore
-            }
-            playbackEngine = null;
-            instrumentPlayer = null;
-        }
+        //
+        // Through disposeEngine rather than by nulling the fields: the engine
+        // owns an audio context and a sink, and dropping the reference frees
+        // neither. Ten hymns read in a row used to leave ten contexts open.
+        await disposeEngine();
         resetPosition();
         measureSheetClock();
     } catch (error) {
+        if (superseded()) return;
         console.error('Failed to render MusicXML:', error);
         renderError.value = 'Fehler beim Rendern der Noten';
         emit('renderFailed', 'corrupt');
+    } finally {
+        loadsInFlight--;
     }
 }
 
@@ -1253,6 +1289,21 @@ async function disposeEngine() {
         }
     }
     instrumentPlayer?.dispose?.();
+    // Closed, not merely dropped: an AudioContext keeps its output stream open
+    // for as long as it lives, and nothing garbage-collects one that is only
+    // unreferenced.
+    if (audioContext) {
+        const closing = audioContext;
+        audioContext = null;
+        if (closing.state !== 'closed') {
+            try {
+                await closing.close();
+            } catch {
+                // Already closing, or closed underneath us — either way it is
+                // no longer ours to worry about.
+            }
+        }
+    }
     playbackEngine = null;
     instrumentPlayer = null;
 }
@@ -1263,8 +1314,9 @@ async function initPlayback() {
     await disposeEngine();
 
     // Held locally as well: if construction fails after the sink exists, the
-    // field is still null and only this reference can release it.
+    // field is still null and only these references can release it.
     let player: HymnInstrumentPlayer | null = null;
+    let context: IAudioContext | null = null;
     try {
         const { default: PlaybackEngine } = await import('osmd-audio-player');
         const { PlaybackEvent, PlaybackState } =
@@ -1276,7 +1328,8 @@ async function initPlayback() {
         // connected MIDI instrument — the engine above cannot tell the two apart.
         player = await createInstrumentPlayer();
         player.setMuted(!!props.muted);
-        const engine = new PlaybackEngine(new AudioContext(), player);
+        context = new AudioContext();
+        const engine = new PlaybackEngine(context, player);
         await engine.loadScore(osmd as any);
         if (props.tempo) {
             engine.setBpm(props.tempo);
@@ -1306,12 +1359,15 @@ async function initPlayback() {
         });
         playbackEngine = engine;
         instrumentPlayer = player;
+        audioContext = context;
     } catch (error) {
         console.error('Failed to init OSMD audio player:', error);
         // Audio failure should not block visual rendering
         player?.dispose?.();
+        void context?.close().catch(() => undefined);
         playbackEngine = null;
         instrumentPlayer = null;
+        audioContext = null;
     }
 }
 
@@ -1375,9 +1431,12 @@ async function startPlayback() {
         }
     }
     if (!playbackEngine) {
-        // Engine could not be built — tell the parent so the play button
-        // does not stay stuck in the "pause" state.
+        // Engine could not be built — tell the parent so the play button does
+        // not stay stuck in the "pause" state, and so the reader is told why
+        // nothing is happening. Silence with the button back at rest is the
+        // same picture as a tap that simply missed.
         emit('playStopped');
+        emit('playbackFailed');
         return;
     }
     // The user may have tapped pause (or play again) while the engine was
@@ -1401,6 +1460,7 @@ async function startPlayback() {
     } catch (error) {
         console.error('OSMD playback error:', error);
         emit('playStopped');
+        emit('playbackFailed');
     }
 }
 
@@ -1461,6 +1521,11 @@ watch(
         if (osmd && isInitialized) {
             // setOptions accepts a partial options object
             (osmd as any).setOptions(getOsmdOptions());
+            // Options first, render second — and while a load is out, only the
+            // first half. The setting is now standing for the render that load
+            // ends with, so it is honoured either way; re-drawing a sheet that
+            // is halfway replaced is what has to be avoided.
+            if (loadsInFlight > 0) return;
             try {
                 renderNotation();
             } catch {

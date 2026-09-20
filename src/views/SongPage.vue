@@ -77,6 +77,7 @@
                     @progress="onPlaybackProgress"
                     @rendered="onNotationRendered"
                     @render-failed="onNotationRenderFailed"
+                    @playback-failed="onPlaybackFailed"
                     @update:shows-engraving="showsEngraving = $event"
                 />
 
@@ -186,6 +187,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Church, Music } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
+import { toast } from 'vue-sonner';
 
 import { neighboursIn, useNavigationContextStore } from '@/stores/navigationContext';
 import { usePreferencesStore } from '@/stores/preferences';
@@ -227,11 +229,31 @@ const { songs, isLoading } = storeToRefs(songsStore);
 const preferencesStore = usePreferencesStore();
 const { pageScale, xmlSettings, keepScreenAwake, exactTempo } = storeToRefs(preferencesStore);
 
-const { getFileUrl } = useStoredFiles();
+const { getFileUrl, releaseFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
 const melodyImageUrl = ref<string | null>(null);
 const imageLoading = ref(false);
 const melodyXmlBlob = ref<Blob | null>(null);
+
+/**
+ * Put the Notenbild's blob URL up, and let the one it replaces go.
+ *
+ * Every song opened mints one, and a reader walks through a great many in a
+ * sitting. Un-revoked they each hold their engraving in memory for as long as
+ * the tab lives, which is the arithmetic that ends in a reload mid-service.
+ *
+ * The outgoing URL is only ever released here and on unmount, and it is never
+ * the one just assigned — an <img> already showing it would go blank.
+ */
+function setMelodyImageUrl(next: string | null) {
+    const previous = melodyImageUrl.value;
+    melodyImageUrl.value = next;
+    if (previous && previous !== next) releaseFileUrl(previous);
+}
+
+// Leaving the page is the last chance: this route is not kept alive, so after
+// this nothing holds the URL and nothing can revoke it.
+onBeforeUnmount(() => setMelodyImageUrl(null));
 
 // Notation lifecycle: distinguishes a missing blob (offline vs. fetch error)
 // from a failed render — each shows its own notice.
@@ -379,6 +401,16 @@ function onNotationRendered(info: { lyricsDrawn: boolean }) {
     notationLyricsDrawn.value = info.lyricsDrawn;
 }
 
+// The engine could not be built, or refused to start. Said as a toast rather
+// than in the page: the notation is fine and still readable, and only the
+// sound is missing — a notice in the column would push the hymn down the
+// screen to report something the reader can carry on without.
+function onPlaybackFailed() {
+    toast.error('Wiedergabe nicht verfügbar', {
+        description: 'Die Melodie konnte nicht abgespielt werden. Bitte erneut versuchen.',
+    });
+}
+
 function onNotationRenderFailed() {
     notationState.value = 'render-failed';
     notationLyricsDrawn.value = false;
@@ -396,7 +428,7 @@ function hasRasterExtension(filename: string): boolean {
 async function loadMelodyImage() {
     const current = song.value;
     melodySvgMarkup.value = null;
-    melodyImageUrl.value = null;
+    setMelodyImageUrl(null);
     // Nothing to wait for where the song has no engraving at all — and saying
     // otherwise would put a spinner in front of the notation that IS there.
     if (!current || !hasMelodyImage.value) return;
@@ -418,7 +450,7 @@ async function loadMelodyImage() {
                 hasRasterExtension(note.filename_download),
             );
             if (imageFile) {
-                melodyImageUrl.value = await getFileUrl(imageFile.id, imageFile.filename_download);
+                setMelodyImageUrl(await getFileUrl(imageFile.id, imageFile.filename_download));
             }
         }
     } catch (err) {
