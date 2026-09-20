@@ -109,6 +109,21 @@ test.describe('the app at every size it offers', () => {
         }
     });
 
+    // The search row and the options popover hanging off it — „Titel + Text"
+    // is the longest label in the shell that looks unbreakable. Both are only
+    // on screen while searching, so the tab walk above never reaches them.
+    test('keeps the open search and its options inside the phone', async ({ page }) => {
+        await page.getByRole('button', { name: 'Suchen' }).click();
+        await expect(page.getByPlaceholder('Suchen...')).toBeVisible();
+        await settle(page);
+        await expectNoOverflow(page, 'Lieder/Suche');
+
+        await page.getByRole('button', { name: 'Suchoptionen' }).click();
+        await expect(page.getByRole('group', { name: 'Suchbereich' })).toBeVisible();
+        await settle(page);
+        await expectNoOverflow(page, 'Lieder/Suchoptionen');
+    });
+
     test('keeps every Einstellungen section inside the phone', async ({ page }) => {
         await nav(page).getByRole('link', { name: 'Einstellungen' }).click();
 
