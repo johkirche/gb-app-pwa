@@ -1,4 +1,7 @@
 import { test as base, expect } from '@playwright/test';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { hasRecording as fixtureExists, serveRecording, startRecording } from './recorder';
 
@@ -70,12 +73,38 @@ const session = {
 };
 
 export const test = base.extend<{ missingFromRecording: () => string[] }>({
-    // The dev server registers a service worker (VitePWA devOptions.enabled),
-    // and a request made *by* a service worker does not pass through route
-    // handlers — the recording would be silently bypassed and the tests would
-    // hit the real backend. Blocking it keeps every request in view. Offline
-    // behaviour is the service worker's own subject, and needs its own spec.
-    serviceWorkers: 'block',
+    /*
+     * WebKit gets a real profile directory; the others keep the default.
+     *
+     * Playwright's ordinary context is ephemeral, and WebKit will not put a
+     * Blob into IndexedDB in one — a five-byte Blob aborts the transaction with
+     * no error object, while an ArrayBuffer or a string of a megabyte goes in
+     * fine, and the 1 GB quota it advertises is fiction. Since the sync stores
+     * every notation file as a Blob, that took the whole download path out of
+     * the one engine this app most needs it on: every browser on iOS is WebKit.
+     *
+     * With a profile on disk the same WebKit reports 20 GB and stores Blobs
+     * without complaint, so the coverage comes back rather than being skipped.
+     * (The matching real-world case is Safari's Private Browsing, where storage
+     * is not disk-backed either — worth remembering if a reader ever reports a
+     * download that will not finish.)
+     */
+    context: async ({ playwright, browserName, browser }, use) => {
+        if (browserName !== 'webkit') {
+            const ctx = await browser.newContext({ serviceWorkers: 'block' });
+            await use(ctx);
+            await ctx.close();
+            return;
+        }
+
+        const profile = mkdtempSync(join(tmpdir(), 'gb-e2e-webkit-'));
+        const ctx = await playwright.webkit.launchPersistentContext(profile, {
+            serviceWorkers: 'block',
+        });
+        await use(ctx);
+        await ctx.close();
+        rmSync(profile, { recursive: true, force: true });
+    },
 
     // `auto` because nothing else references it: a fixture no test names is a
     // fixture that never runs, and this one *is* the backend.
