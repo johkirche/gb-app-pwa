@@ -1,0 +1,17 @@
+/* The four highlight colours, shared by the text that wears them and the
+   swatches that choose them. Each is a pen colour washed into the page, so
+   the words on it keep their own colour and contrast: a light wash on the
+   light page, a deeper hue but a thinner wash on the dark one. */
+:root {
+    --bibel-mark-gelb: color-mix(in srgb, #f2cf5b 50%, var(--background));
+    --bibel-mark-gruen: color-mix(in srgb, #93d08c 50%, var(--background));
+    --bibel-mark-blau: color-mix(in srgb, #8fbdea 50%, var(--background));
+    --bibel-mark-rosa: color-mix(in srgb, #f0a3c1 50%, var(--background));
+}
+
+.dark {
+    --bibel-mark-gelb: color-mix(in srgb, #d8b03c 32%, var(--background));
+    --bibel-mark-gruen: color-mix(in srgb, #5fae6a 32%, var(--background));
+    --bibel-mark-blau: color-mix(in srgb, #5b8fd0 34%, var(--background));
+    --bibel-mark-rosa: color-mix(in srgb, #c96a92 34%, var(--background));
+}

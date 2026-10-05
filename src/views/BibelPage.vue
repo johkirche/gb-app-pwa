@@ -82,6 +82,8 @@
                     </ul>
                 </section>
 
+                <BibelVerseEntries />
+
                 <!-- The canon as the book orders it: two Testaments, each in
                      its traditional groups. A book opens to its chapters in
                      place; a one-chapter book is opened straight away. -->
@@ -158,6 +160,7 @@ import { useLesezeichenStore } from '@/stores/lesezeichen';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
+import BibelVerseEntries from '@/components/bibel/BibelVerseEntries.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 

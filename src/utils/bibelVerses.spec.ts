@@ -7,6 +7,7 @@ import {
     noteParts,
     toggleVerse,
     verseEnds,
+    verseEntries,
     verseListLabel,
     versesRefLabel,
 } from './bibelVerses';
@@ -84,10 +85,41 @@ describe('verseEnds', () => {
     });
 });
 
+describe('verseEntries', () => {
+    const at = (day: number) => new Date(`2026-10-0${day}`);
+    const where = (verse: number) => ({
+        id: `psalm/23/${verse}`,
+        slug: 'psalm',
+        chapter: 23,
+        verse,
+    });
+
+    it('joins a verse marked and written on into one entry, newest first', () => {
+        const entries = verseEntries(
+            [
+                { ...where(1), color: 'gelb', createdAt: at(1) },
+                { ...where(4), color: 'blau', createdAt: at(3) },
+            ],
+            [{ ...where(1), text: 'Taufspruch', updatedAt: at(5) }],
+        );
+
+        expect(entries).toEqual([
+            { ...where(1), color: 'gelb', note: 'Taufspruch', at: at(5) },
+            { ...where(4), color: 'blau', at: at(3) },
+        ]);
+    });
+});
+
 describe('noteParts', () => {
     it('cuts the references out of a footnote', () => {
         const parts = noteParts('vgl. Ps 130,8; Jes 7,14.');
-        expect(parts.map((part) => part.text)).toEqual(['vgl. ', 'Ps 130,8', '; ', 'Jes 7,14', '.']);
+        expect(parts.map((part) => part.text)).toEqual([
+            'vgl. ',
+            'Ps 130,8',
+            '; ',
+            'Jes 7,14',
+            '.',
+        ]);
         expect(parts[1].ref).toEqual({ slug: 'psalm', chapter: 130, verse: 8 });
         expect(parts[3].ref).toMatchObject({ slug: 'jesaja', chapter: 7, verse: 14 });
     });

@@ -1,3 +1,4 @@
+import type { Markierung, MarkierungsFarbe, Notiz } from '@/db';
 import { BIBEL_TRANSLATION, type ChapterRef, findBook } from '@/utils/bibel';
 import { type LaidBlock, verseText } from '@/utils/bibelLayout';
 import { type ParsedBibelRef, findReferences } from '@/utils/bibelRef';
@@ -77,6 +78,50 @@ export function verseEnds(laid: LaidBlock[]): Map<string, number> {
         );
     });
     return new Map([...last].map(([verse, key]) => [key, verse]));
+}
+
+/** A verse the reader has marked, written on, or both — one row in a list. */
+export interface VerseEntry {
+    id: string;
+    slug: string;
+    chapter: number;
+    verse: number;
+    color?: MarkierungsFarbe;
+    note?: string;
+    /** When the reader last did something to it. */
+    at: Date;
+}
+
+/**
+ * Highlights and notes as one list, newest first. A verse that carries both
+ * is one entry, dated by whichever was touched last.
+ */
+export function verseEntries(markierungen: Markierung[], notizen: Notiz[]): VerseEntry[] {
+    const entries = new Map<string, VerseEntry>();
+    const entry = (row: { id: string; slug: string; chapter: number; verse: number }) => {
+        let found = entries.get(row.id);
+        if (!found) {
+            const { id, slug, chapter, verse } = row;
+            found = { id, slug, chapter, verse, at: new Date(0) };
+            entries.set(row.id, found);
+        }
+        return found;
+    };
+    const later = (a: Date, b: Date | string) => {
+        const date = new Date(b);
+        return date.getTime() > a.getTime() ? date : a;
+    };
+    for (const m of markierungen) {
+        const e = entry(m);
+        e.color = m.color;
+        e.at = later(e.at, m.createdAt);
+    }
+    for (const n of notizen) {
+        const e = entry(n);
+        e.note = n.text;
+        e.at = later(e.at, n.updatedAt);
+    }
+    return [...entries.values()].sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
 export type NotePart = { text: string; ref?: ParsedBibelRef };
