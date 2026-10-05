@@ -410,6 +410,11 @@ async function load() {
     }
 
     state.value = 'loading';
+    // Opened straight from a link or a reload, the page gets here before the
+    // preferences are read: it would take the parallel view for off, and the
+    // watch below ignores the setting arriving while Menge is still loading.
+    await preferencesStore.initPromise;
+    if (slug !== here.value.slug || chapter !== here.value.chapter) return;
     // Luther is fetched alongside Menge rather than after it, so the page
     // opens once, already in columns.
     const translation = bibelParallel.value;
