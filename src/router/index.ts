@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user';
 
 import AddSongsToPlaylistPage from '../views/AddSongsToPlaylistPage.vue';
 import BibelChapterPage from '../views/BibelChapterPage.vue';
+import BibelLeseplaenePage from '../views/BibelLeseplaenePage.vue';
 import BibelPage from '../views/BibelPage.vue';
 import BibelSearchPage from '../views/BibelSearchPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
@@ -169,6 +170,14 @@ const routes: Array<RouteRecordRaw> = [
         path: '/bibel/suche',
         name: 'BibelSearch',
         component: BibelSearchPage,
+        meta: { access: 'library' },
+    },
+    // Choosing a reading plan. Before the chapter route, so `plaene` is never
+    // taken for a book.
+    {
+        path: '/bibel/plaene',
+        name: 'BibelLeseplaene',
+        component: BibelLeseplaenePage,
         meta: { access: 'library' },
     },
     // One chapter of the Bible, opened from the Bibel tab or from a passage

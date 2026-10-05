@@ -42,6 +42,7 @@
                     />
                 </article>
 
+                <BibelReadToggle v-if="state === 'ready'" v-bind="here" />
                 <!-- Turning the page: across book boundaries too, so the Bible
                      can be read straight through. -->
                 <nav
@@ -93,6 +94,7 @@ import { RouterLink, useRoute } from 'vue-router';
 import { usePreferencesStore } from '@/stores/preferences';
 
 import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
+import BibelReadToggle from '@/components/bibel/BibelReadToggle.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import BackButton from '@/components/shell/BackButton.vue';
 import { Spinner } from '@/components/ui/spinner';
