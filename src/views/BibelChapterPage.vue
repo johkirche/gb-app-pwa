@@ -80,6 +80,8 @@
                 </p>
             </div>
         </main>
+
+        <BibelVerseActions />
     </div>
 </template>
 
@@ -93,6 +95,7 @@ import { RouterLink, useRoute } from 'vue-router';
 import { usePreferencesStore } from '@/stores/preferences';
 
 import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
+import BibelVerseActions from '@/components/bibel/BibelVerseActions.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import BackButton from '@/components/shell/BackButton.vue';
 import { Spinner } from '@/components/ui/spinner';

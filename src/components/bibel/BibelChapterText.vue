@@ -1,5 +1,7 @@
 <template>
-    <div class="bibel-chapter">
+    <!-- One listener for every verse's words: a chapter like Psalm 119 has
+         thousands of runs, and each only needs to say which verse it is. -->
+    <div class="bibel-chapter" @click="onTextClick">
         <template v-for="(block, b) in laid" :key="`${slug}-${chapter}-${b}`">
             <!-- Menge's own headings, from the book's main divisions down to its
                  subsections. -->
@@ -44,40 +46,82 @@
                             @click="toggleNote(seg.key)"
                             v-text="'*'"
                         />
+                        <!-- A verse's words: tapped, they pick the verse out
+                             for the action bar. -->
                         <span
                             v-else
+                            :data-verse="seg.verse ?? undefined"
                             :class="{
                                 italic: seg.kind === 'italic',
+                                'bibel-hl': seg.verse !== null && !!colorOf(seg.verse),
+                                'bibel-selected':
+                                    seg.verse !== null && selection.isSelected(seg.verse),
                                 'bibel-marked': seg.verse !== null && seg.verse === markedVerse,
                             }"
+                            :style="highlightStyle(seg.verse)"
                             v-text="seg.text"
                         />
+                        <!-- An open footnote, its references made links. -->
                         <span
                             v-if="seg.kind === 'note' && openNotes.has(seg.key)"
                             class="bibel-note"
-                            v-text="` (${seg.text})`"
-                        />
+                        >
+                            <template v-for="(part, p) in noteParts(seg.text)" :key="p">
+                                <RouterLink
+                                    v-if="part.ref"
+                                    :to="chapterPath(part.ref, part.ref.verse)"
+                                    class="bibel-note-link"
+                                >
+                                    <span v-text="part.text" />
+                                </RouterLink>
+                                <span v-else v-text="part.text" />
+                            </template>
+                        </span>
+                        <!-- After a verse's last word: its note, if it has one. -->
+                        <button
+                            v-if="noteAt(b, l, s) !== null"
+                            type="button"
+                            class="bibel-note-icon"
+                            :aria-label="`Notiz zu Vers ${noteAt(b, l, s)}`"
+                            @click="selection.openNote(noteAt(b, l, s)!)"
+                        >
+                            <NotebookPen aria-hidden="true" />
+                        </button>
                     </template>
                 </span>
             </div>
         </template>
+
+        <BibelNoteEditor />
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
+import { NotebookPen } from 'lucide-vue-next';
+import { RouterLink } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import { useLesezeichenStore } from '@/stores/lesezeichen';
+import { useMarkierungenStore } from '@/stores/markierungen';
+import { useNotizenStore } from '@/stores/notizen';
 
-import { type Block, verseRefLabel } from '@/utils/bibel';
+import { useVerseSelection } from '@/composables/useVerseSelection';
+
+import BibelNoteEditor from '@/components/bibel/BibelNoteEditor.vue';
+
+import { type Block, chapterPath, verseRefLabel } from '@/utils/bibel';
 import { layoutChapter, snippet, verseText } from '@/utils/bibelLayout';
+import { noteParts, verseEnds } from '@/utils/bibelVerses';
+
+import './bibel-marks.css';
 
 /**
- * One chapter's text: headings, prose and poetry, footnotes, and the verse
- * numbers that set a Lesezeichen. The page around it owns loading, scrolling
- * and navigation; this owns what happens on the text itself.
+ * One chapter's text: headings, prose and poetry, footnotes, the verse
+ * numbers that set a Lesezeichen, and the words that pick a verse out for
+ * the action bar and wear its highlight and note. The page around it owns
+ * loading, scrolling and navigation; this owns what happens on the text itself.
  */
 const props = defineProps<{
     slug: string;
@@ -131,6 +175,55 @@ async function toggleLesezeichen(verse: number) {
         console.error('Error saving the Lesezeichen:', err);
         toast.error('Das Lesezeichen konnte nicht gespeichert werden.');
     }
+}
+
+// --- Picking verses out -------------------------------------------------------
+
+const selection = useVerseSelection();
+
+// Each chapter starts with nothing picked out; the action bar reads the
+// chapter and its layout from here.
+watch(
+    [() => props.slug, () => props.chapter, laid],
+    () => selection.attach({ slug: props.slug, chapter: props.chapter }, laid.value),
+    { immediate: true },
+);
+// Only if the selection is still this chapter's: the next chapter's text may
+// already have attached its own.
+onBeforeUnmount(() => {
+    if (selection.laid.value === laid.value) selection.detach();
+});
+
+function onTextClick(event: MouseEvent) {
+    const words = (event.target as Element).closest<HTMLElement>('[data-verse]');
+    if (!words) return;
+    // A long press or a drag that took hold of words is the browser's own
+    // text selection, for copying a phrase; leave it be.
+    const native = window.getSelection();
+    if (native && !native.isCollapsed && native.toString().trim()) return;
+    selection.toggle(Number(words.dataset.verse));
+}
+
+// --- Highlights and notes ---------------------------------------------------
+
+const markierungen = useMarkierungenStore();
+const notizen = useNotizenStore();
+
+function colorOf(verse: number) {
+    return markierungen.colorOf(props.slug, props.chapter, verse);
+}
+
+function highlightStyle(verse: number | null) {
+    const color = verse !== null ? colorOf(verse) : undefined;
+    return color ? { '--hl': `var(--bibel-mark-${color})` } : undefined;
+}
+
+const ends = computed(() => verseEnds(laid.value));
+
+/** The verse whose note icon follows this run, if it ends a verse with a note. */
+function noteAt(b: number, l: number, s: number): number | null {
+    const verse = ends.value.get(`${b}.${l}.${s}`);
+    return verse !== undefined && notizen.has(props.slug, props.chapter, verse) ? verse : null;
 }
 </script>
 
@@ -224,10 +317,67 @@ async function toggleLesezeichen(verse: number) {
     font-size: 0.85em;
     font-style: italic;
 }
+.bibel-note::before {
+    content: ' (';
+}
+.bibel-note::after {
+    content: ')';
+}
+.bibel-note-link {
+    color: var(--primary);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--primary) 40%, transparent);
+    text-underline-offset: 0.2em;
+}
+
+/* The words of a verse are what the reader taps to pick it out. No grey
+   flash on touch: the dotted line below is the answer. */
+[data-verse] {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* A highlight: the reader's own colour, washed behind the words (see
+   bibel-marks.css). */
+.bibel-hl {
+    background: var(--hl);
+    border-radius: 0.15em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
 
 .bibel-marked {
     background: color-mix(in srgb, var(--gold) 18%, transparent);
     border-radius: 0.15em;
     box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+/* Picked out for the action bar: a dotted line under the words, so it never
+   reads as a highlight or the linked verse's wash — and still shows on top of
+   either. */
+.bibel-selected {
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--primary);
+    text-decoration-thickness: 0.12em;
+    text-underline-offset: 0.28em;
+}
+
+/* A verse's note, after its last word. Sized with the text so it scales with
+   the reading size. */
+.bibel-note-icon {
+    display: inline-flex;
+    margin-left: 0.2em;
+    padding: 0.1em;
+    color: var(--gold);
+    vertical-align: -0.1em;
+    border-radius: 0.3em;
+}
+.bibel-note-icon:hover {
+    background: var(--muted);
+}
+.bibel-note-icon :deep(svg) {
+    width: 0.9em;
+    height: 0.9em;
 }
 </style>
