@@ -163,9 +163,6 @@ const routes: Array<RouteRecordRaw> = [
         path: '/songs',
         redirect: '/tabs/lieder',
     },
-    // One chapter of the Bible, opened from the Bibel tab or from a passage
-    // under a song (?vers= scrolls to the verse). The text is public domain and
-    // ships with the app, so it needs nothing a library route does not.
     // Search over the whole text, and "Gehe zu" for a typed reference. Before
     // the chapter route so the two never compete, whatever its pattern.
     {
@@ -174,6 +171,9 @@ const routes: Array<RouteRecordRaw> = [
         component: BibelSearchPage,
         meta: { access: 'library' },
     },
+    // One chapter of the Bible, opened from the Bibel tab or from a passage
+    // under a song (?vers= scrolls to the verse). The text is public domain and
+    // ships with the app, so it needs nothing a library route does not.
     {
         path: '/bibel/:buch/:kapitel',
         name: 'BibelChapter',
