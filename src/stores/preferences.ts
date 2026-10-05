@@ -1,8 +1,14 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type ServiceTabMode, type XmlDisplaySettings, db } from '@/db';
+import {
+    type BibelDisplaySettings,
+    type PreferencesData,
+    type ServiceTabMode,
+    type XmlDisplaySettings,
+    db,
+} from '@/db';
 
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
@@ -14,8 +20,40 @@ const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showPlayhead: true,
 };
 
+// The Bible as Menge set it: headings, numbers, notes behind a marker, and
+// prose verses running on as paragraphs.
+export const DEFAULT_BIBEL_DISPLAY: BibelDisplaySettings = {
+    showHeadings: true,
+    showVerseNumbers: true,
+    notesInline: false,
+    versePerLine: false,
+};
+
 const MIN_PAGE_SCALE = 0.5;
 const MAX_PAGE_SCALE = 2.0;
+
+function clampScale(scale: number): number {
+    return Math.max(MIN_PAGE_SCALE, Math.min(MAX_PAGE_SCALE, scale));
+}
+
+/**
+ * The Bible's display settings from a stored record: the defaults under
+ * whatever was stored, and only the switches that are switches — a record
+ * from a later version must not smuggle anything else into the page.
+ */
+export function readBibelDisplay(stored: PreferencesData['bibelDisplay']): BibelDisplaySettings {
+    const settings = { ...DEFAULT_BIBEL_DISPLAY };
+    for (const key of Object.keys(settings) as (keyof BibelDisplaySettings)[]) {
+        const value = stored?.[key];
+        if (typeof value === 'boolean') settings[key] = value;
+    }
+    return settings;
+}
+
+/** The Bible's own size from a stored record, or null while it has none. */
+export function readBibelScale(stored: PreferencesData['bibelScale']): number | null {
+    return typeof stored === 'number' && Number.isFinite(stored) ? clampScale(stored) : null;
+}
 
 /** What the retired Textgröße steps were worth, as factors of the default. */
 const LEGACY_TEXT_SIZE_SCALE = {
@@ -66,6 +104,11 @@ export const usePreferencesStore = defineStore('preferences', () => {
     const showBibelstellen = ref(false);
     // Off by default: a hymnal first. Whoever wants the Bible to hand turns it on.
     const showBibel = ref(false);
+    // Null until the reader sizes the Bible on its own: until then it follows
+    // the song page, so whoever enlarged the hymns finds the Bible enlarged.
+    const ownBibelScale = ref<number | null>(null);
+    const bibelScale = computed(() => ownBibelScale.value ?? pageScale.value);
+    const bibelDisplay = ref<BibelDisplaySettings>({ ...DEFAULT_BIBEL_DISPLAY });
     const isLoading = ref(false);
 
     // Actions
@@ -85,6 +128,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 exactTempo.value = prefs.exactTempo ?? false;
                 showBibelstellen.value = prefs.showBibelstellen ?? false;
                 showBibel.value = prefs.showBibel ?? false;
+                ownBibelScale.value = readBibelScale(prefs.bibelScale);
+                bibelDisplay.value = readBibelDisplay(prefs.bibelDisplay);
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -107,6 +152,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
             exactTempo: exactTempo.value,
             showBibelstellen: showBibelstellen.value,
             showBibel: showBibel.value,
+            bibelScale: ownBibelScale.value ?? undefined,
+            bibelDisplay: { ...bibelDisplay.value },
         });
     }
 
@@ -203,6 +250,29 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setBibelScale(scale: number) {
+        try {
+            ownBibelScale.value = clampScale(scale);
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bible size:', err);
+            throw err;
+        }
+    }
+
+    async function setBibelDisplay<K extends keyof BibelDisplaySettings>(
+        key: K,
+        value: BibelDisplaySettings[K],
+    ) {
+        try {
+            bibelDisplay.value = { ...bibelDisplay.value, [key]: value };
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bible display setting:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -217,6 +287,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         exactTempo.value = false;
         showBibelstellen.value = false;
         showBibel.value = false;
+        ownBibelScale.value = null;
+        bibelDisplay.value = { ...DEFAULT_BIBEL_DISPLAY };
     }
 
     // Initialize store on creation
@@ -233,6 +305,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         exactTempo,
         showBibelstellen,
         showBibel,
+        bibelScale,
+        bibelDisplay,
         isLoading,
 
         // Actions
@@ -246,6 +320,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setExactTempo,
         setShowBibelstellen,
         setShowBibel,
+        setBibelScale,
+        setBibelDisplay,
         resetToDefaults,
 
         // Initialization promise

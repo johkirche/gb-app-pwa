@@ -130,6 +130,18 @@ export interface XmlDisplaySettings {
     showPlayhead: boolean;
 }
 
+/** How the Bible's chapter page sets its text. */
+export interface BibelDisplaySettings {
+    /** Menge's section headings between the paragraphs */
+    showHeadings: boolean;
+    /** The verse numbers in the text */
+    showVerseNumbers: boolean;
+    /** Every footnote open in the line, instead of a marker to tap */
+    notesInline: boolean;
+    /** Each prose verse on a line of its own, instead of running paragraphs */
+    versePerLine: boolean;
+}
+
 /**
  * When the Gottesdienst tab is offered: 'auto' only while songs are marked for
  * one, 'always' pinned in the tab bar.
@@ -190,6 +202,14 @@ export interface PreferencesData {
     showBibelstellen?: boolean;
     /** Offer the Bibel tab (the Menge-Bibel, to read through). Off by default. */
     showBibel?: boolean;
+    /**
+     * The Bible's own reading size (0.5–2.0). Left out until the reader sets
+     * it, and until then the chapter page follows pageScale: whoever enlarged
+     * the hymns wants the Bible larger too, until they say otherwise.
+     */
+    bibelScale?: number;
+    /** How the chapter page sets the text. The store supplies the defaults. */
+    bibelDisplay?: Partial<BibelDisplaySettings>;
 }
 
 // Favorites: id == song id

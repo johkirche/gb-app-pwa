@@ -39,7 +39,7 @@
                             v-else-if="seg.kind === 'note'"
                             type="button"
                             class="bibel-note-mark"
-                            :aria-expanded="openNotes.has(seg.key)"
+                            :aria-expanded="allNotesOpen || openNotes.has(seg.key)"
                             aria-label="Anmerkung"
                             @click="toggleNote(seg.key)"
                             v-text="'*'"
@@ -53,7 +53,7 @@
                             v-text="seg.text"
                         />
                         <span
-                            v-if="seg.kind === 'note' && openNotes.has(seg.key)"
+                            v-if="seg.kind === 'note' && (allNotesOpen || openNotes.has(seg.key))"
                             class="bibel-note"
                             v-text="` (${seg.text})`"
                         />
@@ -85,6 +85,8 @@ const props = defineProps<{
     blocks: Block[];
     /** A verse to mark as pointed at (a link's ?vers=). */
     markedVerse?: number | null;
+    /** Show every footnote open in the line (the reader's Anmerkungen setting). */
+    allNotesOpen?: boolean;
 }>();
 
 const laid = computed(() => layoutChapter(props.blocks));

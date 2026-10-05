@@ -63,7 +63,7 @@
                         Bildschirm anlassen
                     </Label>
                     <p class="text-sm text-muted-foreground">
-                        Die Liedseite bleibt hell, solange sie offen ist
+                        Liedseite und Bibeltext bleiben hell, solange sie offen sind
                     </p>
                 </div>
             </div>
@@ -91,6 +91,32 @@
                 :model-value="showBibel"
                 @update:model-value="preferencesStore.setShowBibel($event)"
             />
+        </div>
+
+        <!-- The Bible's own size, offered once the Bible is. Until it is moved
+             it follows Größe (Lieder), so the percentage shown is that one. -->
+        <div v-if="showBibel" class="px-2 py-3">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <Type class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <p class="text-[15px]">Größe (Bibel)</p>
+                </div>
+                <span class="number-display text-lg leading-none">
+                    {{ Math.round(preferencesStore.bibelScale * 100) }}%
+                </span>
+            </div>
+            <div class="mt-4 flex items-center gap-3">
+                <span class="shrink-0 text-xs text-muted-foreground">50%</span>
+                <Slider
+                    v-model="bibelScaleSlider"
+                    :min="0.5"
+                    :max="2"
+                    :step="0.1"
+                    aria-label="Größe (Bibel)"
+                    class="flex-1"
+                />
+                <span class="shrink-0 text-xs text-muted-foreground">200%</span>
+            </div>
         </div>
 
         <!-- Off by default: the references were assigned by a language model
@@ -154,6 +180,16 @@ const pageScaleSlider = computed<number[] | undefined>({
         const scale = value?.[0];
         if (typeof scale === 'number') {
             preferencesStore.setPageScale(scale);
+        }
+    },
+});
+
+const bibelScaleSlider = computed<number[] | undefined>({
+    get: () => [preferencesStore.bibelScale],
+    set: (value) => {
+        const scale = value?.[0];
+        if (typeof scale === 'number') {
+            preferencesStore.setBibelScale(scale);
         }
     },
 });
