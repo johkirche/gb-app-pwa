@@ -23,7 +23,12 @@ to is kept with the songs themselves, behind the login (Directus).
 
 Usage:
     git clone --depth 1 https://github.com/renehamburger/Menge-Bibel
-    python scripts/build-bibel.py <Menge-Bibel dir> <ai_text_bible_check.json>
+    python scripts/build-bibel.py <Menge-Bibel dir> <ai_text_bible_check.json> \
+        [<ai_text_bible_check_verified.json>]
+
+The optional third file is the reviewed verdict on every carried reference
+(gb-scripts, git-ignored there because it quotes the songs). Only its verdicts
+are read: a reference it removed is left out here too.
 """
 
 from __future__ import annotations
@@ -262,8 +267,20 @@ def title_key(title: str) -> str:
     return re.sub(r"[^\wäöüß]+", " ", title).strip()
 
 
-def build_stellen(check_path: Path, texts: dict, slugs: dict) -> None:
+def removed_refs(verified_path: Path | None) -> set[tuple[str, str]]:
+    """(text_id, reference) for every reference the review removed."""
+    if not verified_path:
+        return set()
+    rows = json.loads(verified_path.read_text(encoding="utf-8"))
+    return {(str(r["text_id"]), nfc(r["ref"])) for r in rows if r.get("verdict") == "remove"}
+
+
+def build_stellen(
+    check_path: Path, texts: dict, slugs: dict, verified_path: Path | None = None
+) -> None:
     songs = json.loads(check_path.read_text(encoding="utf-8"))
+    removed = removed_refs(verified_path)
+    dropped = 0
     by_text: dict[str, list] = {}
     titles: dict[str, list[str]] = {}
     missing = 0
@@ -275,6 +292,9 @@ def build_stellen(check_path: Path, texts: dict, slugs: dict) -> None:
                 continue
             label = nfc(parsed["canonical"])
             book = nfc(parsed["book"])
+            if (str(song["text_id"]), label) in removed:
+                dropped += 1
+                continue
             if label in seen or book not in texts:
                 missing += label not in seen
                 continue
@@ -310,6 +330,8 @@ def build_stellen(check_path: Path, texts: dict, slugs: dict) -> None:
     print(f"{count} song passages for {len(by_text)} texts → {STELLEN_OUT.name}")
     if missing:
         print(f"  {missing} references had no verses in the text and were left out")
+    if verified_path:
+        print(f"  {dropped} references left out as removed in the review")
 
 
 # ----------------------------------------------------------------------- main
@@ -317,6 +339,7 @@ def build_stellen(check_path: Path, texts: dict, slugs: dict) -> None:
 
 def main() -> None:
     source, check_path = Path(sys.argv[1]) / "Bibel", Path(sys.argv[2])
+    verified_path = Path(sys.argv[3]) if len(sys.argv) > 3 else None
     BOOKS_OUT.mkdir(parents=True, exist_ok=True)
     INDEX_OUT.parent.mkdir(parents=True, exist_ok=True)
 
@@ -357,7 +380,7 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"{len(index)} books → {BOOKS_OUT} ({total // 1024} KB)")
-    build_stellen(check_path, texts, slugs)
+    build_stellen(check_path, texts, slugs, verified_path)
 
 
 if __name__ == "__main__":
