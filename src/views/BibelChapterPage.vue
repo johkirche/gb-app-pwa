@@ -189,6 +189,7 @@
                 </Button>
             </div>
         </div>
+        <BibelVerseActions />
     </div>
 </template>
 
@@ -218,6 +219,7 @@ import BibelChapterPicker from '@/components/bibel/BibelChapterPicker.vue';
 import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
 import BibelMenuPopover from '@/components/bibel/BibelMenuPopover.vue';
 import BibelReadToggle from '@/components/bibel/BibelReadToggle.vue';
+import BibelVerseActions from '@/components/bibel/BibelVerseActions.vue';
 import { readAloudQueue, swipeTurn, verseAtTop } from '@/components/bibel/bibelReader';
 import { useVorlesen } from '@/components/bibel/useVorlesen';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
