@@ -4,6 +4,7 @@ import { defineStore } from 'pinia';
 
 import {
     type BibelDisplaySettings,
+    type BibelParallel,
     type PreferencesData,
     type ServiceTabMode,
     type XmlDisplaySettings,
@@ -53,6 +54,11 @@ export function readBibelDisplay(stored: PreferencesData['bibelDisplay']): Bibel
 /** The Bible's own size from a stored record, or null while it has none. */
 export function readBibelScale(stored: PreferencesData['bibelScale']): number | null {
     return typeof stored === 'number' && Number.isFinite(stored) ? clampScale(stored) : null;
+}
+
+/** The translation beside Menge from a stored record: only one the app has, else none. */
+export function readBibelParallel(stored: PreferencesData['bibelParallel']): BibelParallel {
+    return stored === 'luther1912' ? stored : null;
 }
 
 /** What the retired Textgröße steps were worth, as factors of the default. */
@@ -109,6 +115,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
     const ownBibelScale = ref<number | null>(null);
     const bibelScale = computed(() => ownBibelScale.value ?? pageScale.value);
     const bibelDisplay = ref<BibelDisplaySettings>({ ...DEFAULT_BIBEL_DISPLAY });
+    // Off by default: Menge alone is the Bible as the app reads it.
+    const bibelParallel = ref<BibelParallel>(null);
     const isLoading = ref(false);
 
     // Actions
@@ -130,6 +138,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 showBibel.value = prefs.showBibel ?? false;
                 ownBibelScale.value = readBibelScale(prefs.bibelScale);
                 bibelDisplay.value = readBibelDisplay(prefs.bibelDisplay);
+                bibelParallel.value = readBibelParallel(prefs.bibelParallel);
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -154,6 +163,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             showBibel: showBibel.value,
             bibelScale: ownBibelScale.value ?? undefined,
             bibelDisplay: { ...bibelDisplay.value },
+            bibelParallel: bibelParallel.value,
         });
     }
 
@@ -273,6 +283,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setBibelParallel(translation: BibelParallel) {
+        try {
+            bibelParallel.value = translation;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the parallel translation:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -289,6 +309,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         showBibel.value = false;
         ownBibelScale.value = null;
         bibelDisplay.value = { ...DEFAULT_BIBEL_DISPLAY };
+        bibelParallel.value = null;
     }
 
     // Initialize store on creation
@@ -307,6 +328,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         showBibel,
         bibelScale,
         bibelDisplay,
+        bibelParallel,
         isLoading,
 
         // Actions
@@ -322,6 +344,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setShowBibel,
         setBibelScale,
         setBibelDisplay,
+        setBibelParallel,
         resetToDefaults,
 
         // Initialization promise

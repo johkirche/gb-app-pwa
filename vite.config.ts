@@ -137,6 +137,20 @@ export default defineConfig({
                         },
                     },
                     {
+                        // The Lutherbibel set beside Menge: kept once read like
+                        // Menge's books, but in a cache of its own. Sharing
+                        // bibel-cache would let Luther's books push Menge's out
+                        // of its 80 entries — including a Bible the reader
+                        // downloaded on purpose (src/utils/bibelOffline.ts).
+                        // Listed first: the first matching route wins.
+                        urlPattern: /\/bibeltext\/luther1912\/.*\.json$/i,
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'bibel-luther-cache',
+                            expiration: { maxEntries: 80 },
+                        },
+                    },
+                    {
                         // The Bible (public/bibeltext): one file per book, kept
                         // once read so the books a reader has opened work offline.
                         // Not precached — ~6 MB nobody who leaves the Bibel

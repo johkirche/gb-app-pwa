@@ -1,4 +1,4 @@
-import { BIBEL_BOOKS, type Block } from '@/utils/bibel';
+import { BIBEL_BOOKS, type Block, bookUrl } from '@/utils/bibel';
 
 /**
  * The whole Bible on the device, on request.
@@ -19,8 +19,9 @@ export const BIBEL_CACHE = 'bibel-cache';
 /** What the 66 files weigh on the wire (gzipped), as the reader is told. */
 export const BIBEL_DOWNLOAD_SIZE = '1,5 MB';
 
+/** Menge only: the Lutherbibel beside it is a reading aid, not kept for offline. */
 export function bookFileUrl(slug: string): string {
-    return `/bibeltext/menge/${slug}.json`;
+    return bookUrl(slug, 'menge');
 }
 
 // Workbox stores entries under the absolute request URL; match and put both
