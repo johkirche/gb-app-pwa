@@ -1,6 +1,12 @@
 <template>
     <div class="relative flex h-full flex-col bg-background">
-        <AppPageHeader title="Bibel" />
+        <AppPageHeader title="Bibel">
+            <template #trailing>
+                <Button variant="ghost" size="icon" aria-label="Bibel durchsuchen" as-child>
+                    <RouterLink to="/bibel/suche"><Search aria-hidden="true" /></RouterLink>
+                </Button>
+            </template>
+        </AppPageHeader>
 
         <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div class="page-col pb-24">
@@ -139,6 +145,8 @@
                     </template>
                 </section>
 
+                <BibelOfflineStatus class="mt-8" />
+
                 <p class="mt-8 px-2 text-xs text-muted-foreground">
                     {{ BIBEL_TRANSLATION }}, gemeinfrei. Einmal gelesene Bücher bleiben auch offline
                     verfügbar.
@@ -151,13 +159,14 @@
 <script setup lang="ts">
 import { onActivated, ref } from 'vue';
 
-import { BookOpen, Bookmark, ChevronRight, X } from 'lucide-vue-next';
+import { BookOpen, Bookmark, ChevronRight, Search, X } from 'lucide-vue-next';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
+import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 

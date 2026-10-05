@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores/user';
 import AddSongsToPlaylistPage from '../views/AddSongsToPlaylistPage.vue';
 import BibelChapterPage from '../views/BibelChapterPage.vue';
 import BibelPage from '../views/BibelPage.vue';
+import BibelSearchPage from '../views/BibelSearchPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
 import DatenschutzPage from '../views/DatenschutzPage.vue';
 import DownloadPage from '../views/DownloadPage.vue';
@@ -165,6 +166,14 @@ const routes: Array<RouteRecordRaw> = [
     // One chapter of the Bible, opened from the Bibel tab or from a passage
     // under a song (?vers= scrolls to the verse). The text is public domain and
     // ships with the app, so it needs nothing a library route does not.
+    // Search over the whole text, and "Gehe zu" for a typed reference. Before
+    // the chapter route so the two never compete, whatever its pattern.
+    {
+        path: '/bibel/suche',
+        name: 'BibelSearch',
+        component: BibelSearchPage,
+        meta: { access: 'library' },
+    },
     {
         path: '/bibel/:buch/:kapitel',
         name: 'BibelChapter',
