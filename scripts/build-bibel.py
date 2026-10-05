@@ -61,7 +61,8 @@ NT_GROUPS = [(5, "Geschichtsbücher"), (26, "Briefe"), (27, "Offenbarung")]
 
 FILE_NAME = re.compile(r"^(\d+) - (.+)\.md$")
 CHAPTER = re.compile(r"^__(\d+)__$")
-HEADING = re.compile(r"^(#{1,4}) (.+)$")
+# Menge's outline runs five levels deep ("##### aa) Jakob am Brunnen …").
+HEADING = re.compile(r"^(#{1,5}) (.+)$")
 INLINE = re.compile(
     r"<sup>(\d+)</sup>"  # verse number
     r"|<sup title=\"([^\"]*)\">[^<]*</sup>"  # footnote
@@ -161,7 +162,9 @@ def parse_book(path: Path) -> tuple[str, list[list[dict]]]:
             if level == 1 and not title:
                 title = clean(m.group(2)).strip()
             else:
-                pending.append({"h": max(level, 2), "t": clean(m.group(2)).strip()})
+                # The fifth level is set like the fourth: the reader styles
+                # h2–h4, and on a phone a further step would not read as one.
+                pending.append({"h": min(max(level, 2), 4), "t": clean(m.group(2)).strip()})
             continue
         if m := CHAPTER.match(line):
             # The source repeats a marker once (Daniel 11); that is no new chapter.
