@@ -7,6 +7,7 @@ import {
     daysFromToday,
     endOfDay,
     formatExpiryHint,
+    formatSelectionCount,
     formatServiceDate,
     fromIsoDate,
     isPlanExpired,
@@ -108,6 +109,24 @@ describe('createPlan', () => {
     });
 });
 
+describe('createPlan with Lesungen', () => {
+    it('takes the readings a draft brings, as plain copies', () => {
+        const lesung = { slug: 'roemer', chapter: 8, verse: 28 };
+        const plan = createPlan(
+            { title: 'Gottesdienst', entries: [], lesungen: [lesung] },
+            { now: SUNDAY_MORNING },
+        );
+
+        lesung.verse = 1;
+        expect(plan.lesungen).toEqual([{ slug: 'roemer', chapter: 8, verse: 28 }]);
+    });
+
+    it('adds no field where there are none, as plans always were', () => {
+        const plan = createPlan({ title: 'Gottesdienst', entries: [] }, { now: SUNDAY_MORNING });
+        expect('lesungen' in plan).toBe(false);
+    });
+});
+
 describe('toPlainPlan', () => {
     it('deep-copies what Dexie has to structured-clone', () => {
         const plan: ServicePlan = createPlan(
@@ -121,6 +140,35 @@ describe('toPlainPlan', () => {
         expect(plan.entries[0].songId).toBe('a');
         expect(copy.createdAt).not.toBe(plan.createdAt);
         expect(copy.createdAt.getTime()).toBe(plan.createdAt.getTime());
+    });
+
+    it('reads a plan stored before the Lesungen existed unchanged', () => {
+        const stored: ServicePlan = {
+            id: 'p',
+            title: 'Gottesdienst',
+            date: '2026-08-23',
+            entries: [{ songId: 'a' }],
+            expiresAt: endOfDay('2026-08-23', SUNDAY_MORNING),
+            origin: null,
+            createdAt: SUNDAY_MORNING,
+            updatedAt: SUNDAY_MORNING,
+        };
+        const copy = toPlainPlan(stored);
+        expect(copy).toEqual(stored);
+        expect('lesungen' in copy).toBe(false);
+    });
+
+    it('copies the Lesungen, dropping what is no passage', () => {
+        const plan: ServicePlan = {
+            ...createPlan({ title: 'Gottesdienst', entries: [] }, { now: SUNDAY_MORNING }),
+            lesungen: [
+                { slug: 'psalm', chapter: 23 },
+                { slug: 'gibtsnicht', chapter: 1 },
+            ],
+        };
+        const copy = toPlainPlan(plan);
+        expect(copy.lesungen).toEqual([{ slug: 'psalm', chapter: 23 }]);
+        expect(copy.lesungen?.[0]).not.toBe(plan.lesungen?.[0]);
     });
 });
 
@@ -161,5 +209,21 @@ describe('formatExpiryHint', () => {
             'Wird morgen Abend automatisch entfernt.',
         );
         expect(formatExpiryHint('2026-08-30', SUNDAY_MORNING)).toContain('30.08.2026');
+    });
+});
+
+describe('formatSelectionCount', () => {
+    it('counts the songs, as it always did', () => {
+        expect(formatSelectionCount(1)).toBe('1 Lied');
+        expect(formatSelectionCount(3, 0)).toBe('3 Lieder');
+    });
+
+    it('adds the readings where there are any', () => {
+        expect(formatSelectionCount(3, 1)).toBe('3 Lieder · 1 Lesung');
+        expect(formatSelectionCount(2, 2)).toBe('2 Lieder · 2 Lesungen');
+    });
+
+    it('does not count songs a plan of readings does not have', () => {
+        expect(formatSelectionCount(0, 1)).toBe('1 Lesung');
     });
 });

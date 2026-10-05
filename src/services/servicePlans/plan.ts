@@ -1,4 +1,5 @@
 import type { ServiceEntry, ServicePlan, ServicePlanOrigin } from '@/db';
+import { toPassages } from '@/utils/bibelPassage';
 
 import type { ServicePlanDraft } from './types';
 
@@ -71,6 +72,9 @@ export function createPlan(
         entries: draft.entries.map(toPlainEntry),
         expiresAt: endOfDay(date, now),
         origin: options.origin ? { ...options.origin } : null,
+        // Only where there are any: a plan without readings stays shaped like
+        // every plan stored before the field existed.
+        ...(draft.lesungen?.length ? { lesungen: toPassages(draft.lesungen) } : {}),
         createdAt: now,
         updatedAt: now,
     };
@@ -86,6 +90,7 @@ export function toPlainPlan(plan: ServicePlan): ServicePlan {
         ...plan,
         entries: plan.entries.map(toPlainEntry),
         origin: plan.origin ? { ...plan.origin } : null,
+        ...(plan.lesungen ? { lesungen: toPassages(plan.lesungen) } : {}),
         createdAt: new Date(plan.createdAt),
         updatedAt: new Date(plan.updatedAt),
     };
@@ -123,4 +128,17 @@ export function formatExpiryHint(isoDate: string, now: Date = new Date()): strin
     if (offset <= 0) return 'Wird heute Abend automatisch entfernt.';
     if (offset === 1) return 'Wird morgen Abend automatisch entfernt.';
     return `Wird am ${formatServiceDate(isoDate, now)} am Abend automatisch entfernt.`;
+}
+
+/**
+ * What a plan holds, in words: "3 Lieder", "3 Lieder · 1 Lesung". The readings
+ * are named only where there are any, and the songs only where there are
+ * some or nothing else — a plan of one reading is "1 Lesung", not "0 Lieder".
+ */
+export function formatSelectionCount(songCount: number, lesungCount = 0): string {
+    const songs = songCount === 1 ? '1 Lied' : `${songCount} Lieder`;
+    const lesungen = lesungCount === 1 ? '1 Lesung' : `${lesungCount} Lesungen`;
+    if (lesungCount === 0) return songs;
+    if (songCount === 0) return lesungen;
+    return `${songs} · ${lesungen}`;
 }
