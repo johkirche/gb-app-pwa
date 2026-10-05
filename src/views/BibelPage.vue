@@ -23,6 +23,7 @@
                         </span>
                     </span>
                 </RouterLink>
+                <BibelHeuteLesen />
 
                 <!-- Lesezeichen, newest first. Set and taken off by tapping a
                      verse number in the text; here they can also be removed. -->
@@ -87,6 +88,7 @@
                      place; a one-chapter book is opened straight away. -->
                 <section v-for="testament in testaments" :key="testament.key" class="mt-6">
                     <h2 class="font-display text-xl font-semibold">{{ testament.label }}</h2>
+                    <BibelTestamentProgress :testament="testament.key" />
 
                     <template v-for="group in testament.groups" :key="group.label">
                         <h3 class="label-micro mb-1 mt-4 px-2 text-muted-foreground">
@@ -110,6 +112,7 @@
                                             {{ book.title }}
                                         </span>
                                     </span>
+                                    <BibelBookProgress :slug="book.slug" />
                                     <span class="shrink-0 text-sm text-muted-foreground">
                                         {{ book.chapters }} Kap.
                                     </span>
@@ -158,6 +161,9 @@ import { useLesezeichenStore } from '@/stores/lesezeichen';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
+import BibelBookProgress from '@/components/bibel/BibelBookProgress.vue';
+import BibelHeuteLesen from '@/components/bibel/BibelHeuteLesen.vue';
+import BibelTestamentProgress from '@/components/bibel/BibelTestamentProgress.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 

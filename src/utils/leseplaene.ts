@@ -203,3 +203,17 @@ export function daysCompletedBy(
     }
     return result;
 }
+
+/**
+ * The open earlier days, in words: named one by one while there are few,
+ * counted once a list of numbers would say less than the count.
+ */
+export function catchUpText(behind: readonly number[]): string {
+    if (behind.length === 0) return '';
+    if (behind.length === 1) return `Tag ${behind[0]} ist noch offen.`;
+    if (behind.length <= 3) {
+        const head = behind.slice(0, -1).join(', ');
+        return `Tag ${head} und ${behind.at(-1)} sind noch offen.`;
+    }
+    return `${behind.length} Tage sind noch offen, ab Tag ${behind[0]}.`;
+}

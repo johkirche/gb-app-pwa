@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user';
 
 import AddSongsToPlaylistPage from '../views/AddSongsToPlaylistPage.vue';
 import BibelChapterPage from '../views/BibelChapterPage.vue';
+import BibelLeseplaenePage from '../views/BibelLeseplaenePage.vue';
 import BibelPage from '../views/BibelPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
 import DatenschutzPage from '../views/DatenschutzPage.vue';
@@ -161,6 +162,14 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/songs',
         redirect: '/tabs/lieder',
+    },
+    // Choosing a reading plan. Before the chapter route, so `plaene` is never
+    // taken for a book.
+    {
+        path: '/bibel/plaene',
+        name: 'BibelLeseplaene',
+        component: BibelLeseplaenePage,
+        meta: { access: 'library' },
     },
     // One chapter of the Bible, opened from the Bibel tab or from a passage
     // under a song (?vers= scrolls to the verse). The text is public domain and

@@ -4,6 +4,7 @@ import { BIBEL_BOOKS, type ChapterRef } from '@/utils/bibel';
 import {
     LESEPLAENE,
     type LeseplanDefinition,
+    catchUpText,
     chapterCount,
     chaptersOf,
     dayNumber,
@@ -223,5 +224,15 @@ describe('daysCompletedBy', () => {
         expect(
             daysCompletedBy(psalms, { slug: 'johannes', chapter: 1 }, [], 30, () => true),
         ).toEqual([]);
+    });
+});
+
+describe('catchUpText', () => {
+    it('names a few open days, and counts many', () => {
+        expect(catchUpText([])).toBe('');
+        expect(catchUpText([9])).toBe('Tag 9 ist noch offen.');
+        expect(catchUpText([8, 9])).toBe('Tag 8 und 9 sind noch offen.');
+        expect(catchUpText([3, 8, 9])).toBe('Tag 3, 8 und 9 sind noch offen.');
+        expect(catchUpText([3, 4, 5, 6, 7])).toBe('5 Tage sind noch offen, ab Tag 3.');
     });
 });
