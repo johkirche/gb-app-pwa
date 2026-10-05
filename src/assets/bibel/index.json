@@ -1,0 +1,533 @@
+{
+ "translation": "Menge-Bibel (1939)",
+ "books": [
+  {
+   "slug": "1-mose",
+   "name": "1. Mose",
+   "title": "Das Erste Buch Mose",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 50
+  },
+  {
+   "slug": "2-mose",
+   "name": "2. Mose",
+   "title": "Das Zweite Buch Mose",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 40
+  },
+  {
+   "slug": "3-mose",
+   "name": "3. Mose",
+   "title": "Das Dritte Buch Mose",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 27
+  },
+  {
+   "slug": "4-mose",
+   "name": "4. Mose",
+   "title": "Das Vierte Buch Mose",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 36
+  },
+  {
+   "slug": "5-mose",
+   "name": "5. Mose",
+   "title": "Das Fünfte Buch Mose",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 34
+  },
+  {
+   "slug": "josua",
+   "name": "Josua",
+   "title": "Das Buch Josua",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 24
+  },
+  {
+   "slug": "richter",
+   "name": "Richter",
+   "title": "Das Buch der Richter",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 21
+  },
+  {
+   "slug": "rut",
+   "name": "Rut",
+   "title": "Das Buch Ruth",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 4
+  },
+  {
+   "slug": "1-samuel",
+   "name": "1. Samuel",
+   "title": "Das Erste Buch Samuel",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 31
+  },
+  {
+   "slug": "2-samuel",
+   "name": "2. Samuel",
+   "title": "Das Zweite Buch Samuel",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 24
+  },
+  {
+   "slug": "1-koenige",
+   "name": "1. Könige",
+   "title": "Das Erste Buch der Könige",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 22
+  },
+  {
+   "slug": "2-koenige",
+   "name": "2. Könige",
+   "title": "Das Zweite Buch der Könige",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 25
+  },
+  {
+   "slug": "1-chronik",
+   "name": "1. Chronik",
+   "title": "Erstes Buch der Chronik",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 29
+  },
+  {
+   "slug": "2-chronik",
+   "name": "2. Chronik",
+   "title": "Zweites Buch der Chronik",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 36
+  },
+  {
+   "slug": "esra",
+   "name": "Esra",
+   "title": "Das Buch Esra",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 10
+  },
+  {
+   "slug": "nehemia",
+   "name": "Nehemia",
+   "title": "Das Buch Nehemia",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 13
+  },
+  {
+   "slug": "ester",
+   "name": "Ester",
+   "title": "Das Buch Esther",
+   "testament": "AT",
+   "group": "Geschichtsbücher",
+   "chapters": 10
+  },
+  {
+   "slug": "hiob",
+   "name": "Hiob",
+   "title": "Das Buch Hiob",
+   "testament": "AT",
+   "group": "Lehrbücher",
+   "chapters": 42
+  },
+  {
+   "slug": "psalm",
+   "name": "Psalm",
+   "title": "Die Psalmen",
+   "testament": "AT",
+   "group": "Lehrbücher",
+   "chapters": 150
+  },
+  {
+   "slug": "sprueche",
+   "name": "Sprüche",
+   "title": "Die Sprüche",
+   "testament": "AT",
+   "group": "Lehrbücher",
+   "chapters": 31
+  },
+  {
+   "slug": "prediger",
+   "name": "Prediger",
+   "title": "Der Prediger",
+   "testament": "AT",
+   "group": "Lehrbücher",
+   "chapters": 12
+  },
+  {
+   "slug": "hohelied",
+   "name": "Hohelied",
+   "title": "Das Hohelied",
+   "testament": "AT",
+   "group": "Lehrbücher",
+   "chapters": 8
+  },
+  {
+   "slug": "jesaja",
+   "name": "Jesaja",
+   "title": "Der Prophet Jesaja",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 66
+  },
+  {
+   "slug": "jeremia",
+   "name": "Jeremia",
+   "title": "Der Prophet Jeremia",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 52
+  },
+  {
+   "slug": "klagelieder",
+   "name": "Klagelieder",
+   "title": "Die Klagelieder",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 5
+  },
+  {
+   "slug": "hesekiel",
+   "name": "Hesekiel",
+   "title": "Der Prophet Hesekiel (Ezechiel)",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 48
+  },
+  {
+   "slug": "daniel",
+   "name": "Daniel",
+   "title": "Der Prophet Daniel",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 12
+  },
+  {
+   "slug": "hosea",
+   "name": "Hosea",
+   "title": "Der Prophet Hosea",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 14
+  },
+  {
+   "slug": "joel",
+   "name": "Joel",
+   "title": "Der Prophet Joel",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 4
+  },
+  {
+   "slug": "amos",
+   "name": "Amos",
+   "title": "Der Prophet Amos",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 9
+  },
+  {
+   "slug": "obadja",
+   "name": "Obadja",
+   "title": "Der Prophet Obadja",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 1
+  },
+  {
+   "slug": "jona",
+   "name": "Jona",
+   "title": "Der Prophet Jona",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 4
+  },
+  {
+   "slug": "micha",
+   "name": "Micha",
+   "title": "Der Prophet Micha",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 7
+  },
+  {
+   "slug": "nahum",
+   "name": "Nahum",
+   "title": "Der Prophet Nahum",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 3
+  },
+  {
+   "slug": "habakuk",
+   "name": "Habakuk",
+   "title": "Der Prophet Habakuk",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 3
+  },
+  {
+   "slug": "zephanja",
+   "name": "Zephanja",
+   "title": "Der Prophet Zephanja",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 3
+  },
+  {
+   "slug": "haggai",
+   "name": "Haggai",
+   "title": "Der Prophet Haggai",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 2
+  },
+  {
+   "slug": "sacharja",
+   "name": "Sacharja",
+   "title": "Der Prophet Sacharja",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 14
+  },
+  {
+   "slug": "maleachi",
+   "name": "Maleachi",
+   "title": "Der Prophet Maleachi",
+   "testament": "AT",
+   "group": "Propheten",
+   "chapters": 3
+  },
+  {
+   "slug": "matthaeus",
+   "name": "Matthäus",
+   "title": "Die Heilsbotschaft nach Matthäus",
+   "testament": "NT",
+   "group": "Geschichtsbücher",
+   "chapters": 28
+  },
+  {
+   "slug": "markus",
+   "name": "Markus",
+   "title": "Die Heilsbotschaft nach Markus",
+   "testament": "NT",
+   "group": "Geschichtsbücher",
+   "chapters": 16
+  },
+  {
+   "slug": "lukas",
+   "name": "Lukas",
+   "title": "Die Heilsbotschaft nach Lukas",
+   "testament": "NT",
+   "group": "Geschichtsbücher",
+   "chapters": 24
+  },
+  {
+   "slug": "johannes",
+   "name": "Johannes",
+   "title": "Die Heilsbotschaft nach Johannes",
+   "testament": "NT",
+   "group": "Geschichtsbücher",
+   "chapters": 21
+  },
+  {
+   "slug": "apostelgeschichte",
+   "name": "Apostelgeschichte",
+   "title": "Die Apostelgeschichte",
+   "testament": "NT",
+   "group": "Geschichtsbücher",
+   "chapters": 28
+  },
+  {
+   "slug": "roemer",
+   "name": "Römer",
+   "title": "Der Brief des Apostels Paulus an die Römer",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 16
+  },
+  {
+   "slug": "1-korinther",
+   "name": "1. Korinther",
+   "title": "Der Erste Brief des Apostels Paulus an die Korinther",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 16
+  },
+  {
+   "slug": "2-korinther",
+   "name": "2. Korinther",
+   "title": "Der Zweite Brief des Apostels Paulus an die Korinther",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 13
+  },
+  {
+   "slug": "galater",
+   "name": "Galater",
+   "title": "Der Brief des Apostels Paulus an die Galater",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 6
+  },
+  {
+   "slug": "epheser",
+   "name": "Epheser",
+   "title": "Der Brief des Apostels Paulus an die Epheser",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 6
+  },
+  {
+   "slug": "philipper",
+   "name": "Philipper",
+   "title": "Der Brief des Apostels Paulus an die Philipper",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 4
+  },
+  {
+   "slug": "kolosser",
+   "name": "Kolosser",
+   "title": "Der Brief des Apostels Paulus an die Kolosser",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 4
+  },
+  {
+   "slug": "1-thessalonicher",
+   "name": "1. Thessalonicher",
+   "title": "Der Erste Brief des Apostels Paulus an die Thessaloniker",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 5
+  },
+  {
+   "slug": "2-thessalonicher",
+   "name": "2. Thessalonicher",
+   "title": "Der Zweite Brief des Apostels Paulus an die Thessaloniker",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 3
+  },
+  {
+   "slug": "1-timotheus",
+   "name": "1. Timotheus",
+   "title": "Der Erste Brief des Apostels Paulus an Timotheus",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 6
+  },
+  {
+   "slug": "2-timotheus",
+   "name": "2. Timotheus",
+   "title": "Der Zweite Brief des Apostels Paulus an Timotheus",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 4
+  },
+  {
+   "slug": "titus",
+   "name": "Titus",
+   "title": "Der Brief des Apostels Paulus an Titus",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 3
+  },
+  {
+   "slug": "philemon",
+   "name": "Philemon",
+   "title": "Der Brief des Apostels Paulus an Philemon",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 1
+  },
+  {
+   "slug": "hebraeer",
+   "name": "Hebräer",
+   "title": "Der Brief an die Hebräer",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 13
+  },
+  {
+   "slug": "jakobus",
+   "name": "Jakobus",
+   "title": "Der Brief des Jakobus",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 5
+  },
+  {
+   "slug": "1-petrus",
+   "name": "1. Petrus",
+   "title": "Der Erste Brief des Apostels Petrus",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 5
+  },
+  {
+   "slug": "2-petrus",
+   "name": "2. Petrus",
+   "title": "Der Zweite Brief des Apostels Petrus",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 3
+  },
+  {
+   "slug": "1-johannes",
+   "name": "1. Johannes",
+   "title": "Der Erste Brief des Johannes",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 5
+  },
+  {
+   "slug": "2-johannes",
+   "name": "2. Johannes",
+   "title": "Der Zweite Brief des Johannes",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 1
+  },
+  {
+   "slug": "3-johannes",
+   "name": "3. Johannes",
+   "title": "Der Dritte Brief des Johannes",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 1
+  },
+  {
+   "slug": "judas",
+   "name": "Judas",
+   "title": "Der Brief des Judas",
+   "testament": "NT",
+   "group": "Briefe",
+   "chapters": 1
+  },
+  {
+   "slug": "offenbarung",
+   "name": "Offenbarung",
+   "title": "Die Offenbarung des Johannes",
+   "testament": "NT",
+   "group": "Offenbarung",
+   "chapters": 22
+  }
+ ]
+}

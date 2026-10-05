@@ -137,6 +137,19 @@ export default defineConfig({
                         },
                     },
                     {
+                        // The Bible (public/bibeltext): one file per book, kept
+                        // once read so the books a reader has opened work offline.
+                        // Not precached — ~6 MB nobody who leaves the Bibel
+                        // switched off should download. Stale-while-revalidate
+                        // so a rebuilt text still reaches the device.
+                        urlPattern: /\/bibeltext\/.*\.json$/i,
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'bibel-cache',
+                            expiration: { maxEntries: 80 },
+                        },
+                    },
+                    {
                         // Cache fonts
                         urlPattern: /\.(?:woff|woff2|ttf|eot)$/i,
                         handler: 'CacheFirst',
