@@ -54,9 +54,11 @@ In gb-scripts: `app/32-build-bibelstellen-file.py`.
    kept in `ai_text_bible_check_verified.json` — git-ignored, as it quotes the
    songs.
 3. Script 32 builds the file from both (a local copy goes to
-   `ai_text_bible_check_bibelstellen.json`) and uploads it. With `DRY_RUN = True`
-   (the default) it only builds and reports. When the file is already in the
-   library it is replaced in place, so its id stays the same.
+   `ai_text_bible_check_bibelstellen.json`). By default it only builds and
+   reports; `--upload` puts it into Directus
+   (`PYTHONPATH=. uv run python app/32-build-bibelstellen-file.py --upload`).
+   When the file is already in the library it is replaced in place, so its id
+   stays the same.
 
 ## In the app
 
