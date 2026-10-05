@@ -24,6 +24,8 @@
                     </span>
                 </RouterLink>
 
+                <BibelVerseOfTheWeek />
+
                 <!-- Lesezeichen, newest first. Set and taken off by tapping a
                      verse number in the text; here they can also be removed. -->
                 <section class="mt-6" aria-labelledby="lesezeichen-heading">
@@ -158,6 +160,7 @@ import { useLesezeichenStore } from '@/stores/lesezeichen';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
+import BibelVerseOfTheWeek from '@/components/bibel/BibelVerseOfTheWeek.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 
