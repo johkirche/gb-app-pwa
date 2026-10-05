@@ -89,13 +89,57 @@ export function chapterPath(ref: ChapterRef, verse?: number): string {
     return `/bibel/${ref.slug}/${ref.chapter}` + (verse ? `?vers=${verse}` : '');
 }
 
+// --- Translations -------------------------------------------------------------
+
+export type BibelTranslationId = 'menge' | 'luther1912';
+
+export interface BibelTranslation {
+    id: BibelTranslationId;
+    /** As the reader is told which text they are reading: "Menge-Bibel (1939)". */
+    label: string;
+    /** For a column or a line beneath a verse, where the full name will not fit. */
+    short: string;
+    /** Where the books lie under public/: one `<slug>.json` each. */
+    path: string;
+}
+
+/**
+ * The texts the app ships. Menge is the Bible the app is built around — the
+ * book list, the headings, every mark a reader sets — and the only one read
+ * on its own. The Lutherbibel 1912 (scripts/build-luther.py) has the same
+ * books under the same slugs, to be set beside it.
+ */
+export const BIBEL_TRANSLATIONS: Record<BibelTranslationId, BibelTranslation> = {
+    menge: {
+        id: 'menge',
+        label: BIBEL_TRANSLATION,
+        short: 'Menge',
+        path: '/bibeltext/menge',
+    },
+    luther1912: {
+        id: 'luther1912',
+        label: 'Lutherbibel (1912)',
+        short: 'Luther',
+        path: '/bibeltext/luther1912',
+    },
+};
+
+/** The file a book of a translation is fetched from. */
+export function bookUrl(slug: string, translation: BibelTranslationId = 'menge'): string {
+    return `${BIBEL_TRANSLATIONS[translation].path}/${slug}.json`;
+}
+
 const books = new Map<string, Promise<Block[][]>>();
 
-/** All chapters of a book, fetched once per session. */
-export function loadBook(slug: string): Promise<Block[][]> {
-    let pending = books.get(slug);
+/** All chapters of a book, fetched once per session and translation. */
+export function loadBook(
+    slug: string,
+    translation: BibelTranslationId = 'menge',
+): Promise<Block[][]> {
+    const key = `${translation}/${slug}`;
+    let pending = books.get(key);
     if (!pending) {
-        pending = fetch(`/bibeltext/menge/${slug}.json`)
+        pending = fetch(bookUrl(slug, translation))
             .then((response) => {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return response.json() as Promise<{ chapters: Block[][] }>;
@@ -103,10 +147,10 @@ export function loadBook(slug: string): Promise<Block[][]> {
             .then((data) => data.chapters)
             .catch((error: unknown) => {
                 // Offline and never read: let the next attempt try again.
-                books.delete(slug);
+                books.delete(key);
                 throw error;
             });
-        books.set(slug, pending);
+        books.set(key, pending);
     }
     return pending;
 }
