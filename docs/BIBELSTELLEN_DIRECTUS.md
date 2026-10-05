@@ -1,75 +1,70 @@
-# Bibelstellen in Directus
+# Bibelstellen from Directus
 
-The Bible passages a song text draws on — and, where the song takes one up in a
-particular line, that line — belong with the songs: behind the login, editable
-in the dashboard, synced like everything else. This describes the collection,
-how it gets filled, and what the app changes once it exists.
+Under a song the app can show the Bible passages its text draws on — and,
+where one line of the song takes a passage up, that line. Those passages are
+not part of the app. They live in **one JSON file in the Directus file
+library**, downloaded with the songs during the sync, behind the login.
 
-Until then the app ships `src/assets/bibelstellen.json`: references, notes and
-Bible wording only, **no words of the songs** — this repository is public and
-many song texts are under copyright.
+No collection, no schema change: whether the hymnal offers Bibelstellen is
+decided by whether the file is there. Delete it in the dashboard and the next
+sync takes them off every device again.
 
-## Collection `bibelstelle`
+## The file
 
-One row per passage cited by one song text.
+- **Name:** `gesangbuch-bibelstellen.json` (`filename_download`). The app looks
+  the file up by that name (`BIBELSTELLEN_FILENAME` in
+  `src/services/bibelstellenSync.ts`); the newest upload wins.
+- **Access:** the reading role needs **read** on `directus_files` for it, as for
+  the Notenbild files. Without it the app simply shows no Bibelstellen.
+- **Shape** (read and checked by `src/utils/bibelstellen.ts`):
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `id` | integer, auto | |
-| `text` | M2O → `text` | the song text; on delete of the text: cascade |
-| `referenz` | string, required | as read, e.g. `Matthäus 21,1-11` |
-| `buch` | string, required | the app's book slug, e.g. `matthaeus` (see `src/assets/bibel/index.json`) |
-| `kapitel` | integer, required | first chapter |
-| `vers` | integer, nullable | first verse; null = whole chapter |
-| `bis_kapitel` | integer, nullable | last chapter of a range across chapters |
-| `bis_vers` | integer, nullable | last verse of a range |
-| `anmerkung` | text, nullable | what the song takes from the passage, one phrase |
-| `strophe` | integer, nullable | 1-based; set only together with `zeile` |
-| `zeile` | text, nullable | the words of the song that take the passage up, verbatim |
-| `status` | string, dropdown | `ki` (machine-assigned, unreviewed) · `geprueft` (checked) · `verworfen` (rejected, kept so it is not re-imported) |
-| `quelle` | string, nullable | e.g. `ki-qwen-2026-05 / claude-check-2026-10` |
-| `sort` | integer, nullable | order within the text |
-| `date_updated` | timestamp, system | so the app's delta sync sees edits (below) |
+  ```json
+  {
+      "version": 1,
+      "generated": "2026-10-05",
+      "byText": {
+          "<text id>": [
+              {
+                  "ref": "Matthäus 21,1-11",
+                  "note": "Einzug in Jerusalem und Palmenstreuen",
+                  "at": ["matthaeus", 21, 1],
+                  "line": { "strophe": 1, "text": "…" }
+              }
+          ]
+      },
+      "byTitle": { "<normalised title>": "<text id>" }
+  }
+  ```
 
-On `text`, add the O2M alias field `bibelstellen` (→ `bibelstelle.text`).
+  Keyed by the Directus `text` id; `byTitle` finds the songs stored before the
+  app synced that id. `at` is the book slug of `src/assets/bibel/index.json`,
+  chapter and first verse; the extent comes from `ref`. `line` is optional —
+  most passages speak to the song as a whole and have none.
 
-### Permissions
+- **No Bible wording.** The app takes it from the Bible it carries, in the
+  translation the reader chose (Menge or Luther 1912).
 
-The same as `text` for the reading role ("activated", see BACKEND_SETUP.md):
-**read**, filtered to `status` ≠ `verworfen`. No create/update/delete. Editors
-get full access in the dashboard. The public role gets nothing.
+## Making and uploading it
 
-## Filling it
+In gb-scripts: `app/32-build-bibelstellen-file.py`.
 
-gb-scripts owns the pipeline, as it does for the text reviews
-(`16-push-reviews-to-directus.py`):
+1. `14-ai-extract-metadata.py` / `17-verify-bible-references.py` assign and
+   check the references.
+2. The review of every carried reference (keep/remove, and the song line) is
+   kept in `ai_text_bible_check_verified.json` — git-ignored, as it quotes the
+   songs.
+3. Script 32 builds the file from both (a local copy goes to
+   `ai_text_bible_check_bibelstellen.json`) and uploads it. With `DRY_RUN = True`
+   (the default) it only builds and reports. When the file is already in the
+   library it is replaced in place, so its id stays the same.
 
-1. `14-ai-extract-metadata.py` and `17-verify-bible-references.py` — the
-   machine-assigned references and their automatic checks.
-2. A review pass over every reference: keep or reject, and the song line where
-   one specific line takes the passage up. Kept locally as
-   `ai_text_bible_check_verified.json` (git-ignored: it quotes the songs).
-3. A push script writes the rows with `status = ki`, skipping texts that
-   already have rows, so edits made in the dashboard are never overwritten.
-   Dry run by default.
+## In the app
 
-## In the app, once the collection exists
-
-- `SONGS_QUERY` (`src/api/songs.api.ts`) selects
-  `textId { bibelstellen { referenz buch kapitel vers bis_vers anmerkung strophe zeile } }`
-  — **only after the field exists**: an unknown field fails the whole query,
-  and with it the sync.
-- `Song` gains `bibelstellen?: …` (optional, so stored songs stay valid).
-- The delta sync must learn of them: a row added or edited in `bibelstelle`
-  does **not** move the text's `date_updated`, so the manifest query
-  (`MANIFEST_QUERY`) also selects `textId { bibelstellen { date_updated } }`
-  and `src/utils/syncDiff.ts` compares the newest of those. (Enable
-  `date_updated` on the collection for that.) Songs stored before carry no
-  such stamp and are refetched once.
-- `SongBibelstellen.vue` reads the song's own rows; the passage wording comes
-  from the Bible files the app already has (`loadBook`), not from Directus.
-  The `line` support is already in place (`Strophe 1: „…"`, grouped under
-  „Zum ganzen Lied" for the rest).
-- `src/assets/bibelstellen.json` and its build step in `scripts/build-bibel.py`
-  go; "Lieder zu diesem Kapitel" and the Vers der Woche build their reverse
-  index from the synced songs instead.
+- `syncAll` (`src/stores/songs.ts`) runs `syncBibelstellen()` after the files:
+  it asks the library for the file, downloads it when its `modified_on` moved,
+  checks the shape, and keeps it in `db.meta`. A file that is gone is removed
+  from the device; a library that cannot be asked (offline, no access) leaves
+  the device as it is. It can never fail the songs' sync.
+- `SongBibelstellen.vue`, „Lieder zu diesem Kapitel" and the Vers der Woche
+  read it through `src/utils/bibelstellen.ts`, which reloads after each sync.
+- Einstellungen → Bibel says so when no file is on the device.

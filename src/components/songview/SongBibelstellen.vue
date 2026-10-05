@@ -49,19 +49,19 @@
                 <blockquote
                     class="ml-[26px] mt-2 border-l-2 border-gold/40 pl-3 text-[15px] leading-relaxed"
                 >
-                    <template v-if="stelle.verses">
-                        <span v-for="(vers, idx) in stelle.verses" :key="idx">
+                    <template v-if="wording.get(stelle.ref)?.length">
+                        <span v-for="(vers, idx) in wording.get(stelle.ref)" :key="idx">
                             <!-- v-text, so the template's line breaks do not end
                                  up as spaces inside the verse number. -->
                             <sup
                                 class="text-[0.7em] text-muted-foreground"
-                                v-text="verseLabel(stelle.verses, idx)"
+                                v-text="verseLabel(wording.get(stelle.ref)!, idx)"
                             />
                             {{ vers[2] }}{{ ' ' }}
                         </span>
                     </template>
                     <span v-else class="italic text-muted-foreground">
-                        Zu lang, um sie hier wiederzugeben.
+                        {{ wordingNote(stelle) }}
                     </span>
                 </blockquote>
 
@@ -74,7 +74,9 @@
             </details>
         </template>
 
-        <p class="mt-3 text-xs text-muted-foreground">{{ translation }} · automatisch zugeordnet</p>
+        <p class="mt-3 text-xs text-muted-foreground">
+            {{ BIBEL_TRANSLATIONS[bibelTranslation].label }} · automatisch zugeordnet
+        </p>
     </section>
 </template>
 
@@ -82,15 +84,21 @@
 import { computed, ref, watch } from 'vue';
 
 import { ChevronRight } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 
+import { usePreferencesStore } from '@/stores/preferences';
+
 import type { Song } from '@/db';
-import { chapterPath } from '@/utils/bibel';
+import { BIBEL_TRANSLATIONS, type Block, chapterPath, loadBook } from '@/utils/bibel';
 import {
+    type BibelVers,
     type Bibelstelle,
+    bibelstellen,
     bibelstellenFor,
     groupByLine,
     loadBibelstellen,
+    stelleVerses,
     verseLabel,
 } from '@/utils/bibelstellen';
 
@@ -98,8 +106,15 @@ const props = defineProps<{
     song: Song;
 }>();
 
-const stellen = ref<Bibelstelle[]>([]);
-const translation = ref('');
+const { bibelTranslation } = storeToRefs(usePreferencesStore());
+
+// The file comes with the sync and may not be on the device at all; nothing
+// is shown then.
+loadBibelstellen().catch((err: unknown) => console.error('Error loading Bibelstellen:', err));
+
+const stellen = computed<Bibelstelle[]>(() =>
+    bibelstellen.value ? bibelstellenFor(bibelstellen.value, props.song) : [],
+);
 
 const groups = computed(() => {
     const { toLines, whole } = groupByLine(stellen.value);
@@ -110,21 +125,55 @@ const groups = computed(() => {
     ].filter((group) => group.items.length > 0);
 });
 
+// --- The wording, from the Bible on the device -------------------------------
+//
+// In the translation the reader reads. A whole chapter or a long range is
+// named, not quoted; a book the device has not got (offline, never opened)
+// says so rather than stay blank.
+
+const MAX_VERSES = 30;
+
+const wording = ref(new Map<string, BibelVers[]>());
+const unavailable = ref(new Set<string>());
+
+function wordingNote(stelle: Bibelstelle): string {
+    if (unavailable.value.has(stelle.ref)) {
+        return 'Der Bibeltext ist offline noch nicht auf dem Gerät.';
+    }
+    if (wording.value.has(stelle.ref)) return 'Zu lang, um sie hier wiederzugeben.';
+    return '…';
+}
+
 watch(
-    () => props.song,
-    async (song) => {
-        stellen.value = [];
-        try {
-            const data = await loadBibelstellen();
-            // Another song may have been opened while the data was loading.
-            if (song !== props.song) return;
-            stellen.value = bibelstellenFor(data, song);
-            translation.value = data.translation;
-        } catch (err) {
-            // A section that cannot load simply is not shown — the song is
-            // whole without it.
-            console.error('Error loading Bibelstellen:', err);
-        }
+    () => [stellen.value, bibelTranslation.value] as const,
+    async ([current, translation]) => {
+        wording.value = new Map();
+        unavailable.value = new Set();
+        const books = new Map<string, Promise<Block[][] | null>>();
+        const found = new Map<string, BibelVers[]>();
+        const missing = new Set<string>();
+        await Promise.all(
+            current.map(async (stelle) => {
+                const slug = stelle.at[0];
+                if (!books.has(slug)) {
+                    books.set(
+                        slug,
+                        loadBook(slug, translation).catch(() => null),
+                    );
+                }
+                const chapters = await books.get(slug)!;
+                if (!chapters) {
+                    missing.add(stelle.ref);
+                    return;
+                }
+                const verses = stelleVerses(stelle, chapters);
+                found.set(stelle.ref, verses.length <= MAX_VERSES ? verses : []);
+            }),
+        );
+        // Another song, or the other translation, may have been asked for meanwhile.
+        if (current !== stellen.value || translation !== bibelTranslation.value) return;
+        wording.value = found;
+        unavailable.value = missing;
     },
     { immediate: true },
 );

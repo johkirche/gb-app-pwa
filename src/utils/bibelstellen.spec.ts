@@ -1,23 +1,30 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+import type { Block } from './bibel';
 import {
     type Bibelstelle,
     type BibelstellenData,
     bibelstellenFor,
     groupByLine,
+    isBibelstellenData,
+    stelleVerses,
     titleKey,
     verseLabel,
 } from './bibelstellen';
 
+function book(translation: string, slug: string): Block[][] {
+    const path = `public/bibeltext/${translation}/${slug}.json`;
+    return (JSON.parse(readFileSync(path, 'utf-8')) as { chapters: Block[][] }).chapters;
+}
+
 const data: BibelstellenData = {
-    translation: 'Menge-Bibel (1939)',
     byText: {
         '3': [
             {
                 ref: 'Psalm 127,3',
                 note: 'Kinder als Gabe',
                 at: ['psalm', 127, 3],
-                verses: [[127, 3, 'Ja, Söhne sind ein Geschenk des HERRN …']],
             },
         ],
         '96': [{ ref: 'Matthäus 21,1-11', note: 'Einzug in Jerusalem', at: ['matthaeus', 21, 1] }],
@@ -98,5 +105,38 @@ describe('groupByLine', () => {
         ]);
         expect(toLines.map((s) => s.ref)).toEqual(['c', 'b']);
         expect(whole.map((s) => s.ref)).toEqual(['a', 'd']);
+    });
+});
+
+describe('stelleVerses', () => {
+    const psalm23: Bibelstelle = { ref: 'Psalm 23,1-2', note: '', at: ['psalm', 23, 1] };
+
+    it('reads the passage from the book, in the translation given', () => {
+        const menge = stelleVerses(psalm23, book('menge', 'psalm'));
+        expect(menge.map(([c, v]) => `${c},${v}`)).toEqual(['23,1', '23,2']);
+        expect(menge[0][2]).toContain('mein Hirt');
+
+        const luther = stelleVerses(psalm23, book('luther1912', 'psalm'));
+        expect(luther[0][2]).toContain('mein Hirte');
+    });
+
+    it('runs across chapters', () => {
+        const schoepfung: Bibelstelle = {
+            ref: '1. Mose 1,31-2,1',
+            note: '',
+            at: ['1-mose', 1, 31],
+        };
+        expect(
+            stelleVerses(schoepfung, book('menge', '1-mose')).map(([c, v]) => `${c},${v}`),
+        ).toEqual(['1,31', '2,1']);
+    });
+});
+
+describe('isBibelstellenData', () => {
+    it('takes the file as uploaded, and nothing else', () => {
+        expect(isBibelstellenData({ byText: {}, byTitle: {} })).toBe(true);
+        expect(isBibelstellenData({ byText: {} })).toBe(false);
+        expect(isBibelstellenData('<html>')).toBe(false);
+        expect(isBibelstellenData(null)).toBe(false);
     });
 });

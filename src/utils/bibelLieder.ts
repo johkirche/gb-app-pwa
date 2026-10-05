@@ -1,5 +1,14 @@
 import type { Song } from '@/db';
-import { type Bibelstelle, type BibelstellenData, bibelstellenFor } from '@/utils/bibelstellen';
+import {
+    type Bibelstelle,
+    type BibelstellenData,
+    bibelstellenFor,
+    stelleSpan,
+} from '@/utils/bibelstellen';
+
+// Where a passage runs is the passage data's to say; kept importable from here
+// for the callers that read songs per chapter.
+export { stelleSpan };
 
 /**
  * The Bibelstellen read backwards: from a chapter to the songs whose texts
@@ -19,47 +28,6 @@ export type ChapterSongIndex = Map<string, ChapterSong[]>;
 
 function chapterKey(slug: string, chapter: number): string {
     return `${slug}/${chapter}`;
-}
-
-// The chapter and verse a reference ends on: "1,1-2,3", "21,1-11", "23,4",
-// or a bare chapter. Only needed where the wording was too long to ship —
-// otherwise the verses themselves say where the passage runs.
-const REF_TAIL = /\s(\d+)(?:,(\d+)(?:-(\d+)(?:,(\d+))?)?)?$/;
-
-/**
- * Every verse a passage covers, as [chapter, first verse, last verse] runs;
- * a last verse of Infinity stands for "to the end of the chapter".
- */
-export function stelleSpan(stelle: Bibelstelle): [number, number, number][] {
-    if (stelle.verses?.length) {
-        const runs = new Map<number, [number, number, number]>();
-        for (const [chapter, verse] of stelle.verses) {
-            const run = runs.get(chapter);
-            if (run) {
-                run[1] = Math.min(run[1], verse);
-                run[2] = Math.max(run[2], verse);
-            } else runs.set(chapter, [chapter, verse, verse]);
-        }
-        return [...runs.values()];
-    }
-
-    const [, startChapter, startVerse] = stelle.at;
-    const m = REF_TAIL.exec(stelle.ref);
-    if (!m || !m[2]) return [[startChapter, 1, Infinity]];
-    if (m[4]) {
-        // Across chapters: "1. Mose 1,1-2,3".
-        const endChapter = Number(m[3]);
-        const runs: [number, number, number][] = [];
-        for (let c = startChapter; c <= endChapter; c++) {
-            runs.push([
-                c,
-                c === startChapter ? startVerse : 1,
-                c === endChapter ? Number(m[4]) : Infinity,
-            ]);
-        }
-        return runs;
-    }
-    return [[startChapter, startVerse, m[3] ? Number(m[3]) : startVerse]];
 }
 
 /** Whether the passage takes in that verse of that chapter. */

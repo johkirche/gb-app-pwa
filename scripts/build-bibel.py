@@ -9,26 +9,14 @@ which the bare verse lists of other public-domain Bibles do not carry.
 Writes:
   src/assets/bibel/index.json      the books: slug, name, title, group, chapters
   public/bibeltext/menge/<slug>.json   one file per book, fetched when opened
-  src/assets/bibelstellen.json     the passages each song text cites, with their
-                                   wording — see src/utils/bibelstellen.ts
 
-The song references come from gb-scripts (14-ai-extract-metadata.py, checked by
-17-verify-bible-references.py). Only what that check let through is carried:
-every reference it judged `ok`, and the `suspect` ones whose cited passage the
-model still confirmed.
-
-No words of the songs are written here: this file is in a public repository,
-and many song texts are under copyright. The line of a song a passage belongs
-to is kept with the songs themselves, behind the login (Directus).
+The Bible only. The passages the songs cite are not part of the app: they come
+with the songs from Directus (see src/utils/bibelstellen.ts), built and
+uploaded by gb-scripts.
 
 Usage:
     git clone --depth 1 https://github.com/renehamburger/Menge-Bibel
-    python scripts/build-bibel.py <Menge-Bibel dir> <ai_text_bible_check.json> \
-        [<ai_text_bible_check_verified.json>]
-
-The optional third file is the reviewed verdict on every carried reference
-(gb-scripts, git-ignored there because it quotes the songs). Only its verdicts
-are read: a reference it removed is left out here too.
+    python scripts/build-bibel.py <Menge-Bibel dir>
 """
 
 from __future__ import annotations
@@ -43,13 +31,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 INDEX_OUT = ROOT / "src" / "assets" / "bibel" / "index.json"
 BOOKS_OUT = ROOT / "public" / "bibeltext" / "menge"
-STELLEN_OUT = ROOT / "src" / "assets" / "bibelstellen.json"
 
 TRANSLATION = "Menge-Bibel (1939)"
-
-# A whole-chapter reference or a long range is a pointer, not a quotation: past
-# this many verses the passage is named but its wording is not carried.
-MAX_VERSES = 30
 
 # Menge names a few books differently from the names the reference parser in
 # gb-scripts (app/utils/bible_refs.py) produces; the app goes by the latter.
@@ -211,139 +194,15 @@ def parse_book(path: Path) -> tuple[str, list[list[dict]]]:
     return title, chapters
 
 
-def verse_texts(chapters: list[list[dict]]) -> dict[int, dict[int, str]]:
-    """chapter → verse → plain text, for quoting."""
-    out: dict[int, dict[int, str]] = {}
-    for c, blocks in enumerate(chapters, start=1):
-        verses: dict[int, list[str]] = {}
-        current = None
-        for block in blocks:
-            for line in block.get("p", []):
-                for seg in line["s"]:
-                    if isinstance(seg, dict) and "v" in seg:
-                        current = seg["v"]
-                        verses.setdefault(current, [])
-                    elif current is not None:
-                        if isinstance(seg, str):
-                            verses[current].append(seg)
-                        elif "e" in seg:
-                            verses[current].append(seg["e"])
-                if current is not None:
-                    verses[current].append(" ")
-        out[c] = {v: re.sub(r"\s+", " ", "".join(parts)).strip() for v, parts in verses.items()}
-    return out
-
-
-# ---------------------------------------------------------------- song quotes
-
-
-def is_carried(result: dict) -> bool:
-    if result.get("verdict") == "ok":
-        return True
-    if result.get("verdict") == "suspect":
-        llm = next((s for s in result.get("steps", []) if s["step"] == "llm"), None)
-        return bool(llm and llm["status"] == "pass")
-    return False
-
-
-def passage(chapters: dict[int, dict[int, str]], parsed: dict) -> list[list]:
-    first, last = parsed["chapter"], parsed.get("end_chapter") or parsed["chapter"]
-    start, end = parsed.get("start_verse"), parsed.get("end_verse")
-    out = []
-    for chap in range(first, last + 1):
-        for v, text in sorted(chapters.get(chap, {}).items()):
-            if start is not None and chap == first and v < start:
-                continue
-            if chap == last and start is not None:
-                limit = end if end is not None else (start if first == last else None)
-                if limit is not None and v > limit:
-                    continue
-            out.append([chap, v, text])
-    return out
-
-
-def title_key(title: str) -> str:
-    title = nfc(title).replace("­", "").lower()
-    return re.sub(r"[^\wäöüß]+", " ", title).strip()
-
-
-def removed_refs(verified_path: Path | None) -> set[tuple[str, str]]:
-    """(text_id, reference) for every reference the review removed."""
-    if not verified_path:
-        return set()
-    rows = json.loads(verified_path.read_text(encoding="utf-8"))
-    return {(str(r["text_id"]), nfc(r["ref"])) for r in rows if r.get("verdict") == "remove"}
-
-
-def build_stellen(
-    check_path: Path, texts: dict, slugs: dict, verified_path: Path | None = None
-) -> None:
-    songs = json.loads(check_path.read_text(encoding="utf-8"))
-    removed = removed_refs(verified_path)
-    dropped = 0
-    by_text: dict[str, list] = {}
-    titles: dict[str, list[str]] = {}
-    missing = 0
-    for song in songs:
-        refs, seen = [], set()
-        for r in song.get("results", []):
-            parsed = r.get("parsed")
-            if not parsed or not is_carried(r):
-                continue
-            label = nfc(parsed["canonical"])
-            book = nfc(parsed["book"])
-            if (str(song["text_id"]), label) in removed:
-                dropped += 1
-                continue
-            if label in seen or book not in texts:
-                missing += label not in seen
-                continue
-            seen.add(label)
-            verses = passage(texts[book], parsed)
-            if not verses:
-                missing += 1
-                continue
-            entry = {
-                "ref": label,
-                "note": nfc(r.get("note") or ""),
-                # Where the reader opens: the book, chapter and first verse.
-                "at": [slugs[book], verses[0][0], verses[0][1]],
-            }
-            if len(verses) <= MAX_VERSES:
-                entry["verses"] = verses
-            refs.append(entry)
-        if refs:
-            text_id = str(song["text_id"])
-            by_text[text_id] = refs
-            titles.setdefault(title_key(song.get("titel", "")), []).append(text_id)
-
-    by_title = {k: ids[0] for k, ids in titles.items() if k and len(ids) == 1}
-    STELLEN_OUT.write_text(
-        json.dumps(
-            {"translation": TRANSLATION, "byText": by_text, "byTitle": by_title},
-            ensure_ascii=False,
-            separators=(",", ":"),
-        ),
-        encoding="utf-8",
-    )
-    count = sum(len(v) for v in by_text.values())
-    print(f"{count} song passages for {len(by_text)} texts → {STELLEN_OUT.name}")
-    if missing:
-        print(f"  {missing} references had no verses in the text and were left out")
-    if verified_path:
-        print(f"  {dropped} references left out as removed in the review")
-
-
 # ----------------------------------------------------------------------- main
 
 
 def main() -> None:
-    source, check_path = Path(sys.argv[1]) / "Bibel", Path(sys.argv[2])
-    verified_path = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+    source = Path(sys.argv[1]) / "Bibel"
     BOOKS_OUT.mkdir(parents=True, exist_ok=True)
     INDEX_OUT.parent.mkdir(parents=True, exist_ok=True)
 
-    index, texts, slugs = [], {}, {}
+    index = []
     total = 0
     for testament, folder, groups in (
         ("AT", "Altes Testament", OT_GROUPS),
@@ -371,8 +230,6 @@ def main() -> None:
                     "chapters": len(chapters),
                 }
             )
-            texts[name] = verse_texts(chapters)
-            slugs[name] = slug
             total += (BOOKS_OUT / f"{slug}.json").stat().st_size
 
     INDEX_OUT.write_text(
@@ -380,7 +237,6 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"{len(index)} books → {BOOKS_OUT} ({total // 1024} KB)")
-    build_stellen(check_path, texts, slugs, verified_path)
 
 
 if __name__ == "__main__":

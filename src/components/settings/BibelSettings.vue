@@ -34,6 +34,12 @@
                         Die Stellen, auf die ein Lied anspielt. Automatisch zugeordnet, nicht
                         redaktionell geprüft
                     </p>
+                    <!-- The passages come with the sync, where the hymnal offers
+                         them at all: said so, rather than a switch that seems
+                         to do nothing. -->
+                    <p v-if="!bibelstellen" class="mt-1 text-sm text-muted-foreground">
+                        Für dieses Gesangbuch sind noch keine Bibelstellen hinterlegt.
+                    </p>
                 </div>
             </div>
             <Switch
@@ -159,8 +165,11 @@ import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import type { BibelFeatures } from '@/db';
+import { bibelstellen, loadBibelstellen } from '@/utils/bibelstellen';
 
 const preferencesStore = usePreferencesStore();
+
+loadBibelstellen().catch((err: unknown) => console.error('Error loading Bibelstellen:', err));
 
 const features: {
     key: keyof BibelFeatures;

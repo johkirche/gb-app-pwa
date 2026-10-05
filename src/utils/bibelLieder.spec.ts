@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import bibelstellen from '@/assets/bibelstellen.json';
-
 import type { Song } from '@/db';
 import {
     buildChapterSongIndex,
@@ -32,13 +30,11 @@ const PSALM_23_1: Bibelstelle = {
     ref: 'Psalm 23,1',
     note: 'Der Herr ist mein Hirte',
     at: ['psalm', 23, 1],
-    verses: [[23, 1, 'Der HERR ist mein Hirte …']],
 };
 const PSALM_23_4: Bibelstelle = {
     ref: 'Psalm 23,4',
     note: 'Im finstern Tal',
     at: ['psalm', 23, 4],
-    verses: [[23, 4, 'Und wenn ich auch wandern müßte …']],
 };
 const SCHOEPFUNG: Bibelstelle = {
     ref: '1. Mose 1,1-2,3',
@@ -52,7 +48,6 @@ const LUKAS_2: Bibelstelle = {
 };
 
 const data: BibelstellenData = {
-    translation: 'Menge-Bibel (1939)',
     byText: {
         hirte: [PSALM_23_1],
         tal: [PSALM_23_4, PSALM_23_1],
@@ -63,7 +58,7 @@ const data: BibelstellenData = {
 };
 
 describe('stelleSpan', () => {
-    it('reads the run from the verses where they were shipped', () => {
+    it('reads a single verse from its reference', () => {
         expect(stelleSpan(PSALM_23_4)).toEqual([[23, 4, 4]]);
     });
 
@@ -120,16 +115,6 @@ describe('buildChapterSongIndex', () => {
 
     it('only knows the songs on this device', () => {
         expect(buildChapterSongIndex(data, []).size).toBe(0);
-    });
-
-    it('turns the whole shipped data round without losing a passage', () => {
-        const real = bibelstellen as unknown as BibelstellenData;
-        const library = Object.keys(real.byText).map((textId, i) =>
-            song(`s${i}`, i + 1, `Lied ${i}`, textId),
-        );
-        const full = buildChapterSongIndex(real, library);
-        const cited = new Set([...full.values()].flatMap((list) => list.flatMap((e) => e.stellen)));
-        expect(cited.size).toBe(Object.values(real.byText).flat().length);
     });
 });
 
