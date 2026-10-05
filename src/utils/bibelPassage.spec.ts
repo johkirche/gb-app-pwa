@@ -4,6 +4,7 @@ import {
     passageKey,
     passageLabel,
     passagePath,
+    passagesFromVerses,
     reorderPassages,
     toPassage,
     toPassages,
@@ -96,5 +97,22 @@ describe('reorderPassages', () => {
 
     it('cannot duplicate a passage', () => {
         expect(reorderPassages([PSALM], [passageKey(PSALM), passageKey(PSALM)])).toEqual([PSALM]);
+    });
+});
+
+describe('passagesFromVerses', () => {
+    const psalm = { slug: 'psalm', chapter: 23 };
+
+    it('makes one passage of an unbroken run', () => {
+        expect(passagesFromVerses(psalm, [3, 1, 2])).toEqual([
+            { slug: 'psalm', chapter: 23, verse: 1, endVerse: 3 },
+        ]);
+    });
+
+    it('splits where the run breaks, and keeps a lone verse bare', () => {
+        expect(passagesFromVerses(psalm, [1, 2, 5])).toEqual([
+            { slug: 'psalm', chapter: 23, verse: 1, endVerse: 2 },
+            { slug: 'psalm', chapter: 23, verse: 5 },
+        ]);
     });
 });

@@ -48,8 +48,28 @@
                     @read-aloud="readAloud"
                     @stop-reading="vorlesen.stop()"
                 >
-                    <!-- The place for more chapter actions — "Kapitel als
-                         gelesen markieren" — as <template #actions="{ close }">. -->
+                    <template #actions="{ close }">
+                        <button
+                            type="button"
+                            class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
+                            :aria-pressed="chapterRead"
+                            @click="
+                                close();
+                                toggleRead();
+                            "
+                        >
+                            <CircleCheck
+                                class="size-4 shrink-0"
+                                :class="chapterRead ? 'text-gold' : 'text-muted-foreground'"
+                                aria-hidden="true"
+                            />
+                            {{
+                                chapterRead
+                                    ? 'Als ungelesen markieren'
+                                    : 'Kapitel als gelesen markieren'
+                            }}
+                        </button>
+                    </template>
                 </BibelMenuPopover>
             </template>
         </AppPageHeader>
@@ -147,8 +167,8 @@
                 />
 
                 <p class="mx-auto mt-6 max-w-[36rem] text-xs text-muted-foreground">
-                    {{ BIBEL_TRANSLATION }} · Auf eine Versnummer tippen setzt ein Lesezeichen. Zum
-                    Blättern seitlich wischen.
+                    {{ BIBEL_TRANSLATION }} · Auf den Text tippen wählt Verse aus, auf eine
+                    Versnummer tippen setzt ein Lesezeichen. Zum Blättern seitlich wischen.
                 </p>
             </div>
         </main>
@@ -194,7 +214,9 @@
                 </Button>
             </div>
         </div>
-        <BibelVerseActions />
+        <BibelVerseActions v-slot="{ here: at, verses, label, done }">
+            <BibelVerseServiceActions :here="at" :verses="verses" :label="label" :done="done" />
+        </BibelVerseActions>
     </div>
 </template>
 
@@ -205,6 +227,7 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
+    CircleCheck,
     Pause,
     Play,
     Volume2,
@@ -215,6 +238,8 @@ import { storeToRefs } from 'pinia';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
+import { useBibelFortschrittStore } from '@/stores/bibelFortschritt';
+import { useLeseplanStore } from '@/stores/leseplan';
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { usePreferencesStore } from '@/stores/preferences';
 
@@ -226,6 +251,7 @@ import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
 import BibelMenuPopover from '@/components/bibel/BibelMenuPopover.vue';
 import BibelReadToggle from '@/components/bibel/BibelReadToggle.vue';
 import BibelVerseActions from '@/components/bibel/BibelVerseActions.vue';
+import BibelVerseServiceActions from '@/components/bibel/BibelVerseServiceActions.vue';
 import { readAloudQueue, swipeTurn, verseAtTop } from '@/components/bibel/bibelReader';
 import { useVorlesen } from '@/components/bibel/useVorlesen';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
@@ -252,6 +278,28 @@ const router = useRouter();
 const preferencesStore = usePreferencesStore();
 const { bibelScale, bibelDisplay, keepScreenAwake } = storeToRefs(preferencesStore);
 const lesezeichenStore = useLesezeichenStore();
+
+// --- Gelesen, from the menu ---------------------------------------------------
+//
+// The same mark as the toggle at the chapter's end. The plan store is created
+// here as well, so a chapter marked from the menu still ticks off the day of a
+// reading plan when the Bibel tab has not been opened yet.
+const fortschrittStore = useBibelFortschrittStore();
+useLeseplanStore();
+
+const chapterRead = computed(() => fortschrittStore.isRead(here.value.slug, here.value.chapter));
+
+async function toggleRead() {
+    try {
+        const read = await fortschrittStore.toggle(here.value.slug, here.value.chapter);
+        toast.success(read ? 'Als gelesen markiert' : 'Als ungelesen markiert', {
+            duration: 2000,
+        });
+    } catch (err) {
+        console.error('Error saving the read mark:', err);
+        toast.error('Die Markierung konnte nicht gespeichert werden.');
+    }
+}
 
 const scrollRef = ref<HTMLElement | null>(null);
 const articleRef = ref<HTMLElement | null>(null);

@@ -89,3 +89,25 @@ export function reorderPassages(
     const placed = new Set(ordered.map(passageKey));
     return [...ordered, ...current.filter((p) => !placed.has(passageKey(p)))];
 }
+
+/**
+ * The passages a set of selected verses makes: each unbroken run one passage,
+ * so verses 1–3 and 5 become "23,1-3" and "23,5".
+ */
+export function passagesFromVerses(
+    ref: { slug: string; chapter: number },
+    verses: number[],
+): BibelPassage[] {
+    const sorted = [...new Set(verses)].sort((a, b) => a - b);
+    const passages: BibelPassage[] = [];
+    for (const verse of sorted) {
+        const last = passages.at(-1);
+        const end = last?.endVerse ?? last?.verse;
+        if (last && end === verse - 1) {
+            last.endVerse = verse;
+        } else {
+            passages.push({ slug: ref.slug, chapter: ref.chapter, verse });
+        }
+    }
+    return passages;
+}
