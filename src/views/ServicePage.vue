@@ -344,7 +344,7 @@ async function confirmClear() {
 
 /** Keep a service that worked: the same songs, but permanently. */
 async function saveAsPlaylist() {
-    if (!plan.value || songs.value.length === 0) return;
+    if (!plan.value || (songs.value.length === 0 && lesungen.value.length === 0)) return;
 
     try {
         const name = `${plan.value.title} ${formatShortDate(plan.value.date)}`.trim();
@@ -353,6 +353,8 @@ async function saveAsPlaylist() {
             playlist.id,
             songs.value.map((song) => song.id),
         );
+        // The readings go along, so adopting the playlist again brings them back.
+        await playlistsStore.addPassagesToPlaylist(playlist.id, lesungen.value);
         toast.success(`Als Playlist „${playlist.name}“ gesichert`, { duration: 2500 });
     } catch (err) {
         console.error('Failed to save the service as a playlist:', err);
