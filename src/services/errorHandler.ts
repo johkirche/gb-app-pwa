@@ -289,6 +289,10 @@ export async function clearUserScopedData(): Promise<void> {
         db.favorites,
         db.services,
         db.lesezeichen,
+        db.gelesen,
+        db.markierungen,
+        db.notizen,
+        db.leseplaene,
     ];
 
     try {
@@ -332,6 +336,10 @@ export async function clearAllLocalData(): Promise<void> {
         db.services,
         db.meta,
         db.lesezeichen,
+        db.gelesen,
+        db.markierungen,
+        db.notizen,
+        db.leseplaene,
     ];
 
     try {

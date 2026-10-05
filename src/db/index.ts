@@ -212,6 +212,45 @@ export interface Lesezeichen {
     createdAt: Date;
 }
 
+/** A chapter the reader has marked as read. The id is `slug/chapter`. */
+export interface GelesenesKapitel {
+    id: string;
+    slug: string;
+    chapter: number;
+    readAt: Date;
+}
+
+export type MarkierungsFarbe = 'gelb' | 'gruen' | 'blau' | 'rosa';
+
+/** A highlighted verse. The id is `slug/chapter/verse`. */
+export interface Markierung {
+    id: string;
+    slug: string;
+    chapter: number;
+    verse: number;
+    color: MarkierungsFarbe;
+    createdAt: Date;
+}
+
+/** A personal note on a verse. The id is `slug/chapter/verse`. */
+export interface Notiz {
+    id: string;
+    slug: string;
+    chapter: number;
+    verse: number;
+    text: string;
+    updatedAt: Date;
+}
+
+/** A reading plan the reader has started. The id is the plan's own id. */
+export interface Leseplan {
+    id: string;
+    /** The day the plan began, as YYYY-MM-DD in local time. */
+    startedOn: string;
+    /** The plan days (1-based) the reader has ticked off. */
+    doneDays: number[];
+}
+
 // --- Gottesdienst (temporary service selection) ---
 
 /**
@@ -277,6 +316,10 @@ export class GesangbuchDatabase extends Dexie {
     services!: Table<ServicePlan, string>;
     meta!: Table<MetaEntry, string>;
     lesezeichen!: Table<Lesezeichen, string>;
+    gelesen!: Table<GelesenesKapitel, string>;
+    markierungen!: Table<Markierung, string>;
+    notizen!: Table<Notiz, string>;
+    leseplaene!: Table<Leseplan, string>;
 
     constructor() {
         super('GesangbuchDB');
@@ -388,6 +431,25 @@ export class GesangbuchDatabase extends Dexie {
             meta: 'key',
             services: 'id, date, expiresAt',
             lesezeichen: 'id, createdAt',
+        });
+
+        // Version 10: the reader's own marks in the Bible — chapters read,
+        // highlights, notes — and the reading plans they follow.
+        this.version(10).stores({
+            songs: 'id, titel',
+            files: 'id, filename',
+            auth: 'id',
+            users: 'id, email, role',
+            playlists: 'id, name, createdAt',
+            preferences: 'id',
+            favorites: 'id, createdAt',
+            meta: 'key',
+            services: 'id, date, expiresAt',
+            lesezeichen: 'id, createdAt',
+            gelesen: 'id, slug, readAt',
+            markierungen: 'id, slug, createdAt',
+            notizen: 'id, slug, updatedAt',
+            leseplaene: 'id',
         });
     }
 }

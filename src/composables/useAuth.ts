@@ -32,6 +32,7 @@ import {
     translateLoginError,
     translateRegistrationError,
 } from '@/services/errorHandler';
+import { resetRegisteredUserState } from '@/services/userStateReset';
 
 /**
  * Endpoint path of the directus-user-register-extension.
@@ -353,6 +354,9 @@ export function useAuth() {
             await userStore.logout();
             await useFavoritesStore().clearAll();
             await useLesezeichenStore().clearAll();
+            // Whatever else keeps personal state in memory (the Bible's marks,
+            // notes, plans …) registered itself to be reset here.
+            await resetRegisteredUserState();
             await usePlaylistsStore().clearAll();
             await useServiceStore().clearAll();
             await usePreferencesStore().resetToDefaults();
