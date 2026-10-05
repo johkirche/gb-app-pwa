@@ -74,6 +74,11 @@
                     </RouterLink>
                     <span v-else class="flex-1" />
                 </nav>
+                <BibelChapterSongs
+                    v-if="state === 'ready'"
+                    :slug="here.slug"
+                    :chapter="here.chapter"
+                />
 
                 <p class="mx-auto mt-6 max-w-[36rem] text-xs text-muted-foreground">
                     {{ BIBEL_TRANSLATION }} · Auf eine Versnummer tippen setzt ein Lesezeichen.
@@ -92,6 +97,7 @@ import { RouterLink, useRoute } from 'vue-router';
 
 import { usePreferencesStore } from '@/stores/preferences';
 
+import BibelChapterSongs from '@/components/bibel/BibelChapterSongs.vue';
 import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import BackButton from '@/components/shell/BackButton.vue';
