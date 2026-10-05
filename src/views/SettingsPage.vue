@@ -87,6 +87,7 @@
                             <AppearanceSettings v-else-if="activeKey === 'darstellung'" />
                             <PlaybackSettings v-else-if="activeKey === 'wiedergabe'" />
                             <ServiceSettings v-else-if="activeKey === 'gottesdienst'" />
+                            <BibelSettings v-else-if="activeKey === 'bibel'" />
                             <DataSettings
                                 v-else-if="activeKey === 'daten'"
                                 :files-count="filesCount"
@@ -106,6 +107,7 @@ import { computed, nextTick, onActivated, ref, watch } from 'vue';
 
 import {
     AudioLines,
+    BookOpen,
     ChevronLeft,
     ChevronRight,
     Church,
@@ -128,6 +130,7 @@ import { useTheme } from '@/composables/useTheme';
 import AboutSettings from '@/components/settings/AboutSettings.vue';
 import AccountSettings from '@/components/settings/AccountSettings.vue';
 import AppearanceSettings from '@/components/settings/AppearanceSettings.vue';
+import BibelSettings from '@/components/settings/BibelSettings.vue';
 import DataSettings from '@/components/settings/DataSettings.vue';
 import PlaybackSettings from '@/components/settings/PlaybackSettings.vue';
 import ServiceSettings from '@/components/settings/ServiceSettings.vue';
@@ -143,6 +146,7 @@ const SECTION_KEYS = [
     'darstellung',
     'wiedergabe',
     'gottesdienst',
+    'bibel',
     'daten',
     'ueber',
 ] as const;
@@ -181,6 +185,18 @@ const playbackSummary = computed(() => {
     return on.length ? on.join(' · ') : 'Ohne Markierungen';
 });
 
+// The translation when the Bible is on, and what of it has been switched off.
+const bibelSummary = computed(() => {
+    if (!preferencesStore.showBibel) {
+        return preferencesStore.showBibelstellen ? 'Bibelstellen unter Liedern' : 'Aus';
+    }
+    const translation =
+        preferencesStore.bibelTranslation === 'menge' ? 'Menge (1939)' : 'Luther (1912)';
+    const off = Object.values(preferencesStore.bibelFeatures).filter((on) => !on).length;
+    if (off === 0) return translation;
+    return `${translation} · ${off} ${off === 1 ? 'Funktion' : 'Funktionen'} aus`;
+});
+
 const serviceSummary = computed(() => {
     if (serviceStore.hasSelection) return serviceStore.selectionLabel;
     return preferencesStore.serviceTab === 'always'
@@ -214,6 +230,12 @@ const sections = computed(() => [
         title: 'Gottesdienst',
         icon: Church,
         summary: serviceSummary.value,
+    },
+    {
+        key: 'bibel' as const,
+        title: 'Bibel',
+        icon: BookOpen,
+        summary: bibelSummary.value,
     },
     {
         key: 'daten' as const,

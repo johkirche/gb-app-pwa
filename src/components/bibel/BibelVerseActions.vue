@@ -25,7 +25,7 @@
             <!-- The four colours and a way back to none. The ring is on the
                  colour the whole selection already wears, if it wears one. -->
             <div
-                v-if="colorsOpen"
+                v-if="colorsOpen && features.notizen"
                 class="flex items-center justify-center gap-3 pb-1 pt-2"
                 role="group"
                 aria-label="Farbe"
@@ -57,14 +57,27 @@
             <div class="flex items-stretch gap-1 overflow-x-auto pt-1">
                 <BibelVerseAction :icon="Copy" label="Kopieren" @click="copy" />
                 <BibelVerseAction :icon="Share2" label="Teilen" @click="share" />
+                <!-- Marking, notes and Lesezeichen only where they are
+                     switched on (Einstellungen → Bibel). -->
                 <BibelVerseAction
+                    v-if="features.notizen"
                     :icon="Highlighter"
                     label="Markieren"
                     :aria-expanded="colorsOpen"
                     @click="colorsOpen = !colorsOpen"
                 />
-                <BibelVerseAction :icon="NotebookPen" label="Notiz" @click="note" />
-                <BibelVerseAction :icon="Bookmark" label="Lesezeichen" @click="bookmark" />
+                <BibelVerseAction
+                    v-if="features.notizen"
+                    :icon="NotebookPen"
+                    label="Notiz"
+                    @click="note"
+                />
+                <BibelVerseAction
+                    v-if="features.lesezeichen"
+                    :icon="Bookmark"
+                    label="Lesezeichen"
+                    @click="bookmark"
+                />
                 <!-- More actions from the page that mounts the bar ("Zum
                      Gottesdienst hinzufügen" …). Render a BibelVerseAction per
                      action; the slot hands over what they act on, and `done`
@@ -85,10 +98,12 @@
 import { computed, ref, watch } from 'vue';
 
 import { Bookmark, Copy, Eraser, Highlighter, NotebookPen, Share2, X } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import { toast } from 'vue-sonner';
 
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { useMarkierungenStore } from '@/stores/markierungen';
+import { usePreferencesStore } from '@/stores/preferences';
 
 import { useVerseSelection } from '@/composables/useVerseSelection';
 
@@ -120,6 +135,7 @@ const selection = useVerseSelection();
 const { here, verses } = selection;
 const markierungen = useMarkierungenStore();
 const lesezeichen = useLesezeichenStore();
+const { bibelFeatures: features } = storeToRefs(usePreferencesStore());
 
 const label = computed(() => (here.value ? versesRefLabel(here.value, verses.value) : ''));
 const quote = computed(() =>

@@ -19,7 +19,7 @@
                      so that is where the Lesezeichen goes — the same mark a
                      tap on its number sets. -->
                 <button
-                    v-if="topVerse !== null"
+                    v-if="features.lesezeichen && topVerse !== null"
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="onBookmark"
@@ -42,7 +42,7 @@
                 </button>
                 <!-- What is already marked here, to go straight to. -->
                 <div
-                    v-if="chapterMarks.length"
+                    v-if="features.lesezeichen && chapterMarks.length"
                     class="flex flex-wrap items-center gap-1.5 px-1 pb-2 pt-1 text-sm text-muted-foreground"
                 >
                     <Bookmark class="size-4 shrink-0 fill-current text-gold" aria-hidden="true" />
@@ -113,7 +113,7 @@
                         />
                     </div>
                     <div
-                        v-for="item in switches"
+                        v-for="item in shownSwitches"
                         :key="item.key"
                         class="flex items-center justify-between gap-3"
                     >
@@ -133,22 +133,29 @@
                             "
                         />
                     </div>
-                    <!-- A second translation, verse by verse beside Menge. -->
-                    <div class="flex items-center justify-between gap-3">
-                        <Label for="bibel-parallel" class="flex items-center gap-2.5">
-                            <Columns2
+                    <!-- One translation or the other, the same choice as in the
+                         settings: here because comparing a passage is done
+                         while reading it. -->
+                    <div class="space-y-2">
+                        <span class="flex items-center gap-2.5 text-sm font-medium">
+                            <Languages
                                 class="size-4 shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                            Luther 1912 daneben
-                        </Label>
-                        <Switch
-                            id="bibel-parallel"
-                            :model-value="parallel === 'luther1912'"
-                            @update:model-value="
-                                $emit('update:parallel', $event ? 'luther1912' : null)
-                            "
-                        />
+                            Übersetzung
+                        </span>
+                        <ToggleGroup
+                            type="single"
+                            class="flex w-full"
+                            aria-label="Übersetzung"
+                            :model-value="translation"
+                            @update:model-value="onTranslation"
+                        >
+                            <ToggleGroupItem value="menge" class="flex-1">Menge</ToggleGroupItem>
+                            <ToggleGroupItem value="luther1912" class="flex-1">
+                                Luther 1912
+                            </ToggleGroupItem>
+                        </ToggleGroup>
                     </div>
                     <!-- Hidden where the platform has no wake lock: a switch
                          that provably does nothing is worse than no switch.
@@ -182,9 +189,9 @@ import {
     Bookmark,
     BookmarkMinus,
     BookmarkPlus,
-    Columns2,
     Hash,
     Heading,
+    Languages,
     Lightbulb,
     MessageSquareText,
     Settings,
@@ -192,6 +199,7 @@ import {
     Type,
     Volume2,
 } from 'lucide-vue-next';
+import type { AcceptableValue } from 'reka-ui';
 
 import { isWakeLockSupported } from '@/composables/useWakeLock';
 
@@ -200,8 +208,9 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-import type { BibelDisplaySettings, BibelParallel } from '@/db';
+import type { BibelDisplaySettings, BibelFeatures, BibelTranslationId } from '@/db';
 
 /**
  * The chapter page's menu: what can be done with the chapter, and how it is
@@ -211,8 +220,10 @@ import type { BibelDisplaySettings, BibelParallel } from '@/db';
 const props = defineProps<{
     scale: number;
     display: BibelDisplaySettings;
-    /** The translation set beside Menge, or null for Menge alone. */
-    parallel: BibelParallel;
+    /** The translation the chapter is read in. */
+    translation: BibelTranslationId;
+    /** Which features the reader has switched on (see the Bibel settings). */
+    features: BibelFeatures;
     keepScreenAwake: boolean;
     /** The verse at the top of the screen, asked for each time the menu opens. */
     topVerse: number | null;
@@ -236,7 +247,7 @@ const emit = defineEmits<{
             value: BibelDisplaySettings[keyof BibelDisplaySettings];
         },
     ];
-    'update:parallel': [value: BibelParallel];
+    'update:translation': [value: BibelTranslationId];
     'update:keepScreenAwake': [value: boolean];
     bookmark: [];
     goto: [verse: number];
@@ -289,6 +300,17 @@ async function onReadAloud() {
     await close();
     if (props.reading) emit('stopReading');
     else emit('readAloud');
+}
+
+// Luther 1912 has no section headings, so there is nothing for the switch to do.
+const shownSwitches = computed(() =>
+    props.translation === 'menge'
+        ? switches
+        : switches.filter((item) => item.key !== 'showHeadings'),
+);
+
+function onTranslation(value: AcceptableValue | AcceptableValue[]) {
+    if (value === 'menge' || value === 'luther1912') emit('update:translation', value);
 }
 
 function onScaleChange(value: number[] | undefined) {

@@ -73,103 +73,13 @@
                 @update:model-value="preferencesStore.setKeepScreenAwake($event)"
             />
         </div>
-
-        <!-- Off by default: a hymnal first. The Bible is a tab for whoever
-             wants it to hand, not a fixture for everyone. -->
-        <div class="flex items-center justify-between gap-4 px-2 py-3">
-            <div class="flex min-w-0 items-center gap-4">
-                <BookOpen class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <div class="min-w-0">
-                    <Label for="settings-bibel" class="text-[15px] font-normal">Bibel</Label>
-                    <p class="text-sm text-muted-foreground">
-                        Die Menge-Bibel (1939) als eigener Reiter, zum Lesen und Blättern
-                    </p>
-                </div>
-            </div>
-            <Switch
-                id="settings-bibel"
-                :model-value="showBibel"
-                @update:model-value="preferencesStore.setShowBibel($event)"
-            />
-        </div>
-
-        <!-- The Bible's own size, offered once the Bible is. Until it is moved
-             it follows Größe (Lieder), so the percentage shown is that one. -->
-        <div v-if="showBibel" class="px-2 py-3">
-            <div class="flex items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
-                    <Type class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    <p class="text-[15px]">Größe (Bibel)</p>
-                </div>
-                <span class="number-display text-lg leading-none">
-                    {{ Math.round(preferencesStore.bibelScale * 100) }}%
-                </span>
-            </div>
-            <div class="mt-4 flex items-center gap-3">
-                <span class="shrink-0 text-xs text-muted-foreground">50%</span>
-                <Slider
-                    v-model="bibelScaleSlider"
-                    :min="0.5"
-                    :max="2"
-                    :step="0.1"
-                    aria-label="Größe (Bibel)"
-                    class="flex-1"
-                />
-                <span class="shrink-0 text-xs text-muted-foreground">200%</span>
-            </div>
-        </div>
-
-        <!-- The chapter menu's "Luther 1912 daneben", here too: one setting. -->
-        <div v-if="showBibel" class="flex items-center justify-between gap-4 px-2 py-3">
-            <div class="flex min-w-0 items-center gap-4">
-                <Columns2 class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <div class="min-w-0">
-                    <Label for="settings-bibel-parallel" class="text-[15px] font-normal">
-                        Luther 1912 daneben
-                    </Label>
-                    <p class="text-sm text-muted-foreground">
-                        Die Lutherbibel (1912) Vers für Vers neben dem Menge-Text
-                    </p>
-                </div>
-            </div>
-            <Switch
-                id="settings-bibel-parallel"
-                :model-value="preferencesStore.bibelParallel === 'luther1912'"
-                @update:model-value="
-                    preferencesStore.setBibelParallel($event ? 'luther1912' : null)
-                "
-            />
-        </div>
-
-        <!-- Off by default: the references were assigned by a language model
-             and checked by script, not chosen by an editor — the description
-             says so, so nobody takes them for the book's own. -->
-        <div class="flex items-center justify-between gap-4 px-2 py-3">
-            <div class="flex min-w-0 items-center gap-4">
-                <BookMarked class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <div class="min-w-0">
-                    <Label for="settings-bibelstellen" class="text-[15px] font-normal">
-                        Bibelstellen anzeigen
-                    </Label>
-                    <p class="text-sm text-muted-foreground">
-                        Die Stellen, auf die ein Lied anspielt, unter dem Lied. Automatisch
-                        zugeordnet, nicht redaktionell geprüft
-                    </p>
-                </div>
-            </div>
-            <Switch
-                id="settings-bibelstellen"
-                :model-value="showBibelstellen"
-                @update:model-value="preferencesStore.setShowBibelstellen($event)"
-            />
-        </div>
     </SettingsList>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { BookMarked, BookOpen, Columns2, Contrast, Lightbulb, Type } from 'lucide-vue-next';
+import { Contrast, Lightbulb, Type } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import { usePreferencesStore } from '@/stores/preferences';
@@ -193,8 +103,6 @@ const wakeLockSupported = isWakeLockSupported();
 
 const pageScale = computed(() => preferencesStore.pageScale);
 const keepScreenAwake = computed(() => preferencesStore.keepScreenAwake);
-const showBibelstellen = computed(() => preferencesStore.showBibelstellen);
-const showBibel = computed(() => preferencesStore.showBibel);
 // Reka's Slider works on number[] (multi-thumb capable) — bridge to the scalar store value.
 const pageScaleSlider = computed<number[] | undefined>({
     get: () => [preferencesStore.pageScale],
@@ -202,16 +110,6 @@ const pageScaleSlider = computed<number[] | undefined>({
         const scale = value?.[0];
         if (typeof scale === 'number') {
             preferencesStore.setPageScale(scale);
-        }
-    },
-});
-
-const bibelScaleSlider = computed<number[] | undefined>({
-    get: () => [preferencesStore.bibelScale],
-    set: (value) => {
-        const scale = value?.[0];
-        if (typeof scale === 'number') {
-            preferencesStore.setBibelScale(scale);
         }
     },
 });

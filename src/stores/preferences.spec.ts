@@ -16,9 +16,11 @@ vi.mock('@/db', () => ({
 
 const {
     DEFAULT_BIBEL_DISPLAY,
+    DEFAULT_BIBEL_FEATURES,
     readBibelDisplay,
-    readBibelParallel,
+    readBibelFeatures,
     readBibelScale,
+    readBibelTranslation,
     usePreferencesStore,
 } = await import('./preferences');
 
@@ -71,18 +73,38 @@ describe('the Bible settings', () => {
         expect(again.bibelDisplay).toEqual({ ...DEFAULT_BIBEL_DISPLAY, versePerLine: true });
     });
 
-    it('reads Menge alone until a second translation is asked for', async () => {
+    it('reads Menge until the reader chooses Luther', async () => {
         const store = usePreferencesStore();
         await store.initPromise;
-        expect(store.bibelParallel).toBeNull();
+        expect(store.bibelTranslation).toBe('menge');
 
-        await store.setBibelParallel('luther1912');
-        expect(rows.get('default')?.bibelParallel).toBe('luther1912');
+        await store.setBibelTranslation('luther1912');
+        expect(rows.get('default')?.bibelTranslation).toBe('luther1912');
 
         setActivePinia(createPinia());
         const again = usePreferencesStore();
         await again.initPromise;
-        expect(again.bibelParallel).toBe('luther1912');
+        expect(again.bibelTranslation).toBe('luther1912');
+    });
+
+    it('offers every feature until one is switched off, and remembers that', async () => {
+        const store = usePreferencesStore();
+        await store.initPromise;
+        expect(store.bibelFeatures).toEqual(DEFAULT_BIBEL_FEATURES);
+
+        await store.setBibelFeature('fortschritt', false);
+
+        setActivePinia(createPinia());
+        const again = usePreferencesStore();
+        await again.initPromise;
+        expect(again.bibelFeatures).toEqual({ ...DEFAULT_BIBEL_FEATURES, fortschritt: false });
+    });
+
+    it('reads a record from the side-by-side days as Menge', async () => {
+        rows.set('default', { id: 'default', bibelParallel: 'luther1912' });
+        const store = usePreferencesStore();
+        await store.initPromise;
+        expect(store.bibelTranslation).toBe('menge');
     });
 
     it('forgets the Bible settings on logout', async () => {
@@ -90,12 +112,14 @@ describe('the Bible settings', () => {
         await store.initPromise;
         await store.setBibelScale(1.5);
         await store.setBibelDisplay('showHeadings', false);
-        await store.setBibelParallel('luther1912');
+        await store.setBibelTranslation('luther1912');
+        await store.setBibelFeature('notizen', false);
 
         await store.resetToDefaults();
         expect(store.bibelScale).toBe(1);
         expect(store.bibelDisplay).toEqual(DEFAULT_BIBEL_DISPLAY);
-        expect(store.bibelParallel).toBeNull();
+        expect(store.bibelTranslation).toBe('menge');
+        expect(store.bibelFeatures).toEqual(DEFAULT_BIBEL_FEATURES);
     });
 });
 
@@ -131,14 +155,27 @@ describe('readBibelScale', () => {
     });
 });
 
-describe('readBibelParallel', () => {
-    it('is off for a record from before the setting', () => {
-        expect(readBibelParallel(undefined)).toBeNull();
-        expect(readBibelParallel(null)).toBeNull();
+describe('readBibelTranslation', () => {
+    it('is Menge for a record from before the setting', () => {
+        expect(readBibelTranslation(undefined)).toBe('menge');
     });
 
     it('takes only a translation the app has', () => {
-        expect(readBibelParallel('luther1912')).toBe('luther1912');
-        expect(readBibelParallel('elberfelder' as unknown as 'luther1912')).toBeNull();
+        expect(readBibelTranslation('luther1912')).toBe('luther1912');
+        expect(readBibelTranslation('elberfelder' as unknown as 'luther1912')).toBe('menge');
+    });
+});
+
+describe('readBibelFeatures', () => {
+    it('keeps what was stored and fills in the rest', () => {
+        expect(readBibelFeatures({ vorlesen: false })).toEqual({
+            ...DEFAULT_BIBEL_FEATURES,
+            vorlesen: false,
+        });
+    });
+
+    it('takes only switches that are switches', () => {
+        const stored = { lieder: 'aus' } as unknown as Parameters<typeof readBibelFeatures>[0];
+        expect(readBibelFeatures(stored)).toEqual(DEFAULT_BIBEL_FEATURES);
     });
 });

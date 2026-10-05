@@ -4,7 +4,8 @@ import { defineStore } from 'pinia';
 
 import {
     type BibelDisplaySettings,
-    type BibelParallel,
+    type BibelFeatures,
+    type BibelTranslationId,
     type PreferencesData,
     type ServiceTabMode,
     type XmlDisplaySettings,
@@ -28,6 +29,17 @@ export const DEFAULT_BIBEL_DISPLAY: BibelDisplaySettings = {
     showVerseNumbers: true,
     notesInline: false,
     versePerLine: false,
+};
+
+// Everything on: the switches are for taking away what a reader has no use
+// for, not for finding features one by one.
+export const DEFAULT_BIBEL_FEATURES: BibelFeatures = {
+    fortschritt: true,
+    lesezeichen: true,
+    notizen: true,
+    versDerWoche: true,
+    lieder: true,
+    vorlesen: true,
 };
 
 const MIN_PAGE_SCALE = 0.5;
@@ -56,9 +68,21 @@ export function readBibelScale(stored: PreferencesData['bibelScale']): number | 
     return typeof stored === 'number' && Number.isFinite(stored) ? clampScale(stored) : null;
 }
 
-/** The translation beside Menge from a stored record: only one the app has, else none. */
-export function readBibelParallel(stored: PreferencesData['bibelParallel']): BibelParallel {
-    return stored === 'luther1912' ? stored : null;
+/** The translation from a stored record: one the app has, else Menge. */
+export function readBibelTranslation(
+    stored: PreferencesData['bibelTranslation'],
+): BibelTranslationId {
+    return stored === 'luther1912' ? stored : 'menge';
+}
+
+/** The feature switches from a stored record, under the defaults — see readBibelDisplay. */
+export function readBibelFeatures(stored: PreferencesData['bibelFeatures']): BibelFeatures {
+    const features = { ...DEFAULT_BIBEL_FEATURES };
+    for (const key of Object.keys(features) as (keyof BibelFeatures)[]) {
+        const value = stored?.[key];
+        if (typeof value === 'boolean') features[key] = value;
+    }
+    return features;
 }
 
 /** What the retired Textgröße steps were worth, as factors of the default. */
@@ -115,8 +139,9 @@ export const usePreferencesStore = defineStore('preferences', () => {
     const ownBibelScale = ref<number | null>(null);
     const bibelScale = computed(() => ownBibelScale.value ?? pageScale.value);
     const bibelDisplay = ref<BibelDisplaySettings>({ ...DEFAULT_BIBEL_DISPLAY });
-    // Off by default: Menge alone is the Bible as the app reads it.
-    const bibelParallel = ref<BibelParallel>(null);
+    // Menge unless the reader chose Luther: one translation at a time.
+    const bibelTranslation = ref<BibelTranslationId>('menge');
+    const bibelFeatures = ref<BibelFeatures>({ ...DEFAULT_BIBEL_FEATURES });
     const isLoading = ref(false);
 
     // Actions
@@ -138,7 +163,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 showBibel.value = prefs.showBibel ?? false;
                 ownBibelScale.value = readBibelScale(prefs.bibelScale);
                 bibelDisplay.value = readBibelDisplay(prefs.bibelDisplay);
-                bibelParallel.value = readBibelParallel(prefs.bibelParallel);
+                bibelTranslation.value = readBibelTranslation(prefs.bibelTranslation);
+                bibelFeatures.value = readBibelFeatures(prefs.bibelFeatures);
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -163,7 +189,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
             showBibel: showBibel.value,
             bibelScale: ownBibelScale.value ?? undefined,
             bibelDisplay: { ...bibelDisplay.value },
-            bibelParallel: bibelParallel.value,
+            bibelTranslation: bibelTranslation.value,
+            bibelFeatures: { ...bibelFeatures.value },
         });
     }
 
@@ -283,12 +310,22 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
-    async function setBibelParallel(translation: BibelParallel) {
+    async function setBibelTranslation(translation: BibelTranslationId) {
         try {
-            bibelParallel.value = translation;
+            bibelTranslation.value = translation;
             await persist();
         } catch (err) {
-            console.error('Error saving the parallel translation:', err);
+            console.error('Error saving the Bible translation:', err);
+            throw err;
+        }
+    }
+
+    async function setBibelFeature<K extends keyof BibelFeatures>(key: K, value: boolean) {
+        try {
+            bibelFeatures.value = { ...bibelFeatures.value, [key]: value };
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bible feature setting:', err);
             throw err;
         }
     }
@@ -309,7 +346,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         showBibel.value = false;
         ownBibelScale.value = null;
         bibelDisplay.value = { ...DEFAULT_BIBEL_DISPLAY };
-        bibelParallel.value = null;
+        bibelTranslation.value = 'menge';
+        bibelFeatures.value = { ...DEFAULT_BIBEL_FEATURES };
     }
 
     // Initialize store on creation
@@ -328,7 +366,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         showBibel,
         bibelScale,
         bibelDisplay,
-        bibelParallel,
+        bibelTranslation,
+        bibelFeatures,
         isLoading,
 
         // Actions
@@ -344,7 +383,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setShowBibel,
         setBibelScale,
         setBibelDisplay,
-        setBibelParallel,
+        setBibelTranslation,
+        setBibelFeature,
         resetToDefaults,
 
         // Initialization promise

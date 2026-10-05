@@ -137,8 +137,8 @@ export default defineConfig({
                         },
                     },
                     {
-                        // The Lutherbibel set beside Menge: kept once read like
-                        // Menge's books, but in a cache of its own. Sharing
+                        // The Lutherbibel, for readers who chose it: kept once
+                        // read like Menge's books, but in a cache of its own. Sharing
                         // bibel-cache would let Luther's books push Menge's out
                         // of its 80 entries — including a Bible the reader
                         // downloaded on purpose (src/utils/bibelOffline.ts).

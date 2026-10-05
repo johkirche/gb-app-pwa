@@ -31,19 +31,22 @@
                     v-if="book"
                     :scale="bibelScale"
                     :display="bibelDisplay"
-                    :parallel="bibelParallel"
+                    :translation="bibelTranslation"
+                    :features="bibelFeatures"
                     :keep-screen-awake="keepScreenAwake"
                     :top-verse="topVerse"
                     :top-verse-marked="
                         topVerse !== null && lesezeichenStore.has(here.slug, here.chapter, topVerse)
                     "
                     :chapter-marks="chapterMarks"
-                    :can-read-aloud="vorlesen.isSupported && state === 'ready'"
+                    :can-read-aloud="
+                        bibelFeatures.vorlesen && vorlesen.isSupported && state === 'ready'
+                    "
                     :reading="vorlesen.status.value !== 'idle'"
                     @opened="topVerse = verseOnScreen()"
                     @update:scale="preferencesStore.setBibelScale($event)"
                     @update:display="preferencesStore.setBibelDisplay($event.key, $event.value)"
-                    @update:parallel="preferencesStore.setBibelParallel($event)"
+                    @update:translation="preferencesStore.setBibelTranslation($event)"
                     @update:keep-screen-awake="preferencesStore.setKeepScreenAwake($event)"
                     @bookmark="bookmarkTopVerse"
                     @goto="scrollToVerse($event, 'smooth')"
@@ -52,6 +55,7 @@
                 >
                     <template #actions="{ close }">
                         <button
+                            v-if="bibelFeatures.fortschritt"
                             type="button"
                             class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                             :aria-pressed="chapterRead"
@@ -91,7 +95,6 @@
                     ref="articleRef"
                     class="bibel-text mx-auto max-w-[36rem] font-hymnal text-foreground"
                     :class="{
-                        'md:max-w-none': secondary,
                         'bibel-no-headings': !bibelDisplay.showHeadings,
                         'bibel-no-numbers': !bibelDisplay.showVerseNumbers,
                         'bibel-notes-inline': bibelDisplay.notesInline,
@@ -120,39 +123,23 @@
                         Dieses Kapitel gibt es nicht.
                     </p>
 
-                    <template v-else>
-                        <!-- Luther asked for but not to be had: Menge alone, and
-                             a word why, not an error — the chapter is all there. -->
-                        <p
-                            v-if="parallelGap"
-                            class="mb-4 flex items-center gap-2 text-sm text-muted-foreground"
-                        >
-                            <WifiOff
-                                v-if="parallelGap === 'failed'"
-                                class="size-4 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <Info v-else class="size-4 shrink-0" aria-hidden="true" />
-                            {{
-                                parallelGap === 'failed'
-                                    ? `Die ${parallelName} ist für dieses Buch nicht auf dem Gerät. Hier steht nur Menge.`
-                                    : `Dieses Kapitel hat in der ${parallelName} keine Entsprechung. Hier steht nur Menge.`
-                            }}
-                        </p>
+                    <!-- The book list counts chapters as Menge does. The
+                         Lutherbibel counts them alike in every book today; if
+                         a rebuilt text ever did not, the chapter would not be
+                         missing but elsewhere — said so, not an empty page. -->
+                    <p
+                        v-else-if="state === 'elsewhere'"
+                        class="my-6 flex items-start gap-2 text-muted-foreground"
+                    >
+                        <Info class="mt-1 size-4 shrink-0" aria-hidden="true" />
+                        <span>
+                            Die {{ translationLabel }} zählt die Kapitel dieses Buches anders;
+                            dieser Abschnitt steht dort im vorigen Kapitel.
+                        </span>
+                    </p>
 
-                        <BibelParallelText
-                            v-if="secondary"
-                            :slug="here.slug"
-                            :chapter="here.chapter"
-                            :blocks="blocks"
-                            :secondary="secondary"
-                            :primary-label="BIBEL_TRANSLATIONS.menge.label"
-                            :secondary-label="parallelName"
-                            :marked-verse="vorlesen.verse.value ?? markedVerse"
-                            :all-notes-open="bibelDisplay.notesInline"
-                        />
+                    <template v-else>
                         <BibelChapterText
-                            v-else
                             :slug="here.slug"
                             :chapter="here.chapter"
                             :blocks="blocks"
@@ -162,7 +149,10 @@
                     </template>
                 </article>
 
-                <BibelReadToggle v-if="state === 'ready'" v-bind="here" />
+                <BibelReadToggle
+                    v-if="state === 'ready' && bibelFeatures.fortschritt"
+                    v-bind="here"
+                />
                 <!-- Turning the page: across book boundaries too, so the Bible
                      can be read straight through. -->
                 <nav
@@ -196,15 +186,13 @@
                     <span v-else class="flex-1" />
                 </nav>
                 <BibelChapterSongs
-                    v-if="state === 'ready'"
+                    v-if="state === 'ready' && bibelFeatures.lieder"
                     :slug="here.slug"
                     :chapter="here.chapter"
                 />
 
                 <p class="mx-auto mt-6 max-w-[36rem] text-xs text-muted-foreground">
-                    {{ secondary ? `${BIBEL_TRANSLATION} und ${parallelName}` : BIBEL_TRANSLATION }}
-                    · Auf den Text tippen wählt Verse aus, auf eine Versnummer tippen setzt ein
-                    Lesezeichen. Zum Blättern seitlich wischen.
+                    {{ translationLabel }} · {{ readingHint }}
                 </p>
             </div>
         </main>
@@ -257,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import {
     ChevronDown,
@@ -286,7 +274,6 @@ import BibelChapterPicker from '@/components/bibel/BibelChapterPicker.vue';
 import BibelChapterSongs from '@/components/bibel/BibelChapterSongs.vue';
 import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
 import BibelMenuPopover from '@/components/bibel/BibelMenuPopover.vue';
-import BibelParallelText from '@/components/bibel/BibelParallelText.vue';
 import BibelReadToggle from '@/components/bibel/BibelReadToggle.vue';
 import BibelVerseActions from '@/components/bibel/BibelVerseActions.vue';
 import BibelVerseServiceActions from '@/components/bibel/BibelVerseServiceActions.vue';
@@ -297,11 +284,8 @@ import BackButton from '@/components/shell/BackButton.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
-import type { BibelParallel } from '@/db';
 import {
-    BIBEL_TRANSLATION,
     BIBEL_TRANSLATIONS,
-    type BibelTranslationId,
     type Block,
     type ChapterRef,
     chapterLabel,
@@ -312,13 +296,13 @@ import {
     setLastRead,
     verseRefLabel,
 } from '@/utils/bibel';
-import { layoutChapter, snippet, verseText, versesOf } from '@/utils/bibelLayout';
-import { type SecondaryVerse, secondaryVerses } from '@/utils/bibelParallel';
+import { layoutChapter, snippet, verseText } from '@/utils/bibelLayout';
 
 const route = useRoute();
 const router = useRouter();
 const preferencesStore = usePreferencesStore();
-const { bibelScale, bibelDisplay, bibelParallel, keepScreenAwake } = storeToRefs(preferencesStore);
+const { bibelScale, bibelDisplay, bibelTranslation, bibelFeatures, keepScreenAwake } =
+    storeToRefs(preferencesStore);
 const lesezeichenStore = useLesezeichenStore();
 
 // --- Gelesen, from the menu ---------------------------------------------------
@@ -356,51 +340,18 @@ const around = computed(() => neighbours(here.value.slug, here.value.chapter));
 /** The verse a link pointed at (?vers=), marked until the reader moves on. */
 const markedVerse = computed(() => Number(route.query.vers) || null);
 
-const state = ref<'loading' | 'ready' | 'failed' | 'missing'>('loading');
+const state = ref<'loading' | 'ready' | 'failed' | 'missing' | 'elsewhere'>('loading');
 const blocks = ref<Block[]>([]);
 const laid = computed(() => layoutChapter(blocks.value));
 
-// --- A second translation beside Menge ------------------------------------------
+const translationLabel = computed(() => BIBEL_TRANSLATIONS[bibelTranslation.value].label);
 
-/** Luther's verses for this chapter, by Menge's number; null shows Menge alone. */
-const secondary = shallowRef<Map<number, SecondaryVerse> | null>(null);
-/** Why Luther was asked for and is not there: offline, or no such chapter. */
-const parallelGap = ref<'failed' | 'missing' | null>(null);
-const parallelName = computed(() =>
-    bibelParallel.value ? BIBEL_TRANSLATIONS[bibelParallel.value].label : '',
+// What tapping does, said only for what is switched on.
+const readingHint = computed(() =>
+    bibelFeatures.value.lesezeichen
+        ? 'Auf den Text tippen wählt Verse aus, auf eine Versnummer tippen setzt ein Lesezeichen. Zum Blättern seitlich wischen.'
+        : 'Auf den Text tippen wählt Verse aus. Zum Blättern seitlich wischen.',
 );
-
-/** The second book, or null when it cannot be had — never an error on the page. */
-async function loadSecondary(slug: string, translation: BibelTranslationId) {
-    try {
-        return await loadBook(slug, translation);
-    } catch (err) {
-        console.warn('The parallel translation is not available:', err);
-        return null;
-    }
-}
-
-function setSecondary(translation: BibelParallel, other: Block[][] | null) {
-    if (!translation) {
-        secondary.value = null;
-        parallelGap.value = null;
-        return;
-    }
-    secondary.value = other
-        ? secondaryVerses(other, here.value.chapter, versesOf(laid.value))
-        : null;
-    parallelGap.value = secondary.value ? null : other ? 'missing' : 'failed';
-}
-
-// Switched on or off from the menu: Menge stays where it is, Luther joins it.
-watch(bibelParallel, async (translation) => {
-    if (state.value !== 'ready') return;
-    const { slug, chapter } = here.value;
-    const other = translation ? await loadSecondary(slug, translation) : null;
-    if (slug !== here.value.slug || chapter !== here.value.chapter) return;
-    if (translation !== bibelParallel.value) return;
-    setSecondary(translation, other);
-});
 
 async function load() {
     const { slug, chapter } = here.value;
@@ -411,21 +362,21 @@ async function load() {
 
     state.value = 'loading';
     // Opened straight from a link or a reload, the page gets here before the
-    // preferences are read: it would take the parallel view for off, and the
-    // watch below ignores the setting arriving while Menge is still loading.
+    // preferences are read, and would open Menge for a reader who chose Luther.
     await preferencesStore.initPromise;
     if (slug !== here.value.slug || chapter !== here.value.chapter) return;
-    // Luther is fetched alongside Menge rather than after it, so the page
-    // opens once, already in columns.
-    const translation = bibelParallel.value;
-    const besides = translation ? loadSecondary(slug, translation) : Promise.resolve(null);
+    const translation = bibelTranslation.value;
     try {
-        const chapters = await loadBook(slug);
-        const other = await besides;
-        // The reader may have turned on while the book was loading.
+        const chapters = await loadBook(slug, translation);
+        // The reader may have turned on, or switched translation, meanwhile.
         if (slug !== here.value.slug || chapter !== here.value.chapter) return;
-        blocks.value = chapters[chapter - 1] ?? [];
-        setSecondary(translation, other);
+        if (translation !== bibelTranslation.value) return;
+        const found = chapters[chapter - 1];
+        if (!found) {
+            state.value = 'elsewhere';
+            return;
+        }
+        blocks.value = found;
         state.value = 'ready';
         setLastRead({ slug, chapter }).catch((err) =>
             console.error('Error saving the Bible position:', err),
@@ -443,6 +394,12 @@ async function load() {
 }
 
 watch(() => [here.value.slug, here.value.chapter], load, { immediate: true });
+
+// Switched from the menu or the settings: the same chapter, in the other text.
+watch(bibelTranslation, () => {
+    vorlesen.stop();
+    load();
+});
 
 // A link to another verse of the chapter already open — a section from the
 // Inhalt — changes only the query, so the page stays and has to move itself.
@@ -624,11 +581,6 @@ function onTouchEnd(event: TouchEvent) {
     margin: 0;
     font-size: 0;
     pointer-events: none;
-}
-
-/* Luther's numbers beside Menge's go with them; nothing measures these. */
-.bibel-no-numbers :deep(.bibel-secondary-verse) {
-    display: none;
 }
 
 /* Every note open in the line; the marker that opens it has nothing to do. */

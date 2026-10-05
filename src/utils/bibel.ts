@@ -1,6 +1,6 @@
 import index from '@/assets/bibel/index.json';
 
-import { db } from '@/db';
+import { type BibelTranslationId, db } from '@/db';
 
 /**
  * Die Bibel: the Menge-Bibel (1939), public domain, built by
@@ -91,7 +91,7 @@ export function chapterPath(ref: ChapterRef, verse?: number): string {
 
 // --- Translations -------------------------------------------------------------
 
-export type BibelTranslationId = 'menge' | 'luther1912';
+export type { BibelTranslationId };
 
 export interface BibelTranslation {
     id: BibelTranslationId;

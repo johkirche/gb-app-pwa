@@ -49,7 +49,10 @@
 import { computed, ref, watch } from 'vue';
 
 import { Music } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
+
+import { usePreferencesStore } from '@/stores/preferences';
 
 import { useChapterSongIndex } from '@/composables/useChapterSongIndex';
 import { useCurrentDate } from '@/composables/useCurrentDate';
@@ -73,15 +76,20 @@ const song = computed(() => {
 
 const text = ref('');
 
+// In the translation the reader reads; the references are counted alike in
+// both for every verse on the list, so the same verse comes out either way.
+const { bibelTranslation } = storeToRefs(usePreferencesStore());
+
 watch(
-    () => pick.value?.label,
+    () => [pick.value?.label, bibelTranslation.value],
     async () => {
         text.value = '';
         const current = pick.value;
+        const translation = bibelTranslation.value;
         if (!current) return;
         try {
-            const chapters = await loadBook(current.ref.slug);
-            if (current !== pick.value) return;
+            const chapters = await loadBook(current.ref.slug, translation);
+            if (current !== pick.value || translation !== bibelTranslation.value) return;
             const laid = layoutChapter(chapters[current.ref.chapter - 1] ?? []);
             text.value = versesOf(current.ref)
                 .map((verse) => verseText(laid, verse))

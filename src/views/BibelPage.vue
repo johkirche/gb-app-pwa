@@ -29,13 +29,17 @@
                         </span>
                     </span>
                 </RouterLink>
-                <BibelHeuteLesen />
+                <BibelHeuteLesen v-if="bibelFeatures.fortschritt" />
 
-                <BibelVerseOfTheWeek />
+                <BibelVerseOfTheWeek v-if="bibelFeatures.versDerWoche" />
 
                 <!-- Lesezeichen, newest first. Set and taken off by tapping a
                      verse number in the text; here they can also be removed. -->
-                <section class="mt-6" aria-labelledby="lesezeichen-heading">
+                <section
+                    v-if="bibelFeatures.lesezeichen"
+                    class="mt-6"
+                    aria-labelledby="lesezeichen-heading"
+                >
                     <h2 id="lesezeichen-heading" class="font-display text-xl font-semibold">
                         Lesezeichen
                     </h2>
@@ -91,14 +95,17 @@
                     </ul>
                 </section>
 
-                <BibelVerseEntries />
+                <BibelVerseEntries v-if="bibelFeatures.notizen" />
 
                 <!-- The canon as the book orders it: two Testaments, each in
                      its traditional groups. A book opens to its chapters in
                      place; a one-chapter book is opened straight away. -->
                 <section v-for="testament in testaments" :key="testament.key" class="mt-6">
                     <h2 class="font-display text-xl font-semibold">{{ testament.label }}</h2>
-                    <BibelTestamentProgress :testament="testament.key" />
+                    <BibelTestamentProgress
+                        v-if="bibelFeatures.fortschritt"
+                        :testament="testament.key"
+                    />
 
                     <template v-for="group in testament.groups" :key="group.label">
                         <h3 class="label-micro mb-1 mt-4 px-2 text-muted-foreground">
@@ -122,7 +129,10 @@
                                             {{ book.title }}
                                         </span>
                                     </span>
-                                    <BibelBookProgress :slug="book.slug" />
+                                    <BibelBookProgress
+                                        v-if="bibelFeatures.fortschritt"
+                                        :slug="book.slug"
+                                    />
                                     <span class="shrink-0 text-sm text-muted-foreground">
                                         {{ book.chapters }} Kap.
                                     </span>
@@ -155,8 +165,8 @@
                 <BibelOfflineStatus class="mt-8" />
 
                 <p class="mt-8 px-2 text-xs text-muted-foreground">
-                    {{ BIBEL_TRANSLATION }}, gemeinfrei. Einmal gelesene Bücher bleiben auch offline
-                    verfügbar.
+                    {{ BIBEL_TRANSLATIONS[bibelTranslation].label }}, gemeinfrei. Einmal gelesene
+                    Bücher bleiben auch offline verfügbar.
                 </p>
             </div>
         </main>
@@ -167,9 +177,11 @@
 import { onActivated, ref } from 'vue';
 
 import { BookOpen, Bookmark, ChevronRight, Search, X } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { useLesezeichenStore } from '@/stores/lesezeichen';
+import { usePreferencesStore } from '@/stores/preferences';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
@@ -184,7 +196,7 @@ import { Button } from '@/components/ui/button';
 
 import {
     BIBEL_BOOKS,
-    BIBEL_TRANSLATION,
+    BIBEL_TRANSLATIONS,
     type BibelBook,
     type ChapterRef,
     chapterLabel,
@@ -195,6 +207,8 @@ import {
 
 const router = useRouter();
 const lesezeichenStore = useLesezeichenStore();
+// Each section of the tab can be switched off under Einstellungen → Bibel.
+const { bibelFeatures, bibelTranslation } = storeToRefs(usePreferencesStore());
 
 const scrollRef = ref<HTMLElement | null>(null);
 useKeepAliveScroll(scrollRef);

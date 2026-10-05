@@ -1,7 +1,8 @@
-import { BIBEL_BOOKS, type Block, bookUrl } from '@/utils/bibel';
+import { BIBEL_BOOKS, type BibelTranslationId, type Block, bookUrl } from '@/utils/bibel';
 
 /**
- * The whole Bible on the device, on request.
+ * The whole Bible on the device, on request — in the translation the reader
+ * reads, each kept in its own cache (see vite.config.ts).
  *
  * Books are normally kept one at a time, as they are read (bibel-cache in
  * vite.config.ts). A reader who wants the Bible in a place without a signal
@@ -16,18 +17,26 @@ import { BIBEL_BOOKS, type Block, bookUrl } from '@/utils/bibel';
 
 export const BIBEL_CACHE = 'bibel-cache';
 
-/** What the 66 files weigh on the wire (gzipped), as the reader is told. */
-export const BIBEL_DOWNLOAD_SIZE = '1,5 MB';
+/** The cache each translation's books are kept in, as the service worker names them. */
+export const BIBEL_CACHES: Record<BibelTranslationId, string> = {
+    menge: BIBEL_CACHE,
+    luther1912: 'bibel-luther-cache',
+};
 
-/** Menge only: the Lutherbibel beside it is a reading aid, not kept for offline. */
-export function bookFileUrl(slug: string): string {
-    return bookUrl(slug, 'menge');
+/** What the 66 files weigh on the wire (gzipped), as the reader is told. */
+export const BIBEL_DOWNLOAD_SIZES: Record<BibelTranslationId, string> = {
+    menge: '1,9 MB',
+    luther1912: '1,4 MB',
+};
+
+export function bookFileUrl(slug: string, translation: BibelTranslationId = 'menge'): string {
+    return bookUrl(slug, translation);
 }
 
 // Workbox stores entries under the absolute request URL; match and put both
 // resolve a relative one against the page, but saying so keeps it obvious.
-function cacheKey(slug: string): string {
-    return new URL(bookFileUrl(slug), location.origin).href;
+function cacheKey(slug: string, translation: BibelTranslationId): string {
+    return new URL(bookFileUrl(slug, translation), location.origin).href;
 }
 
 function cacheStorage(): CacheStorage | null {
@@ -39,14 +48,16 @@ function cacheStorage(): CacheStorage | null {
  * Storage (an insecure origin, some private modes): there "offline" cannot be
  * promised, so the question is not asked.
  */
-export async function offlineBookSlugs(): Promise<Set<string> | null> {
+export async function offlineBookSlugs(
+    translation: BibelTranslationId = 'menge',
+): Promise<Set<string> | null> {
     const storage = cacheStorage();
     if (!storage) return null;
     try {
-        const cache = await storage.open(BIBEL_CACHE);
+        const cache = await storage.open(BIBEL_CACHES[translation]);
         const found = await Promise.all(
             BIBEL_BOOKS.map(async (book) =>
-                (await cache.match(cacheKey(book.slug))) ? book.slug : null,
+                (await cache.match(cacheKey(book.slug, translation))) ? book.slug : null,
             ),
         );
         return new Set(found.filter((slug): slug is string => slug !== null));
@@ -65,17 +76,20 @@ export async function offlineBookSlugs(): Promise<Set<string> | null> {
  * in control that is what the fetch already did; without one (a first visit,
  * development) it is the only way to a book downloaded earlier.
  */
-export async function readBookFile(slug: string): Promise<Block[][]> {
+export async function readBookFile(
+    slug: string,
+    translation: BibelTranslationId = 'menge',
+): Promise<Block[][]> {
     let response: Response | undefined;
     try {
-        response = await fetch(bookFileUrl(slug));
+        response = await fetch(bookFileUrl(slug, translation));
         if (!response.ok) response = undefined;
     } catch {
         response = undefined;
     }
     if (!response) {
         const storage = cacheStorage();
-        response = storage ? await storage.match(cacheKey(slug)) : undefined;
+        response = storage ? await storage.match(cacheKey(slug, translation)) : undefined;
     }
     if (!response) throw new Error(`${slug}: neither online nor in the cache`);
     const data = (await response.json()) as { chapters: Block[][] };
@@ -122,6 +136,7 @@ export interface DownloadResult extends DownloadProgress {
 export async function downloadBible(
     onProgress?: (progress: DownloadProgress) => void,
     concurrency = 3,
+    translation: BibelTranslationId = 'menge',
 ): Promise<DownloadResult> {
     const total = BIBEL_BOOKS.length;
     const storage = cacheStorage();
@@ -129,8 +144,8 @@ export async function downloadBible(
         return { available: 0, total, failed: BIBEL_BOOKS.map((book) => book.slug) };
     }
 
-    const cache = await storage.open(BIBEL_CACHE);
-    const have = (await offlineBookSlugs()) ?? new Set<string>();
+    const cache = await storage.open(BIBEL_CACHES[translation]);
+    const have = (await offlineBookSlugs(translation)) ?? new Set<string>();
     const todo = BIBEL_BOOKS.filter((book) => !have.has(book.slug));
     const failed: string[] = [];
     let available = have.size;
@@ -138,12 +153,12 @@ export async function downloadBible(
 
     await runPool(todo, concurrency, async (book) => {
         try {
-            const response = await fetch(bookFileUrl(book.slug));
+            const response = await fetch(bookFileUrl(book.slug, translation));
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             // Put it in ourselves rather than trusting the service worker to:
             // on a first visit, or in development, no worker controls the
             // page and the fetch alone would keep nothing.
-            await cache.put(cacheKey(book.slug), response);
+            await cache.put(cacheKey(book.slug, translation), response);
             available++;
         } catch {
             failed.push(book.slug);

@@ -25,9 +25,10 @@
                 >
                     <template v-for="(seg, s) in line.segments" :key="s">
                         <!-- The verse number is where a Lesezeichen is set and
-                             taken off. -->
+                             taken off — with Lesezeichen switched off it is
+                             only a number, and nothing to tab to or press. -->
                         <button
-                            v-if="seg.kind === 'verse'"
+                            v-if="seg.kind === 'verse' && canBookmark"
                             :id="`vers-${seg.verse}`"
                             type="button"
                             class="bibel-verse number-display"
@@ -35,6 +36,12 @@
                             :aria-pressed="isMarked(seg.verse)"
                             :aria-label="`Lesezeichen bei Vers ${seg.verse}`"
                             @click="toggleLesezeichen(seg.verse)"
+                            v-text="seg.verse"
+                        />
+                        <span
+                            v-else-if="seg.kind === 'verse'"
+                            :id="`vers-${seg.verse}`"
+                            class="bibel-verse number-display"
                             v-text="seg.verse"
                         />
                         <button
@@ -134,6 +141,7 @@ const laid = computed(() => layoutChapter(props.blocks));
 const {
     openNotes,
     toggleNote,
+    canBookmark,
     isMarked,
     toggleLesezeichen,
     selection,

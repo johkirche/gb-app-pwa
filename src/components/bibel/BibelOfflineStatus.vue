@@ -1,8 +1,11 @@
 <!--
     The Bible's offline state, and the download that completes it. One row in
-    the settings' style, used on the Bibel tab and under Einstellungen → Daten;
+    the settings' style, used on the Bibel tab and under Einstellungen → Bibel;
     both read the same state (useBibelOffline), so a download started in one
     place shows its progress in the other.
+
+    It is about the translation the reader reads; switching to the other one
+    asks again, since each is kept apart.
 
     Hidden where the browser has no Cache Storage: there is nothing to promise.
 -->
@@ -48,7 +51,7 @@
             <div class="min-w-0 flex-1">
                 <p class="text-[15px]">
                     {{ failed ? 'Bibel weiter laden' : 'Bibel für offline laden' }}
-                    <span class="text-muted-foreground">· {{ BIBEL_DOWNLOAD_SIZE }}</span>
+                    <span class="text-muted-foreground">· {{ size }}</span>
                 </p>
                 <p class="text-sm text-muted-foreground" aria-live="polite">
                     {{ detail }}
@@ -59,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onActivated, onMounted } from 'vue';
+import { computed, onActivated, onMounted, watch } from 'vue';
 
 import { CircleCheck, CloudDownload, WifiOff } from 'lucide-vue-next';
 
@@ -67,10 +70,18 @@ import { useBibelOffline } from '@/composables/useBibelOffline';
 
 import { Progress } from '@/components/ui/progress';
 
-import { BIBEL_DOWNLOAD_SIZE } from '@/utils/bibelOffline';
-
-const { total, available, supported, downloading, failed, complete, refresh, download } =
-    useBibelOffline();
+const {
+    total,
+    translation,
+    size,
+    available,
+    supported,
+    downloading,
+    failed,
+    complete,
+    refresh,
+    download,
+} = useBibelOffline();
 
 // Said plainly when the connection dropped: what did arrive is kept, and the
 // next tap fetches only the rest.
@@ -86,4 +97,5 @@ const detail = computed(() => {
 // Books also arrive by reading them, so the count is asked again on every visit.
 onMounted(refresh);
 onActivated(refresh);
+watch(translation, refresh);
 </script>

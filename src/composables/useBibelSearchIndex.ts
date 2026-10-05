@@ -1,30 +1,51 @@
-import { computed, readonly, ref, shallowRef } from 'vue';
+import { computed, reactive, shallowReactive } from 'vue';
 
-import { BIBEL_BOOKS } from '@/utils/bibel';
+import { storeToRefs } from 'pinia';
+
+import { usePreferencesStore } from '@/stores/preferences';
+
+import { BIBEL_BOOKS, type BibelTranslationId } from '@/utils/bibel';
 import { readBookFile, runPool } from '@/utils/bibelOffline';
 import { type IndexedVerse, indexBook } from '@/utils/bibelSearch';
 
 /**
- * The search index over all verses: built once, on the first search of the
- * session, and kept in memory — about 31,000 verses, a few MB of text. Module
- * state, so leaving the search page and coming back does not rebuild it.
+ * The search index over all verses: built once per translation, on the first
+ * search of the session, and kept in memory — about 31,000 verses, a few MB
+ * of text. Module state, so leaving the search page and coming back does not
+ * rebuild it. The search reads the translation the reader reads.
  *
  * A book that cannot be read (offline, never opened) is left out and tried
  * again on the next `build()`; the search says how many books it covered.
  */
 
-const byBook = new Map<string, IndexedVerse[]>();
-const indexedCount = ref(0);
-const building = ref(false);
-let pending: Promise<void> | null = null;
+interface TranslationIndex {
+    byBook: Map<string, IndexedVerse[]>;
+    /** All indexed verses in canonical order. Replaced (not mutated) as books
+     *  arrive, so the results follow the index while it grows. */
+    verses: IndexedVerse[];
+    indexedCount: number;
+    building: boolean;
+    pending: Promise<void> | null;
+}
 
-/** All indexed verses in canonical order. Replaced (not mutated) as books
- *  arrive, so the results follow the index while it grows. */
-const verses = shallowRef<IndexedVerse[]>([]);
+function emptyIndex(): TranslationIndex {
+    return shallowReactive({
+        byBook: new Map(),
+        verses: [],
+        indexedCount: 0,
+        building: false,
+        pending: null,
+    });
+}
 
-function flatten() {
+const indexes = reactive<Record<BibelTranslationId, TranslationIndex>>({
+    menge: emptyIndex(),
+    luther1912: emptyIndex(),
+});
+
+function flatten(index: TranslationIndex) {
     // Canonical order, whatever order the books arrived in.
-    verses.value = BIBEL_BOOKS.flatMap((book) => byBook.get(book.slug) ?? []);
+    index.verses = BIBEL_BOOKS.flatMap((book) => index.byBook.get(book.slug) ?? []);
 }
 
 // A tick for the browser between books: each is indexed in a few
@@ -33,35 +54,39 @@ function yieldToBrowser(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function build(): Promise<void> {
-    if (pending) return pending;
-    const todo = BIBEL_BOOKS.filter((book) => !byBook.has(book.slug));
+function build(translation: BibelTranslationId): Promise<void> {
+    const index = indexes[translation];
+    if (index.pending) return index.pending;
+    const todo = BIBEL_BOOKS.filter((book) => !index.byBook.has(book.slug));
     if (!todo.length) return Promise.resolve();
 
-    building.value = true;
-    pending = runPool(todo, 4, async (book) => {
+    index.building = true;
+    index.pending = runPool(todo, 4, async (book) => {
         try {
-            const chapters = await readBookFile(book.slug);
+            const chapters = await readBookFile(book.slug, translation);
             await yieldToBrowser();
-            byBook.set(book.slug, indexBook(book.slug, chapters));
-            indexedCount.value = byBook.size;
-            flatten();
+            index.byBook.set(book.slug, indexBook(book.slug, chapters));
+            index.indexedCount = index.byBook.size;
+            flatten(index);
         } catch {
             // Not on the device and no connection: searched without it.
         }
     }).finally(() => {
-        building.value = false;
-        pending = null;
+        index.building = false;
+        index.pending = null;
     });
-    return pending;
+    return index.pending;
 }
 
 export function useBibelSearchIndex() {
+    const { bibelTranslation } = storeToRefs(usePreferencesStore());
+    const index = computed(() => indexes[bibelTranslation.value]);
     return {
-        verses,
-        indexedCount: readonly(indexedCount),
-        building: readonly(building),
-        complete: computed(() => indexedCount.value === BIBEL_BOOKS.length),
-        build,
+        translation: bibelTranslation,
+        verses: computed(() => index.value.verses),
+        indexedCount: computed(() => index.value.indexedCount),
+        building: computed(() => index.value.building),
+        complete: computed(() => index.value.indexedCount === BIBEL_BOOKS.length),
+        build: () => build(bibelTranslation.value),
     };
 }

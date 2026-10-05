@@ -1,10 +1,11 @@
-import { type Ref, onBeforeUnmount, ref, watch } from 'vue';
+import { type Ref, computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import { toast } from 'vue-sonner';
 
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { useMarkierungenStore } from '@/stores/markierungen';
 import { useNotizenStore } from '@/stores/notizen';
+import { usePreferencesStore } from '@/stores/preferences';
 
 import { useVerseSelection } from '@/composables/useVerseSelection';
 
@@ -14,16 +15,22 @@ import { type LaidBlock, snippet, verseText } from '@/utils/bibelLayout';
 /**
  * What a chapter's text does when the reader touches it: footnotes that open,
  * verse numbers that set a Lesezeichen, words that pick a verse out for the
- * action bar, and the highlights and notes the verses wear. Shared by the
- * text set on its own (BibelChapterText) and set beside a second translation
- * (BibelParallelText), so Menge's verses behave the same either way. The
- * component owns how the words are laid out; this owns what they mean.
+ * action bar, and the highlights and notes the verses wear. The component
+ * (BibelChapterText) owns how the words are laid out; this owns what they mean.
+ *
+ * Lesezeichen and highlights/notes can be switched off under Einstellungen →
+ * Bibel. Switched off, the numbers are only numbers and the verses wear
+ * nothing — what was stored stays, and shows again once switched back on.
  */
 export function useChapterText(
     slug: () => string,
     chapter: () => number,
     laid: Readonly<Ref<LaidBlock[]>>,
 ) {
+    const preferences = usePreferencesStore();
+    const canBookmark = computed(() => preferences.bibelFeatures.lesezeichen);
+    const showsMarks = computed(() => preferences.bibelFeatures.notizen);
+
     // --- Footnotes ------------------------------------------------------------
 
     const openNotes = ref(new Set<string>());
@@ -43,10 +50,11 @@ export function useChapterText(
     const lesezeichenStore = useLesezeichenStore();
 
     function isMarked(verse: number): boolean {
-        return lesezeichenStore.has(slug(), chapter(), verse);
+        return canBookmark.value && lesezeichenStore.has(slug(), chapter(), verse);
     }
 
     async function toggleLesezeichen(verse: number) {
+        if (!canBookmark.value) return;
         const here = { slug: slug(), chapter: chapter() };
         const label = verseRefLabel(here, verse);
         try {
@@ -99,6 +107,7 @@ export function useChapterText(
     const notizen = useNotizenStore();
 
     function colorOf(verse: number) {
+        if (!showsMarks.value) return undefined;
         return markierungen.colorOf(slug(), chapter(), verse);
     }
 
@@ -108,12 +117,13 @@ export function useChapterText(
     }
 
     function hasNote(verse: number): boolean {
-        return notizen.has(slug(), chapter(), verse);
+        return showsMarks.value && notizen.has(slug(), chapter(), verse);
     }
 
     return {
         openNotes,
         toggleNote,
+        canBookmark,
         isMarked,
         toggleLesezeichen,
         selection,

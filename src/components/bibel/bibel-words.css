@@ -1,10 +1,8 @@
-/* How a chapter's headings, verse numbers, footnotes and marked words look —
-   shared by the text set on its own (BibelChapterText) and set beside a second
-   translation (BibelParallelText), so Menge's verses wear the same marks
-   either way. How the lines are laid out stays with each component.
+/* How a chapter's headings, verse numbers, footnotes and marked words look.
+   How the lines are laid out stays with BibelChapterText.
 
-   Under .bibel-chapter, the root of both, to keep these class names to the
-   Bible text. */
+   Under .bibel-chapter, its root, to keep these class names to the Bible
+   text. */
 
 .bibel-chapter .bibel-heading {
     text-wrap: balance;

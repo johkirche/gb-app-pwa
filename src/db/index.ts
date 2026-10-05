@@ -219,7 +219,7 @@ export interface PreferencesData {
      * script, not by an editor, so whoever wants them switches them on.
      */
     showBibelstellen?: boolean;
-    /** Offer the Bibel tab (the Menge-Bibel, to read through). Off by default. */
+    /** Offer the Bibel tab, to read through. Off by default. */
     showBibel?: boolean;
     /**
      * The Bible's own reading size (0.5–2.0). Left out until the reader sets
@@ -230,15 +230,42 @@ export interface PreferencesData {
     /** How the chapter page sets the text. The store supplies the defaults. */
     bibelDisplay?: Partial<BibelDisplaySettings>;
     /**
-     * A second translation set beside Menge on the chapter page, verse by
-     * verse. Off (null, or left out) by default: Menge is the Bible the app
-     * reads; the comparison is for whoever asks for it.
+     * Which translation the Bible is read in: one or the other, never both on
+     * one page. Left out means Menge, the translation with section headings.
      */
-    bibelParallel?: BibelParallel;
+    bibelTranslation?: BibelTranslationId;
+    /** Which of the Bible's own features are offered. The store supplies the defaults. */
+    bibelFeatures?: Partial<BibelFeatures>;
+    /**
+     * @deprecated A second translation set beside Menge, verse by verse. The
+     * view was dropped for a choice of one translation; records written while
+     * it existed still carry this, and nothing reads it.
+     */
+    bibelParallel?: 'luther1912' | null;
 }
 
-/** The translations that can stand beside Menge (see BIBEL_TRANSLATIONS). */
-export type BibelParallel = 'luther1912' | null;
+/** The translations the Bible can be read in (see BIBEL_TRANSLATIONS). */
+export type BibelTranslationId = 'menge' | 'luther1912';
+
+/**
+ * The Bible's features a reader can do without. Each one switched off takes
+ * its controls and sections away; what was stored for it stays, and comes
+ * back when it is switched on again.
+ */
+export interface BibelFeatures {
+    /** Chapters marked as read, progress per book, and the reading plans */
+    fortschritt: boolean;
+    /** Lesezeichen, set on a verse number */
+    lesezeichen: boolean;
+    /** Highlights and notes on verses */
+    notizen: boolean;
+    /** The Vers der Woche on the Bibel tab */
+    versDerWoche: boolean;
+    /** The songs that cite a chapter, below it */
+    lieder: boolean;
+    /** Reading a chapter aloud */
+    vorlesen: boolean;
+}
 
 // Favorites: id == song id
 export interface Favorite {

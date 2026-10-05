@@ -1,58 +1,86 @@
-import { computed, readonly, ref } from 'vue';
+import { computed, reactive } from 'vue';
 
-import { BIBEL_BOOKS } from '@/utils/bibel';
-import { downloadBible, offlineBookSlugs } from '@/utils/bibelOffline';
+import { storeToRefs } from 'pinia';
+
+import { usePreferencesStore } from '@/stores/preferences';
+
+import { BIBEL_BOOKS, type BibelTranslationId } from '@/utils/bibel';
+import { BIBEL_DOWNLOAD_SIZES, downloadBible, offlineBookSlugs } from '@/utils/bibelOffline';
 
 /**
- * Whether the Bible is on the device, and the download that puts it there.
+ * Whether the Bible is on the device, and the download that puts it there —
+ * for the translation the reader reads.
  *
  * Module state, shared by every place that shows it: a download started on
  * the Bibel tab is still running, with its progress, when the reader opens
- * the settings — and is not started a second time from there.
+ * the settings — and is not started a second time from there. Each
+ * translation keeps its own, as each keeps its own cache.
  */
 
 const total = BIBEL_BOOKS.length;
-/** Books in the cache; null until asked, or where there is no Cache Storage. */
-const available = ref<number | null>(null);
-const supported = ref(true);
-const downloading = ref(false);
-/** Books that failed in the last run; 0 when it went through. */
-const failed = ref(0);
 
-async function refresh(): Promise<void> {
-    if (downloading.value) return;
-    const slugs = await offlineBookSlugs();
-    supported.value = slugs !== null;
-    available.value = slugs?.size ?? null;
+interface OfflineState {
+    /** Books in the cache; null until asked, or where there is no Cache Storage. */
+    available: number | null;
+    supported: boolean;
+    downloading: boolean;
+    /** Books that failed in the last run; 0 when it went through. */
+    failed: number;
 }
 
-async function download(): Promise<void> {
-    if (downloading.value) return;
-    downloading.value = true;
-    failed.value = 0;
+function initialState(): OfflineState {
+    return { available: null, supported: true, downloading: false, failed: 0 };
+}
+
+const states = reactive<Record<BibelTranslationId, OfflineState>>({
+    menge: initialState(),
+    luther1912: initialState(),
+});
+
+async function refresh(translation: BibelTranslationId): Promise<void> {
+    const state = states[translation];
+    if (state.downloading) return;
+    const slugs = await offlineBookSlugs(translation);
+    state.supported = slugs !== null;
+    state.available = slugs?.size ?? null;
+}
+
+async function download(translation: BibelTranslationId): Promise<void> {
+    const state = states[translation];
+    if (state.downloading) return;
+    state.downloading = true;
+    state.failed = 0;
     try {
-        const result = await downloadBible((progress) => {
-            available.value = progress.available;
-        });
-        available.value = result.available;
-        failed.value = result.failed.length;
+        const result = await downloadBible(
+            (progress) => {
+                state.available = progress.available;
+            },
+            3,
+            translation,
+        );
+        state.available = result.available;
+        state.failed = result.failed.length;
     } catch (error) {
         console.error('Error downloading the Bible:', error);
-        failed.value = total - (available.value ?? 0);
+        state.failed = total - (state.available ?? 0);
     } finally {
-        downloading.value = false;
+        state.downloading = false;
     }
 }
 
 export function useBibelOffline() {
+    const { bibelTranslation } = storeToRefs(usePreferencesStore());
+    const state = computed(() => states[bibelTranslation.value]);
     return {
         total,
-        available: readonly(available),
-        supported: readonly(supported),
-        downloading: readonly(downloading),
-        failed: readonly(failed),
-        complete: computed(() => available.value === total),
-        refresh,
-        download,
+        translation: bibelTranslation,
+        size: computed(() => BIBEL_DOWNLOAD_SIZES[bibelTranslation.value]),
+        available: computed(() => state.value.available),
+        supported: computed(() => state.value.supported),
+        downloading: computed(() => state.value.downloading),
+        failed: computed(() => state.value.failed),
+        complete: computed(() => state.value.available === total),
+        refresh: () => refresh(bibelTranslation.value),
+        download: () => download(bibelTranslation.value),
     };
 }
