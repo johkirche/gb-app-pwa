@@ -139,6 +139,8 @@
                     </template>
                 </section>
 
+                <BibelOfflineStatus class="mt-8" />
+
                 <p class="mt-8 px-2 text-xs text-muted-foreground">
                     {{ BIBEL_TRANSLATION }}, gemeinfrei. Einmal gelesene Bücher bleiben auch offline
                     verfügbar.
@@ -158,6 +160,7 @@ import { useLesezeichenStore } from '@/stores/lesezeichen';
 
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 
+import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 

@@ -15,6 +15,10 @@
             <ChevronRight class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
 
+        <!-- The Bible is not part of the synced library: its own row, and
+             only for readers who have the Bibel switched on. -->
+        <BibelOfflineStatus v-if="preferencesStore.showBibel" />
+
         <!-- Always visible: null renders „Vom Browser nicht unterstützt."
              (matches the pre-migration behavior) -->
         <div class="flex items-center gap-4 px-2 py-3">
@@ -96,8 +100,10 @@ import { toast } from 'vue-sonner';
 
 import { useFavoritesStore } from '@/stores/favorites';
 import { usePlaylistsStore } from '@/stores/playlists';
+import { usePreferencesStore } from '@/stores/preferences';
 import { useSongsStore } from '@/stores/songs';
 
+import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
 import SettingsList from '@/components/settings/SettingsList.vue';
 
 import { type Favorite, type Playlist, db } from '@/db';
@@ -116,6 +122,7 @@ const router = useRouter();
 const songsStore = useSongsStore();
 const playlistsStore = usePlaylistsStore();
 const favoritesStore = useFavoritesStore();
+const preferencesStore = usePreferencesStore();
 
 // Hidden file input for the backup import
 const importInput = ref<HTMLInputElement | null>(null);
