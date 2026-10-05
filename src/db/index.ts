@@ -115,8 +115,27 @@ export interface Playlist {
     name: string;
     emoji: string;
     songIds: string[];
+    /**
+     * Bible passages kept with the songs. Optional: every playlist stored
+     * before the Bibel tab existed simply has none.
+     */
+    passagen?: BibelPassage[];
     createdAt: Date;
     updatedAt: Date;
+}
+
+/**
+ * A passage as a service plan or a playlist keeps it: where it starts, and
+ * where a range ends. No text — the wording is read from the book when shown,
+ * so a stored passage stays a few bytes and never goes out of date.
+ */
+export interface BibelPassage {
+    slug: string;
+    chapter: number;
+    /** Absent for the whole chapter. */
+    verse?: number;
+    /** The last verse of a range within the chapter. */
+    endVerse?: number;
 }
 
 // Preferences types
@@ -300,6 +319,8 @@ export interface ServicePlan {
     expiresAt: number;
     /** Unset for a selection made here; set when adopted from a provider. */
     origin?: ServicePlanOrigin | null;
+    /** The Lesungen, in the order they are read. Absent on older plans. */
+    lesungen?: BibelPassage[];
     createdAt: Date;
     updatedAt: Date;
 }
