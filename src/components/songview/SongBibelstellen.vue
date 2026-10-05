@@ -11,58 +11,75 @@
             Bibelstellen
         </h2>
 
-        <!-- One disclosure per passage: the reference and what the song takes
-             from it read at a glance, the wording opens on a tap. Native
-             details/summary, so keyboard and screen readers get it for free. -->
-        <details v-for="stelle in stellen" :key="stelle.ref" class="group mb-2">
-            <summary
-                class="flex cursor-pointer list-none items-start gap-2 rounded-md py-1 [&::-webkit-details-marker]:hidden"
-            >
-                <ChevronRight
-                    class="mt-0.5 size-[18px] shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
-                    aria-hidden="true"
-                />
-                <span class="min-w-0">
-                    <span class="text-foreground">{{ stelle.ref }}</span>
-                    <span v-if="stelle.note" class="block text-sm text-muted-foreground">
-                        {{ stelle.note }}
+        <!-- First the passages the song takes up in a line of its own, in
+             strophe order and with that line; then those that speak to the
+             song as a whole. -->
+        <template v-for="group in groups" :key="group.key">
+            <h3
+                v-if="group.heading"
+                class="mb-2 mt-4 text-xs font-medium text-muted-foreground"
+                v-text="group.heading"
+            />
+            <!-- One disclosure per passage: the reference and what the song takes
+                 from it read at a glance, the wording opens on a tap. Native
+                 details/summary, so keyboard and screen readers get it for free. -->
+            <details v-for="stelle in group.items" :key="stelle.ref" class="group mb-2">
+                <summary
+                    class="flex cursor-pointer list-none items-start gap-2 rounded-md py-1 [&::-webkit-details-marker]:hidden"
+                >
+                    <ChevronRight
+                        class="mt-0.5 size-[18px] shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+                        aria-hidden="true"
+                    />
+                    <span class="min-w-0">
+                        <span class="text-foreground">{{ stelle.ref }}</span>
+                        <!-- The song's own words, set as its verses are. -->
+                        <span v-if="stelle.line" class="mt-0.5 block text-sm">
+                            <span class="text-muted-foreground">
+                                Strophe {{ stelle.line.strophe }}:
+                            </span>
+                            <span class="font-hymnal">„{{ stelle.line.text }}“</span>
+                        </span>
+                        <span v-if="stelle.note" class="block text-sm text-muted-foreground">
+                            {{ stelle.note }}
+                        </span>
                     </span>
-                </span>
-            </summary>
+                </summary>
 
-            <blockquote
-                class="ml-[26px] mt-2 border-l-2 border-gold/40 pl-3 text-[15px] leading-relaxed"
-            >
-                <template v-if="stelle.verses">
-                    <span v-for="(vers, idx) in stelle.verses" :key="idx">
-                        <!-- v-text, so the template's line breaks do not end
-                             up as spaces inside the verse number. -->
-                        <sup
-                            class="text-[0.7em] text-muted-foreground"
-                            v-text="verseLabel(stelle.verses, idx)"
-                        />
-                        {{ vers[2] }}{{ ' ' }}
+                <blockquote
+                    class="ml-[26px] mt-2 border-l-2 border-gold/40 pl-3 text-[15px] leading-relaxed"
+                >
+                    <template v-if="stelle.verses">
+                        <span v-for="(vers, idx) in stelle.verses" :key="idx">
+                            <!-- v-text, so the template's line breaks do not end
+                                 up as spaces inside the verse number. -->
+                            <sup
+                                class="text-[0.7em] text-muted-foreground"
+                                v-text="verseLabel(stelle.verses, idx)"
+                            />
+                            {{ vers[2] }}{{ ' ' }}
+                        </span>
+                    </template>
+                    <span v-else class="italic text-muted-foreground">
+                        Zu lang, um sie hier wiederzugeben.
                     </span>
-                </template>
-                <span v-else class="italic text-muted-foreground">
-                    Zu lang, um sie hier wiederzugeben.
-                </span>
-            </blockquote>
+                </blockquote>
 
-            <RouterLink
-                :to="chapterPath({ slug: stelle.at[0], chapter: stelle.at[1] }, stelle.at[2])"
-                class="ml-[26px] mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground underline decoration-dotted underline-offset-[3px] transition-colors hover:text-primary active:text-primary"
-            >
-                Im Zusammenhang lesen
-            </RouterLink>
-        </details>
+                <RouterLink
+                    :to="chapterPath({ slug: stelle.at[0], chapter: stelle.at[1] }, stelle.at[2])"
+                    class="ml-[26px] mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground underline decoration-dotted underline-offset-[3px] transition-colors hover:text-primary active:text-primary"
+                >
+                    Im Zusammenhang lesen
+                </RouterLink>
+            </details>
+        </template>
 
         <p class="mt-3 text-xs text-muted-foreground">{{ translation }} · automatisch zugeordnet</p>
     </section>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { ChevronRight } from 'lucide-vue-next';
 import { RouterLink } from 'vue-router';
@@ -72,6 +89,7 @@ import { chapterPath } from '@/utils/bibel';
 import {
     type Bibelstelle,
     bibelstellenFor,
+    groupByLine,
     loadBibelstellen,
     verseLabel,
 } from '@/utils/bibelstellen';
@@ -82,6 +100,15 @@ const props = defineProps<{
 
 const stellen = ref<Bibelstelle[]>([]);
 const translation = ref('');
+
+const groups = computed(() => {
+    const { toLines, whole } = groupByLine(stellen.value);
+    return [
+        { key: 'lines', heading: '', items: toLines },
+        // A heading only where it sets these apart from passages with a line.
+        { key: 'whole', heading: toLines.length ? 'Zum ganzen Lied' : '', items: whole },
+    ].filter((group) => group.items.length > 0);
+});
 
 watch(
     () => props.song,

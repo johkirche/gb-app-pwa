@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { type BibelstellenData, bibelstellenFor, titleKey, verseLabel } from './bibelstellen';
+import {
+    type Bibelstelle,
+    type BibelstellenData,
+    bibelstellenFor,
+    groupByLine,
+    titleKey,
+    verseLabel,
+} from './bibelstellen';
 
 const data: BibelstellenData = {
     translation: 'Menge-Bibel (1939)',
@@ -71,5 +78,25 @@ describe('verseLabel', () => {
                 1,
             ),
         ).toBe('4,1');
+    });
+});
+
+describe('groupByLine', () => {
+    const stelle = (ref: string, strophe?: number): Bibelstelle => ({
+        ref,
+        note: '',
+        at: ['psalm', 23, 1],
+        ...(strophe ? { line: { strophe, text: '…' } } : {}),
+    });
+
+    it('puts the passages with a line first, in strophe order', () => {
+        const { toLines, whole } = groupByLine([
+            stelle('a'),
+            stelle('b', 3),
+            stelle('c', 1),
+            stelle('d'),
+        ]);
+        expect(toLines.map((s) => s.ref)).toEqual(['c', 'b']);
+        expect(whole.map((s) => s.ref)).toEqual(['a', 'd']);
     });
 });

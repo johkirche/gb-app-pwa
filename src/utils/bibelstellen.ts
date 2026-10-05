@@ -26,6 +26,13 @@ export interface Bibelstelle {
     verses?: BibelVers[];
     /** Where it starts in the Bible: book slug, chapter, verse. */
     at: [string, number, number];
+    /**
+     * The words of the song that cite the passage, where they are known
+     * (strophe 1-based). Most passages have none: they speak to the song as a
+     * whole, and no line is guessed for them. Never in the bundled file —
+     * song texts stay behind the login — so only from the synced songs.
+     */
+    line?: { strophe: number; text: string };
 }
 
 export interface BibelstellenData {
@@ -64,6 +71,21 @@ export function bibelstellenFor(
 ): Bibelstelle[] {
     const textId = song.textId ?? data.byTitle[titleKey(song.titel)];
     return (textId && data.byText[textId]) || [];
+}
+
+/**
+ * The passages in the order the song gives them: first those tied to a line,
+ * by strophe; then those about the song as a whole. Within each, the order the
+ * check listed them in.
+ */
+export function groupByLine(stellen: Bibelstelle[]): {
+    toLines: Bibelstelle[];
+    whole: Bibelstelle[];
+} {
+    const toLines = stellen
+        .filter((stelle) => stelle.line)
+        .sort((a, b) => (a.line?.strophe ?? 0) - (b.line?.strophe ?? 0));
+    return { toLines, whole: stellen.filter((stelle) => !stelle.line) };
 }
 
 /**

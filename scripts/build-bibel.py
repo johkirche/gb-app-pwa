@@ -17,6 +17,10 @@ The song references come from gb-scripts (14-ai-extract-metadata.py, checked by
 every reference it judged `ok`, and the `suspect` ones whose cited passage the
 model still confirmed.
 
+No words of the songs are written here: this file is in a public repository,
+and many song texts are under copyright. The line of a song a passage belongs
+to is kept with the songs themselves, behind the login (Directus).
+
 Usage:
     git clone --depth 1 https://github.com/renehamburger/Menge-Bibel
     python scripts/build-bibel.py <Menge-Bibel dir> <ai_text_bible_check.json>
