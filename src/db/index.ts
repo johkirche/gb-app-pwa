@@ -229,7 +229,16 @@ export interface PreferencesData {
     bibelScale?: number;
     /** How the chapter page sets the text. The store supplies the defaults. */
     bibelDisplay?: Partial<BibelDisplaySettings>;
+    /**
+     * A second translation set beside Menge on the chapter page, verse by
+     * verse. Off (null, or left out) by default: Menge is the Bible the app
+     * reads; the comparison is for whoever asks for it.
+     */
+    bibelParallel?: BibelParallel;
 }
+
+/** The translations that can stand beside Menge (see BIBEL_TRANSLATIONS). */
+export type BibelParallel = 'luther1912' | null;
 
 // Favorites: id == song id
 export interface Favorite {

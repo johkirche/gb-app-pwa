@@ -133,6 +133,23 @@
                             "
                         />
                     </div>
+                    <!-- A second translation, verse by verse beside Menge. -->
+                    <div class="flex items-center justify-between gap-3">
+                        <Label for="bibel-parallel" class="flex items-center gap-2.5">
+                            <Columns2
+                                class="size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            Luther 1912 daneben
+                        </Label>
+                        <Switch
+                            id="bibel-parallel"
+                            :model-value="parallel === 'luther1912'"
+                            @update:model-value="
+                                $emit('update:parallel', $event ? 'luther1912' : null)
+                            "
+                        />
+                    </div>
                     <!-- Hidden where the platform has no wake lock: a switch
                          that provably does nothing is worse than no switch.
                          It is the song page's setting too — one screen, one
@@ -165,6 +182,7 @@ import {
     Bookmark,
     BookmarkMinus,
     BookmarkPlus,
+    Columns2,
     Hash,
     Heading,
     Lightbulb,
@@ -183,7 +201,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 
-import type { BibelDisplaySettings } from '@/db';
+import type { BibelDisplaySettings, BibelParallel } from '@/db';
 
 /**
  * The chapter page's menu: what can be done with the chapter, and how it is
@@ -193,6 +211,8 @@ import type { BibelDisplaySettings } from '@/db';
 const props = defineProps<{
     scale: number;
     display: BibelDisplaySettings;
+    /** The translation set beside Menge, or null for Menge alone. */
+    parallel: BibelParallel;
     keepScreenAwake: boolean;
     /** The verse at the top of the screen, asked for each time the menu opens. */
     topVerse: number | null;
@@ -216,6 +236,7 @@ const emit = defineEmits<{
             value: BibelDisplaySettings[keyof BibelDisplaySettings];
         },
     ];
+    'update:parallel': [value: BibelParallel];
     'update:keepScreenAwake': [value: boolean];
     bookmark: [];
     goto: [verse: number];

@@ -119,6 +119,28 @@
             </div>
         </div>
 
+        <!-- The chapter menu's "Luther 1912 daneben", here too: one setting. -->
+        <div v-if="showBibel" class="flex items-center justify-between gap-4 px-2 py-3">
+            <div class="flex min-w-0 items-center gap-4">
+                <Columns2 class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <div class="min-w-0">
+                    <Label for="settings-bibel-parallel" class="text-[15px] font-normal">
+                        Luther 1912 daneben
+                    </Label>
+                    <p class="text-sm text-muted-foreground">
+                        Die Lutherbibel (1912) Vers für Vers neben dem Menge-Text
+                    </p>
+                </div>
+            </div>
+            <Switch
+                id="settings-bibel-parallel"
+                :model-value="preferencesStore.bibelParallel === 'luther1912'"
+                @update:model-value="
+                    preferencesStore.setBibelParallel($event ? 'luther1912' : null)
+                "
+            />
+        </div>
+
         <!-- Off by default: the references were assigned by a language model
              and checked by script, not chosen by an editor — the description
              says so, so nobody takes them for the book's own. -->
@@ -147,7 +169,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { BookMarked, BookOpen, Contrast, Lightbulb, Type } from 'lucide-vue-next';
+import { BookMarked, BookOpen, Columns2, Contrast, Lightbulb, Type } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
 
 import { usePreferencesStore } from '@/stores/preferences';

@@ -14,8 +14,13 @@ vi.mock('@/db', () => ({
     },
 }));
 
-const { DEFAULT_BIBEL_DISPLAY, readBibelDisplay, readBibelScale, usePreferencesStore } =
-    await import('./preferences');
+const {
+    DEFAULT_BIBEL_DISPLAY,
+    readBibelDisplay,
+    readBibelParallel,
+    readBibelScale,
+    usePreferencesStore,
+} = await import('./preferences');
 
 describe('the Bible settings', () => {
     beforeEach(() => {
@@ -66,15 +71,31 @@ describe('the Bible settings', () => {
         expect(again.bibelDisplay).toEqual({ ...DEFAULT_BIBEL_DISPLAY, versePerLine: true });
     });
 
+    it('reads Menge alone until a second translation is asked for', async () => {
+        const store = usePreferencesStore();
+        await store.initPromise;
+        expect(store.bibelParallel).toBeNull();
+
+        await store.setBibelParallel('luther1912');
+        expect(rows.get('default')?.bibelParallel).toBe('luther1912');
+
+        setActivePinia(createPinia());
+        const again = usePreferencesStore();
+        await again.initPromise;
+        expect(again.bibelParallel).toBe('luther1912');
+    });
+
     it('forgets the Bible settings on logout', async () => {
         const store = usePreferencesStore();
         await store.initPromise;
         await store.setBibelScale(1.5);
         await store.setBibelDisplay('showHeadings', false);
+        await store.setBibelParallel('luther1912');
 
         await store.resetToDefaults();
         expect(store.bibelScale).toBe(1);
         expect(store.bibelDisplay).toEqual(DEFAULT_BIBEL_DISPLAY);
+        expect(store.bibelParallel).toBeNull();
     });
 });
 
@@ -107,5 +128,17 @@ describe('readBibelScale', () => {
     it('keeps a stored size within the slider', () => {
         expect(readBibelScale(0.1)).toBe(0.5);
         expect(readBibelScale(1.2)).toBe(1.2);
+    });
+});
+
+describe('readBibelParallel', () => {
+    it('is off for a record from before the setting', () => {
+        expect(readBibelParallel(undefined)).toBeNull();
+        expect(readBibelParallel(null)).toBeNull();
+    });
+
+    it('takes only a translation the app has', () => {
+        expect(readBibelParallel('luther1912')).toBe('luther1912');
+        expect(readBibelParallel('elberfelder' as unknown as 'luther1912')).toBeNull();
     });
 });
