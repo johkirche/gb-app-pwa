@@ -255,13 +255,15 @@ export function parallelRows(
     }
 
     const result: ParallelRow[] = [];
+    // Before the chapter's first verse, but under the headings that open it.
+    let opening = true;
     rows.forEach((row, index) => {
-        // Before the chapter's first verse, but under the headings that open it.
-        if (before.length && row.kind === 'verse' && result.every((r) => r.kind === 'heading')) {
+        if (opening && row.kind === 'verse') {
             result.push(...before);
+            opening = false;
         }
         result.push(row, ...(after.get(index) ?? []));
     });
-    if (before.length && result.every((r) => r.kind === 'heading')) result.push(...before);
+    if (opening) result.push(...before);
     return result;
 }
