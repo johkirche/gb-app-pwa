@@ -41,6 +41,8 @@ export const playlistServicePlanProvider: ServicePlanProvider = {
         return {
             title: playlist.name,
             entries: entriesFromSongIds(playlist.songIds),
+            // A playlist's passages become the service's Lesungen.
+            lesungen: playlist.passagen,
         };
     },
 };

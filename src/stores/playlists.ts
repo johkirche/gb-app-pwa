@@ -2,7 +2,9 @@ import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type Playlist, db } from '@/db';
+import { type BibelPassage, type Playlist, db } from '@/db';
+import { reorderPassages, withPassage, withoutPassage } from '@/utils/bibelPassage';
+import { toPlainPlaylist } from '@/utils/playlistEntries';
 
 export const usePlaylistsStore = defineStore('playlists', () => {
     // State
@@ -78,7 +80,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
                 updatedAt: new Date(),
             };
 
-            await db.playlists.put(updatedPlaylist);
+            await db.playlists.put(toPlainPlaylist(updatedPlaylist));
 
             const index = playlists.value.findIndex((p) => p.id === id);
             if (index !== -1) {
@@ -122,7 +124,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
                 updatedAt: new Date(),
             };
 
-            await db.playlists.put(updatedPlaylist);
+            await db.playlists.put(toPlainPlaylist(updatedPlaylist));
 
             const index = playlists.value.findIndex((p) => p.id === playlistId);
             if (index !== -1) {
@@ -155,7 +157,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
                 updatedAt: new Date(),
             };
 
-            await db.playlists.put(updatedPlaylist);
+            await db.playlists.put(toPlainPlaylist(updatedPlaylist));
 
             const index = playlists.value.findIndex((p) => p.id === playlistId);
             if (index !== -1) {
@@ -182,7 +184,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
                 updatedAt: new Date(),
             };
 
-            await db.playlists.put(updatedPlaylist);
+            await db.playlists.put(toPlainPlaylist(updatedPlaylist));
 
             const index = playlists.value.findIndex((p) => p.id === playlistId);
             if (index !== -1) {
@@ -209,7 +211,7 @@ export const usePlaylistsStore = defineStore('playlists', () => {
                 updatedAt: new Date(),
             };
 
-            await db.playlists.put(updatedPlaylist);
+            await db.playlists.put(toPlainPlaylist(updatedPlaylist));
 
             const index = playlists.value.findIndex((p) => p.id === playlistId);
             if (index !== -1) {
@@ -220,6 +222,63 @@ export const usePlaylistsStore = defineStore('playlists', () => {
             error.value = 'Failed to reorder songs';
             throw err;
         }
+    }
+
+    // --- Bible passages ---
+    // Kept beside the songs rather than among their ids: songIds stays a list
+    // of songs for everything that reads it (the service provider, the export,
+    // the counts), and a playlist without passages stays as it always was.
+
+    async function savePassagen(
+        playlistId: string,
+        change: (current: BibelPassage[] | undefined) => BibelPassage[],
+    ): Promise<void> {
+        try {
+            error.value = null;
+            const playlist = playlists.value.find((p) => p.id === playlistId);
+            if (!playlist) {
+                throw new Error('Playlist not found');
+            }
+
+            const updatedPlaylist = toPlainPlaylist({
+                ...playlist,
+                passagen: change(playlist.passagen),
+                updatedAt: new Date(),
+            });
+
+            await db.playlists.put(updatedPlaylist);
+
+            const index = playlists.value.findIndex((p) => p.id === playlistId);
+            if (index !== -1) {
+                playlists.value[index] = updatedPlaylist;
+            }
+        } catch (err) {
+            console.error('Error saving playlist passages:', err);
+            error.value = 'Failed to save the Bible passages';
+            throw err;
+        }
+    }
+
+    /** Append a passage, unless the playlist already has it. */
+    async function addPassageToPlaylist(playlistId: string, passage: BibelPassage): Promise<void> {
+        await savePassagen(playlistId, (current) => withPassage(current, passage));
+    }
+
+    async function addPassagesToPlaylist(
+        playlistId: string,
+        passages: BibelPassage[],
+    ): Promise<void> {
+        if (passages.length === 0) return;
+        await savePassagen(playlistId, (current) => passages.reduce(withPassage, current ?? []));
+    }
+
+    /** Take a passage off, by its passageKey. */
+    async function removePassageFromPlaylist(playlistId: string, key: string): Promise<void> {
+        await savePassagen(playlistId, (current) => withoutPassage(current, key));
+    }
+
+    async function reorderPlaylistPassages(playlistId: string, keys: string[]): Promise<void> {
+        await savePassagen(playlistId, (current) => reorderPassages(current, keys));
     }
 
     function getPlaylistById(id: string): Playlist | undefined {
@@ -253,6 +312,10 @@ export const usePlaylistsStore = defineStore('playlists', () => {
         addSongsToPlaylist,
         removeSongFromPlaylist,
         reorderSongs,
+        addPassageToPlaylist,
+        addPassagesToPlaylist,
+        removePassageFromPlaylist,
+        reorderPlaylistPassages,
         getPlaylistById,
         clearAll,
     };

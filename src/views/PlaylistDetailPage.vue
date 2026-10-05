@@ -112,6 +112,15 @@
                         @entry-context-menu="showSongActions"
                         @reorder="handleReorder"
                     />
+
+                    <!-- Bible passages kept with the songs, added from the Bibel tab -->
+                    <BibelPassageList
+                        heading="Bibelstellen"
+                        :passages="playlist.passagen ?? []"
+                        :reorder-mode="reorderMode"
+                        @remove="removePassage"
+                        @reorder="handleReorderPassages"
+                    />
                 </template>
             </div>
         </main>
@@ -170,6 +179,7 @@ import { useSongsStore } from '@/stores/songs';
 
 import { useConfirm } from '@/composables/useConfirm';
 
+import BibelPassageList from '@/components/bibel/BibelPassageList.vue';
 import PlaylistEditModal from '@/components/playlist/PlaylistEditModal.vue';
 import PlaylistHeader from '@/components/playlist/PlaylistHeader.vue';
 import PlaylistSongsList from '@/components/playlist/PlaylistSongsList.vue';
@@ -325,6 +335,24 @@ async function removeSong(songId: string) {
         await playlistsStore.removeSongFromPlaylist(playlist.value.id, songId);
     } catch (error) {
         console.error('Failed to remove song:', error);
+    }
+}
+
+async function removePassage(key: string) {
+    if (!playlist.value) return;
+    try {
+        await playlistsStore.removePassageFromPlaylist(playlist.value.id, key);
+    } catch (error) {
+        console.error('Failed to remove passage:', error);
+    }
+}
+
+async function handleReorderPassages(keys: string[]) {
+    if (!playlist.value) return;
+    try {
+        await playlistsStore.reorderPlaylistPassages(playlist.value.id, keys);
+    } catch (error) {
+        console.error('Failed to reorder passages:', error);
     }
 }
 

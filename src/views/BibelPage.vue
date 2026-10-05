@@ -31,6 +31,8 @@
                 </RouterLink>
                 <BibelHeuteLesen />
 
+                <BibelVerseOfTheWeek />
+
                 <!-- Lesezeichen, newest first. Set and taken off by tapping a
                      verse number in the text; here they can also be removed. -->
                 <section class="mt-6" aria-labelledby="lesezeichen-heading">
@@ -176,6 +178,7 @@ import BibelHeuteLesen from '@/components/bibel/BibelHeuteLesen.vue';
 import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
 import BibelTestamentProgress from '@/components/bibel/BibelTestamentProgress.vue';
 import BibelVerseEntries from '@/components/bibel/BibelVerseEntries.vue';
+import BibelVerseOfTheWeek from '@/components/bibel/BibelVerseOfTheWeek.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 

@@ -2,13 +2,14 @@ import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type ServicePlan, type ServicePlanOrigin, db } from '@/db';
+import { type BibelPassage, type ServicePlan, type ServicePlanOrigin, db } from '@/db';
 import {
     DEFAULT_SERVICE_TITLE,
     type ServicePlanDraft,
     type VerseSelection,
     createPlan,
     endOfDay,
+    formatSelectionCount,
     formatServiceDate,
     getServicePlanProvider,
     isPlanExpired,
@@ -16,6 +17,7 @@ import {
     toPlainPlan,
     todayIsoDate,
 } from '@/services/servicePlans';
+import { reorderPassages, withPassage, withoutPassage } from '@/utils/bibelPassage';
 
 /**
  * Which stored plan is the one in use. The `services` table is keyed by id
@@ -43,11 +45,13 @@ export const useServiceStore = defineStore('service', () => {
     const songIds = computed(() => entries.value.map((entry) => entry.songId));
     const songIdSet = computed(() => new Set(songIds.value));
     const entryCount = computed(() => entries.value.length);
-    /** What the tab bar asks: is there anything to show? */
-    const hasSelection = computed(() => entryCount.value > 0);
+    /** The readings, in the order they are read. Older plans have none. */
+    const lesungen = computed<BibelPassage[]>(() => plan.value?.lesungen ?? []);
+    /** What the tab bar asks: is there anything to show? A reading counts too. */
+    const hasSelection = computed(() => entryCount.value > 0 || lesungen.value.length > 0);
     /** The selection in one line („3 Lieder · Heute") — for rows that link to it. */
     const selectionLabel = computed(() => {
-        const songs = entryCount.value === 1 ? '1 Lied' : `${entryCount.value} Lieder`;
+        const songs = formatSelectionCount(entryCount.value, lesungen.value.length);
         const date = plan.value ? formatServiceDate(plan.value.date) : '';
         return [songs, date].filter(Boolean).join(' · ');
     });
@@ -193,6 +197,29 @@ export const useServiceStore = defineStore('service', () => {
         await update({ entries: [...ordered, ...rest] });
     }
 
+    // --- Lesungen ---
+    // Passages, not songs, so they sit beside the entries rather than among
+    // them: the song list and everything built on it (Strophenwahl, adopting
+    // and saving playlists) stays about songs.
+
+    /** Put a passage on the plan, after the readings already there; once only. */
+    async function addLesung(passage: BibelPassage): Promise<void> {
+        const current = await ensurePlan();
+        await update({ lesungen: withPassage(current.lesungen, passage) });
+    }
+
+    /** Take a reading off, by its passageKey. */
+    async function removeLesung(key: string): Promise<void> {
+        if (!plan.value) return;
+        await update({ lesungen: withoutPassage(plan.value.lesungen, key) });
+    }
+
+    /** Reorder the readings to `orderedKeys` (passageKey each). */
+    async function reorderLesungen(orderedKeys: string[]): Promise<void> {
+        if (!plan.value) return;
+        await update({ lesungen: reorderPassages(plan.value.lesungen, orderedKeys) });
+    }
+
     async function setDate(isoDate: string): Promise<void> {
         if (!plan.value) return;
         // The expiry is not a second setting to keep in sync — it *is* the date.
@@ -280,6 +307,7 @@ export const useServiceStore = defineStore('service', () => {
         entries,
         songIds,
         entryCount,
+        lesungen,
         hasSelection,
         selectionLabel,
         isInPlan,
@@ -292,6 +320,9 @@ export const useServiceStore = defineStore('service', () => {
         markSong,
         removeSong,
         reorder,
+        addLesung,
+        removeLesung,
+        reorderLesungen,
         setDate,
         setTitle,
         replaceWith,

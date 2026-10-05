@@ -108,6 +108,7 @@ import SettingsList from '@/components/settings/SettingsList.vue';
 
 import { type Favorite, type Playlist, db } from '@/db';
 import { downloadJsonFile } from '@/services/storage';
+import { toPassages } from '@/utils/bibelPassage';
 
 // Both counts and the persistence state are volatile enough to need refreshing
 // on every entry, which the settings shell already does for its overview — so
@@ -202,6 +203,7 @@ async function onImportFileChange(e: Event) {
                 name: p.name,
                 emoji: typeof p.emoji === 'string' ? p.emoji : '🎵',
                 songIds: p.songIds.filter((s: unknown): s is string => typeof s === 'string'),
+                ...(Array.isArray(p.passagen) ? { passagen: toPassages(p.passagen) } : {}),
                 createdAt: reviveDate(p.createdAt),
                 updatedAt: reviveDate(p.updatedAt),
             }));

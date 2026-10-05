@@ -1,4 +1,4 @@
-import type { ServiceEntry } from '@/db';
+import type { BibelPassage, ServiceEntry } from '@/db';
 
 /**
  * A plan a provider has on offer, as it is shown in the picker. Deliberately
@@ -24,6 +24,8 @@ export interface ServicePlanDraft {
     /** Omitted means "today"; the store fills it in. */
     date?: string | null;
     entries: ServiceEntry[];
+    /** The Lesungen, where the source has any. */
+    lesungen?: BibelPassage[];
 }
 
 /**
