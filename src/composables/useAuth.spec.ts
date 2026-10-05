@@ -40,6 +40,7 @@ const updateTokens = vi.fn();
 const setUser = vi.fn();
 const storeLogout = vi.fn();
 const favoritesClearAll = vi.fn();
+const lesezeichenClearAll = vi.fn();
 const playlistsClearAll = vi.fn();
 const serviceClearAll = vi.fn();
 const preferencesResetToDefaults = vi.fn();
@@ -106,6 +107,12 @@ vi.mock('@/stores/user', () => ({
 // into jsdom; the vi.fn()s let the logout tests assert the resets happened.
 vi.mock('@/stores/favorites', () => ({
     useFavoritesStore: () => ({ clearAll: (...args: unknown[]) => favoritesClearAll(...args) }),
+}));
+
+vi.mock('@/stores/lesezeichen', () => ({
+    useLesezeichenStore: () => ({
+        clearAll: (...args: unknown[]) => lesezeichenClearAll(...args),
+    }),
 }));
 
 vi.mock('@/stores/playlists', () => ({
@@ -358,6 +365,7 @@ describe('logout', () => {
         expect(clearUserScopedData).toHaveBeenCalledTimes(1);
         expect(storeLogout).toHaveBeenCalledTimes(1);
         expect(favoritesClearAll).toHaveBeenCalledTimes(1);
+        expect(lesezeichenClearAll).toHaveBeenCalledTimes(1);
         expect(playlistsClearAll).toHaveBeenCalledTimes(1);
         expect(serviceClearAll).toHaveBeenCalledTimes(1);
         expect(preferencesResetToDefaults).toHaveBeenCalledTimes(1);
@@ -373,6 +381,7 @@ describe('logout', () => {
         expect(clearUserScopedData).toHaveBeenCalledTimes(1);
         expect(storeLogout).toHaveBeenCalledTimes(1);
         expect(favoritesClearAll).toHaveBeenCalledTimes(1);
+        expect(lesezeichenClearAll).toHaveBeenCalledTimes(1);
         expect(playlistsClearAll).toHaveBeenCalledTimes(1);
         expect(serviceClearAll).toHaveBeenCalledTimes(1);
         expect(preferencesResetToDefaults).toHaveBeenCalledTimes(1);

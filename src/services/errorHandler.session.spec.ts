@@ -31,6 +31,7 @@ vi.mock('@/db', () => {
             favorites: table(vi.fn(async () => undefined)),
             services: table(vi.fn(async () => undefined)),
             meta: table(vi.fn(async () => undefined)),
+            lesezeichen: table(vi.fn(async () => undefined)),
             transaction: (
                 _mode: string,
                 _tables: unknown,

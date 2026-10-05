@@ -275,13 +275,21 @@ export async function clearSessionData(): Promise<void> {
  * Clear everything that belongs to the signed-in account, for an explicit logout.
  *
  * Songs and files are deliberately kept — they are shared hymnal content, identical for
- * every account and expensive to re-download. Playlists, favorites, preferences and the
- * Gottesdienst selection are personal data that exist only on this device; they must not
+ * every account and expensive to re-download. Playlists, favorites, preferences, the
+ * Bible's Lesezeichen and the Gottesdienst selection are personal data that exist only on this device; they must not
  * leak to the next account that signs in on a shared device, so they go together with the
  * session.
  */
 export async function clearUserScopedData(): Promise<void> {
-    const tables = [db.auth, db.users, db.playlists, db.preferences, db.favorites, db.services];
+    const tables = [
+        db.auth,
+        db.users,
+        db.playlists,
+        db.preferences,
+        db.favorites,
+        db.services,
+        db.lesezeichen,
+    ];
 
     try {
         await db.transaction('rw', tables, async () => {
@@ -323,6 +331,7 @@ export async function clearAllLocalData(): Promise<void> {
         db.favorites,
         db.services,
         db.meta,
+        db.lesezeichen,
     ];
 
     try {

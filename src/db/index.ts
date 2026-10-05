@@ -79,6 +79,11 @@ export interface Song {
     dateUpdated?: string | null;
     textDateUpdated?: string | null;
     melodieDateUpdated?: string | null;
+    // Der Liedtext (Directus-Collection `text`), auf den die Bibelstellen
+    // verweisen (src/utils/bibelstellen.ts) — sie hängen am Text, nicht am Lied.
+    // Optional, damit vor dem nächsten Sync gespeicherte Lieder gültig bleiben;
+    // die finden ihre Stellen bis dahin über den Titel.
+    textId?: string | null;
 }
 
 // Auth related types
@@ -177,11 +182,33 @@ export interface PreferencesData {
      * is the question a hymnal reader has an answer to. See playbackTempo.
      */
     exactTempo?: boolean;
+    /**
+     * Show the Bible passages a song text draws on, below the song. Off by
+     * default: the references were assigned by a language model and checked by
+     * script, not by an editor, so whoever wants them switches them on.
+     */
+    showBibelstellen?: boolean;
+    /** Offer the Bibel tab (the Menge-Bibel, to read through). Off by default. */
+    showBibel?: boolean;
 }
 
 // Favorites: id == song id
 export interface Favorite {
     id: string;
+    createdAt: Date;
+}
+
+/**
+ * A Lesezeichen in the Bible: one verse. The id is `slug/chapter/verse`, so a
+ * verse can be marked only once.
+ */
+export interface Lesezeichen {
+    id: string;
+    slug: string;
+    chapter: number;
+    verse: number;
+    /** The verse's opening words, so the list says what was marked. */
+    snippet: string;
     createdAt: Date;
 }
 
@@ -249,6 +276,7 @@ export class GesangbuchDatabase extends Dexie {
     favorites!: Table<Favorite, string>;
     services!: Table<ServicePlan, string>;
     meta!: Table<MetaEntry, string>;
+    lesezeichen!: Table<Lesezeichen, string>;
 
     constructor() {
         super('GesangbuchDB');
@@ -347,6 +375,20 @@ export class GesangbuchDatabase extends Dexie {
                 services: 'id, date, expiresAt',
             })
             .upgrade((tx) => tx.table('meta').delete('lastServerUpdate'));
+
+        // Version 9: Lesezeichen in the Bible.
+        this.version(9).stores({
+            songs: 'id, titel',
+            files: 'id, filename',
+            auth: 'id',
+            users: 'id, email, role',
+            playlists: 'id, name, createdAt',
+            preferences: 'id',
+            favorites: 'id, createdAt',
+            meta: 'key',
+            services: 'id, date, expiresAt',
+            lesezeichen: 'id, createdAt',
+        });
     }
 }
 

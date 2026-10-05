@@ -69,6 +69,7 @@ interface DirectusGesangbuchlied {
         filename_download: string;
     } | null;
     textId: {
+        id: string;
         copyright?: string | null;
         strophenEinzeln: DirectusStrophe[];
         autorId: DirectusAutor[];
@@ -98,7 +99,7 @@ interface DirectusResponse {
 // ursprungsAutorObj stays null — the formatter (src/utils/authorFormat.ts)
 // already handles it and needs no change once the selection is re-added.
 const SONGS_QUERY = `
-    query Songs($filter: gesangbuchlied_filter) { gesangbuchlied( filter: $filter limit: 5000 ) { id titel liednummer2026 copyright textAutorExtraSuffix melodieAutorExtraSuffix notentext_mxml { id filename_download } notentext_svg { id filename_download } textId { copyright strophenEinzeln autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } } melodieId { id titel choralbuchNummer copyright autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
+    query Songs($filter: gesangbuchlied_filter) { gesangbuchlied( filter: $filter limit: 5000 ) { id titel liednummer2026 copyright textAutorExtraSuffix melodieAutorExtraSuffix notentext_mxml { id filename_download } notentext_svg { id filename_download } textId { id copyright strophenEinzeln autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } } melodieId { id titel choralbuchNummer copyright autorId { autorPrefix autorSuffix autor_id { vorname nachname geburtsjahr sterbejahr geburtsjahrePrefix sterbejahrPrefix } } noten { directus_files_id { filename_download id } } } kategorieId { kategorie_id { name id } } } }
 `;
 
 /**
@@ -242,6 +243,7 @@ function transformSong(directusSong: DirectusGesangbuchlied): Song {
         melodieId: directusSong.melodieId ? String(directusSong.melodieId.id) : null,
         melodieTitel: directusSong.melodieId?.titel ?? null,
         choralbuchNummer: directusSong.melodieId?.choralbuchNummer ?? null,
+        textId: directusSong.textId ? String(directusSong.textId.id) : null,
     };
 }
 

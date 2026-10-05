@@ -11,6 +11,7 @@ import {
 } from '@directus/sdk';
 
 import { useFavoritesStore } from '@/stores/favorites';
+import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
@@ -351,6 +352,7 @@ export function useAuth() {
             await clearUserScopedData();
             await userStore.logout();
             await useFavoritesStore().clearAll();
+            await useLesezeichenStore().clearAll();
             await usePlaylistsStore().clearAll();
             await useServiceStore().clearAll();
             await usePreferencesStore().resetToDefaults();

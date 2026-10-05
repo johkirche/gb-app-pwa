@@ -127,6 +127,10 @@
 
                 <!-- Authors Section -->
                 <SongAuthors :song="song" />
+
+                <!-- Opt-in (Einstellungen → Darstellung): the passages the text
+                     draws on, in the Menge-Bibel. -->
+                <SongBibelstellen v-if="showBibelstellen" :song="song" />
             </div>
         </main>
 
@@ -176,6 +180,7 @@ import { useWakeLock } from '@/composables/useWakeLock';
 
 import SongAudioControls from '@/components/songview/SongAudioControls.vue';
 import SongAuthors from '@/components/songview/SongAuthors.vue';
+import SongBibelstellen from '@/components/songview/SongBibelstellen.vue';
 import SongErrorState from '@/components/songview/SongErrorState.vue';
 import SongHeader from '@/components/songview/SongHeader.vue';
 import SongLoadingState from '@/components/songview/SongLoadingState.vue';
@@ -195,7 +200,8 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { pageScale, xmlSettings, keepScreenAwake, exactTempo } = storeToRefs(preferencesStore);
+const { pageScale, xmlSettings, keepScreenAwake, exactTempo, showBibelstellen } =
+    storeToRefs(preferencesStore);
 
 const { getFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);

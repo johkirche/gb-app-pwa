@@ -4,6 +4,8 @@ import { useSongsStore } from '@/stores/songs';
 import { useUserStore } from '@/stores/user';
 
 import AddSongsToPlaylistPage from '../views/AddSongsToPlaylistPage.vue';
+import BibelChapterPage from '../views/BibelChapterPage.vue';
+import BibelPage from '../views/BibelPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
 import DatenschutzPage from '../views/DatenschutzPage.vue';
 import DownloadPage from '../views/DownloadPage.vue';
@@ -100,6 +102,14 @@ const routes: Array<RouteRecordRaw> = [
                 component: ServicePage,
                 meta: { access: 'library' },
             },
+            // The Bibel tab. Like Gottesdienst, the route stands whether or
+            // not the tab is offered, so a link into it always resolves.
+            {
+                path: 'bibel',
+                name: 'Bibel',
+                component: BibelPage,
+                meta: { access: 'library' },
+            },
             {
                 path: 'einstellungen',
                 name: 'Settings',
@@ -151,6 +161,15 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/songs',
         redirect: '/tabs/lieder',
+    },
+    // One chapter of the Bible, opened from the Bibel tab or from a passage
+    // under a song (?vers= scrolls to the verse). The text is public domain and
+    // ships with the app, so it needs nothing a library route does not.
+    {
+        path: '/bibel/:buch/:kapitel',
+        name: 'BibelChapter',
+        component: BibelChapterPage,
+        meta: { access: 'library' },
     },
     {
         path: '/songs/:id',
