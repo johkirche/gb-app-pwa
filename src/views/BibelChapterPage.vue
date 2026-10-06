@@ -105,7 +105,7 @@
                     <div class="page-col pt-4" :class="picking ? 'pb-[70dvh] lg:pb-12' : 'pb-12'">
                         <article
                             ref="articleRef"
-                            class="bibel-text mx-auto max-w-[36rem] font-hymnal text-foreground"
+                            class="bibel-text relative mx-auto max-w-[36rem] font-hymnal text-foreground"
                             :class="{
                                 'bibel-no-headings': !bibelDisplay.showHeadings,
                                 'bibel-no-numbers': !bibelDisplay.showVerseNumbers,
@@ -157,6 +157,12 @@
                                     :blocks="blocks"
                                     :marked-verse="vorlesen.verse.value ?? markedVerse"
                                     :all-notes-open="bibelDisplay.notesInline"
+                                />
+                                <BibelMarginNotes
+                                    v-if="bibelFeatures.notizen && withMargin"
+                                    :slug="here.slug"
+                                    :chapter="here.chapter"
+                                    :column="articleRef"
                                 />
                             </template>
                         </article>
@@ -288,6 +294,7 @@ import { useWakeLock } from '@/composables/useWakeLock';
 import BibelChapterPicker from '@/components/bibel/BibelChapterPicker.vue';
 import BibelChapterSongs from '@/components/bibel/BibelChapterSongs.vue';
 import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
+import BibelMarginNotes from '@/components/bibel/BibelMarginNotes.vue';
 import BibelMenuPopover from '@/components/bibel/BibelMenuPopover.vue';
 import BibelReadToggle from '@/components/bibel/BibelReadToggle.vue';
 import BibelVerseActions from '@/components/bibel/BibelVerseActions.vue';
@@ -364,6 +371,9 @@ const laid = computed(() => layoutChapter(blocks.value));
 const translationLabel = computed(() => BIBEL_TRANSLATIONS[bibelTranslation.value].label);
 
 // What tapping does, said only for what is switched on.
+/** Room beside the column for the reader's notes, in its left margin. */
+const withMargin = useMediaQuery('(min-width: 80rem)');
+
 /** A mouse picks verses out with a plain click, and turns pages with the keys. */
 const withMouse = useMediaQuery('(hover: hover) and (pointer: fine)');
 
