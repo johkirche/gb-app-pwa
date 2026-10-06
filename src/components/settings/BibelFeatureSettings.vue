@@ -10,7 +10,7 @@
         <div class="px-2 py-3">
             <div class="flex items-center gap-4">
                 <Pointer class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <p class="text-[15px]">Verse antippen, blättern, Kapitel wählen</p>
+                <p class="text-[15px]">Verse auswählen, blättern, Kapitel wählen</p>
             </div>
             <BibelFeaturePreview feature="lesen" class="ml-9" />
         </div>
@@ -49,9 +49,13 @@
             />
         </div>
     </SettingsList>
+
+    <component :is="DevBibelDemoData" v-if="DevBibelDemoData" />
 </template>
 
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue';
+
 import { Pointer } from 'lucide-vue-next';
 
 import { usePreferencesStore } from '@/stores/preferences';
@@ -63,4 +67,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
 const preferencesStore = usePreferencesStore();
+
+// Development only: import.meta.env.DEV is replaced at build time, so the
+// production bundle never contains the demo-data tool (cf. DevSkipButton).
+const DevBibelDemoData = import.meta.env.DEV
+    ? defineAsyncComponent(() => import('@/components/dev/DevBibelDemoData.vue'))
+    : null;
 </script>
