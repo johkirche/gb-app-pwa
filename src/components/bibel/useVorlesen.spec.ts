@@ -2,7 +2,7 @@ import { effectScope } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useVorlesen } from './useVorlesen';
+import { germanVoice, useVorlesen } from './useVorlesen';
 
 /** A stand-in voice: it keeps what it was asked to say, and says it on cue. */
 class FakeUtterance {
@@ -95,5 +95,28 @@ describe('useVorlesen', () => {
         scope.stop();
         expect(synth.cancel).toHaveBeenCalled();
         expect(vorlesen.status.value).toBe('idle');
+    });
+});
+
+describe('germanVoice', () => {
+    const voice = (name: string, lang: string, localService: boolean) =>
+        ({ name, lang, localService }) as SpeechSynthesisVoice;
+
+    it('takes a German voice on the device before one online', () => {
+        const online = voice('Google Deutsch', 'de-DE', false);
+        const device = voice('Microsoft Katja', 'de-DE', true);
+        expect(germanVoice([online, device])).toBe(device);
+    });
+
+    it('takes any German voice on the device before a de-DE one online', () => {
+        const online = voice('Google Deutsch', 'de-DE', false);
+        const swiss = voice('Leni', 'de-CH', true);
+        expect(germanVoice([online, swiss])).toBe(swiss);
+    });
+
+    it('falls back to an online voice only where the device has no German one', () => {
+        const online = voice('Google Deutsch', 'de-DE', false);
+        expect(germanVoice([voice('Samantha', 'en-US', true), online])).toBe(online);
+        expect(germanVoice([voice('Samantha', 'en-US', true)])).toBeNull();
     });
 });
