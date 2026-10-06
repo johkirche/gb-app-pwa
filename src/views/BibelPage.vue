@@ -3,7 +3,7 @@
         <AppPageHeader title="Bibel">
             <template #trailing>
                 <Button variant="ghost" size="icon" aria-label="Bibel durchsuchen" as-child>
-                    <RouterLink to="/bibel/suche"><Search aria-hidden="true" /></RouterLink>
+                    <RouterLink to="/tabs/bibel/suche"><Search aria-hidden="true" /></RouterLink>
                 </Button>
             </template>
         </AppPageHeader>

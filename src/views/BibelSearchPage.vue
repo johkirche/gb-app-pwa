@@ -193,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { ArrowRight, BookOpen, ChevronRight, CircleX, Search, WifiOff } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -264,6 +264,10 @@ onBeforeUnmount(() => clearTimeout(debounce));
 const terms = computed(() => searchTerms(settledQuery.value));
 
 watch([settledQuery, scope], ([q, s]) => {
+    // Kept alive inside the tab, the page goes on running after the reader
+    // has left it — a query settling late must not rewrite the next page's
+    // address (a chapter's ?vers=).
+    if (route.name !== 'BibelSearch') return;
     router.replace({
         query: { ...(q ? { q } : {}), ...(s !== 'all' ? { in: s } : {}) },
     });
@@ -295,6 +299,8 @@ onMounted(() => {
     window.addEventListener('online', retry);
     inputRef.value?.focus();
 });
+// Back from a verse, the page is the one left behind: ready to type again.
+onActivated(() => inputRef.value?.focus());
 onBeforeUnmount(() => window.removeEventListener('online', retry));
 
 function onEnter() {

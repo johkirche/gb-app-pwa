@@ -112,6 +112,21 @@ const routes: Array<RouteRecordRaw> = [
                 component: BibelPage,
                 meta: { access: 'library' },
             },
+            // The tab's own pages: the search, and choosing a reading plan.
+            // Inside the shell, so the sidebar and the tab bar stay — unlike
+            // a chapter, which is read full-page like a song.
+            {
+                path: 'bibel/suche',
+                name: 'BibelSearch',
+                component: BibelSearchPage,
+                meta: { access: 'library' },
+            },
+            {
+                path: 'bibel/plaene',
+                name: 'BibelLeseplaene',
+                component: BibelLeseplaenePage,
+                meta: { access: 'library' },
+            },
             {
                 path: 'einstellungen',
                 name: 'Settings',
@@ -164,21 +179,15 @@ const routes: Array<RouteRecordRaw> = [
         path: '/songs',
         redirect: '/tabs/lieder',
     },
-    // Search over the whole text, and "Gehe zu" for a typed reference. Before
-    // the chapter route so the two never compete, whatever its pattern.
+    // Where the search and the reading plans stood before they moved into the
+    // tab. Kept, before the chapter route, so an old link still lands.
     {
         path: '/bibel/suche',
-        name: 'BibelSearch',
-        component: BibelSearchPage,
-        meta: { access: 'library' },
+        redirect: (to) => ({ path: '/tabs/bibel/suche', query: to.query }),
     },
-    // Choosing a reading plan. Before the chapter route, so `plaene` is never
-    // taken for a book.
     {
         path: '/bibel/plaene',
-        name: 'BibelLeseplaene',
-        component: BibelLeseplaenePage,
-        meta: { access: 'library' },
+        redirect: '/tabs/bibel/plaene',
     },
     // One chapter of the Bible, opened from the Bibel tab or from a passage
     // under a song (?vers= scrolls to the verse). The text is public domain and

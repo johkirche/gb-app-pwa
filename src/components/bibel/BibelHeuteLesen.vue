@@ -9,7 +9,7 @@
         <div class="flex items-baseline justify-between gap-3">
             <h2 id="heute-lesen-heading" class="label-micro text-gold">Heute lesen</h2>
             <RouterLink
-                to="/bibel/plaene"
+                to="/tabs/bibel/plaene"
                 class="text-sm text-muted-foreground underline-offset-4 hover:underline"
             >
                 Lesepläne
@@ -25,7 +25,10 @@
 
         <p v-if="status.complete" class="mt-3 text-[15px]">
             Geschafft: Sie haben den ganzen Plan gelesen.
-            <RouterLink to="/bibel/plaene" class="text-gold underline-offset-4 hover:underline">
+            <RouterLink
+                to="/tabs/bibel/plaene"
+                class="text-gold underline-offset-4 hover:underline"
+            >
                 Einen neuen wählen
             </RouterLink>
         </p>
@@ -75,7 +78,7 @@
 
     <RouterLink
         v-else
-        to="/bibel/plaene"
+        to="/tabs/bibel/plaene"
         class="mt-2 flex items-center gap-3 rounded-sm px-2 py-2.5 transition-colors hover:bg-muted active:bg-muted"
     >
         <CalendarDays class="size-[18px] shrink-0 text-gold" aria-hidden="true" />
