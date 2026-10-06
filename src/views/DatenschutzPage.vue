@@ -16,11 +16,11 @@
                         <Separator class="min-w-10 flex-1" />
                     </div>
                     <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
-                        <p class="italic text-gold">
-                            [TODO: Von der Organisation zu ergänzen – Name und Anschrift des
-                            Verantwortlichen im Sinne der DSGVO sowie ggf. Kontaktdaten des
-                            Datenschutzbeauftragten.]
-                        </p>
+                        <!-- From Directus (rechtstexte), kept by the organisation. -->
+                        <RechtstextValue
+                            :value="texte?.datenschutz_verantwortlicher"
+                            :state="state"
+                        />
                         <p>
                             Kontakt:
                             <a
@@ -44,7 +44,8 @@
                             Inhalte weitgehend offline funktioniert. Personenbezogene Daten werden
                             nur verarbeitet, soweit dies für die Anmeldung und die Bereitstellung
                             der Inhalte erforderlich ist. Die App setzt keine Analyse- oder
-                            Tracking-Dienste ein und stellt keine Anfragen an Drittanbieter.
+                            Tracking-Dienste ein und stellt keine Anfragen an Drittanbieter (zur
+                            einen Ausnahme beim Vorlesen siehe unten).
                         </p>
                     </div>
                 </section>
@@ -79,9 +80,26 @@
                                 <em>preferences</em>
                                 ), Favoriten (
                                 <em>favorites</em>
-                                ) sowie Synchronisierungs-Metadaten (
+                                ), der Gottesdienst-Plan (
+                                <em>services</em>
+                                ) sowie Synchronisierungs-Metadaten, darunter die Bibelstellen zu
+                                den Liedern und die Angaben dieses Impressums (
                                 <em>meta</em>
                                 ).
+                            </li>
+                            <li>
+                                <strong>Ihre Bibel-Einträge</strong>
+                                , ebenfalls in der App-Datenbank: Lesezeichen (
+                                <em>lesezeichen</em>
+                                ), Markierungen (
+                                <em>markierungen</em>
+                                ), Notizen zu Versen (
+                                <em>notizen</em>
+                                ), gelesene Kapitel (
+                                <em>gelesen</em>
+                                ) und der gewählte Leseplan (
+                                <em>leseplaene</em>
+                                ). Sie werden nicht an den Server übertragen.
                             </li>
                             <li>
                                 <strong>Browser-Speicher</strong>
@@ -96,21 +114,20 @@
                             <li>
                                 <strong>Service-Worker-Caches</strong>
                                 : die App-Dateien selbst (Workbox-Precache, einschließlich der
-                                Klangdateien für die Notenwiedergabe) sowie die Caches
-                                <em>api-cache</em>
+                                Klangdateien für die Notenwiedergabe) sowie die einmal gelesenen
+                                Bücher der Bibel (
+                                <em>bibel-cache</em>
                                 ,
-                                <em>image-cache</em>
-                                und
-                                <em>font-cache</em>
-                                .
+                                <em>bibel-luther-cache</em>
+                                ).
                             </li>
                         </ul>
                         <p>
                             Diese Daten verbleiben auf Ihrem Gerät und werden nicht an Dritte
                             übermittelt. Beim Abmelden werden Sitzungsdaten sowie Ihre persönlichen
-                            Daten (Playlists, Favoriten, Einstellungen) von diesem Gerät entfernt;
-                            bei einer Kontolöschung werden sämtliche lokal gespeicherten Daten
-                            gelöscht.
+                            Daten (Playlists, Favoriten, Einstellungen, Gottesdienst-Plan und Ihre
+                            Bibel-Einträge) von diesem Gerät entfernt; bei einer Kontolöschung
+                            werden sämtliche lokal gespeicherten Daten gelöscht.
                         </p>
                     </div>
                 </section>
@@ -138,7 +155,15 @@
                             </li>
                             <li>
                                 <em>/assets/&hellip;</em>
-                                &ndash; Abruf der Notendateien
+                                ,
+                                <em>/files</em>
+                                &ndash; Abruf der Notendateien und der Datei mit den Bibelstellen zu
+                                den Liedern
+                            </li>
+                            <li>
+                                <em>/items/rechtstexte</em>
+                                &ndash; Abruf der Angaben für Impressum und Datenschutzerklärung,
+                                ohne Anmeldung
                             </li>
                             <li>
                                 <em>/users/&hellip;</em>
@@ -163,9 +188,13 @@
                     </div>
                     <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p>
-                            Die Notenwiedergabe lädt die benötigten Klangdateien (Soundfonts) von
-                            derselben Quelle wie die App selbst; es finden dabei keine Anfragen an
-                            Drittanbieter statt. Die App setzt keine Cookies zu Werbe- oder
+                            Die Notenwiedergabe lädt die benötigten Klangdateien (Soundfonts), die
+                            Bibel ihre Texte von derselben Quelle wie die App selbst; es finden
+                            dabei keine Anfragen an Drittanbieter statt. Das Vorlesen eines Kapitels
+                            nutzt eine Stimme Ihres Geräts. Nur wenn das Gerät keine deutsche Stimme
+                            hat, kann der Browser eine Online-Stimme seines Herstellers verwenden
+                            (etwa &bdquo;Google Deutsch&ldquo; in Chrome); der vorgelesene Bibeltext
+                            wird dann dorthin übertragen. Die App setzt keine Cookies zu Werbe- oder
                             Analysezwecken und keine Tracking-Dienste ein.
                         </p>
                     </div>
@@ -179,14 +208,8 @@
                         <Separator class="min-w-10 flex-1" />
                     </div>
                     <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
-                        <p class="italic text-gold">
-                            [TODO: Von der Organisation zu ergänzen – u.&nbsp;a. Rechtsgrundlagen
-                            der Verarbeitung, Speicherdauer der serverseitig gespeicherten Daten
-                            sowie die Betroffenenrechte (Auskunft, Berichtigung, Löschung,
-                            Einschränkung, Datenübertragbarkeit, Widerspruch und Beschwerde bei
-                            einer Aufsichtsbehörde).]
-                        </p>
-                        <p class="italic text-gold">[TODO: Stand dieser Erklärung ergänzen]</p>
+                        <RechtstextValue :value="texte?.datenschutz_rechtliches" :state="state" />
+                        <p v-if="stand" class="text-sm text-muted-foreground">Stand: {{ stand }}</p>
                     </div>
                 </section>
             </div>
@@ -195,9 +218,26 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
+import { useRechtstexte } from '@/composables/useRechtstexte';
+
+import RechtstextValue from '@/components/legal/RechtstextValue.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import BackButton from '@/components/shell/BackButton.vue';
 import { Separator } from '@/components/ui/separator';
 
 import { SUPPORT_EMAIL } from '@/config/support';
+
+const { texte, state } = useRechtstexte();
+
+const stand = computed(() =>
+    texte.value?.stand
+        ? new Date(texte.value.stand).toLocaleDateString('de-DE', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+          })
+        : null,
+);
 </script>
