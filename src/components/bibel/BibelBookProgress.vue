@@ -10,7 +10,7 @@
         :title="label"
     >
         <svg viewBox="0 0 20 20" class="size-5 -rotate-90" aria-hidden="true">
-            <circle cx="10" cy="10" :r="R" fill="none" stroke-width="2.5" class="stroke-muted" />
+            <circle cx="10" cy="10" :r="R" fill="none" stroke-width="2.5" class="stroke-border" />
             <circle
                 cx="10"
                 cy="10"

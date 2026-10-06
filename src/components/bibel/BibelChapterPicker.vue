@@ -74,7 +74,10 @@
                                 v-for="n in entry.chapters"
                                 :key="n"
                                 :to="chapterPath({ slug: entry.slug, chapter: n })"
-                                class="flex h-11 items-center justify-center rounded-md border text-[15px] transition-colors hover:border-primary/40 hover:bg-muted active:bg-muted"
+                                :aria-label="
+                                    isRead(entry.slug, n) ? `Kapitel ${n}, gelesen` : undefined
+                                "
+                                class="relative flex h-11 items-center justify-center rounded-md border text-[15px] transition-colors hover:border-primary/40 hover:bg-muted active:bg-muted"
                                 :class="
                                     isHere(entry.slug, n)
                                         ? 'border-gold bg-gold/10 font-semibold'
@@ -84,6 +87,12 @@
                                 @click="open = false"
                             >
                                 {{ n }}
+                                <Check
+                                    v-if="isRead(entry.slug, n)"
+                                    class="absolute right-0.5 top-0.5 size-3 text-gold"
+                                    stroke-width="3"
+                                    aria-hidden="true"
+                                />
                             </RouterLink>
                         </nav>
                     </li>
@@ -141,9 +150,13 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 
-import { ChevronRight, WifiOff } from 'lucide-vue-next';
+import { Check, ChevronRight, WifiOff } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import type { AcceptableValue } from 'reka-ui';
 import { RouterLink, useRouter } from 'vue-router';
+
+import { useBibelFortschrittStore } from '@/stores/bibelFortschritt';
+import { usePreferencesStore } from '@/stores/preferences';
 
 import { PanelTitle, ResponsivePanel } from '@/components/ui/responsive-panel';
 import { Spinner } from '@/components/ui/spinner';
@@ -187,6 +200,14 @@ const view = ref<'buecher' | 'inhalt'>('buecher');
 const openBook = ref<string | null>(null);
 const listRef = ref<HTMLElement | null>(null);
 const contentsRef = ref<HTMLElement | null>(null);
+
+const fortschritt = useBibelFortschrittStore();
+const { bibelFeatures } = storeToRefs(usePreferencesStore());
+
+/** A chapter read gets a small tick in its square — while progress is kept. */
+function isRead(slug: string, chapter: number): boolean {
+    return bibelFeatures.value.fortschritt && fortschritt.isRead(slug, chapter);
+}
 
 function isHere(slug: string, chapter: number): boolean {
     return slug === props.here.slug && chapter === props.here.chapter;

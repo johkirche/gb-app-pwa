@@ -176,9 +176,20 @@
                                             v-for="n in book.chapters"
                                             :key="n"
                                             :to="chapterPath({ slug: book.slug, chapter: n })"
-                                            class="flex h-11 items-center justify-center rounded-md border border-border text-[15px] transition-colors hover:border-primary/40 hover:bg-muted active:bg-muted"
+                                            :aria-label="
+                                                isRead(book.slug, n)
+                                                    ? `Kapitel ${n}, gelesen`
+                                                    : undefined
+                                            "
+                                            class="relative flex h-11 items-center justify-center rounded-md border border-border text-[15px] transition-colors hover:border-primary/40 hover:bg-muted active:bg-muted"
                                         >
                                             {{ n }}
+                                            <Check
+                                                v-if="isRead(book.slug, n)"
+                                                class="absolute right-0.5 top-0.5 size-3 text-gold"
+                                                stroke-width="3"
+                                                aria-hidden="true"
+                                            />
                                         </RouterLink>
                                     </nav>
                                 </li>
@@ -201,10 +212,11 @@
 <script setup lang="ts">
 import { onActivated, ref } from 'vue';
 
-import { BookOpen, Bookmark, ChevronRight, Search, X } from 'lucide-vue-next';
+import { BookOpen, Bookmark, Check, ChevronRight, Search, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { RouterLink, useRouter } from 'vue-router';
 
+import { useBibelFortschrittStore } from '@/stores/bibelFortschritt';
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { usePreferencesStore } from '@/stores/preferences';
 
@@ -234,6 +246,13 @@ const router = useRouter();
 const lesezeichenStore = useLesezeichenStore();
 // Each section of the tab can be switched off under Einstellungen → Bibel.
 const { bibelFeatures, bibelTranslation } = storeToRefs(usePreferencesStore());
+
+const fortschritt = useBibelFortschrittStore();
+
+/** A chapter read gets a small tick in its square — while progress is kept. */
+function isRead(slug: string, chapter: number): boolean {
+    return bibelFeatures.value.fortschritt && fortschritt.isRead(slug, chapter);
+}
 
 const scrollRef = ref<HTMLElement | null>(null);
 useKeepAliveScroll(scrollRef);
