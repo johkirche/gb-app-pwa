@@ -42,7 +42,11 @@
                     @update:model-value="preferencesStore.setBibelFeature(feature.key, $event)"
                 />
             </div>
-            <BibelFeaturePreview :feature="feature.key" class="ml-9" />
+            <BibelFeaturePreview
+                :feature="feature.key"
+                :off="!preferencesStore.bibelFeatures[feature.key]"
+                class="ml-9"
+            />
         </div>
     </SettingsList>
 </template>

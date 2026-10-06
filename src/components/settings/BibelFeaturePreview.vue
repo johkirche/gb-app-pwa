@@ -3,8 +3,14 @@
          the one gesture that reaches it. Drawn with the reader's own classes
          (bibel-words.css, bibel-marks.css), so the gold tab, the wash and the
          note mark here are the ones on the page — the way the sample under
-         Größe (Lieder) is the song page in miniature. -->
-    <div class="mt-3 rounded-md border border-border bg-muted/40 px-3 py-3" aria-hidden="true">
+         Größe (Lieder) is the song page in miniature. Faded and without its
+         colours while the feature is off — still readable, so the reader can
+         see what switching it on would bring. -->
+    <div
+        class="mt-3 rounded-md border border-border bg-muted/40 px-3 py-3 transition-[opacity,filter] duration-200"
+        :class="{ 'opacity-50 grayscale': off }"
+        aria-hidden="true"
+    >
         <!-- Reading: picking verses out, and the bar that acts on them. -->
         <template v-if="feature === 'lesen'">
             <p class="bibel-chapter font-hymnal text-[15px] leading-relaxed">
@@ -174,6 +180,8 @@ import type { BibelFeatures } from '@/db';
 defineProps<{
     /** A feature's switch, or 'lesen' for what the reader always does. */
     feature: keyof BibelFeatures | 'lesen';
+    /** The feature is switched off: the sample is shown faded. */
+    off?: boolean;
 }>();
 
 const ACTIONS: { label: string; icon: Component }[] = [
