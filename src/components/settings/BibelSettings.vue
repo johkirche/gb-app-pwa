@@ -103,33 +103,47 @@
             <!-- What the Bible offers beyond the text. Everything starts on;
                  switching one off takes its controls and sections away and
                  keeps what was stored for it. -->
-            <p class="label-micro px-2 pb-1 pt-4 text-gold">Funktionen</p>
-            <div
-                v-for="feature in features"
-                :key="feature.key"
-                class="flex items-center justify-between gap-4 px-2 py-3"
-            >
-                <div class="flex min-w-0 items-center gap-4">
-                    <component
-                        :is="feature.icon"
-                        class="size-5 shrink-0 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    <div class="min-w-0">
-                        <Label
-                            :for="`settings-bibel-${feature.key}`"
-                            class="text-[15px] font-normal"
-                        >
-                            {{ feature.label }}
-                        </Label>
-                        <p class="text-sm text-muted-foreground">{{ feature.description }}</p>
-                    </div>
+            <!-- What the reader always does, whatever is switched on below:
+                 none of it is a button anyone would go looking for. -->
+            <p class="label-micro px-2 pb-1 pt-4 text-gold">So lesen Sie</p>
+            <div class="px-2 py-3">
+                <div class="flex items-center gap-4">
+                    <Pointer class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <p class="text-[15px]">Verse antippen, blättern, Kapitel wählen</p>
                 </div>
-                <Switch
-                    :id="`settings-bibel-${feature.key}`"
-                    :model-value="preferencesStore.bibelFeatures[feature.key]"
-                    @update:model-value="preferencesStore.setBibelFeature(feature.key, $event)"
-                />
+                <BibelFeaturePreview feature="lesen" class="ml-9" />
+            </div>
+
+            <!-- Each with a sample of what it does in the reader, and how to
+                 reach it: a feature nobody can find is no feature. -->
+            <p class="label-micro px-2 pb-1 pt-4 text-gold">Funktionen</p>
+            <div v-for="feature in features" :key="feature.key" class="px-2 py-3">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex min-w-0 items-center gap-4">
+                        <component
+                            :is="feature.icon"
+                            class="size-5 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <div class="min-w-0">
+                            <Label
+                                :for="`settings-bibel-${feature.key}`"
+                                class="text-[15px] font-normal"
+                            >
+                                {{ feature.label }}
+                            </Label>
+                            <p class="text-sm text-muted-foreground">
+                                {{ feature.description }}
+                            </p>
+                        </div>
+                    </div>
+                    <Switch
+                        :id="`settings-bibel-${feature.key}`"
+                        :model-value="preferencesStore.bibelFeatures[feature.key]"
+                        @update:model-value="preferencesStore.setBibelFeature(feature.key, $event)"
+                    />
+                </div>
+                <BibelFeaturePreview :feature="feature.key" class="ml-9" />
             </div>
 
             <p class="label-micro px-2 pb-1 pt-4 text-gold">Offline</p>
@@ -149,6 +163,7 @@ import {
     Highlighter,
     Languages,
     Music2,
+    Pointer,
     Sparkles,
     Type,
     Volume2,
@@ -158,6 +173,7 @@ import type { AcceptableValue } from 'reka-ui';
 import { usePreferencesStore } from '@/stores/preferences';
 
 import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
+import BibelFeaturePreview from '@/components/settings/BibelFeaturePreview.vue';
 import SettingsList from '@/components/settings/SettingsList.vue';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';

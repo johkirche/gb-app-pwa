@@ -87,17 +87,30 @@ describe('the Bible settings', () => {
         expect(again.bibelTranslation).toBe('luther1912');
     });
 
-    it('offers every feature until one is switched off, and remembers that', async () => {
+    it('leaves the reading progress off until asked for', () => {
+        expect(DEFAULT_BIBEL_FEATURES.fortschritt).toBe(false);
+        expect(DEFAULT_BIBEL_FEATURES.lesezeichen).toBe(true);
+    });
+
+    it('stores only the switches the reader set, so a later default still applies', async () => {
+        const store = usePreferencesStore();
+        await store.initPromise;
+        await store.setBibelFeature('notizen', false);
+        expect(rows.get('default')?.bibelFeatures).toEqual({ notizen: false });
+        expect(store.bibelFeatures.fortschritt).toBe(DEFAULT_BIBEL_FEATURES.fortschritt);
+    });
+
+    it('remembers a feature switched off', async () => {
         const store = usePreferencesStore();
         await store.initPromise;
         expect(store.bibelFeatures).toEqual(DEFAULT_BIBEL_FEATURES);
 
-        await store.setBibelFeature('fortschritt', false);
+        await store.setBibelFeature('vorlesen', false);
 
         setActivePinia(createPinia());
         const again = usePreferencesStore();
         await again.initPromise;
-        expect(again.bibelFeatures).toEqual({ ...DEFAULT_BIBEL_FEATURES, fortschritt: false });
+        expect(again.bibelFeatures).toEqual({ ...DEFAULT_BIBEL_FEATURES, vorlesen: false });
     });
 
     it('reads a record from the side-by-side days as Menge', async () => {

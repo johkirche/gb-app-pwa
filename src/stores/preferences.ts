@@ -31,10 +31,12 @@ export const DEFAULT_BIBEL_DISPLAY: BibelDisplaySettings = {
     versePerLine: false,
 };
 
-// Everything on: the switches are for taking away what a reader has no use
-// for, not for finding features one by one.
+// On, except the reading progress: the switches are for taking away what a
+// reader has no use for, not for finding features one by one. Ticking off
+// chapters and following a plan is a practice someone takes up, though — off
+// until asked for, it does not crowd the Bibel tab of everyone else.
 export const DEFAULT_BIBEL_FEATURES: BibelFeatures = {
-    fortschritt: true,
+    fortschritt: false,
     lesezeichen: true,
     notizen: true,
     versDerWoche: true,
@@ -75,14 +77,25 @@ export function readBibelTranslation(
     return stored === 'luther1912' ? stored : 'menge';
 }
 
-/** The feature switches from a stored record, under the defaults — see readBibelDisplay. */
-export function readBibelFeatures(stored: PreferencesData['bibelFeatures']): BibelFeatures {
-    const features = { ...DEFAULT_BIBEL_FEATURES };
-    for (const key of Object.keys(features) as (keyof BibelFeatures)[]) {
+/**
+ * The feature switches the reader has set, from a stored record — only those,
+ * and only switches that are switches. What the reader never touched is not
+ * stored, so it follows the defaults, including a default changed later.
+ */
+export function readChosenBibelFeatures(
+    stored: PreferencesData['bibelFeatures'],
+): Partial<BibelFeatures> {
+    const chosen: Partial<BibelFeatures> = {};
+    for (const key of Object.keys(DEFAULT_BIBEL_FEATURES) as (keyof BibelFeatures)[]) {
         const value = stored?.[key];
-        if (typeof value === 'boolean') features[key] = value;
+        if (typeof value === 'boolean') chosen[key] = value;
     }
-    return features;
+    return chosen;
+}
+
+/** The feature switches in effect: what was set, over the defaults. */
+export function readBibelFeatures(stored: PreferencesData['bibelFeatures']): BibelFeatures {
+    return { ...DEFAULT_BIBEL_FEATURES, ...readChosenBibelFeatures(stored) };
 }
 
 /** What the retired Textgröße steps were worth, as factors of the default. */
@@ -141,7 +154,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
     const bibelDisplay = ref<BibelDisplaySettings>({ ...DEFAULT_BIBEL_DISPLAY });
     // Menge unless the reader chose Luther: one translation at a time.
     const bibelTranslation = ref<BibelTranslationId>('menge');
-    const bibelFeatures = ref<BibelFeatures>({ ...DEFAULT_BIBEL_FEATURES });
+    // Only what the reader set; the rest follows DEFAULT_BIBEL_FEATURES.
+    const chosenBibelFeatures = ref<Partial<BibelFeatures>>({});
+    const bibelFeatures = computed<BibelFeatures>(() => ({
+        ...DEFAULT_BIBEL_FEATURES,
+        ...chosenBibelFeatures.value,
+    }));
     const isLoading = ref(false);
 
     // Actions
@@ -164,7 +182,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 ownBibelScale.value = readBibelScale(prefs.bibelScale);
                 bibelDisplay.value = readBibelDisplay(prefs.bibelDisplay);
                 bibelTranslation.value = readBibelTranslation(prefs.bibelTranslation);
-                bibelFeatures.value = readBibelFeatures(prefs.bibelFeatures);
+                chosenBibelFeatures.value = readChosenBibelFeatures(prefs.bibelFeatures);
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -190,7 +208,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
             bibelScale: ownBibelScale.value ?? undefined,
             bibelDisplay: { ...bibelDisplay.value },
             bibelTranslation: bibelTranslation.value,
-            bibelFeatures: { ...bibelFeatures.value },
+            bibelFeatures: { ...chosenBibelFeatures.value },
         });
     }
 
@@ -322,7 +340,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
 
     async function setBibelFeature<K extends keyof BibelFeatures>(key: K, value: boolean) {
         try {
-            bibelFeatures.value = { ...bibelFeatures.value, [key]: value };
+            chosenBibelFeatures.value = { ...chosenBibelFeatures.value, [key]: value };
             await persist();
         } catch (err) {
             console.error('Error saving the Bible feature setting:', err);
@@ -347,7 +365,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         ownBibelScale.value = null;
         bibelDisplay.value = { ...DEFAULT_BIBEL_DISPLAY };
         bibelTranslation.value = 'menge';
-        bibelFeatures.value = { ...DEFAULT_BIBEL_FEATURES };
+        chosenBibelFeatures.value = {};
     }
 
     // Initialize store on creation

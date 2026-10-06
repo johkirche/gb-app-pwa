@@ -234,7 +234,11 @@ export interface PreferencesData {
      * one page. Left out means Menge, the translation with section headings.
      */
     bibelTranslation?: BibelTranslationId;
-    /** Which of the Bible's own features are offered. The store supplies the defaults. */
+    /**
+     * The Bible's feature switches the reader set — only those. A switch never
+     * touched is not stored and follows the store's defaults, so a default can
+     * change for everyone who never chose.
+     */
     bibelFeatures?: Partial<BibelFeatures>;
     /**
      * @deprecated A second translation set beside Menge, verse by verse. The

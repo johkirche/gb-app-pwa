@@ -185,16 +185,18 @@ const playbackSummary = computed(() => {
     return on.length ? on.join(' · ') : 'Ohne Markierungen';
 });
 
-// The translation when the Bible is on, and what of it has been switched off.
+// The translation when the Bible is on, and how many of its features are.
 const bibelSummary = computed(() => {
     if (!preferencesStore.showBibel) {
         return preferencesStore.showBibelstellen ? 'Bibelstellen unter Liedern' : 'Aus';
     }
     const translation =
         preferencesStore.bibelTranslation === 'menge' ? 'Menge (1939)' : 'Luther (1912)';
-    const off = Object.values(preferencesStore.bibelFeatures).filter((on) => !on).length;
-    if (off === 0) return translation;
-    return `${translation} · ${off} ${off === 1 ? 'Funktion' : 'Funktionen'} aus`;
+    // Counted as what is on: with the reading progress off by default, "1 aus"
+    // would greet every reader who never touched a switch.
+    const features = Object.values(preferencesStore.bibelFeatures);
+    const on = features.filter(Boolean).length;
+    return `${translation} · ${on} von ${features.length} Funktionen`;
 });
 
 const serviceSummary = computed(() => {
