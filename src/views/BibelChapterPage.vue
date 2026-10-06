@@ -238,9 +238,7 @@
                 </Button>
             </div>
         </div>
-        <BibelVerseActions v-slot="{ here: at, verses, label, done }">
-            <BibelVerseServiceActions :here="at" :verses="verses" :label="label" :done="done" />
-        </BibelVerseActions>
+        <BibelVerseActions />
     </div>
 </template>
 
@@ -276,7 +274,6 @@ import BibelChapterText from '@/components/bibel/BibelChapterText.vue';
 import BibelMenuPopover from '@/components/bibel/BibelMenuPopover.vue';
 import BibelReadToggle from '@/components/bibel/BibelReadToggle.vue';
 import BibelVerseActions from '@/components/bibel/BibelVerseActions.vue';
-import BibelVerseServiceActions from '@/components/bibel/BibelVerseServiceActions.vue';
 import { readAloudQueue, swipeTurn, verseAtTop } from '@/components/bibel/bibelReader';
 import { useVorlesen } from '@/components/bibel/useVorlesen';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';

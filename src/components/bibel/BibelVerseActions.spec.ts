@@ -23,7 +23,15 @@ vi.mock('@/db', () => {
             clear: async () => rows.clear(),
         };
     };
-    return { db: { lesezeichen: table(), markierungen: table(), meta: table() } };
+    return {
+        db: {
+            lesezeichen: table(),
+            markierungen: table(),
+            meta: table(),
+            playlists: table(),
+            services: table(),
+        },
+    };
 });
 
 const laid = layoutChapter([
@@ -83,15 +91,17 @@ describe('BibelVerseActions', () => {
         expect(store.colorOf('psalm', 23, 2)).toBe('blau');
     });
 
-    it('hands extra actions what they act on', async () => {
-        selection.toggle(2);
-        const wrapper = mount(BibelVerseActions, {
-            slots: {
-                default: `<template #default="{ label, verses }">
-                    <span class="extra">{{ label }}|{{ verses.join(',') }}</span>
-                </template>`,
-            },
-        });
-        expect(wrapper.find('.extra').text()).toBe('Psalm 23,2|2');
+    it('keeps to five places, the fifth "Mehr" once more are on', async () => {
+        selection.toggle(1);
+        const wrapper = mount(BibelVerseActions);
+        await flushPromises();
+
+        // Kopieren, Teilen, Markieren, Notiz, Lesezeichen, Gottesdienst: six.
+        const labels = wrapper.findAll('footer button').map((b) => b.text());
+        expect(labels).toEqual(
+            expect.arrayContaining(['Kopieren', 'Teilen', 'Markieren', 'Notiz', 'Mehr']),
+        );
+        expect(labels).not.toContain('Lesezeichen');
+        expect(labels).not.toContain('Gottesdienst');
     });
 });

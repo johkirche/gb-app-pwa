@@ -54,74 +54,128 @@
                 </button>
             </div>
 
-            <div class="flex items-stretch gap-1 overflow-x-auto pt-1">
-                <BibelVerseAction :icon="Copy" label="Kopieren" @click="copy" />
-                <BibelVerseAction :icon="Share2" label="Teilen" @click="share" />
-                <!-- Marking, notes and Lesezeichen only where they are
-                     switched on (Einstellungen → Bibel). -->
-                <BibelVerseAction
-                    v-if="features.notizen"
-                    :icon="Highlighter"
-                    label="Markieren"
-                    :aria-expanded="colorsOpen"
-                    @click="colorsOpen = !colorsOpen"
-                />
-                <BibelVerseAction
-                    v-if="features.notizen"
-                    :icon="NotebookPen"
-                    label="Notiz"
-                    @click="note"
-                />
-                <BibelVerseAction
-                    v-if="features.lesezeichen"
-                    :icon="Bookmark"
-                    label="Lesezeichen"
-                    @click="bookmark"
-                />
-                <!-- More actions from the page that mounts the bar ("Zum
-                     Gottesdienst hinzufügen" …). Render a BibelVerseAction per
-                     action; the slot hands over what they act on, and `done`
-                     to clear the selection once an action has run. -->
-                <slot
-                    :here="here"
-                    :verses="verses"
-                    :text="quote"
-                    :label="label"
-                    :done="selection.clear"
-                />
+            <!-- Five equal places, always all in view: past five actions the
+                 fifth becomes "Mehr" (see verseActions.ts). What is switched
+                 off under Einstellungen → Bibel is not in the list at all. -->
+            <div class="flex items-stretch gap-1 pt-1">
+                <template v-for="action in bar.inBar" :key="action.key">
+                    <!-- A playlist is chosen, not just added to. -->
+                    <DropdownMenu v-if="action.key === 'playlist'">
+                        <DropdownMenuTrigger as-child>
+                            <BibelVerseAction :icon="action.icon" :label="action.label" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                            side="top"
+                            align="end"
+                            class="max-h-72 w-56 overflow-y-auto"
+                        >
+                            <DropdownMenuItem
+                                v-for="playlist in playlistsStore.sortedPlaylists"
+                                :key="playlist.id"
+                                @select="toPlaylist(playlist.id, playlist.name)"
+                            >
+                                <span aria-hidden="true">{{ playlist.emoji }}</span>
+                                <span class="truncate">{{ playlist.name }}</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <BibelVerseAction
+                        v-else
+                        :icon="action.icon"
+                        :label="action.label"
+                        :aria-expanded="action.key === 'markieren' ? colorsOpen : undefined"
+                        @click="action.run()"
+                    />
+                </template>
+
+                <DropdownMenu v-if="bar.more.length">
+                    <DropdownMenuTrigger as-child>
+                        <BibelVerseAction :icon="Ellipsis" label="Mehr" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        side="top"
+                        align="end"
+                        class="max-h-80 w-56 overflow-y-auto"
+                    >
+                        <DropdownMenuItem
+                            v-for="action in moreActions"
+                            :key="action.key"
+                            @select="action.run()"
+                        >
+                            <component :is="action.icon" aria-hidden="true" />
+                            {{ action.label }}
+                        </DropdownMenuItem>
+                        <template v-if="playlistInMore">
+                            <DropdownMenuSeparator v-if="moreActions.length" />
+                            <DropdownMenuLabel>Zur Playlist</DropdownMenuLabel>
+                            <DropdownMenuItem
+                                v-for="playlist in playlistsStore.sortedPlaylists"
+                                :key="playlist.id"
+                                @select="toPlaylist(playlist.id, playlist.name)"
+                            >
+                                <span aria-hidden="true">{{ playlist.emoji }}</span>
+                                <span class="truncate">{{ playlist.name }}</span>
+                            </DropdownMenuItem>
+                        </template>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
     </footer>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { type Component, computed, ref, watch } from 'vue';
 
-import { Bookmark, Copy, Eraser, Highlighter, NotebookPen, Share2, X } from 'lucide-vue-next';
+import {
+    Bookmark,
+    Church,
+    Copy,
+    Ellipsis,
+    Eraser,
+    Highlighter,
+    ListMusic,
+    NotebookPen,
+    Share2,
+    X,
+} from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { toast } from 'vue-sonner';
 
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { useMarkierungenStore } from '@/stores/markierungen';
+import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
+import { useServiceStore } from '@/stores/service';
 
 import { useVerseSelection } from '@/composables/useVerseSelection';
 
 import BibelVerseAction from '@/components/bibel/BibelVerseAction.vue';
+import { fitActions } from '@/components/bibel/verseActions';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-import type { MarkierungsFarbe } from '@/db';
+import type { BibelPassage, MarkierungsFarbe } from '@/db';
 import { verseRefLabel } from '@/utils/bibel';
 import { snippet, verseText } from '@/utils/bibelLayout';
+import { passagesFromVerses } from '@/utils/bibelPassage';
 import { copyText, versesRefLabel } from '@/utils/bibelVerses';
 
 import './bibel-marks.css';
 
 /**
  * What the reader can do with the verses picked out in the text: copy and
- * share them as a quotation, highlight them, write a note, set a Lesezeichen.
- * Reads the chapter and the selection from useVerseSelection, so the page
- * mounts it with no props, after its scroller.
+ * share them as a quotation, highlight them, write a note, set a Lesezeichen,
+ * and take them into the hymnal's own lists — a reading for the Gottesdienst,
+ * passages in a playlist. Reads the chapter and the selection from
+ * useVerseSelection, so the page mounts it with no props, after its scroller.
  */
 
 const COLORS: { key: MarkierungsFarbe; label: string }[] = [
@@ -206,6 +260,75 @@ function note() {
     selection.clear();
     selection.openNote(first);
 }
+
+// --- Into the Gottesdienst and the playlists ---------------------------------
+
+const serviceStore = useServiceStore();
+const playlistsStore = usePlaylistsStore();
+
+/** The selection as passages: one per unbroken run of verses. */
+const passages = computed<BibelPassage[]>(() =>
+    here.value ? passagesFromVerses(here.value, verses.value) : [],
+);
+
+async function toService() {
+    try {
+        for (const passage of passages.value) await serviceStore.addLesung(passage);
+        toast.success(`Als Lesung vorgemerkt: ${label.value}`, { duration: 2000 });
+        selection.clear();
+    } catch (err) {
+        console.error('Error adding the reading:', err);
+        toast.error('Die Lesung konnte nicht gespeichert werden.');
+    }
+}
+
+async function toPlaylist(id: string, name: string) {
+    try {
+        await playlistsStore.addPassagesToPlaylist(id, passages.value);
+        toast.success(`${label.value} zu „${name}“ hinzugefügt`, { duration: 2000 });
+        selection.clear();
+    } catch (err) {
+        console.error('Error adding the passage to the playlist:', err);
+        toast.error('Die Bibelstelle konnte nicht gespeichert werden.');
+    }
+}
+
+// --- The actions, in the order they earn a place in the bar ------------------
+
+interface VerseAction {
+    key: string;
+    label: string;
+    icon: Component;
+    run: () => void;
+}
+
+const actions = computed<VerseAction[]>(() => [
+    { key: 'kopieren', label: 'Kopieren', icon: Copy, run: copy },
+    { key: 'teilen', label: 'Teilen', icon: Share2, run: share },
+    ...(features.value.notizen
+        ? [
+              {
+                  key: 'markieren',
+                  label: 'Markieren',
+                  icon: Highlighter,
+                  run: () => (colorsOpen.value = !colorsOpen.value),
+              },
+              { key: 'notiz', label: 'Notiz', icon: NotebookPen, run: note },
+          ]
+        : []),
+    ...(features.value.lesezeichen
+        ? [{ key: 'lesezeichen', label: 'Lesezeichen', icon: Bookmark, run: bookmark }]
+        : []),
+    { key: 'gottesdienst', label: 'Gottesdienst', icon: Church, run: toService },
+    // Only with a playlist to choose; it opens a menu, so run does nothing.
+    ...(playlistsStore.sortedPlaylists.length
+        ? [{ key: 'playlist', label: 'Playlist', icon: ListMusic, run: () => {} }]
+        : []),
+]);
+
+const bar = computed(() => fitActions(actions.value));
+const moreActions = computed(() => bar.value.more.filter((action) => action.key !== 'playlist'));
+const playlistInMore = computed(() => bar.value.more.some((action) => action.key === 'playlist'));
 
 async function bookmark() {
     if (!here.value) return;
