@@ -1,4 +1,4 @@
-import { type Ref, computed, onBeforeUnmount, ref, watch } from 'vue';
+import { type Ref, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import { toast } from 'vue-sonner';
 
@@ -168,6 +168,39 @@ export function useChapterText(
         // A tap only adds to a selection already begun by holding.
         if (!isMouse(lastPointer) && selection.verses.value.length === 0) return;
         selection.toggle(Number(words.dataset.verse));
+        // Picking out re-renders the verse's classes; keep it lit under the mouse.
+        if (hovered) void nextTick(() => light(hovered!.root, hovered!.verse));
+    }
+
+    // Under a mouse, the whole verse the pointer is on is lit — every run of
+    // its words, across lines and footnotes — so it is plain what a click
+    // will pick out. Set on the elements directly: a chapter like Psalm 119
+    // has thousands of runs, too many to re-render on every move.
+
+    let hovered: { root: HTMLElement; verse: number } | null = null;
+
+    function light(root: HTMLElement, verse: number | null) {
+        root.querySelectorAll('.bibel-hover').forEach((el) => el.classList.remove('bibel-hover'));
+        if (verse === null) return;
+        root.querySelectorAll(`[data-verse="${verse}"]`).forEach((el) =>
+            el.classList.add('bibel-hover'),
+        );
+    }
+
+    function onTextPointerOver(event: PointerEvent) {
+        if (!isMouse(event.pointerType)) return;
+        const root = event.currentTarget as HTMLElement;
+        const words = wordsAt(event.target);
+        const verse = words ? Number(words.dataset.verse) : null;
+        if (hovered?.verse === verse) return;
+        hovered = verse === null ? null : { root, verse };
+        light(root, verse);
+    }
+
+    function onTextPointerLeave(event: PointerEvent) {
+        if (!hovered) return;
+        light(event.currentTarget as HTMLElement, null);
+        hovered = null;
     }
 
     /** The hold is ours on the verses: no copy/lookup menu from the system. */
@@ -208,6 +241,8 @@ export function useChapterText(
         onTextPointerMove,
         onTextPointerEnd: cancelHold,
         onTextContextMenu,
+        onTextPointerOver,
+        onTextPointerLeave,
         colorOf,
         highlightStyle,
         hasNote,

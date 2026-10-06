@@ -89,6 +89,21 @@
     }
 }
 
+/* Under a mouse, a click picks a verse out: the hand, not the text cursor,
+   and the whole verse lit while the pointer is on it (see useChapterText).
+   A drag still selects words, for copying a phrase. */
+@media (hover: hover) and (pointer: fine) {
+    .bibel-chapter [data-verse] {
+        cursor: pointer;
+    }
+    .bibel-chapter .bibel-hover {
+        background: var(--muted);
+        border-radius: 0.15em;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+    }
+}
+
 /* A highlight: the reader's own colour, washed behind the words (see
    bibel-marks.css). */
 .bibel-chapter .bibel-hl {
@@ -96,6 +111,12 @@
     border-radius: 0.15em;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .bibel-chapter .bibel-hl.bibel-hover {
+        background: color-mix(in srgb, var(--hl), var(--foreground) 12%);
+    }
 }
 
 .bibel-chapter .bibel-marked {

@@ -9,6 +9,8 @@
         @pointerup="onTextPointerEnd"
         @pointercancel="onTextPointerEnd"
         @contextmenu="onTextContextMenu"
+        @pointerover="onTextPointerOver"
+        @pointerleave="onTextPointerLeave"
     >
         <template v-for="(block, b) in laid" :key="`${slug}-${chapter}-${b}`">
             <!-- Menge's own headings, from the book's main divisions down to its
@@ -158,6 +160,8 @@ const {
     onTextPointerMove,
     onTextPointerEnd,
     onTextContextMenu,
+    onTextPointerOver,
+    onTextPointerLeave,
     colorOf,
     highlightStyle,
     hasNote,
