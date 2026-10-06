@@ -1,7 +1,8 @@
 <template>
-    <!-- Desktop: a panel beside the text, at the right edge of the reading
-         area. The text keeps its place where there is room and moves aside
-         where there is not (see the chapter page), so no verse is covered.
+    <!-- Desktop: a panel beside the text — 1.5rem right of the 36rem column,
+         which stands in the middle — or, where that would run off the
+         screen, at its right edge, the text moving aside to make room (see
+         the chapter page), so no verse is covered.
          Clicking further verses adds them; Escape or the ✕ lets go. -->
     <Transition
         v-if="isDesktop"
@@ -12,7 +13,7 @@
     >
         <aside
             v-if="open"
-            class="absolute right-6 top-4 z-20 flex max-h-[calc(100%-2rem)] w-80 flex-col rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
+            class="absolute left-[min(calc(50%+19.5rem),calc(100%-21.5rem))] top-4 z-20 flex max-h-[calc(100%-2rem)] w-80 flex-col rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
             aria-labelledby="vers-aktionen-titel"
         >
             <div class="flex items-center gap-2 border-b border-border py-2 pl-4 pr-2">
