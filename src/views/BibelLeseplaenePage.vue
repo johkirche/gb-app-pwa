@@ -13,11 +13,12 @@
                     markieren Sie am Ende des Kapitels; der Tag wird dann abgehakt.
                 </p>
 
-                <ul class="mt-4 space-y-3">
+                <!-- Side by side on a desktop: the plans are read as a choice, not a list. -->
+                <ul class="mt-4 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
                     <li
                         v-for="plan in LESEPLAENE"
                         :key="plan.id"
-                        class="rounded-lg border bg-card p-5 text-card-foreground shadow-sm"
+                        class="flex flex-col rounded-lg border bg-card p-5 text-card-foreground shadow-sm"
                         :class="{ 'border-gold/50': isActive(plan.id) }"
                     >
                         <p v-if="isActive(plan.id)" class="label-micro mb-1 text-gold">Ihr Plan</p>
@@ -42,12 +43,12 @@
                                     {{ status.done === 1 ? 'Tag' : 'Tage' }} erledigt
                                 </template>
                             </p>
-                            <div class="mt-4 flex gap-2">
+                            <div class="mt-auto flex gap-2 pt-4">
                                 <Button variant="outline" size="sm" @click="stop">Beenden</Button>
                             </div>
                         </template>
 
-                        <div v-else class="mt-4 flex gap-2">
+                        <div v-else class="mt-auto flex gap-2 pt-4">
                             <Button size="sm" @click="start(plan)">Beginnen</Button>
                         </div>
                     </li>

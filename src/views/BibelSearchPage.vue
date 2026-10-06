@@ -58,135 +58,168 @@
         </div>
 
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div class="page-col pb-24 pt-3">
-                <!-- A typed reference goes straight to the passage; Enter does
+            <div
+                class="page-col pb-24 pt-3"
+                :class="{ 'lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-x-8': index.length }"
+            >
+                <!-- Desktop: the books with hits, beside them, to jump to. -->
+                <nav
+                    v-if="index.length"
+                    class="hidden lg:sticky lg:top-3 lg:col-start-1 lg:row-span-6 lg:block lg:max-h-[calc(100dvh-10rem)] lg:self-start lg:overflow-y-auto"
+                    aria-label="Treffer nach Büchern"
+                >
+                    <p class="label-micro mb-1 px-2 pt-1 text-muted-foreground">Bücher</p>
+                    <ul>
+                        <li v-for="group in index" :key="group.book.slug">
+                            <button
+                                type="button"
+                                class="flex w-full items-baseline gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                                @click="jumpTo(group.book.slug)"
+                            >
+                                <span class="min-w-0 flex-1 truncate">{{ group.book.name }}</span>
+                                <span class="text-xs text-muted-foreground">{{ group.count }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="lg:col-start-2">
+                    <!-- A typed reference goes straight to the passage; Enter does
                      the same. Above the full-text hits, which for "Joh 3,16"
                      would be noise. -->
-                <RouterLink
-                    v-if="reference"
-                    :to="referencePath"
-                    class="mb-4 flex items-center gap-3 rounded-lg border bg-card px-4 py-3 text-card-foreground shadow-sm transition hover:border-primary/40 active:scale-[0.99]"
-                >
-                    <BookOpen class="size-5 shrink-0 text-gold" aria-hidden="true" />
-                    <span class="min-w-0 flex-1 text-[15px]">
-                        Gehe zu
-                        <span class="font-semibold">{{ referenceLabel(reference) }}</span>
-                    </span>
-                    <ArrowRight
-                        class="size-[18px] shrink-0 text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                </RouterLink>
-
-                <p v-if="!terms.length" class="px-2 text-sm text-muted-foreground">
-                    Geben Sie Wörter ein, die im Vers vorkommen, etwa „guter Hirte“, oder eine
-                    Bibelstelle wie „Johannes 3,16“.
-                </p>
-
-                <template v-else>
-                    <!-- First search of the session: the books are read and
-                         indexed once, then kept. -->
-                    <div
-                        v-if="building && !complete"
-                        class="mb-3 flex items-center gap-3 px-2 text-sm text-muted-foreground"
+                    <RouterLink
+                        v-if="reference"
+                        :to="referencePath"
+                        class="mb-4 flex items-center gap-3 rounded-lg border bg-card px-4 py-3 text-card-foreground shadow-sm transition hover:border-primary/40 active:scale-[0.99]"
                     >
-                        <Spinner size="sm" />
-                        <span>
-                            Die Bibel wird für die Suche vorbereitet … {{ indexedCount }} von
-                            {{ BIBEL_BOOKS.length }} Büchern
+                        <BookOpen class="size-5 shrink-0 text-gold" aria-hidden="true" />
+                        <span class="min-w-0 flex-1 text-[15px]">
+                            Gehe zu
+                            <span class="font-semibold">{{ referenceLabel(reference) }}</span>
                         </span>
-                    </div>
+                        <ArrowRight
+                            class="size-[18px] shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    </RouterLink>
 
-                    <!-- Offline with books missing: say what was searched,
-                         and offer to fetch the rest. -->
-                    <div
-                        v-else-if="!complete"
-                        class="mb-4 rounded-lg bg-muted px-2 pb-1 pt-3 text-sm text-muted-foreground"
-                    >
-                        <p class="flex items-start gap-2 px-2">
-                            <WifiOff class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                            <span>
-                                Durchsucht wurden {{ indexedCount }} von
-                                {{ BIBEL_BOOKS.length }} Büchern. Die übrigen sind noch nicht auf
-                                dem Gerät und ohne Internet nicht erreichbar.
-                            </span>
-                        </p>
-                        <BibelOfflineStatus class="mt-1 text-foreground" />
-                    </div>
-
-                    <p
-                        v-if="result.total > 0"
-                        class="mb-2 px-2 text-[13px] text-muted-foreground"
-                        aria-live="polite"
-                    >
-                        {{ result.total }} {{ result.total === 1 ? 'Vers' : 'Verse' }} gefunden
-                        <template v-if="result.total > result.shown">
-                            · die ersten {{ result.shown }} werden gezeigt
-                        </template>
-                    </p>
-                    <p
-                        v-else-if="!building || complete"
-                        class="px-2 text-sm text-muted-foreground"
-                        aria-live="polite"
-                    >
-                        Keine Verse gefunden{{ scope === 'all' ? '' : ` in ${scopeLabel(scope)}` }}.
+                    <p v-if="!terms.length" class="px-2 text-sm text-muted-foreground">
+                        Geben Sie Wörter ein, die im Vers vorkommen, etwa „guter Hirte“, oder eine
+                        Bibelstelle wie „Johannes 3,16“.
                     </p>
 
-                    <section
-                        v-for="group in result.groups"
-                        :key="group.book.slug"
-                        class="mt-5"
-                        :aria-label="group.book.name"
-                    >
-                        <h2 class="flex items-baseline gap-2 px-2">
-                            <span class="font-display text-xl font-semibold">
-                                {{ group.book.name }}
-                            </span>
-                            <span class="text-sm text-muted-foreground">{{ group.count }}</span>
-                        </h2>
-
-                        <ul v-if="group.verses.length" class="mt-1 divide-y divide-border">
-                            <li v-for="hit in group.verses" :key="`${hit.chapter},${hit.verse}`">
-                                <RouterLink
-                                    :to="chapterPath(hit, hit.verse)"
-                                    class="block rounded-sm px-2 py-2.5 transition-colors hover:bg-muted active:bg-muted"
-                                >
-                                    <span class="label-micro block text-gold">
-                                        {{ verseRefLabel(hit, hit.verse) }}
-                                    </span>
-                                    <SearchHighlight
-                                        :text="hit.text"
-                                        :terms="terms"
-                                        class="mt-0.5 block font-hymnal text-[15px] leading-snug"
-                                    />
-                                </RouterLink>
-                            </li>
-                        </ul>
-
-                        <!-- Past the cap: the count, and the way to see them. -->
-                        <button
-                            v-if="group.verses.length < group.count && scope !== group.book.slug"
-                            type="button"
-                            class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm text-primary transition-colors hover:bg-muted"
-                            @click="scope = group.book.slug"
+                    <template v-else>
+                        <!-- First search of the session: the books are read and
+                         indexed once, then kept. -->
+                        <div
+                            v-if="building && !complete"
+                            class="mb-3 flex items-center gap-3 px-2 text-sm text-muted-foreground"
                         >
-                            {{
-                                group.verses.length
-                                    ? `Alle ${group.count} Treffer in ${group.book.name}`
-                                    : `${group.count} Treffer – nur in ${group.book.name} suchen`
-                            }}
-                            <ChevronRight class="size-4 shrink-0" aria-hidden="true" />
-                        </button>
-                    </section>
+                            <Spinner size="sm" />
+                            <span>
+                                Die Bibel wird für die Suche vorbereitet … {{ indexedCount }} von
+                                {{ BIBEL_BOOKS.length }} Büchern
+                            </span>
+                        </div>
 
-                    <p
-                        v-if="result.total > result.shown"
-                        class="mt-6 px-2 text-sm text-muted-foreground"
-                    >
-                        Weitere {{ result.total - result.shown }} Treffer. Ein weiteres Wort oder
-                        ein einzelnes Buch grenzt die Suche ein.
-                    </p>
-                </template>
+                        <!-- Offline with books missing: say what was searched,
+                         and offer to fetch the rest. -->
+                        <div
+                            v-else-if="!complete"
+                            class="mb-4 rounded-lg bg-muted px-2 pb-1 pt-3 text-sm text-muted-foreground"
+                        >
+                            <p class="flex items-start gap-2 px-2">
+                                <WifiOff class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                                <span>
+                                    Durchsucht wurden {{ indexedCount }} von
+                                    {{ BIBEL_BOOKS.length }} Büchern. Die übrigen sind noch nicht
+                                    auf dem Gerät und ohne Internet nicht erreichbar.
+                                </span>
+                            </p>
+                            <BibelOfflineStatus class="mt-1 text-foreground" />
+                        </div>
+
+                        <p
+                            v-if="result.total > 0"
+                            class="mb-2 px-2 text-[13px] text-muted-foreground"
+                            aria-live="polite"
+                        >
+                            {{ result.total }} {{ result.total === 1 ? 'Vers' : 'Verse' }} gefunden
+                            <template v-if="result.total > result.shown">
+                                · die ersten {{ result.shown }} werden gezeigt
+                            </template>
+                        </p>
+                        <p
+                            v-else-if="!building || complete"
+                            class="px-2 text-sm text-muted-foreground"
+                            aria-live="polite"
+                        >
+                            Keine Verse gefunden{{
+                                scope === 'all' ? '' : ` in ${scopeLabel(scope)}`
+                            }}.
+                        </p>
+
+                        <section
+                            v-for="group in result.groups"
+                            :id="`treffer-${group.book.slug}`"
+                            :key="group.book.slug"
+                            class="mt-5 scroll-mt-3"
+                            :aria-label="group.book.name"
+                        >
+                            <h2 class="flex items-baseline gap-2 px-2">
+                                <span class="font-display text-xl font-semibold">
+                                    {{ group.book.name }}
+                                </span>
+                                <span class="text-sm text-muted-foreground">{{ group.count }}</span>
+                            </h2>
+
+                            <ul v-if="group.verses.length" class="mt-1 divide-y divide-border">
+                                <li
+                                    v-for="hit in group.verses"
+                                    :key="`${hit.chapter},${hit.verse}`"
+                                >
+                                    <RouterLink
+                                        :to="chapterPath(hit, hit.verse)"
+                                        class="block rounded-sm px-2 py-2.5 transition-colors hover:bg-muted active:bg-muted"
+                                    >
+                                        <span class="label-micro block text-gold">
+                                            {{ verseRefLabel(hit, hit.verse) }}
+                                        </span>
+                                        <SearchHighlight
+                                            :text="hit.text"
+                                            :terms="terms"
+                                            class="mt-0.5 block font-hymnal text-[15px] leading-snug"
+                                        />
+                                    </RouterLink>
+                                </li>
+                            </ul>
+
+                            <!-- Past the cap: the count, and the way to see them. -->
+                            <button
+                                v-if="
+                                    group.verses.length < group.count && scope !== group.book.slug
+                                "
+                                type="button"
+                                class="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm text-primary transition-colors hover:bg-muted"
+                                @click="scope = group.book.slug"
+                            >
+                                {{
+                                    group.verses.length
+                                        ? `Alle ${group.count} Treffer in ${group.book.name}`
+                                        : `${group.count} Treffer – nur in ${group.book.name} suchen`
+                                }}
+                                <ChevronRight class="size-4 shrink-0" aria-hidden="true" />
+                            </button>
+                        </section>
+
+                        <p
+                            v-if="result.total > result.shown"
+                            class="mt-6 px-2 text-sm text-muted-foreground"
+                        >
+                            Weitere {{ result.total - result.shown }} Treffer. Ein weiteres Wort
+                            oder ein einzelnes Buch grenzt die Suche ein.
+                        </p>
+                    </template>
+                </div>
             </div>
         </main>
     </div>
@@ -276,6 +309,13 @@ watch([settledQuery, scope], ([q, s]) => {
 const { verses, indexedCount, building, complete, build } = useBibelSearchIndex();
 
 const result = computed(() => searchVerses(verses.value, terms.value, scope.value));
+
+/** The desktop's list of books beside the hits: worth it from two books on. */
+const index = computed(() => (result.value.groups.length > 1 ? result.value.groups : []));
+
+function jumpTo(slug: string) {
+    document.getElementById(`treffer-${slug}`)?.scrollIntoView({ behavior: 'smooth' });
+}
 
 // The index is built on the first real search, not on opening the page: a
 // reader who only types "Joh 3,16" should not fetch the whole Bible for it.
