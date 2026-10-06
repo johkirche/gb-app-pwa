@@ -126,4 +126,30 @@ describe('BibelVerseActions', () => {
         expect(sheet()!.textContent).toContain('Markieren');
         expect(sheet()!.textContent).toContain('Weitere Verse antippen');
     });
+
+    it('on a desktop, stands beside the text as a panel, and lets go on Escape', async () => {
+        // jsdom has no matchMedia; this one says every query matches.
+        Object.defineProperty(window, 'matchMedia', {
+            configurable: true,
+            value: (query: string) => ({
+                matches: true,
+                media: query,
+                addEventListener: () => {},
+                removeEventListener: () => {},
+            }),
+        });
+        selection.toggle(1);
+        selection.toggle(2);
+        await open();
+
+        expect(sheet()).toBeNull();
+        const panel = wrapper!.find('aside');
+        expect(panel.text()).toContain('Psalm 23,1-2');
+        expect(panel.text()).toContain('Weitere Verse anklicken');
+        expect(panel.findAll('li > button').map((b) => b.text())).toContain('Kopieren');
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(selection.verses.value).toEqual([]);
+        delete (window as { matchMedia?: unknown }).matchMedia;
+    });
 });

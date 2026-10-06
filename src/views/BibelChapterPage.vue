@@ -82,122 +82,136 @@
 
         <BibelChapterPicker v-if="book" v-model:open="pickerOpen" :here="here" :anchor="titleRef" />
 
-        <main
-            ref="scrollRef"
-            class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-            @touchstart.passive="onTouchStart"
-            @touchmove.passive="onTouchMove"
-            @touchend.passive="onTouchEnd"
-            @touchcancel.passive="swipe = null"
-        >
-            <!-- While the action drawer is up, room below the text for it: the
-                 last verses can still be scrolled clear of it and tapped in. -->
-            <div class="page-col pt-4" :class="picking ? 'pb-[70dvh]' : 'pb-12'">
-                <article
-                    ref="articleRef"
-                    class="bibel-text mx-auto max-w-[36rem] font-hymnal text-foreground"
-                    :class="{
-                        'bibel-no-headings': !bibelDisplay.showHeadings,
-                        'bibel-no-numbers': !bibelDisplay.showVerseNumbers,
-                        'bibel-notes-inline': bibelDisplay.notesInline,
-                        'bibel-verse-lines': bibelDisplay.versePerLine,
-                    }"
-                    :style="{ '--bibel-scale': bibelScale }"
+        <!-- Holds the scroller and, on a desktop, the verse actions' panel
+             at its right edge. -->
+        <div class="relative flex min-h-0 flex-1 flex-col">
+            <main
+                ref="scrollRef"
+                class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                @touchstart.passive="onTouchStart"
+                @touchmove.passive="onTouchMove"
+                @touchend.passive="onTouchEnd"
+                @touchcancel.passive="swipe = null"
+            >
+                <!-- While the actions are up, room for them. Phone: below the
+                 text, so the last verses can be scrolled clear of the drawer
+                 and tapped in. Desktop: to the right, but only as much as the
+                 panel (20rem, 1.5rem off the edge, 1.5rem gap) would otherwise
+                 cover of the 36rem column — none on a wide screen. -->
+                <div
+                    class="transition-[padding] duration-200"
+                    :class="{ 'lg:pr-[max(0px,calc(82rem-100%))]': picking }"
                 >
-                    <p v-if="book" class="label-micro mb-2 text-gold">{{ book.title }}</p>
+                    <div class="page-col pt-4" :class="picking ? 'pb-[70dvh] lg:pb-12' : 'pb-12'">
+                        <article
+                            ref="articleRef"
+                            class="bibel-text mx-auto max-w-[36rem] font-hymnal text-foreground"
+                            :class="{
+                                'bibel-no-headings': !bibelDisplay.showHeadings,
+                                'bibel-no-numbers': !bibelDisplay.showVerseNumbers,
+                                'bibel-notes-inline': bibelDisplay.notesInline,
+                                'bibel-verse-lines': bibelDisplay.versePerLine,
+                            }"
+                            :style="{ '--bibel-scale': bibelScale }"
+                        >
+                            <p v-if="book" class="label-micro mb-2 text-gold">{{ book.title }}</p>
 
-                    <div v-if="state === 'loading'" class="flex justify-center py-16">
-                        <Spinner size="lg" />
-                    </div>
+                            <div v-if="state === 'loading'" class="flex justify-center py-16">
+                                <Spinner size="lg" />
+                            </div>
 
-                    <div
-                        v-else-if="state === 'failed'"
-                        class="my-6 flex items-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
-                    >
-                        <WifiOff class="size-5 shrink-0" aria-hidden="true" />
-                        <span>
-                            Dieses Buch ist noch nicht auf dem Gerät. Mit Internetverbindung einmal
-                            öffnen, danach ist es auch offline lesbar.
-                        </span>
-                    </div>
+                            <div
+                                v-else-if="state === 'failed'"
+                                class="my-6 flex items-center gap-2 rounded-lg bg-muted p-6 italic text-muted-foreground"
+                            >
+                                <WifiOff class="size-5 shrink-0" aria-hidden="true" />
+                                <span>
+                                    Dieses Buch ist noch nicht auf dem Gerät. Mit Internetverbindung
+                                    einmal öffnen, danach ist es auch offline lesbar.
+                                </span>
+                            </div>
 
-                    <p v-else-if="state === 'missing'" class="my-6 text-muted-foreground">
-                        Dieses Kapitel gibt es nicht.
-                    </p>
+                            <p v-else-if="state === 'missing'" class="my-6 text-muted-foreground">
+                                Dieses Kapitel gibt es nicht.
+                            </p>
 
-                    <!-- The book list counts chapters as Menge does. The
+                            <!-- The book list counts chapters as Menge does. The
                          Lutherbibel counts them alike in every book today; if
                          a rebuilt text ever did not, the chapter would not be
                          missing but elsewhere — said so, not an empty page. -->
-                    <p
-                        v-else-if="state === 'elsewhere'"
-                        class="my-6 flex items-start gap-2 text-muted-foreground"
-                    >
-                        <Info class="mt-1 size-4 shrink-0" aria-hidden="true" />
-                        <span>
-                            Die {{ translationLabel }} zählt die Kapitel dieses Buches anders;
-                            dieser Abschnitt steht dort im vorigen Kapitel.
-                        </span>
-                    </p>
+                            <p
+                                v-else-if="state === 'elsewhere'"
+                                class="my-6 flex items-start gap-2 text-muted-foreground"
+                            >
+                                <Info class="mt-1 size-4 shrink-0" aria-hidden="true" />
+                                <span>
+                                    Die {{ translationLabel }} zählt die Kapitel dieses Buches
+                                    anders; dieser Abschnitt steht dort im vorigen Kapitel.
+                                </span>
+                            </p>
 
-                    <template v-else>
-                        <BibelChapterText
+                            <template v-else>
+                                <BibelChapterText
+                                    :slug="here.slug"
+                                    :chapter="here.chapter"
+                                    :blocks="blocks"
+                                    :marked-verse="vorlesen.verse.value ?? markedVerse"
+                                    :all-notes-open="bibelDisplay.notesInline"
+                                />
+                            </template>
+                        </article>
+
+                        <BibelReadToggle
+                            v-if="state === 'ready' && bibelFeatures.fortschritt"
+                            v-bind="here"
+                        />
+                        <!-- Turning the page: across book boundaries too, so the Bible
+                     can be read straight through. -->
+                        <nav
+                            v-if="state === 'ready'"
+                            class="mx-auto mt-10 flex max-w-[36rem] gap-3 border-t border-border pt-6"
+                            aria-label="Kapitel blättern"
+                        >
+                            <RouterLink
+                                v-if="around.prev"
+                                :to="chapterPath(around.prev)"
+                                class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted active:bg-muted"
+                            >
+                                <ChevronLeft
+                                    class="size-5 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <span class="truncate">{{ chapterLabel(around.prev) }}</span>
+                            </RouterLink>
+                            <span v-else class="flex-1" />
+                            <RouterLink
+                                v-if="around.next"
+                                :to="chapterPath(around.next)"
+                                class="flex min-w-0 flex-1 items-center justify-end gap-2 rounded-lg border border-border px-3 py-3 text-right transition-colors hover:bg-muted active:bg-muted"
+                            >
+                                <span class="truncate">{{ chapterLabel(around.next) }}</span>
+                                <ChevronRight
+                                    class="size-5 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                            </RouterLink>
+                            <span v-else class="flex-1" />
+                        </nav>
+                        <BibelChapterSongs
+                            v-if="state === 'ready' && bibelFeatures.lieder"
                             :slug="here.slug"
                             :chapter="here.chapter"
-                            :blocks="blocks"
-                            :marked-verse="vorlesen.verse.value ?? markedVerse"
-                            :all-notes-open="bibelDisplay.notesInline"
                         />
-                    </template>
-                </article>
 
-                <BibelReadToggle
-                    v-if="state === 'ready' && bibelFeatures.fortschritt"
-                    v-bind="here"
-                />
-                <!-- Turning the page: across book boundaries too, so the Bible
-                     can be read straight through. -->
-                <nav
-                    v-if="state === 'ready'"
-                    class="mx-auto mt-10 flex max-w-[36rem] gap-3 border-t border-border pt-6"
-                    aria-label="Kapitel blättern"
-                >
-                    <RouterLink
-                        v-if="around.prev"
-                        :to="chapterPath(around.prev)"
-                        class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border px-3 py-3 transition-colors hover:bg-muted active:bg-muted"
-                    >
-                        <ChevronLeft
-                            class="size-5 shrink-0 text-muted-foreground"
-                            aria-hidden="true"
-                        />
-                        <span class="truncate">{{ chapterLabel(around.prev) }}</span>
-                    </RouterLink>
-                    <span v-else class="flex-1" />
-                    <RouterLink
-                        v-if="around.next"
-                        :to="chapterPath(around.next)"
-                        class="flex min-w-0 flex-1 items-center justify-end gap-2 rounded-lg border border-border px-3 py-3 text-right transition-colors hover:bg-muted active:bg-muted"
-                    >
-                        <span class="truncate">{{ chapterLabel(around.next) }}</span>
-                        <ChevronRight
-                            class="size-5 shrink-0 text-muted-foreground"
-                            aria-hidden="true"
-                        />
-                    </RouterLink>
-                    <span v-else class="flex-1" />
-                </nav>
-                <BibelChapterSongs
-                    v-if="state === 'ready' && bibelFeatures.lieder"
-                    :slug="here.slug"
-                    :chapter="here.chapter"
-                />
+                        <p class="mx-auto mt-6 max-w-[36rem] text-xs text-muted-foreground">
+                            {{ translationLabel }} · {{ readingHint }}
+                        </p>
+                    </div>
+                </div>
+            </main>
 
-                <p class="mx-auto mt-6 max-w-[36rem] text-xs text-muted-foreground">
-                    {{ translationLabel }} · {{ readingHint }}
-                </p>
-            </div>
-        </main>
+            <BibelVerseActions />
+        </div>
 
         <!-- While the voice reads: where it is, and the means to hold it or
              send it away, without going back into the menu. -->
@@ -240,12 +254,11 @@
                 </Button>
             </div>
         </div>
-        <BibelVerseActions />
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import {
     ChevronDown,
@@ -268,6 +281,7 @@ import { useLeseplanStore } from '@/stores/leseplan';
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { usePreferencesStore } from '@/stores/preferences';
 
+import { useMediaQuery } from '@/composables/useMediaQuery';
 import { useVerseSelection } from '@/composables/useVerseSelection';
 import { useWakeLock } from '@/composables/useWakeLock';
 
@@ -350,11 +364,48 @@ const laid = computed(() => layoutChapter(blocks.value));
 const translationLabel = computed(() => BIBEL_TRANSLATIONS[bibelTranslation.value].label);
 
 // What tapping does, said only for what is switched on.
-const readingHint = computed(() =>
-    bibelFeatures.value.lesezeichen
+/** A mouse picks verses out with a plain click, and turns pages with the keys. */
+const withMouse = useMediaQuery('(hover: hover) and (pointer: fine)');
+
+const readingHint = computed(() => {
+    if (withMouse.value) {
+        return bibelFeatures.value.lesezeichen
+            ? 'Einen Vers anklicken wählt ihn aus, ein Klick auf die Versnummer setzt ein Lesezeichen. Mit den Pfeiltasten ← → blättern.'
+            : 'Einen Vers anklicken wählt ihn aus. Mit den Pfeiltasten ← → blättern.';
+    }
+    return bibelFeatures.value.lesezeichen
         ? 'Einen Vers gedrückt halten wählt ihn aus, auf eine Versnummer tippen setzt ein Lesezeichen. Zum Blättern seitlich wischen.'
-        : 'Einen Vers gedrückt halten wählt ihn aus. Zum Blättern seitlich wischen.',
-);
+        : 'Einen Vers gedrückt halten wählt ihn aus. Zum Blättern seitlich wischen.';
+});
+
+/**
+ * ← and → turn the page, as a swipe does on a phone — unless the reader is
+ * typing, holds a modifier (the browser's own history keys), or a dialog or
+ * menu has the keys.
+ */
+function onKeydown(event: KeyboardEvent) {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.shiftKey) return;
+    const target = event.target as HTMLElement | null;
+    if (
+        target?.closest(
+            'input, textarea, select, [contenteditable], [role="dialog"], [role="menu"]',
+        )
+    )
+        return;
+    const to =
+        event.key === 'ArrowLeft'
+            ? around.value.prev
+            : event.key === 'ArrowRight'
+              ? around.value.next
+              : null;
+    if (!to) return;
+    event.preventDefault();
+    router.push(chapterPath(to));
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
 async function load() {
     const { slug, chapter } = here.value;
