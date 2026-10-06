@@ -1,7 +1,15 @@
 <template>
     <!-- One listener for every verse's words: a chapter like Psalm 119 has
          thousands of runs, and each only needs to say which verse it is. -->
-    <div class="bibel-chapter" @click="onTextClick">
+    <div
+        class="bibel-chapter"
+        @click="onTextClick"
+        @pointerdown="onTextPointerDown"
+        @pointermove="onTextPointerMove"
+        @pointerup="onTextPointerEnd"
+        @pointercancel="onTextPointerEnd"
+        @contextmenu="onTextContextMenu"
+    >
         <template v-for="(block, b) in laid" :key="`${slug}-${chapter}-${b}`">
             <!-- Menge's own headings, from the book's main divisions down to its
                  subsections. -->
@@ -146,6 +154,10 @@ const {
     toggleLesezeichen,
     selection,
     onTextClick,
+    onTextPointerDown,
+    onTextPointerMove,
+    onTextPointerEnd,
+    onTextContextMenu,
     colorOf,
     highlightStyle,
     hasNote,

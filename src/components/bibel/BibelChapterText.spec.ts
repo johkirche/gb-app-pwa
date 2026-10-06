@@ -61,10 +61,17 @@ function render() {
     });
 }
 
+/** A touch pointer event — jsdom has no PointerEvent to construct one with. */
+function touch(el: Element, type: string, y = 10) {
+    const event = new MouseEvent(type, { bubbles: true, clientX: 10, clientY: y });
+    Object.defineProperty(event, 'pointerType', { value: 'touch' });
+    el.dispatchEvent(event);
+}
+
 describe('BibelChapterText', () => {
     beforeEach(() => setActivePinia(createPinia()));
 
-    it('picks a verse out by its words, across its lines, and puts it back', async () => {
+    it('picks a verse out by its words with a mouse, across its lines, and puts it back', async () => {
         const wrapper = render();
         const selection = useVerseSelection();
 
@@ -75,6 +82,43 @@ describe('BibelChapterText', () => {
 
         await wrapper.findAll('[data-verse="1"]')[1].trigger('click');
         expect(selection.verses.value).toEqual([]);
+        wrapper.unmount();
+    });
+
+    it('on a touch screen, picks a verse out only when it is held', async () => {
+        vi.useFakeTimers();
+        const wrapper = render();
+        const selection = useVerseSelection();
+        const words = wrapper.find('[data-verse="1"]').element;
+        const next = wrapper.find('[data-verse="2"]').element;
+
+        // A tap, as a hand brushing the glass: nothing.
+        touch(words, 'pointerdown');
+        touch(words, 'pointerup');
+        words.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(selection.verses.value).toEqual([]);
+
+        // A finger that moves is scrolling: nothing either.
+        touch(words, 'pointerdown');
+        touch(words, 'pointermove', 60);
+        vi.advanceTimersByTime(600);
+        expect(selection.verses.value).toEqual([]);
+
+        // Held: picked out, and the click it ends in does not undo it.
+        touch(words, 'pointerdown');
+        vi.advanceTimersByTime(600);
+        touch(words, 'pointerup');
+        words.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(selection.verses.value).toEqual([1]);
+
+        // Once something is picked out, a tap adds the next verse.
+        touch(next, 'pointerdown');
+        touch(next, 'pointerup');
+        next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(selection.verses.value).toEqual([1, 2]);
+
+        selection.clear();
+        vi.useRealTimers();
         wrapper.unmount();
     });
 

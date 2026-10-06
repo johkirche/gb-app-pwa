@@ -79,10 +79,6 @@ describe('BibelVerseActions', () => {
         selection.toggle(2);
         const wrapper = mount(BibelVerseActions);
 
-        await wrapper
-            .findAll('button')
-            .find((b) => b.text() === 'Markieren')!
-            .trigger('click');
         await wrapper.find('[aria-label="Blau"]').trigger('click');
         await flushPromises();
 
@@ -91,17 +87,20 @@ describe('BibelVerseActions', () => {
         expect(store.colorOf('psalm', 23, 2)).toBe('blau');
     });
 
-    it('keeps to five places, the fifth "Mehr" once more are on', async () => {
+    it('lists every action switched on, each spelt out', async () => {
         selection.toggle(1);
         const wrapper = mount(BibelVerseActions);
         await flushPromises();
 
-        // Kopieren, Teilen, Markieren, Notiz, Lesezeichen, Gottesdienst: six.
-        const labels = wrapper.findAll('footer button').map((b) => b.text());
-        expect(labels).toEqual(
-            expect.arrayContaining(['Kopieren', 'Teilen', 'Markieren', 'Notiz', 'Mehr']),
-        );
-        expect(labels).not.toContain('Lesezeichen');
-        expect(labels).not.toContain('Gottesdienst');
+        const labels = wrapper.findAll('footer li > button').map((b) => b.text());
+        expect(labels).toEqual([
+            'Kopieren',
+            'Teilen',
+            'Notiz schreiben',
+            'Lesezeichen setzen',
+            'Zum Gottesdienst',
+        ]);
+        expect(wrapper.find('footer').text()).toContain('Markieren');
+        expect(wrapper.find('footer').text()).toContain('Weitere Verse antippen');
     });
 });

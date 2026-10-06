@@ -11,7 +11,8 @@
         :class="{ 'opacity-50 grayscale': off }"
         aria-hidden="true"
     >
-        <!-- Reading: picking verses out, and the bar that acts on them. -->
+        <!-- Reading: a verse held and picked out, and the top of the sheet
+             that then acts on it. -->
         <template v-if="feature === 'lesen'">
             <p class="bibel-chapter font-hymnal text-[15px] leading-relaxed">
                 <span class="bibel-verse number-display">1</span>
@@ -21,20 +22,17 @@
                     Auf grünen Auen läßt er mich lagern, zum Lagerplatz am Bache führt er mich.
                 </span>
             </p>
-            <div
-                class="mt-2 flex items-center gap-3 rounded-md border border-border bg-background px-2 py-1.5 text-[11px] text-muted-foreground"
-            >
-                <span class="mr-auto whitespace-nowrap text-xs font-medium text-foreground">
-                    Psalm 23,2
-                </span>
-                <span
+            <div class="mt-2 rounded-t-xl border border-b-0 border-border bg-background px-3 pt-2">
+                <p class="text-sm font-medium">Psalm 23,2</p>
+                <p class="text-[11px] text-muted-foreground">Weitere Verse antippen</p>
+                <p
                     v-for="action in ACTIONS"
                     :key="action.label"
-                    class="flex flex-col items-center gap-0.5"
+                    class="flex items-center gap-3 border-t border-border py-1.5 text-sm first-of-type:mt-1.5"
                 >
-                    <component :is="action.icon" class="size-4 text-foreground" />
+                    <component :is="action.icon" class="size-4 text-muted-foreground" />
                     {{ action.label }}
-                </span>
+                </p>
             </div>
         </template>
 
@@ -162,7 +160,6 @@ import {
     Church,
     CircleCheck,
     Copy,
-    Highlighter,
     Music2,
     NotebookPen,
     Pause,
@@ -187,21 +184,20 @@ defineProps<{
 const ACTIONS: { label: string; icon: Component }[] = [
     { label: 'Kopieren', icon: Copy },
     { label: 'Teilen', icon: Share2 },
-    { label: 'Markieren', icon: Highlighter },
-    { label: 'Gottesdienst', icon: Church },
+    { label: 'Zum Gottesdienst', icon: Church },
 ];
 
 const COLORS = ['gelb', 'gruen', 'blau', 'rosa'] as const;
 
 // The one gesture that reaches each feature — what the sample cannot show.
 const HOW: Record<keyof BibelFeatures | 'lesen', string> = {
-    lesen: 'Auf den Text eines Verses tippen wählt ihn aus (weitere Verse dazu tippen); unten erscheinen Kopieren, Teilen, Gottesdienst und Playlist. Auf den Kapiteltitel tippen öffnet alle Bücher und Kapitel, seitlich wischen blättert.',
+    lesen: 'Einen Vers gedrückt halten wählt ihn aus; weitere Verse dann einfach antippen. Unten erscheint, was Sie damit tun können: kopieren, teilen, zum Gottesdienst, in eine Playlist. Auf den Kapiteltitel tippen öffnet alle Bücher und Kapitel, seitlich wischen blättert.',
     fortschritt:
         'Am Ende jedes Kapitels „Als gelesen markieren“ tippen. Einen Leseplan wählen Sie im Bibel-Reiter unter „Lesepläne“; er hakt jeden Tag von selbst ab.',
     lesezeichen:
         'Auf die Versnummer tippen setzt das Lesezeichen, noch einmal tippen nimmt es weg. Oder im Kapitel oben rechts ⚙ → „Lesezeichen“.',
     notizen:
-        'Auf den Text eines Verses tippen, dann unten „Markieren“ (vier Farben) oder „Notiz“. Alle stehen im Bibel-Reiter unter „Notizen & Markierungen“.',
+        'Einen Vers gedrückt halten, dann unten eine der vier Farben oder „Notiz schreiben“. Alle stehen im Bibel-Reiter unter „Notizen & Markierungen“.',
     versDerWoche:
         'Jede Woche ein anderer Vers, oben im Bibel-Reiter. Antippen öffnet ihn im Zusammenhang.',
     lieder: 'Unter jedem Kapitel, aus Ihrem Gesangbuch. Antippen öffnet das Lied.',

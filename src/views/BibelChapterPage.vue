@@ -346,8 +346,8 @@ const translationLabel = computed(() => BIBEL_TRANSLATIONS[bibelTranslation.valu
 // What tapping does, said only for what is switched on.
 const readingHint = computed(() =>
     bibelFeatures.value.lesezeichen
-        ? 'Auf den Text tippen wählt Verse aus, auf eine Versnummer tippen setzt ein Lesezeichen. Zum Blättern seitlich wischen.'
-        : 'Auf den Text tippen wählt Verse aus. Zum Blättern seitlich wischen.',
+        ? 'Einen Vers gedrückt halten wählt ihn aus, auf eine Versnummer tippen setzt ein Lesezeichen. Zum Blättern seitlich wischen.'
+        : 'Einen Vers gedrückt halten wählt ihn aus. Zum Blättern seitlich wischen.',
 );
 
 async function load() {

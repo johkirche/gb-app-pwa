@@ -72,10 +72,21 @@
     text-underline-offset: 0.2em;
 }
 
-/* The words of a verse are what the reader taps to pick it out. No grey
+/* The words of a verse are what the reader holds to pick it out. No grey
    flash on touch: the dotted line below is the answer. */
 .bibel-chapter [data-verse] {
     -webkit-tap-highlight-color: transparent;
+}
+
+/* On a touch screen the hold is the reader's way to pick verses out, so the
+   system's own long-press — select a word, its magnifier and menu — stays off
+   the verses (Kopieren copies them). With a mouse, text selection is kept. */
+@media (pointer: coarse) {
+    .bibel-chapter [data-verse] {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
 }
 
 /* A highlight: the reader's own colour, washed behind the words (see

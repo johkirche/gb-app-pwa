@@ -22,6 +22,11 @@ import { type LaidBlock, snippet, verseText } from '@/utils/bibelLayout';
  * Bibel. Switched off, the numbers are only numbers and the verses wear
  * nothing — what was stored stays, and shows again once switched back on.
  */
+/** How long a verse is held to pick it out. */
+const HOLD_MS = 500;
+/** How far a finger may drift before a hold counts as a scroll. */
+const HOLD_SLOP = 10;
+
 export function useChapterText(
     slug: () => string,
     chapter: () => number,
@@ -91,15 +96,86 @@ export function useChapterText(
         if (selection.laid.value === laid.value) selection.detach();
     });
 
-    function onTextClick(event: MouseEvent) {
-        const words = (event.target as Element).closest<HTMLElement>('[data-verse]');
+    // --- Holding a verse to pick it out ----------------------------------------
+    //
+    // On a touch screen a verse is picked out by holding it, not by a tap: a
+    // hand that steadies the phone, or brushes the glass while scrolling, must
+    // not throw the action sheet over the text. Once something is picked out,
+    // taps add and remove verses — the way photos are picked in a gallery.
+    // A mouse is never brushed by accident, so there a click does it (and a
+    // held button stays what it is on a desktop: the start of a text selection).
+
+    function wordsAt(target: EventTarget | null): HTMLElement | null {
+        return (target as Element | null)?.closest<HTMLElement>('[data-verse]') ?? null;
+    }
+
+    /** A real mouse — not the dev phone preview, which rehearses touch with one. */
+    function isMouse(pointerType: string): boolean {
+        return (
+            pointerType === 'mouse' &&
+            !document.documentElement.classList.contains('viewport-preview')
+        );
+    }
+
+    let hold: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null;
+    let lastPointer = 'mouse';
+    // The click a completed hold ends in must not take the verse straight back.
+    let swallowClick = false;
+
+    function cancelHold() {
+        if (hold) clearTimeout(hold.timer);
+        hold = null;
+    }
+
+    function onTextPointerDown(event: PointerEvent) {
+        lastPointer = event.pointerType;
+        cancelHold();
+        if (isMouse(event.pointerType)) return;
+        const words = wordsAt(event.target);
         if (!words) return;
-        // A long press or a drag that took hold of words is the browser's own
-        // text selection, for copying a phrase; leave it be.
+        const verse = Number(words.dataset.verse);
+        hold = {
+            x: event.clientX,
+            y: event.clientY,
+            timer: setTimeout(() => {
+                hold = null;
+                swallowClick = true;
+                if (!selection.isSelected(verse)) selection.toggle(verse);
+                // A short buzz where the device has one: the hold took.
+                navigator.vibrate?.(15);
+            }, HOLD_MS),
+        };
+    }
+
+    function onTextPointerMove(event: PointerEvent) {
+        // A finger that moves is scrolling, not holding.
+        if (hold && Math.hypot(event.clientX - hold.x, event.clientY - hold.y) > HOLD_SLOP) {
+            cancelHold();
+        }
+    }
+
+    function onTextClick(event: MouseEvent) {
+        if (swallowClick) {
+            swallowClick = false;
+            return;
+        }
+        const words = wordsAt(event.target);
+        if (!words) return;
+        // A drag that took hold of words is the browser's own text selection,
+        // for copying a phrase; leave it be.
         const native = window.getSelection();
         if (native && !native.isCollapsed && native.toString().trim()) return;
+        // A tap only adds to a selection already begun by holding.
+        if (!isMouse(lastPointer) && selection.verses.value.length === 0) return;
         selection.toggle(Number(words.dataset.verse));
     }
+
+    /** The hold is ours on the verses: no copy/lookup menu from the system. */
+    function onTextContextMenu(event: MouseEvent) {
+        if (wordsAt(event.target) && !isMouse(lastPointer)) event.preventDefault();
+    }
+
+    onBeforeUnmount(cancelHold);
 
     // --- Highlights and notes -------------------------------------------------
 
@@ -128,6 +204,10 @@ export function useChapterText(
         toggleLesezeichen,
         selection,
         onTextClick,
+        onTextPointerDown,
+        onTextPointerMove,
+        onTextPointerEnd: cancelHold,
+        onTextContextMenu,
         colorOf,
         highlightStyle,
         hasNote,
