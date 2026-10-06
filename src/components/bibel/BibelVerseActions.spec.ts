@@ -55,8 +55,10 @@ describe('BibelVerseActions', () => {
     const selection = useVerseSelection();
     let wrapper: ReturnType<typeof mount> | null = null;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         setActivePinia(createPinia());
+        // The mock tables outlive a test; a colour left on would add its "entfernen" row.
+        await useMarkierungenStore().clearAll();
         selection.attach({ slug: 'psalm', chapter: 23 }, laid);
         selection.clear();
     });
@@ -125,6 +127,18 @@ describe('BibelVerseActions', () => {
         ]);
         expect(sheet()!.textContent).toContain('Markieren');
         expect(sheet()!.textContent).toContain('Weitere Verse antippen');
+    });
+
+    it('offers to take a colour off, in a row of its own, once a verse wears one', async () => {
+        await useMarkierungenStore().setColor('psalm', 23, [2], 'gelb');
+        selection.toggle(1);
+        selection.toggle(2);
+        await open();
+
+        button('Markierung entfernen').click();
+        await flushPromises();
+
+        expect(useMarkierungenStore().colorOf('psalm', 23, 2)).toBeUndefined();
     });
 
     it('on a desktop, stands beside the text as a panel, and lets go on Escape', async () => {

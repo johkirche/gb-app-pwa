@@ -13,9 +13,8 @@
             </button>
         </li>
 
-        <!-- Marking: the four colours right in the row, and a way back
-         to none. The ring is on the colour the whole selection
-         already wears, if it wears one. -->
+        <!-- Marking: the four colours right in the row. The ring is on the
+             colour the whole selection already wears, if it wears one. -->
         <li v-if="features.notizen" :class="[ROW, 'cursor-default hover:bg-transparent']">
             <Highlighter :class="ICON" aria-hidden="true" />
             <span class="mr-auto">Markieren</span>
@@ -34,21 +33,20 @@
                     :aria-pressed="current === color.key"
                     @click="mark(color.key)"
                 />
-                <button
-                    v-if="current"
-                    type="button"
-                    class="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted active:scale-95"
-                    aria-label="Markierung entfernen"
-                    @click="mark(null)"
-                >
-                    <Eraser class="size-4" aria-hidden="true" />
-                </button>
             </span>
+        </li>
+        <!-- Taking the colour off: a row of its own, spelt out, only while
+             any of the verses wears one. -->
+        <li v-if="features.notizen && anyMarked">
+            <button type="button" :class="ROW" @click="mark(null)">
+                <Eraser :class="ICON" aria-hidden="true" />
+                Markierung entfernen
+            </button>
         </li>
         <li v-if="features.notizen">
             <button type="button" :class="ROW" @click="note">
                 <NotebookPen :class="ICON" aria-hidden="true" />
-                Notiz schreiben
+                {{ hasNote ? 'Notiz bearbeiten' : 'Notiz schreiben' }}
             </button>
         </li>
         <li v-if="features.lesezeichen">
@@ -109,6 +107,7 @@ import { toast } from 'vue-sonner';
 
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { useMarkierungenStore } from '@/stores/markierungen';
+import { useNotizenStore } from '@/stores/notizen';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
@@ -163,6 +162,7 @@ const selection = useVerseSelection();
 const { here, verses } = selection;
 const markierungen = useMarkierungenStore();
 const lesezeichen = useLesezeichenStore();
+const notizen = useNotizenStore();
 const { bibelFeatures: features } = storeToRefs(usePreferencesStore());
 
 const label = computed(() => (here.value ? versesRefLabel(here.value, verses.value) : ''));
@@ -178,6 +178,20 @@ const current = computed(() => {
     const colors = new Set(verses.value.map((v) => markierungen.colorOf(slug, chapter, v)));
     const [only] = colors;
     return colors.size === 1 && only ? only : null;
+});
+
+/** Whether any verse picked out wears a colour, to be taken off. */
+const anyMarked = computed(() => {
+    if (!here.value) return false;
+    const { slug, chapter } = here.value;
+    return verses.value.some((v) => !!markierungen.colorOf(slug, chapter, v));
+});
+
+/** The note goes on the first verse picked out; it may have one already. */
+const hasNote = computed(() => {
+    if (!here.value) return false;
+    const [first] = verses.value;
+    return notizen.has(here.value.slug, here.value.chapter, first);
 });
 
 async function copy() {
