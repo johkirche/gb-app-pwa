@@ -1,8 +1,17 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type ServiceTabMode, type SongPagingMode, type XmlDisplaySettings, db } from '@/db';
+import {
+    type BibelDisplaySettings,
+    type BibelFeatures,
+    type BibelTranslationId,
+    type PreferencesData,
+    type ServiceTabMode,
+    type SongPagingMode,
+    type XmlDisplaySettings,
+    db,
+} from '@/db';
 
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
@@ -14,8 +23,81 @@ const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showPlayhead: true,
 };
 
+// The Bible as Menge set it: headings, numbers, notes behind a marker, and
+// prose verses running on as paragraphs.
+export const DEFAULT_BIBEL_DISPLAY: BibelDisplaySettings = {
+    showHeadings: true,
+    showVerseNumbers: true,
+    notesInline: false,
+    versePerLine: false,
+};
+
+// On, except the reading progress: the switches are for taking away what a
+// reader has no use for, not for finding features one by one. Ticking off
+// chapters and following a plan is a practice someone takes up, though — off
+// until asked for, it does not crowd the Bibel tab of everyone else.
+export const DEFAULT_BIBEL_FEATURES: BibelFeatures = {
+    fortschritt: false,
+    lesezeichen: true,
+    notizen: true,
+    versDerWoche: true,
+    lieder: true,
+    vorlesen: true,
+};
+
 const MIN_PAGE_SCALE = 0.5;
 const MAX_PAGE_SCALE = 2.0;
+
+function clampScale(scale: number): number {
+    return Math.max(MIN_PAGE_SCALE, Math.min(MAX_PAGE_SCALE, scale));
+}
+
+/**
+ * The Bible's display settings from a stored record: the defaults under
+ * whatever was stored, and only the switches that are switches — a record
+ * from a later version must not smuggle anything else into the page.
+ */
+export function readBibelDisplay(stored: PreferencesData['bibelDisplay']): BibelDisplaySettings {
+    const settings = { ...DEFAULT_BIBEL_DISPLAY };
+    for (const key of Object.keys(settings) as (keyof BibelDisplaySettings)[]) {
+        const value = stored?.[key];
+        if (typeof value === 'boolean') settings[key] = value;
+    }
+    return settings;
+}
+
+/** The Bible's own size from a stored record, or null while it has none. */
+export function readBibelScale(stored: PreferencesData['bibelScale']): number | null {
+    return typeof stored === 'number' && Number.isFinite(stored) ? clampScale(stored) : null;
+}
+
+/** The translation from a stored record: one the app has, else Menge. */
+export function readBibelTranslation(
+    stored: PreferencesData['bibelTranslation'],
+): BibelTranslationId {
+    return stored === 'luther1912' ? stored : 'menge';
+}
+
+/**
+ * The feature switches the reader has set, from a stored record — only those,
+ * and only switches that are switches. What the reader never touched is not
+ * stored, so it follows the defaults, including a default changed later.
+ */
+export function readChosenBibelFeatures(
+    stored: PreferencesData['bibelFeatures'],
+): Partial<BibelFeatures> {
+    const chosen: Partial<BibelFeatures> = {};
+    for (const key of Object.keys(DEFAULT_BIBEL_FEATURES) as (keyof BibelFeatures)[]) {
+        const value = stored?.[key];
+        if (typeof value === 'boolean') chosen[key] = value;
+    }
+    return chosen;
+}
+
+/** The feature switches in effect: what was set, over the defaults. */
+export function readBibelFeatures(stored: PreferencesData['bibelFeatures']): BibelFeatures {
+    return { ...DEFAULT_BIBEL_FEATURES, ...readChosenBibelFeatures(stored) };
+}
 
 /** What the retired Textgröße steps were worth, as factors of the default. */
 const LEGACY_TEXT_SIZE_SCALE = {
@@ -73,6 +155,23 @@ export const usePreferencesStore = defineStore('preferences', () => {
     // is theirs to switch on. The offset itself starts at the printed key
     // every time either way — see playbackPitch.
     const pitchControl = ref(false);
+    // Off by default: the references are machine-assigned. See PreferencesData.
+    const showBibelstellen = ref(false);
+    // Off by default: a hymnal first. Whoever wants the Bible to hand turns it on.
+    const showBibel = ref(false);
+    // Null until the reader sizes the Bible on its own: until then it follows
+    // the song page, so whoever enlarged the hymns finds the Bible enlarged.
+    const ownBibelScale = ref<number | null>(null);
+    const bibelScale = computed(() => ownBibelScale.value ?? pageScale.value);
+    const bibelDisplay = ref<BibelDisplaySettings>({ ...DEFAULT_BIBEL_DISPLAY });
+    // Menge unless the reader chose Luther: one translation at a time.
+    const bibelTranslation = ref<BibelTranslationId>('menge');
+    // Only what the reader set; the rest follows DEFAULT_BIBEL_FEATURES.
+    const chosenBibelFeatures = ref<Partial<BibelFeatures>>({});
+    const bibelFeatures = computed<BibelFeatures>(() => ({
+        ...DEFAULT_BIBEL_FEATURES,
+        ...chosenBibelFeatures.value,
+    }));
     const isLoading = ref(false);
 
     // Actions
@@ -92,6 +191,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
                 midiOutputId.value = prefs.midiOutputId ?? '';
                 exactTempo.value = prefs.exactTempo ?? false;
                 pitchControl.value = prefs.pitchControl ?? false;
+                showBibelstellen.value = prefs.showBibelstellen ?? false;
+                showBibel.value = prefs.showBibel ?? false;
+                ownBibelScale.value = readBibelScale(prefs.bibelScale);
+                bibelDisplay.value = readBibelDisplay(prefs.bibelDisplay);
+                bibelTranslation.value = readBibelTranslation(prefs.bibelTranslation);
+                chosenBibelFeatures.value = readChosenBibelFeatures(prefs.bibelFeatures);
             }
         } catch (err) {
             console.error('Error loading preferences:', err);
@@ -114,6 +219,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
             midiOutputId: midiOutputId.value,
             exactTempo: exactTempo.value,
             pitchControl: pitchControl.value,
+            showBibelstellen: showBibelstellen.value,
+            showBibel: showBibel.value,
+            bibelScale: ownBibelScale.value ?? undefined,
+            bibelDisplay: { ...bibelDisplay.value },
+            bibelTranslation: bibelTranslation.value,
+            bibelFeatures: { ...chosenBibelFeatures.value },
         });
     }
 
@@ -210,6 +321,69 @@ export const usePreferencesStore = defineStore('preferences', () => {
         }
     }
 
+    async function setShowBibelstellen(enabled: boolean) {
+        try {
+            showBibelstellen.value = enabled;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bibelstellen setting:', err);
+            throw err;
+        }
+    }
+
+    async function setShowBibel(enabled: boolean) {
+        try {
+            showBibel.value = enabled;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bibel setting:', err);
+            throw err;
+        }
+    }
+
+    async function setBibelScale(scale: number) {
+        try {
+            ownBibelScale.value = clampScale(scale);
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bible size:', err);
+            throw err;
+        }
+    }
+
+    async function setBibelDisplay<K extends keyof BibelDisplaySettings>(
+        key: K,
+        value: BibelDisplaySettings[K],
+    ) {
+        try {
+            bibelDisplay.value = { ...bibelDisplay.value, [key]: value };
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bible display setting:', err);
+            throw err;
+        }
+    }
+
+    async function setBibelTranslation(translation: BibelTranslationId) {
+        try {
+            bibelTranslation.value = translation;
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bible translation:', err);
+            throw err;
+        }
+    }
+
+    async function setBibelFeature<K extends keyof BibelFeatures>(key: K, value: boolean) {
+        try {
+            chosenBibelFeatures.value = { ...chosenBibelFeatures.value, [key]: value };
+            await persist();
+        } catch (err) {
+            console.error('Error saving the Bible feature setting:', err);
+            throw err;
+        }
+    }
+
     // Restore the defaults in Dexie AND in memory (used on logout). Clearing the
     // table alone is not enough: loadPreferences only overwrites state when a record
     // exists, so the previous user's settings would survive in memory.
@@ -224,6 +398,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
         midiOutputId.value = '';
         exactTempo.value = false;
         pitchControl.value = false;
+        showBibelstellen.value = false;
+        showBibel.value = false;
+        ownBibelScale.value = null;
+        bibelDisplay.value = { ...DEFAULT_BIBEL_DISPLAY };
+        bibelTranslation.value = 'menge';
+        chosenBibelFeatures.value = {};
     }
 
     // Initialize store on creation
@@ -240,6 +420,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
         midiOutputId,
         exactTempo,
         pitchControl,
+        showBibelstellen,
+        showBibel,
+        bibelScale,
+        bibelDisplay,
+        bibelTranslation,
+        bibelFeatures,
         isLoading,
 
         // Actions
@@ -253,6 +439,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
         setMidiOutputId,
         setExactTempo,
         setPitchControl,
+        setShowBibelstellen,
+        setShowBibel,
+        setBibelScale,
+        setBibelDisplay,
+        setBibelTranslation,
+        setBibelFeature,
         resetToDefaults,
 
         // Initialization promise

@@ -1,0 +1,299 @@
+<template>
+    <div class="relative flex h-full flex-col bg-background">
+        <AppPageHeader title="Bibel">
+            <template #trailing>
+                <Button variant="ghost" size="icon" aria-label="Bibel durchsuchen" as-child>
+                    <RouterLink to="/tabs/bibel/suche"><Search aria-hidden="true" /></RouterLink>
+                </Button>
+            </template>
+        </AppPageHeader>
+
+        <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <!-- Phone: one column, the reader's own things before the books.
+                 Desktop: the books in the wide column, the reader's own
+                 things — verse of the week, Lesezeichen, notes — beside them,
+                 staying in view while the books scroll. -->
+            <div
+                class="page-col pb-24 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:gap-x-10"
+            >
+                <div class="lg:col-start-1">
+                    <!-- Where the reader left off, in the place the Lied der Woche
+                     holds on the song list. -->
+                    <RouterLink
+                        v-if="lastRead"
+                        :to="chapterPath(lastRead)"
+                        class="mb-2 mt-4 block w-full rounded-lg border bg-card text-left text-card-foreground shadow-sm transition hover:border-primary/40 active:scale-[0.99]"
+                    >
+                        <span class="flex items-center gap-5 p-5">
+                            <BookOpen class="size-9 shrink-0 text-gold" aria-hidden="true" />
+                            <span class="block min-w-0">
+                                <span class="label-micro block text-gold">Weiterlesen</span>
+                                <span
+                                    class="mt-1 block font-display text-2xl font-semibold leading-tight"
+                                >
+                                    {{ chapterLabel(lastRead) }}
+                                </span>
+                            </span>
+                        </span>
+                    </RouterLink>
+                    <BibelHeuteLesen v-if="bibelFeatures.fortschritt" />
+                </div>
+
+                <aside
+                    class="lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto lg:pt-4 lg:[&>*:first-child]:mt-0"
+                    aria-label="Ihre Stellen"
+                >
+                    <BibelVerseOfTheWeek v-if="bibelFeatures.versDerWoche" />
+
+                    <!-- Lesezeichen, newest first. Set and taken off by tapping a
+                     verse number in the text; here they can also be removed. -->
+                    <section
+                        v-if="bibelFeatures.lesezeichen"
+                        class="mt-6"
+                        aria-labelledby="lesezeichen-heading"
+                    >
+                        <h2 id="lesezeichen-heading" class="font-display text-xl font-semibold">
+                            Lesezeichen
+                        </h2>
+                        <p
+                            v-if="lesezeichenStore.sorted.length === 0"
+                            class="mt-1 px-2 text-sm text-muted-foreground"
+                        >
+                            Noch keine. Im Text auf eine Versnummer tippen, um eine Stelle zu
+                            markieren.
+                        </p>
+                        <ul v-else class="mt-1 divide-y divide-border">
+                            <li
+                                v-for="mark in lesezeichenStore.sorted"
+                                :key="mark.id"
+                                class="flex items-center rounded-sm transition-colors hover:bg-muted"
+                            >
+                                <RouterLink
+                                    :to="
+                                        chapterPath(
+                                            { slug: mark.slug, chapter: mark.chapter },
+                                            mark.verse,
+                                        )
+                                    "
+                                    class="flex min-w-0 flex-1 items-start gap-3 py-2.5 pl-2"
+                                >
+                                    <Bookmark
+                                        class="mt-0.5 size-[1.125rem] shrink-0 fill-current text-gold"
+                                        aria-hidden="true"
+                                    />
+                                    <span class="min-w-0">
+                                        <span
+                                            class="block text-[0.9375rem] font-medium leading-tight"
+                                        >
+                                            {{
+                                                verseRefLabel(
+                                                    { slug: mark.slug, chapter: mark.chapter },
+                                                    mark.verse,
+                                                )
+                                            }}
+                                        </span>
+                                        <span
+                                            class="mt-0.5 line-clamp-2 text-sm text-muted-foreground"
+                                        >
+                                            {{ mark.snippet }}
+                                        </span>
+                                    </span>
+                                </RouterLink>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="shrink-0"
+                                    :aria-label="`Lesezeichen ${verseRefLabel({ slug: mark.slug, chapter: mark.chapter }, mark.verse)} entfernen`"
+                                    @click="lesezeichenStore.remove(mark.id)"
+                                >
+                                    <X
+                                        class="!size-[1.125rem] text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                </Button>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <BibelVerseEntries v-if="bibelFeatures.notizen" />
+                </aside>
+
+                <div class="lg:col-start-1 lg:row-start-2">
+                    <!-- The canon as the book orders it: two Testaments, each in
+                     its traditional groups. A book opens to its chapters in
+                     place; a one-chapter book is opened straight away. -->
+                    <section v-for="testament in testaments" :key="testament.key" class="mt-6">
+                        <h2 class="font-display text-xl font-semibold">{{ testament.label }}</h2>
+                        <BibelTestamentProgress
+                            v-if="bibelFeatures.fortschritt"
+                            :testament="testament.key"
+                        />
+
+                        <template v-for="group in testament.groups" :key="group.label">
+                            <h3 class="label-micro mb-1 mt-4 px-2 text-muted-foreground">
+                                {{ group.label }}
+                            </h3>
+                            <ul class="divide-y divide-border">
+                                <li v-for="book in group.books" :key="book.slug">
+                                    <button
+                                        type="button"
+                                        class="flex w-full items-center gap-3 rounded-sm px-2 py-2.5 text-left transition-colors hover:bg-muted active:bg-muted"
+                                        :aria-expanded="
+                                            book.chapters > 1 ? openBook === book.slug : undefined
+                                        "
+                                        @click="onBook(book)"
+                                    >
+                                        <span class="min-w-0 flex-1">
+                                            <span
+                                                class="block text-[0.9375rem] font-medium leading-tight"
+                                            >
+                                                {{ book.name }}
+                                            </span>
+                                            <span
+                                                class="mt-0.5 block text-sm text-muted-foreground"
+                                            >
+                                                {{ book.title }}
+                                            </span>
+                                        </span>
+                                        <BibelBookProgress
+                                            v-if="bibelFeatures.fortschritt"
+                                            :slug="book.slug"
+                                        />
+                                        <span class="shrink-0 text-sm text-muted-foreground">
+                                            {{ book.chapters }} Kap.
+                                        </span>
+                                        <ChevronRight
+                                            class="size-[1.125rem] shrink-0 text-muted-foreground transition-transform"
+                                            :class="{ 'rotate-90': openBook === book.slug }"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+
+                                    <nav
+                                        v-if="openBook === book.slug"
+                                        class="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 px-2 pb-3 pt-1"
+                                        :aria-label="`Kapitel von ${book.name}`"
+                                    >
+                                        <RouterLink
+                                            v-for="n in book.chapters"
+                                            :key="n"
+                                            :to="chapterPath({ slug: book.slug, chapter: n })"
+                                            :aria-label="
+                                                isRead(book.slug, n)
+                                                    ? `Kapitel ${n}, gelesen`
+                                                    : undefined
+                                            "
+                                            class="relative flex h-11 items-center justify-center rounded-md border border-border text-[0.9375rem] transition-colors hover:border-primary/40 hover:bg-muted active:bg-muted"
+                                        >
+                                            {{ n }}
+                                            <Check
+                                                v-if="isRead(book.slug, n)"
+                                                class="absolute right-0.5 top-0.5 size-3 text-gold"
+                                                stroke-width="3"
+                                                aria-hidden="true"
+                                            />
+                                        </RouterLink>
+                                    </nav>
+                                </li>
+                            </ul>
+                        </template>
+                    </section>
+
+                    <BibelOfflineStatus class="mt-8" />
+
+                    <p class="mt-8 px-2 text-xs text-muted-foreground">
+                        {{ BIBEL_TRANSLATIONS[bibelTranslation].label }}, gemeinfrei. Einmal
+                        gelesene Bücher bleiben auch offline verfügbar.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { onActivated, ref } from 'vue';
+
+import { BookOpen, Bookmark, Check, ChevronRight, Search, X } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
+import { RouterLink, useRouter } from 'vue-router';
+
+import { useBibelFortschrittStore } from '@/stores/bibelFortschritt';
+import { useLesezeichenStore } from '@/stores/lesezeichen';
+import { usePreferencesStore } from '@/stores/preferences';
+
+import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
+
+import BibelBookProgress from '@/components/bibel/BibelBookProgress.vue';
+import BibelHeuteLesen from '@/components/bibel/BibelHeuteLesen.vue';
+import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
+import BibelTestamentProgress from '@/components/bibel/BibelTestamentProgress.vue';
+import BibelVerseEntries from '@/components/bibel/BibelVerseEntries.vue';
+import BibelVerseOfTheWeek from '@/components/bibel/BibelVerseOfTheWeek.vue';
+import AppPageHeader from '@/components/shell/AppPageHeader.vue';
+import { Button } from '@/components/ui/button';
+
+import {
+    BIBEL_BOOKS,
+    BIBEL_TRANSLATIONS,
+    type BibelBook,
+    type ChapterRef,
+    chapterLabel,
+    chapterPath,
+    getLastRead,
+    verseRefLabel,
+} from '@/utils/bibel';
+
+const router = useRouter();
+const lesezeichenStore = useLesezeichenStore();
+// Each section of the tab can be switched off under Einstellungen → Bibel.
+const { bibelFeatures, bibelTranslation } = storeToRefs(usePreferencesStore());
+
+const fortschritt = useBibelFortschrittStore();
+
+/** A chapter read gets a small tick in its square — while progress is kept. */
+function isRead(slug: string, chapter: number): boolean {
+    return bibelFeatures.value.fortschritt && fortschritt.isRead(slug, chapter);
+}
+
+const scrollRef = ref<HTMLElement | null>(null);
+useKeepAliveScroll(scrollRef);
+
+const testaments = (['AT', 'NT'] as const).map((key) => {
+    const books = BIBEL_BOOKS.filter((book) => book.testament === key);
+    const labels = [...new Set(books.map((book) => book.group))];
+    return {
+        key,
+        label: key === 'AT' ? 'Altes Testament' : 'Neues Testament',
+        groups: labels.map((label) => ({
+            label,
+            books: books.filter((book) => book.group === label),
+        })),
+    };
+});
+
+const openBook = ref<string | null>(null);
+
+function onBook(book: BibelBook) {
+    if (book.chapters === 1) {
+        router.push(chapterPath({ slug: book.slug, chapter: 1 }));
+        return;
+    }
+    openBook.value = openBook.value === book.slug ? null : book.slug;
+}
+
+// Re-read on every visit: the tab is kept alive, and the reader has usually
+// just come back from a chapter.
+const lastRead = ref<ChapterRef | null>(null);
+
+async function refreshLastRead() {
+    try {
+        lastRead.value = await getLastRead();
+    } catch (err) {
+        console.error('Error reading the last Bible position:', err);
+    }
+}
+
+refreshLastRead();
+onActivated(refreshLastRead);
+</script>

@@ -57,11 +57,30 @@ const SHIPPED = [
     ...filesUnder(resolve(ROOT, 'src/assets')),
 ];
 
+/**
+ * Shipped, and left out of the precache on purpose: the Bible's books, ~6 MB
+ * per translation that a reader who leaves the Bibel switched off should never
+ * download. The service worker keeps each one as it is read (the bibeltext
+ * routes in vite.config.ts), and Einstellungen → Bibel fetches them all for a
+ * reader who wants the whole Bible offline.
+ */
+const RUNTIME_CACHED = (file: string) => /^public\/bibeltext\/.+\.json$/.test(file);
+
+/**
+ * In src/assets but never shipped as a file: JSON that code imports is
+ * compiled into the JavaScript bundle (the Bible's book list, for one), which
+ * the precache holds as .js.
+ */
+const BUNDLED = (file: string) => /^src\/assets\/.+\.json$/.test(file);
+
 describe('precache globs', () => {
     it('covers every format the app ships', () => {
-        const uncovered = SHIPPED.filter(
-            (file) => !PRECACHED_EXTENSIONS.has(extensionOf(file)),
-        ).map(posix);
+        const uncovered = SHIPPED.map(posix).filter(
+            (file) =>
+                !PRECACHED_EXTENSIONS.has(extensionOf(file)) &&
+                !RUNTIME_CACHED(file) &&
+                !BUNDLED(file),
+        );
 
         expect(uncovered).toEqual([]);
     });
@@ -123,8 +142,15 @@ describe('what the service worker is told to cache', () => {
         // Three rules once stood here — a REST path the app never requests, and
         // extension matches for images and fonts that the precache answers
         // first. None could match a single real request, and all three sent
-        // anyone debugging an offline failure to look in an empty cache. The
-        // key, not the word: vite.config.ts says in prose why it has none.
-        expect(config).not.toContain('runtimeCaching:');
+        // anyone debugging an offline failure to look in an empty cache.
+        for (const dead of ['api-cache', 'image-cache', 'font-cache']) {
+            expect(config).not.toContain(dead);
+        }
+        // What runtime routes there are serve the Bible's books, which are
+        // fetched as read and never precached (.json is no precache extension).
+        const patterns = [...config.matchAll(/urlPattern: (\/.+\/)i?,/g)].map((m) => m[1]);
+        expect(patterns.length).toBeGreaterThan(0);
+        for (const pattern of patterns) expect(pattern).toContain('bibeltext');
+        expect(precacheGlobPatterns.join()).not.toContain('json');
     });
 });

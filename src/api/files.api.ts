@@ -73,3 +73,46 @@ export async function fetchFile(fileId: string): Promise<Blob> {
         throw error;
     }
 }
+
+/** A file in Directus' file library, as far as the sync needs to know it. */
+export interface DirectusFileInfo {
+    id: string;
+    /** When its content last changed: the stamp a re-download is decided by. */
+    modifiedOn: string | null;
+}
+
+/**
+ * The newest file in the library with this download name, or null when there
+ * is none. Throws when the question cannot be answered (offline, no access):
+ * the caller must tell "not there" from "could not ask", or a dropped
+ * connection would read as the file having been taken down.
+ */
+export async function findFileByName(filename: string): Promise<DirectusFileInfo | null> {
+    const params = new URLSearchParams({
+        'filter[filename_download][_eq]': filename,
+        fields: 'id,modified_on,uploaded_on',
+        sort: '-uploaded_on',
+        limit: '1',
+    });
+    const url = `${directusConfig.url}/files?${params}`;
+
+    const request = async () => {
+        const token = await getCurrentToken();
+        return fetch(url, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+    };
+
+    let response = await request();
+    if (response.status === 401 && (await refreshAuthToken())) {
+        response = await request();
+    }
+    if (!response.ok) {
+        throw new Error(`Failed to look up ${filename}: ${response.status}`);
+    }
+
+    const body = (await response.json()) as {
+        data?: { id: string; modified_on?: string | null; uploaded_on?: string | null }[];
+    };
+    const file = body.data?.[0];
+    if (!file) return null;
+    return { id: file.id, modifiedOn: file.modified_on ?? file.uploaded_on ?? null };
+}

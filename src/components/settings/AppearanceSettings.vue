@@ -101,7 +101,7 @@
                         Bildschirm anlassen
                     </Label>
                     <p class="text-sm text-muted-foreground">
-                        Die Liedseite bleibt hell, bis 15 Minuten lang nichts passiert
+                        Liedseite und Bibeltext bleiben hell, bis 15 Minuten lang nichts passiert
                     </p>
                 </div>
             </div>

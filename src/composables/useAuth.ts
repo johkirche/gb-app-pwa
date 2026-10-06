@@ -11,6 +11,7 @@ import {
 } from '@directus/sdk';
 
 import { useFavoritesStore } from '@/stores/favorites';
+import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { usePlaylistsStore } from '@/stores/playlists';
 import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
@@ -31,6 +32,7 @@ import {
     translateLoginError,
     translateRegistrationError,
 } from '@/services/errorHandler';
+import { resetRegisteredUserState } from '@/services/userStateReset';
 
 /**
  * Endpoint path of the directus-user-register-extension.
@@ -351,6 +353,10 @@ export function useAuth() {
             await clearUserScopedData();
             await userStore.logout();
             await useFavoritesStore().clearAll();
+            await useLesezeichenStore().clearAll();
+            // Whatever else keeps personal state in memory (the Bible's marks,
+            // notes, plans …) registered itself to be reset here.
+            await resetRegisteredUserState();
             await usePlaylistsStore().clearAll();
             await useServiceStore().clearAll();
             await usePreferencesStore().resetToDefaults();

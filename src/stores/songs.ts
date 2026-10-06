@@ -10,6 +10,7 @@ import {
     fetchSongsWithFiles,
 } from '@/api/songs.api';
 import { type Song, db } from '@/db';
+import { syncBibelstellen } from '@/services/bibelstellenSync';
 import { isSessionEndedError } from '@/services/errorHandler';
 import { requestPersistentStorage } from '@/services/storage';
 import {
@@ -346,6 +347,15 @@ export const useSongsStore = defineStore('songs', () => {
             await downloadFileBatch(fileIds, songs.value);
 
             await pruneOrphanedFiles();
+
+            // Step 3: the Bibelstellen file, where the hymnal offers one. An
+            // extra beside the songs, so it can never fail their sync.
+            try {
+                await syncBibelstellen();
+            } catch (err) {
+                if (isSessionEndedError(err)) throw err;
+                console.warn('Bibelstellen not synced:', err);
+            }
 
             if (manifest) {
                 await persistFileStamps(buildFileStamps(manifest, new Set(await storedFileIds())));

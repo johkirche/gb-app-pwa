@@ -132,6 +132,15 @@
                         {{ missingCount === 1 ? 'es' : 'sie' }} zu sehen.
                     </p>
 
+                    <!-- The readings, set from a verse in the Bibel tab -->
+                    <BibelPassageList
+                        heading="Lesungen"
+                        :passages="lesungen"
+                        :reorder-mode="reorderMode"
+                        @remove="serviceStore.removeLesung"
+                        @reorder="handleReorderLesungen"
+                    />
+
                     <div v-if="!reorderMode" class="mt-6 flex flex-wrap gap-2">
                         <Button variant="outline" @click="router.push('/tabs/lieder')">
                             <Plus aria-hidden="true" />
@@ -204,6 +213,7 @@ import { useSongsStore } from '@/stores/songs';
 
 import { useConfirm } from '@/composables/useConfirm';
 
+import BibelPassageList from '@/components/bibel/BibelPassageList.vue';
 import ServiceSongsList from '@/components/service/ServiceSongsList.vue';
 import ServiceSourcePanel from '@/components/service/ServiceSourcePanel.vue';
 import ServiceVersePanel from '@/components/service/ServiceVersePanel.vue';
@@ -226,6 +236,7 @@ import type { PanelAnchor } from '@/lib/anchor';
 import {
     collectServicePlanOffers,
     formatExpiryHint,
+    formatSelectionCount,
     formatServiceDate,
     formatVerseSelection,
     todayIsoDate,
@@ -238,7 +249,7 @@ const songsStore = useSongsStore();
 const playlistsStore = usePlaylistsStore();
 const navigationContext = useNavigationContextStore();
 
-const { plan, isLoading, hasSelection, entryCount } = storeToRefs(serviceStore);
+const { plan, isLoading, hasSelection, entryCount, lesungen } = storeToRefs(serviceStore);
 const { songs: allSongs } = storeToRefs(songsStore);
 
 const reorderMode = ref(false);
@@ -282,9 +293,7 @@ const verseLabels = computed<Record<string, string>>(() => {
     return labels;
 });
 
-const countLabel = computed(() =>
-    entryCount.value === 1 ? '1 Lied' : `${entryCount.value} Lieder`,
-);
+const countLabel = computed(() => formatSelectionCount(entryCount.value, lesungen.value.length));
 const dateLabel = computed(() => (plan.value ? formatServiceDate(plan.value.date) : ''));
 const expiryHint = computed(() => (plan.value ? formatExpiryHint(plan.value.date) : ''));
 const originLabel = computed(() => {
@@ -328,6 +337,14 @@ async function handleReorder(orderedIds: string[]) {
     }
 }
 
+async function handleReorderLesungen(orderedKeys: string[]) {
+    try {
+        await serviceStore.reorderLesungen(orderedKeys);
+    } catch (err) {
+        console.error('Failed to reorder the Lesungen:', err);
+    }
+}
+
 async function confirmClear() {
     const ok = await confirm({
         title: 'Auswahl leeren?',
@@ -343,7 +360,7 @@ async function confirmClear() {
 
 /** Keep a service that worked: the same songs, but permanently. */
 async function saveAsPlaylist() {
-    if (!plan.value || songs.value.length === 0) return;
+    if (!plan.value || (songs.value.length === 0 && lesungen.value.length === 0)) return;
 
     try {
         const name = `${plan.value.title} ${formatShortDate(plan.value.date)}`.trim();
@@ -352,6 +369,8 @@ async function saveAsPlaylist() {
             playlist.id,
             songs.value.map((song) => song.id),
         );
+        // The readings go along, so adopting the playlist again brings them back.
+        await playlistsStore.addPassagesToPlaylist(playlist.id, lesungen.value);
         toast.success(`Als Playlist „${playlist.name}“ gesichert`, { duration: 2500 });
     } catch (err) {
         console.error('Failed to save the service as a playlist:', err);

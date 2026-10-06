@@ -79,6 +79,11 @@ export interface Song {
     dateUpdated?: string | null;
     textDateUpdated?: string | null;
     melodieDateUpdated?: string | null;
+    // Der Liedtext (Directus-Collection `text`), auf den die Bibelstellen
+    // verweisen (src/utils/bibelstellen.ts) — sie hängen am Text, nicht am Lied.
+    // Optional, damit vor dem nächsten Sync gespeicherte Lieder gültig bleiben;
+    // die finden ihre Stellen bis dahin über den Titel.
+    textId?: string | null;
 }
 
 // Auth related types
@@ -110,8 +115,27 @@ export interface Playlist {
     name: string;
     emoji: string;
     songIds: string[];
+    /**
+     * Bible passages kept with the songs. Optional: every playlist stored
+     * before the Bibel tab existed simply has none.
+     */
+    passagen?: BibelPassage[];
     createdAt: Date;
     updatedAt: Date;
+}
+
+/**
+ * A passage as a service plan or a playlist keeps it: where it starts, and
+ * where a range ends. No text — the wording is read from the book when shown,
+ * so a stored passage stays a few bytes and never goes out of date.
+ */
+export interface BibelPassage {
+    slug: string;
+    chapter: number;
+    /** Absent for the whole chapter. */
+    verse?: number;
+    /** The last verse of a range within the chapter. */
+    endVerse?: number;
 }
 
 // Preferences types
@@ -123,6 +147,18 @@ export interface XmlDisplaySettings {
     highlightNotes: boolean;
     /** Show the band and the line that sweep the staff while a song plays */
     showPlayhead: boolean;
+}
+
+/** How the Bible's chapter page sets its text. */
+export interface BibelDisplaySettings {
+    /** Menge's section headings between the paragraphs */
+    showHeadings: boolean;
+    /** The verse numbers in the text */
+    showVerseNumbers: boolean;
+    /** Every footnote open in the line, instead of a marker to tap */
+    notesInline: boolean;
+    /** Each prose verse on a line of its own, instead of running paragraphs */
+    versePerLine: boolean;
 }
 
 /**
@@ -197,12 +233,121 @@ export interface PreferencesData {
      * playbackPitch.
      */
     pitchControl?: boolean;
+    /**
+     * Show the Bible passages a song text draws on, below the song. Off by
+     * default: the references were assigned by a language model and checked by
+     * script, not by an editor, so whoever wants them switches them on.
+     */
+    showBibelstellen?: boolean;
+    /** Offer the Bibel tab, to read through. Off by default. */
+    showBibel?: boolean;
+    /**
+     * The Bible's own reading size (0.5–2.0). Left out until the reader sets
+     * it, and until then the chapter page follows pageScale: whoever enlarged
+     * the hymns wants the Bible larger too, until they say otherwise.
+     */
+    bibelScale?: number;
+    /** How the chapter page sets the text. The store supplies the defaults. */
+    bibelDisplay?: Partial<BibelDisplaySettings>;
+    /**
+     * Which translation the Bible is read in: one or the other, never both on
+     * one page. Left out means Menge, the translation with section headings.
+     */
+    bibelTranslation?: BibelTranslationId;
+    /**
+     * The Bible's feature switches the reader set — only those. A switch never
+     * touched is not stored and follows the store's defaults, so a default can
+     * change for everyone who never chose.
+     */
+    bibelFeatures?: Partial<BibelFeatures>;
+    /**
+     * @deprecated A second translation set beside Menge, verse by verse. The
+     * view was dropped for a choice of one translation; records written while
+     * it existed still carry this, and nothing reads it.
+     */
+    bibelParallel?: 'luther1912' | null;
+}
+
+/** The translations the Bible can be read in (see BIBEL_TRANSLATIONS). */
+export type BibelTranslationId = 'menge' | 'luther1912';
+
+/**
+ * The Bible's features a reader can do without. Each one switched off takes
+ * its controls and sections away; what was stored for it stays, and comes
+ * back when it is switched on again.
+ */
+export interface BibelFeatures {
+    /** Chapters marked as read, progress per book, and the reading plans */
+    fortschritt: boolean;
+    /** Lesezeichen, set on a verse number */
+    lesezeichen: boolean;
+    /** Highlights and notes on verses */
+    notizen: boolean;
+    /** The Vers der Woche on the Bibel tab */
+    versDerWoche: boolean;
+    /** The songs that cite a chapter, below it */
+    lieder: boolean;
+    /** Reading a chapter aloud */
+    vorlesen: boolean;
 }
 
 // Favorites: id == song id
 export interface Favorite {
     id: string;
     createdAt: Date;
+}
+
+/**
+ * A Lesezeichen in the Bible: one verse. The id is `slug/chapter/verse`, so a
+ * verse can be marked only once.
+ */
+export interface Lesezeichen {
+    id: string;
+    slug: string;
+    chapter: number;
+    verse: number;
+    /** The verse's opening words, so the list says what was marked. */
+    snippet: string;
+    createdAt: Date;
+}
+
+/** A chapter the reader has marked as read. The id is `slug/chapter`. */
+export interface GelesenesKapitel {
+    id: string;
+    slug: string;
+    chapter: number;
+    readAt: Date;
+}
+
+export type MarkierungsFarbe = 'gelb' | 'gruen' | 'blau' | 'rosa';
+
+/** A highlighted verse. The id is `slug/chapter/verse`. */
+export interface Markierung {
+    id: string;
+    slug: string;
+    chapter: number;
+    verse: number;
+    color: MarkierungsFarbe;
+    createdAt: Date;
+}
+
+/** A personal note on a verse. The id is `slug/chapter/verse`. */
+export interface Notiz {
+    id: string;
+    slug: string;
+    chapter: number;
+    verse: number;
+    text: string;
+    updatedAt: Date;
+}
+
+/** A reading plan the reader has started. The id is the plan's own id. */
+export interface Leseplan {
+    id: string;
+    /** The day the plan began, as YYYY-MM-DD in local time. */
+    startedOn: string;
+    /** The plan days (1-based) the reader has ticked off. */
+    doneDays: number[];
 }
 
 // --- Gottesdienst (temporary service selection) ---
@@ -254,6 +399,8 @@ export interface ServicePlan {
     expiresAt: number;
     /** Unset for a selection made here; set when adopted from a provider. */
     origin?: ServicePlanOrigin | null;
+    /** The Lesungen, in the order they are read. Absent on older plans. */
+    lesungen?: BibelPassage[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -269,6 +416,11 @@ export class GesangbuchDatabase extends Dexie {
     favorites!: Table<Favorite, string>;
     services!: Table<ServicePlan, string>;
     meta!: Table<MetaEntry, string>;
+    lesezeichen!: Table<Lesezeichen, string>;
+    gelesen!: Table<GelesenesKapitel, string>;
+    markierungen!: Table<Markierung, string>;
+    notizen!: Table<Notiz, string>;
+    leseplaene!: Table<Leseplan, string>;
 
     constructor() {
         super('GesangbuchDB');
@@ -367,6 +519,39 @@ export class GesangbuchDatabase extends Dexie {
                 services: 'id, date, expiresAt',
             })
             .upgrade((tx) => tx.table('meta').delete('lastServerUpdate'));
+
+        // Version 9: Lesezeichen in the Bible.
+        this.version(9).stores({
+            songs: 'id, titel',
+            files: 'id, filename',
+            auth: 'id',
+            users: 'id, email, role',
+            playlists: 'id, name, createdAt',
+            preferences: 'id',
+            favorites: 'id, createdAt',
+            meta: 'key',
+            services: 'id, date, expiresAt',
+            lesezeichen: 'id, createdAt',
+        });
+
+        // Version 10: the reader's own marks in the Bible — chapters read,
+        // highlights, notes — and the reading plans they follow.
+        this.version(10).stores({
+            songs: 'id, titel',
+            files: 'id, filename',
+            auth: 'id',
+            users: 'id, email, role',
+            playlists: 'id, name, createdAt',
+            preferences: 'id',
+            favorites: 'id, createdAt',
+            meta: 'key',
+            services: 'id, date, expiresAt',
+            lesezeichen: 'id, createdAt',
+            gelesen: 'id, slug, readAt',
+            markierungen: 'id, slug, createdAt',
+            notizen: 'id, slug, updatedAt',
+            leseplaene: 'id',
+        });
     }
 }
 

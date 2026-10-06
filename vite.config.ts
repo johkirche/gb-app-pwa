@@ -63,7 +63,8 @@ export default defineConfig({
             workbox: {
                 globPatterns: precacheGlobPatterns,
                 maximumFileSizeToCacheInBytes: precacheMaxFileSize,
-                // Deliberately no runtimeCaching. At run time the app talks to
+                // Runtime caching for the Bible's books alone — see below. For
+                // the rest, deliberately none. At run time the app talks to
                 // exactly three things, and a workbox route can match none of
                 // them: the GraphQL endpoint and Directus' auth routes are
                 // POSTs, and /assets/<uuid> carries an Authorization header,
@@ -75,6 +76,36 @@ export default defineConfig({
                 // answers first) could not fire once between them, and sent
                 // anyone debugging an offline failure looking in caches that
                 // are always empty.
+                runtimeCaching: [
+                    {
+                        // The Lutherbibel, for readers who chose it: kept once
+                        // read like Menge's books, but in a cache of its own. Sharing
+                        // bibel-cache would let Luther's books push Menge's out
+                        // of its 80 entries — including a Bible the reader
+                        // downloaded on purpose (src/utils/bibelOffline.ts).
+                        // Listed first: the first matching route wins.
+                        urlPattern: /\/bibeltext\/luther1912\/.*\.json$/i,
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'bibel-luther-cache',
+                            expiration: { maxEntries: 80 },
+                        },
+                    },
+                    {
+                        // The Bible (public/bibeltext): one file per book, kept
+                        // once read so the books a reader has opened work offline.
+                        // Not precached — ~6 MB nobody who leaves the Bibel
+                        // switched off should download, and .json is not among
+                        // the precache's extensions. Stale-while-revalidate so a
+                        // rebuilt text still reaches the device.
+                        urlPattern: /\/bibeltext\/.*\.json$/i,
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'bibel-cache',
+                            expiration: { maxEntries: 80 },
+                        },
+                    },
+                ],
                 cleanupOutdatedCaches: true,
             },
             devOptions: {

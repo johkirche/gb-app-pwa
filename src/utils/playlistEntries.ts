@@ -1,4 +1,18 @@
-import type { Song } from '@/db';
+import type { Playlist, Song } from '@/db';
+import { toPassages } from '@/utils/bibelPassage';
+
+/**
+ * A plain, structured-cloneable copy of a playlist. Dexie cannot store the
+ * reactive proxies a playlist's arrays pick up in the store (DataCloneError),
+ * so every write goes through here. `passagen` is copied only where the
+ * playlist has the field: one stored before passages existed is written back
+ * exactly as it was.
+ */
+export function toPlainPlaylist(playlist: Playlist): Playlist {
+    const plain: Playlist = { ...playlist, songIds: [...playlist.songIds] };
+    if (playlist.passagen) plain.passagen = toPassages(playlist.passagen);
+    return plain;
+}
 
 /**
  * One row of a playlist: the id as it is stored, and the song behind it — or

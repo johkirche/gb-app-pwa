@@ -1,6 +1,6 @@
 <template>
     <DrawerPortal>
-        <DrawerOverlay />
+        <DrawerOverlay v-if="!nonModal" />
         <VaulDrawerContent
             :class="
                 cn(
@@ -12,6 +12,8 @@
                 )
             "
             @pointercancel="releaseStrandedDrag"
+            @interact-outside="onInteractOutside"
+            @open-auto-focus="onOpenAutoFocus"
         >
             <div
                 class="mx-auto mt-3 h-1.5 w-10 shrink-0 cursor-grab rounded-full bg-muted active:cursor-grabbing"
@@ -40,6 +42,12 @@ import DrawerOverlay from './DrawerOverlay.vue';
 
 interface Props {
     class?: string;
+    /**
+     * A sheet that works alongside the page instead of over it (pair it with
+     * `:modal="false"` on the Drawer): no dimming overlay, a tap on the page
+     * leaves it open, and opening it does not pull the focus away.
+     */
+    nonModal?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -116,6 +124,14 @@ function restsAtTop(target: Element | null, scroller: HTMLElement): boolean {
     }
 
     return true;
+}
+
+function onInteractOutside(event: Event) {
+    if (props.nonModal) event.preventDefault();
+}
+
+function onOpenAutoFocus(event: Event) {
+    if (props.nonModal) event.preventDefault();
 }
 
 /**

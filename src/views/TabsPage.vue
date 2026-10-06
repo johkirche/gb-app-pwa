@@ -138,6 +138,7 @@
 import { computed, ref } from 'vue';
 
 import {
+    BookOpen,
     ChevronsUpDown,
     Church,
     CloudDownload,
@@ -178,7 +179,7 @@ const bottomBar = ref<HTMLElement | null>(null);
 useBottomBarInset(bottomBar);
 
 const { hasSelection } = storeToRefs(useServiceStore());
-const { serviceTab } = storeToRefs(usePreferencesStore());
+const { serviceTab, showBibel } = storeToRefs(usePreferencesStore());
 
 /**
  * The Gottesdienst tab is an occasion, not a permanent fixture: it appears for
@@ -198,6 +199,10 @@ const tabs = computed(() => [
     { to: '/tabs/playlisten', label: 'Playlisten', icon: ListMusic },
     ...(showServiceTab.value
         ? [{ to: '/tabs/gottesdienst', label: 'Gottesdienst', icon: Church }]
+        : []),
+    // Switched on in the settings. Standing on it keeps it, as with Gottesdienst.
+    ...(showBibel.value || route.path.startsWith('/tabs/bibel')
+        ? [{ to: '/tabs/bibel', label: 'Bibel', icon: BookOpen }]
         : []),
     { to: '/tabs/einstellungen', label: 'Einstellungen', icon: Settings },
 ]);
