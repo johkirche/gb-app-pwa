@@ -9,8 +9,10 @@
                     v-if="showBack"
                     variant="ghost"
                     size="icon"
-                    aria-label="Zurück zur Übersicht"
-                    @click="closeSection"
+                    :aria-label="
+                        activeSubKey ? `Zurück zu ${activeSection?.title}` : 'Zurück zur Übersicht'
+                    "
+                    @click="goUp"
                 >
                     <ChevronLeft class="!size-6" aria-hidden="true" />
                 </Button>
@@ -50,7 +52,7 @@
                  collapsing to nothing between them. -->
             <div class="grid overflow-hidden">
                 <Transition :name="transition">
-                    <div :key="activeKey ?? 'root'" class="col-start-1 row-start-1">
+                    <div :key="paneKey" class="col-start-1 row-start-1">
                         <div
                             class="page-col space-y-10 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6"
                         >
@@ -87,6 +89,10 @@
                             <AppearanceSettings v-else-if="activeKey === 'darstellung'" />
                             <PlaybackSettings v-else-if="activeKey === 'wiedergabe'" />
                             <ServiceSettings v-else-if="activeKey === 'gottesdienst'" />
+                            <!-- Level 3: a page within a section -->
+                            <BibelFeatureSettings
+                                v-else-if="activeKey === 'bibel' && activeSubKey === 'funktionen'"
+                            />
                             <BibelSettings v-else-if="activeKey === 'bibel'" />
                             <DataSettings
                                 v-else-if="activeKey === 'daten'"
@@ -130,11 +136,13 @@ import { useTheme } from '@/composables/useTheme';
 import AboutSettings from '@/components/settings/AboutSettings.vue';
 import AccountSettings from '@/components/settings/AccountSettings.vue';
 import AppearanceSettings from '@/components/settings/AppearanceSettings.vue';
+import BibelFeatureSettings from '@/components/settings/BibelFeatureSettings.vue';
 import BibelSettings from '@/components/settings/BibelSettings.vue';
 import DataSettings from '@/components/settings/DataSettings.vue';
 import PlaybackSettings from '@/components/settings/PlaybackSettings.vue';
 import ServiceSettings from '@/components/settings/ServiceSettings.vue';
 import SettingsList from '@/components/settings/SettingsList.vue';
+import { bibelFeatureSummary } from '@/components/settings/bibelFeatures';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
 import { Button } from '@/components/ui/button';
 
@@ -194,9 +202,7 @@ const bibelSummary = computed(() => {
         preferencesStore.bibelTranslation === 'menge' ? 'Menge (1939)' : 'Luther (1912)';
     // Counted as what is on: with the reading progress off by default, "1 aus"
     // would greet every reader who never touched a switch.
-    const features = Object.values(preferencesStore.bibelFeatures);
-    const on = features.filter(Boolean).length;
-    return `${translation} · ${on} von ${features.length} Funktionen`;
+    return `${translation} · Funktionen ${bibelFeatureSummary(preferencesStore.bibelFeatures)}`;
 });
 
 const serviceSummary = computed(() => {
@@ -272,9 +278,40 @@ const activeKey = computed<SectionKey | null>(
 );
 
 const activeSection = computed(() => sections.value.find((s) => s.key === activeKey.value));
-const showBack = computed(() => !isDesktop.value && activeKey.value !== null);
-const headerTitle = computed(() =>
-    showBack.value ? (activeSection.value?.title ?? 'Einstellungen') : 'Einstellungen',
+
+/**
+ * A page within a section (?unter=), one level below it: so far only the
+ * Bible's features, which would bury the section's few settings if listed in
+ * it. Only valid under its own section — anything else is the section itself.
+ */
+const SUB_PAGES: Partial<Record<SectionKey, Record<string, string>>> = {
+    bibel: { funktionen: 'Bibel-Funktionen' },
+};
+const activeSubKey = computed<string | null>(() => {
+    const value = route.query.unter;
+    const pages = activeKey.value ? SUB_PAGES[activeKey.value] : undefined;
+    return typeof value === 'string' && pages?.[value] ? value : null;
+});
+const subTitle = computed(() =>
+    activeKey.value && activeSubKey.value
+        ? SUB_PAGES[activeKey.value]?.[activeSubKey.value]
+        : undefined,
+);
+/** How deep the page stands: overview 0, section 1, page within it 2. */
+const depth = computed(() => (activeSubKey.value ? 2 : activeKey.value ? 1 : 0));
+const paneKey = computed(() =>
+    [activeKey.value ?? 'root', activeSubKey.value].filter(Boolean).join('/'),
+);
+
+// On a phone every level has a way up; on a wide screen the sections are tabs,
+// and only a page within one needs it.
+const showBack = computed(() =>
+    isDesktop.value ? activeSubKey.value !== null : activeKey.value !== null,
+);
+const headerTitle = computed(
+    () =>
+        subTitle.value ??
+        (showBack.value ? (activeSection.value?.title ?? 'Einstellungen') : 'Einstellungen'),
 );
 
 const transition = ref<'pane-forward' | 'pane-back' | 'pane-fade'>('pane-fade');
@@ -282,11 +319,13 @@ const transition = ref<'pane-forward' | 'pane-back' | 'pane-fade'>('pane-fade');
 // Pre-flush, so the name is already right when the Transition patches. Sliding
 // is for the drill-down only — tabs that swapped sideways on every click would
 // be a lot of motion for what is one page.
-watch(activeKey, (next, previous) => {
-    if (isDesktop.value) {
+watch(paneKey, (next, previous) => {
+    const deeper = depth.value > depthOf(previous);
+    if (isDesktop.value && depth.value < 2 && depthOf(previous) < 2) {
+        // Tab to tab.
         transition.value = 'pane-fade';
     } else {
-        transition.value = next === null && previous !== null ? 'pane-back' : 'pane-forward';
+        transition.value = deeper || next === previous ? 'pane-forward' : 'pane-back';
     }
     nextTick(() => {
         if (scrollRef.value) scrollRef.value.scrollTop = 0;
@@ -297,7 +336,8 @@ function selectSection(key: SectionKey) {
     // Drilling in on a phone is a step the back gesture should undo; tabbing
     // through the sections on a wide screen is not, or six clicks would put
     // six history entries between the reader and the way out.
-    const to = { query: { ...route.query, bereich: key } };
+    const { unter: _unter, ...rest } = route.query;
+    const to = { query: { ...rest, bereich: key } };
     if (isDesktop.value) {
         router.replace(to);
     } else {
@@ -305,9 +345,23 @@ function selectSection(key: SectionKey) {
     }
 }
 
+function depthOf(key: string): number {
+    return key === 'root' ? 0 : key.split('/').length;
+}
+
 function closeSection() {
-    const { bereich: _bereich, ...query } = route.query;
+    const { bereich: _bereich, unter: _unter, ...query } = route.query;
     router.replace({ query });
+}
+
+/** One level up: from a page within a section to the section, else to the list. */
+function goUp() {
+    if (activeSubKey.value) {
+        const { unter: _unter, ...query } = route.query;
+        router.replace({ query });
+    } else {
+        closeSection();
+    }
 }
 
 // As a tab child this page mounts once and stays alive across tab switches, so

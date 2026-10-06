@@ -100,51 +100,26 @@
                 </div>
             </div>
 
-            <!-- What the Bible offers beyond the text. Everything starts on;
-                 switching one off takes its controls and sections away and
-                 keeps what was stored for it. -->
-            <!-- What the reader always does, whatever is switched on below:
-                 none of it is a button anyone would go looking for. -->
-            <p class="label-micro px-2 pb-1 pt-4 text-gold">So lesen Sie</p>
-            <div class="px-2 py-3">
-                <div class="flex items-center gap-4">
-                    <Pointer class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    <p class="text-[15px]">Verse antippen, blättern, Kapitel wählen</p>
+            <!-- The features, each with a sample and how to reach it, on a page
+                 of their own: listed here they buried the few settings above. -->
+            <button
+                type="button"
+                class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
+                @click="openFeatures"
+            >
+                <SlidersHorizontal
+                    class="size-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                />
+                <div class="min-w-0 flex-1">
+                    <p class="text-[15px]">Funktionen</p>
+                    <p class="text-sm text-muted-foreground">
+                        Lesezeichen, Markierungen, Vorlesen … ·
+                        {{ bibelFeatureSummary(preferencesStore.bibelFeatures) }}
+                    </p>
                 </div>
-                <BibelFeaturePreview feature="lesen" class="ml-9" />
-            </div>
-
-            <!-- Each with a sample of what it does in the reader, and how to
-                 reach it: a feature nobody can find is no feature. -->
-            <p class="label-micro px-2 pb-1 pt-4 text-gold">Funktionen</p>
-            <div v-for="feature in features" :key="feature.key" class="px-2 py-3">
-                <div class="flex items-center justify-between gap-4">
-                    <div class="flex min-w-0 items-center gap-4">
-                        <component
-                            :is="feature.icon"
-                            class="size-5 shrink-0 text-muted-foreground"
-                            aria-hidden="true"
-                        />
-                        <div class="min-w-0">
-                            <Label
-                                :for="`settings-bibel-${feature.key}`"
-                                class="text-[15px] font-normal"
-                            >
-                                {{ feature.label }}
-                            </Label>
-                            <p class="text-sm text-muted-foreground">
-                                {{ feature.description }}
-                            </p>
-                        </div>
-                    </div>
-                    <Switch
-                        :id="`settings-bibel-${feature.key}`"
-                        :model-value="preferencesStore.bibelFeatures[feature.key]"
-                        @update:model-value="preferencesStore.setBibelFeature(feature.key, $event)"
-                    />
-                </div>
-                <BibelFeaturePreview :feature="feature.key" class="ml-9" />
-            </div>
+                <ChevronRight class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            </button>
 
             <p class="label-micro px-2 pb-1 pt-4 text-gold">Offline</p>
             <BibelOfflineStatus />
@@ -153,83 +128,41 @@
 </template>
 
 <script setup lang="ts">
-import { type Component, computed } from 'vue';
+import { computed } from 'vue';
 
 import {
     BookMarked,
     BookOpen,
-    Bookmark,
-    CalendarCheck,
-    Highlighter,
+    ChevronRight,
     Languages,
-    Music2,
-    Pointer,
-    Sparkles,
+    SlidersHorizontal,
     Type,
-    Volume2,
 } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
+import { useRoute, useRouter } from 'vue-router';
 
 import { usePreferencesStore } from '@/stores/preferences';
 
 import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
-import BibelFeaturePreview from '@/components/settings/BibelFeaturePreview.vue';
 import SettingsList from '@/components/settings/SettingsList.vue';
+import { bibelFeatureSummary } from '@/components/settings/bibelFeatures';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-import type { BibelFeatures } from '@/db';
 import { bibelstellen, loadBibelstellen } from '@/utils/bibelstellen';
 
 const preferencesStore = usePreferencesStore();
+const route = useRoute();
+const router = useRouter();
+
+// One level deeper, as a step the back gesture undoes (see SettingsPage).
+function openFeatures() {
+    router.push({ query: { ...route.query, unter: 'funktionen' } });
+}
 
 loadBibelstellen().catch((err: unknown) => console.error('Error loading Bibelstellen:', err));
-
-const features: {
-    key: keyof BibelFeatures;
-    label: string;
-    description: string;
-    icon: Component;
-}[] = [
-    {
-        key: 'fortschritt',
-        label: 'Lesefortschritt & Lesepläne',
-        description: 'Kapitel als gelesen markieren, Fortschritt je Buch, „Heute lesen"',
-        icon: CalendarCheck,
-    },
-    {
-        key: 'lesezeichen',
-        label: 'Lesezeichen',
-        description: 'Mit einem Tipp auf die Versnummer setzen',
-        icon: Bookmark,
-    },
-    {
-        key: 'notizen',
-        label: 'Markierungen & Notizen',
-        description: 'Verse farbig markieren und eigene Notizen dazu schreiben',
-        icon: Highlighter,
-    },
-    {
-        key: 'versDerWoche',
-        label: 'Vers der Woche',
-        description: 'Ein Vers jede Woche, oben im Bibel-Reiter',
-        icon: Sparkles,
-    },
-    {
-        key: 'lieder',
-        label: 'Lieder zum Kapitel',
-        description: 'Die Lieder aus dem Gesangbuch, die sich auf das Kapitel beziehen',
-        icon: Music2,
-    },
-    {
-        key: 'vorlesen',
-        label: 'Vorlesen',
-        description: 'Ein Kapitel mit der Stimme des Geräts vorlesen lassen',
-        icon: Volume2,
-    },
-];
 
 const translationNote = computed(() =>
     preferencesStore.bibelTranslation === 'menge'
