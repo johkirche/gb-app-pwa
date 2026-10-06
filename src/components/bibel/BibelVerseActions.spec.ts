@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useMarkierungenStore } from '@/stores/markierungen';
 
@@ -38,21 +38,46 @@ const laid = layoutChapter([
     { p: [{ s: [{ v: 1 }, 'Der HERR ist mein Hirt.'] }, { s: [{ v: 2 }, 'Er weidet mich.'] }] },
 ]);
 
+/** The drawer is portalled to the end of the page, not inside the component. */
+function sheet(): HTMLElement | null {
+    return document.querySelector<HTMLElement>('[data-vaul-drawer]');
+}
+
+function button(text: string): HTMLButtonElement {
+    const found = [...(sheet()?.querySelectorAll('button') ?? [])].find(
+        (b) => b.textContent?.trim() === text,
+    );
+    if (!found) throw new Error(`no button "${text}" in the sheet`);
+    return found;
+}
+
 describe('BibelVerseActions', () => {
     const selection = useVerseSelection();
+    let wrapper: ReturnType<typeof mount> | null = null;
 
     beforeEach(() => {
         setActivePinia(createPinia());
         selection.attach({ slug: 'psalm', chapter: 23 }, laid);
+        selection.clear();
     });
 
+    afterEach(() => {
+        wrapper?.unmount();
+        wrapper = null;
+    });
+
+    function open() {
+        wrapper = mount(BibelVerseActions, { attachTo: document.body });
+        return flushPromises();
+    }
+
     it('stays out of the way until a verse is picked out', async () => {
-        const wrapper = mount(BibelVerseActions);
-        expect(wrapper.find('footer').exists()).toBe(false);
+        await open();
+        expect(sheet()).toBeNull();
 
         selection.toggle(1);
         await flushPromises();
-        expect(wrapper.find('footer').text()).toContain('Psalm 23,1');
+        expect(sheet()?.textContent).toContain('Psalm 23,1');
     });
 
     it('copies the verses as a quotation, then lets go of them', async () => {
@@ -60,12 +85,9 @@ describe('BibelVerseActions', () => {
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
         selection.toggle(1);
         selection.toggle(2);
-        const wrapper = mount(BibelVerseActions);
+        await open();
 
-        await wrapper
-            .findAll('button')
-            .find((b) => b.text() === 'Kopieren')!
-            .trigger('click');
+        button('Kopieren').click();
         await flushPromises();
 
         expect(writeText).toHaveBeenCalledWith(
@@ -77,9 +99,9 @@ describe('BibelVerseActions', () => {
     it('highlights every verse picked out in the chosen colour', async () => {
         selection.toggle(1);
         selection.toggle(2);
-        const wrapper = mount(BibelVerseActions);
+        await open();
 
-        await wrapper.find('[aria-label="Blau"]').trigger('click');
+        sheet()!.querySelector<HTMLButtonElement>('[aria-label="Blau"]')!.click();
         await flushPromises();
 
         const store = useMarkierungenStore();
@@ -89,10 +111,11 @@ describe('BibelVerseActions', () => {
 
     it('lists every action switched on, each spelt out', async () => {
         selection.toggle(1);
-        const wrapper = mount(BibelVerseActions);
-        await flushPromises();
+        await open();
 
-        const labels = wrapper.findAll('footer li > button').map((b) => b.text());
+        const labels = [...sheet()!.querySelectorAll('li > button')].map((b) =>
+            b.textContent?.trim(),
+        );
         expect(labels).toEqual([
             'Kopieren',
             'Teilen',
@@ -100,7 +123,7 @@ describe('BibelVerseActions', () => {
             'Lesezeichen setzen',
             'Zum Gottesdienst',
         ]);
-        expect(wrapper.find('footer').text()).toContain('Markieren');
-        expect(wrapper.find('footer').text()).toContain('Weitere Verse antippen');
+        expect(sheet()!.textContent).toContain('Markieren');
+        expect(sheet()!.textContent).toContain('Weitere Verse antippen');
     });
 });

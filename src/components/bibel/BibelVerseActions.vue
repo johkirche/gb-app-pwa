@@ -1,124 +1,128 @@
 <template>
-    <!-- The action sheet: docked under the text while verses are picked out —
-         part of the page, not laid over it, so the text above still scrolls
-         and further verses can be tapped in. One large row per action, its
-         word spelt out: nothing hidden, nothing small to aim at. -->
-    <footer
-        v-if="here && verses.length"
-        class="shrink-0 rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-12px_rgb(0_0_0/0.35)]"
-        aria-label="Verse"
-    >
-        <div class="mx-auto max-w-[36rem] px-3 pt-1">
-            <div class="flex items-center gap-2 border-b border-border py-2 pl-2">
-                <div class="min-w-0 flex-1">
-                    <p class="truncate text-[15px] font-medium" aria-live="polite">
-                        {{ label }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">Weitere Verse antippen</p>
+    <!-- The action sheet: the app's bottom drawer, pulled down — or closed
+         with the ✕ — to let go of the verses. Non-modal: no overlay, and the
+         text above still scrolls and takes taps, so further verses can be
+         added while it is open. One large row per action, its word spelt out:
+         nothing hidden, nothing small to aim at. -->
+    <Drawer :open="open" :modal="false" @update:open="onOpenChange">
+        <DrawerContent non-modal class="max-h-[65dvh]">
+            <div class="mx-auto w-full max-w-[36rem] px-3">
+                <div class="flex items-center gap-2 border-b border-border pb-2 pl-2">
+                    <div class="min-w-0 flex-1">
+                        <DrawerTitle class="truncate text-[15px] font-medium" aria-live="polite">
+                            {{ label }}
+                        </DrawerTitle>
+                        <DrawerDescription class="text-xs text-muted-foreground">
+                            Weitere Verse antippen
+                        </DrawerDescription>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Auswahl aufheben"
+                        @click="selection.clear()"
+                    >
+                        <X class="!size-5" aria-hidden="true" />
+                    </Button>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Auswahl aufheben"
-                    @click="selection.clear()"
-                >
-                    <X class="!size-5" aria-hidden="true" />
-                </Button>
-            </div>
 
-            <!-- Scrolls in itself on a short screen, so the text keeps its share. -->
-            <ul class="max-h-[45vh] overflow-y-auto py-1">
-                <li>
-                    <button type="button" :class="ROW" @click="copy">
-                        <Copy :class="ICON" aria-hidden="true" />
-                        Kopieren
-                    </button>
-                </li>
-                <li>
-                    <button type="button" :class="ROW" @click="share">
-                        <Share2 :class="ICON" aria-hidden="true" />
-                        Teilen
-                    </button>
-                </li>
+                <!-- The drawer scrolls on a short screen, so the text keeps its share. -->
+                <ul class="py-1">
+                    <li>
+                        <button type="button" :class="ROW" @click="copy">
+                            <Copy :class="ICON" aria-hidden="true" />
+                            Kopieren
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" :class="ROW" @click="share">
+                            <Share2 :class="ICON" aria-hidden="true" />
+                            Teilen
+                        </button>
+                    </li>
 
-                <!-- Marking: the four colours right in the row, and a way back
+                    <!-- Marking: the four colours right in the row, and a way back
                      to none. The ring is on the colour the whole selection
                      already wears, if it wears one. -->
-                <li v-if="features.notizen" :class="[ROW, 'cursor-default hover:bg-transparent']">
-                    <Highlighter :class="ICON" aria-hidden="true" />
-                    <span class="mr-auto">Markieren</span>
-                    <span class="flex items-center gap-2" role="group" aria-label="Farbe">
-                        <button
-                            v-for="color in COLORS"
-                            :key="color.key"
-                            type="button"
-                            class="size-8 rounded-full border border-border transition-transform active:scale-95"
-                            :class="{
-                                'ring-2 ring-primary ring-offset-2 ring-offset-background':
-                                    current === color.key,
-                            }"
-                            :style="{ background: `var(--bibel-mark-${color.key})` }"
-                            :aria-label="color.label"
-                            :aria-pressed="current === color.key"
-                            @click="mark(color.key)"
-                        />
-                        <button
-                            v-if="current"
-                            type="button"
-                            class="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted active:scale-95"
-                            aria-label="Markierung entfernen"
-                            @click="mark(null)"
-                        >
-                            <Eraser class="size-4" aria-hidden="true" />
-                        </button>
-                    </span>
-                </li>
-                <li v-if="features.notizen">
-                    <button type="button" :class="ROW" @click="note">
-                        <NotebookPen :class="ICON" aria-hidden="true" />
-                        Notiz schreiben
-                    </button>
-                </li>
-                <li v-if="features.lesezeichen">
-                    <button type="button" :class="ROW" @click="bookmark">
-                        <Bookmark :class="ICON" aria-hidden="true" />
-                        Lesezeichen setzen
-                    </button>
-                </li>
-                <li>
-                    <button type="button" :class="ROW" @click="toService">
-                        <Church :class="ICON" aria-hidden="true" />
-                        Zum Gottesdienst
-                    </button>
-                </li>
-                <!-- A playlist is chosen, not just added to. -->
-                <li v-if="playlistsStore.sortedPlaylists.length">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger as-child>
-                            <button type="button" :class="ROW">
-                                <ListMusic :class="ICON" aria-hidden="true" />
-                                Zu einer Playlist …
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            side="top"
-                            align="start"
-                            class="max-h-72 w-60 overflow-y-auto"
-                        >
-                            <DropdownMenuItem
-                                v-for="playlist in playlistsStore.sortedPlaylists"
-                                :key="playlist.id"
-                                @select="toPlaylist(playlist.id, playlist.name)"
+                    <li
+                        v-if="features.notizen"
+                        :class="[ROW, 'cursor-default hover:bg-transparent']"
+                    >
+                        <Highlighter :class="ICON" aria-hidden="true" />
+                        <span class="mr-auto">Markieren</span>
+                        <span class="flex items-center gap-2" role="group" aria-label="Farbe">
+                            <button
+                                v-for="color in COLORS"
+                                :key="color.key"
+                                type="button"
+                                class="size-8 rounded-full border border-border transition-transform active:scale-95"
+                                :class="{
+                                    'ring-2 ring-primary ring-offset-2 ring-offset-background':
+                                        current === color.key,
+                                }"
+                                :style="{ background: `var(--bibel-mark-${color.key})` }"
+                                :aria-label="color.label"
+                                :aria-pressed="current === color.key"
+                                @click="mark(color.key)"
+                            />
+                            <button
+                                v-if="current"
+                                type="button"
+                                class="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted active:scale-95"
+                                aria-label="Markierung entfernen"
+                                @click="mark(null)"
                             >
-                                <span aria-hidden="true">{{ playlist.emoji }}</span>
-                                <span class="truncate">{{ playlist.name }}</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </li>
-            </ul>
-        </div>
-    </footer>
+                                <Eraser class="size-4" aria-hidden="true" />
+                            </button>
+                        </span>
+                    </li>
+                    <li v-if="features.notizen">
+                        <button type="button" :class="ROW" @click="note">
+                            <NotebookPen :class="ICON" aria-hidden="true" />
+                            Notiz schreiben
+                        </button>
+                    </li>
+                    <li v-if="features.lesezeichen">
+                        <button type="button" :class="ROW" @click="bookmark">
+                            <Bookmark :class="ICON" aria-hidden="true" />
+                            Lesezeichen setzen
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" :class="ROW" @click="toService">
+                            <Church :class="ICON" aria-hidden="true" />
+                            Zum Gottesdienst
+                        </button>
+                    </li>
+                    <!-- A playlist is chosen, not just added to. -->
+                    <li v-if="playlistsStore.sortedPlaylists.length">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <button type="button" :class="ROW">
+                                    <ListMusic :class="ICON" aria-hidden="true" />
+                                    Zu einer Playlist …
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                side="top"
+                                align="start"
+                                class="max-h-72 w-60 overflow-y-auto"
+                            >
+                                <DropdownMenuItem
+                                    v-for="playlist in playlistsStore.sortedPlaylists"
+                                    :key="playlist.id"
+                                    @select="toPlaylist(playlist.id, playlist.name)"
+                                >
+                                    <span aria-hidden="true">{{ playlist.emoji }}</span>
+                                    <span class="truncate">{{ playlist.name }}</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </li>
+                </ul>
+            </div>
+        </DrawerContent>
+    </Drawer>
 </template>
 
 <script setup lang="ts">
@@ -147,6 +151,7 @@ import { useServiceStore } from '@/stores/service';
 import { useVerseSelection } from '@/composables/useVerseSelection';
 
 import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -189,6 +194,13 @@ const lesezeichen = useLesezeichenStore();
 const { bibelFeatures: features } = storeToRefs(usePreferencesStore());
 
 const label = computed(() => (here.value ? versesRefLabel(here.value, verses.value) : ''));
+
+/** Open while verses are picked out; pulled down, it lets go of them. */
+const open = computed(() => !!here.value && verses.value.length > 0);
+
+function onOpenChange(value: boolean) {
+    if (!value) selection.clear();
+}
 const quote = computed(() =>
     here.value ? copyText(selection.laid.value, here.value, verses.value) : '',
 );

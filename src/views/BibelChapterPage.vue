@@ -90,7 +90,9 @@
             @touchend.passive="onTouchEnd"
             @touchcancel.passive="swipe = null"
         >
-            <div class="page-col pb-12 pt-4">
+            <!-- While the action drawer is up, room below the text for it: the
+                 last verses can still be scrolled clear of it and tapped in. -->
+            <div class="page-col pt-4" :class="picking ? 'pb-[70dvh]' : 'pb-12'">
                 <article
                     ref="articleRef"
                     class="bibel-text mx-auto max-w-[36rem] font-hymnal text-foreground"
@@ -266,6 +268,7 @@ import { useLeseplanStore } from '@/stores/leseplan';
 import { useLesezeichenStore } from '@/stores/lesezeichen';
 import { usePreferencesStore } from '@/stores/preferences';
 
+import { useVerseSelection } from '@/composables/useVerseSelection';
 import { useWakeLock } from '@/composables/useWakeLock';
 
 import BibelChapterPicker from '@/components/bibel/BibelChapterPicker.vue';
@@ -325,6 +328,9 @@ async function toggleRead() {
 }
 
 const scrollRef = ref<HTMLElement | null>(null);
+
+/** Whether verses are picked out — the action drawer is up. */
+const picking = computed(() => useVerseSelection().verses.value.length > 0);
 const articleRef = ref<HTMLElement | null>(null);
 
 const here = computed<ChapterRef>(() => ({
