@@ -5,7 +5,7 @@
             class="hidden border-r border-border bg-background lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:gap-1 lg:px-4 lg:py-6"
             aria-label="Hauptnavigation"
         >
-            <RouterLink to="/tabs/lieder" class="mb-8 flex items-center gap-3 px-2">
+            <RouterLink :to="songsListPath" class="mb-8 flex items-center gap-3 px-2">
                 <img src="/logo.svg" alt="" class="h-10 w-10" />
                 <span class="font-display text-2xl font-semibold text-foreground">Gesangbuch</span>
             </RouterLink>
@@ -13,7 +13,7 @@
             <RouterLink
                 v-for="tab in tabs"
                 :key="tab.to"
-                :to="tab.to"
+                :to="tab.href ?? tab.to"
                 class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.9375rem] transition-colors"
                 :class="
                     isActive(tab.to)
@@ -117,7 +117,7 @@
                 <RouterLink
                     v-for="tab in tabs"
                     :key="tab.to"
-                    :to="tab.to"
+                    :to="tab.href ?? tab.to"
                     class="flex min-w-0 flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[0.6875rem] font-medium transition-colors"
                     :class="isActive(tab.to) ? 'text-primary' : 'text-muted-foreground'"
                     :aria-current="isActive(tab.to) ? 'page' : undefined"
@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { type Component, computed, ref } from 'vue';
 
 import {
     BookOpen,
@@ -159,6 +159,7 @@ import { useServiceStore } from '@/stores/service';
 import { useAuth } from '@/composables/useAuth';
 import { useBottomBarInset } from '@/composables/useBottomBarInset';
 import { useConfirm } from '@/composables/useConfirm';
+import { songsListPath } from '@/composables/useSongFilterHistory';
 
 import {
     DropdownMenu,
@@ -194,8 +195,11 @@ const showServiceTab = computed(
         route.path.startsWith('/tabs/gottesdienst'),
 );
 
-const tabs = computed(() => [
-    { to: '/tabs/lieder', label: 'Lieder', icon: Music },
+// `to` is the tab's own path, for telling which one is active; `href` is where
+// it leads, when that is more than the path — the Lieder tab goes back to the
+// list as it was left, filters included, since those live in its URL.
+const tabs = computed((): { to: string; href?: string; label: string; icon: Component }[] => [
+    { to: '/tabs/lieder', href: songsListPath.value, label: 'Lieder', icon: Music },
     { to: '/tabs/playlisten', label: 'Playlisten', icon: ListMusic },
     ...(showServiceTab.value
         ? [{ to: '/tabs/gottesdienst', label: 'Gottesdienst', icon: Church }]

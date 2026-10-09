@@ -323,7 +323,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref, watch } from 'vue';
+import { computed, h, ref } from 'vue';
 import type { FunctionalComponent } from 'vue';
 
 import {
@@ -339,7 +339,7 @@ import {
     Search,
 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import { useFavoritesStore } from '@/stores/favorites';
@@ -351,6 +351,7 @@ import { useCurrentDate } from '@/composables/useCurrentDate';
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { usePullToRefresh } from '@/composables/usePullToRefresh';
 import { useSessionAccess } from '@/composables/useSessionAccess';
+import { useSongFilterHistory } from '@/composables/useSongFilterHistory';
 import { useSongFiltering } from '@/composables/useSongFiltering';
 import { SORT_OPTIONS, type SongRanks, useSongSorting } from '@/composables/useSongSorting';
 
@@ -384,7 +385,6 @@ const { songs, isLoading, error, lastSyncTime, hasSongs, isSyncing, syncProgress
     storeToRefs(songsStore);
 const { isLoggedIn } = useSessionAccess();
 const router = useRouter();
-const route = useRoute();
 
 // The page's single scroll container
 const scrollRef = ref<HTMLElement | null>(null);
@@ -461,9 +461,7 @@ const {
     toggleCategory,
     setIndexRange,
     toggleAuthor,
-    setAuthors,
     toggleMelodie,
-    setMelodien,
     clearAllFilters,
     clearFiltersKeepSearch,
 } = useSongFiltering(songs);
@@ -511,45 +509,10 @@ const searchRanks = computed((): SongRanks => {
     return ranks;
 });
 
-// Deep link from the song view: /tabs/lieder?autor=<Name> shows that author's
-// songs, /tabs/lieder?weise=<Melodie-id> die Lieder auf derselben Weise. The
-// parameter is a one-shot intent — it is applied and then dropped from the URL,
-// because the filter itself lives on in this page (the tab shell is kept alive
-// across a trip to a song). Leaving it in the URL would let a later
-// back-navigation restore a filter the user has since cleared.
-watch(() => route.query.autor, applyAuthorFromQuery, { immediate: true });
-watch(() => route.query.weise, applyWeiseFromQuery, { immediate: true });
-
-function applyAuthorFromQuery() {
-    if (route.name !== 'Songs') return;
-
-    const raw = route.query.autor;
-    const authors = (Array.isArray(raw) ? raw : [raw]).filter((name): name is string => !!name);
-    if (!authors.length) return;
-
-    // A fresh intent: show exactly this author, not the intersection with
-    // whatever was still filtered from before.
-    clearAllFilters();
-    setAuthors(authors);
-
-    const { autor: _autor, ...rest } = route.query;
-    router.replace({ path: route.path, query: rest });
-}
-
-function applyWeiseFromQuery() {
-    if (route.name !== 'Songs') return;
-
-    const raw = route.query.weise;
-    const melodien = (Array.isArray(raw) ? raw : [raw]).filter((id): id is string => !!id);
-    if (!melodien.length) return;
-
-    // Wie beim Autor: ein frischer Wunsch ersetzt die bisherige Auswahl.
-    clearAllFilters();
-    setMelodien(melodien);
-
-    const { weise: _weise, ...rest } = route.query;
-    router.replace({ path: route.path, query: rest });
-}
+// The filters live in the URL — /tabs/lieder?kategorie=…&autor=…&weise=…&nr=…
+// — so Back takes them off, and the song view's „andere Lieder von Luther"
+// is just a link to the filtered list.
+useSongFilterHistory(filters);
 
 // Sorting - applied to filtered songs
 const { sortMode, showHeaders, showIndexScroll, sortedSections, sortedSongs, indexItems } =
