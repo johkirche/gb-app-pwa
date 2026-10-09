@@ -149,6 +149,28 @@ describe('the patched osmd-audio-player engine', () => {
         expect(scheduledSteps(schedule)).toEqual([0]);
     });
 
+    // OSMD counts half-tones an octave below MIDI, and the engine converts on
+    // the way out through `fixedKey`, which OSMD leaves at −1 on every sheet
+    // without a <midi-unpitched> — every hymn. So what reaches the instrument
+    // player is already MIDI, and the sinks must not add the octave again.
+    it('hands the instrument player MIDI numbers, not OSMD half-tones', async () => {
+        const A_PRIME_HALFTONE = 57;
+        const A_PRIME_MIDI = 69;
+        const { engine, osmd, schedule } = buildEngine();
+        const [instrument] = osmd.Sheet.Instruments;
+        instrument.SubInstruments = [{ fixedKey: -1 }];
+        const [first] = (
+            osmd.cursor.Iterator.CurrentVoiceEntries[0] as { Notes: { halfTone: number }[] }
+        ).Notes;
+        first.halfTone = A_PRIME_HALFTONE;
+        await engine.loadScore(osmd as never);
+
+        engine.jumpToStep(0);
+        await engine.play();
+
+        expect(schedule.mock.calls[0][2][0].note).toBe(A_PRIME_MIDI);
+    });
+
     it('leaves no timer behind once stopped', async () => {
         const { engine, osmd } = buildEngine();
         await engine.loadScore(osmd as never);

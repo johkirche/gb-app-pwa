@@ -2,19 +2,18 @@ import type { NotePlaybackInstruction } from 'osmd-audio-player/dist/players/Not
 import type { IAudioContext } from 'standardized-audio-context';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OSMD_HALFTONE_TO_MIDI } from '@/services/instrumentPlayer';
 import { MidiOutputPlayer } from '@/services/midiOutputPlayer';
 
 const CHURCH_ORGAN = 19;
 
-// Ein a' steht im Satz als OSMD-Halbton 57 — die Engine reicht genau diese Zahl
-// durch. Auf dem Instrument muss daraus MIDI 69 werden.
-const A_PRIME_HALFTONE = 57;
+// Ein a' steht im Satz als OSMD-Halbton 57, die Engine hebt es aber selbst
+// schon auf MIDI 69 (siehe osmdAudioPlayerPatch.spec). Genau diese Nummer muss
+// beim Instrument ankommen — keine Oktave höher.
 const A_PRIME_MIDI = 69;
 
 function note(partial: Partial<NotePlaybackInstruction> = {}): NotePlaybackInstruction {
     return {
-        note: A_PRIME_HALFTONE,
+        note: A_PRIME_MIDI,
         duration: 1,
         gain: 0.8,
         articulation: 0,
@@ -49,12 +48,11 @@ function sent(statusNibble: number) {
 }
 
 describe('MidiOutputPlayer', () => {
-    it('hebt den OSMD-Halbton auf die MIDI-Notennummer', () => {
+    it('schickt die Note der Engine unverschoben ans Instrument', () => {
         player.schedule(CHURCH_ORGAN, 0, [note()]);
 
         const [noteOn] = sent(0x90);
         expect(noteOn[0][1]).toBe(A_PRIME_MIDI);
-        expect(OSMD_HALFTONE_TO_MIDI).toBe(A_PRIME_MIDI - A_PRIME_HALFTONE);
     });
 
     it('schickt zu jedem Note On ein Note Off am Ende der Note', () => {

@@ -1,20 +1,19 @@
 import type { NotePlaybackInstruction } from 'osmd-audio-player/dist/players/NotePlaybackOptions';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OSMD_HALFTONE_TO_MIDI } from '@/services/instrumentPlayer';
 import { LocalSoundfontPlayer } from '@/services/localSoundfontPlayer';
 
-// Ein geschriebenes a' — laut OSMD selbst 440 Hz — kommt als Halbton 57 aus dem
-// Satz. Die Klangbibliothek ist nach MIDI-Nummern sortiert, dort heißt dieselbe
-// Note 69. Ohne die Verschiebung klingt jedes Lied eine Oktave zu tief.
-const A_PRIME_HALFTONE = 57;
+// Ein geschriebenes a' steht bei OSMD als Halbton 57, die Engine hebt es aber
+// selbst schon auf MIDI 69 (siehe osmdAudioPlayerPatch.spec) — so kommt es hier
+// an, und so muss es auch klingen. Eine zweite Oktave obendrauf ließ jedes Lied
+// eine Oktave über dem Notenbild erklingen.
 const A_PRIME_MIDI = 69;
 
 const CHURCH_ORGAN = 19;
 
 function note(partial: Partial<NotePlaybackInstruction> = {}): NotePlaybackInstruction {
     return {
-        note: A_PRIME_HALFTONE,
+        note: A_PRIME_MIDI,
         duration: 1,
         gain: 0.8,
         articulation: 0,
@@ -60,7 +59,7 @@ describe('LocalSoundfontPlayer – Oktavlage', () => {
         const notes = [note()];
         player.schedule(CHURCH_ORGAN, 0, notes);
 
-        expect(notes[0].note).toBe(A_PRIME_HALFTONE);
+        expect(notes[0].note).toBe(A_PRIME_MIDI);
     });
 
     it('schweigt stumm geschaltet', () => {
@@ -71,10 +70,6 @@ describe('LocalSoundfontPlayer – Oktavlage', () => {
         expect(sampler.schedule).not.toHaveBeenCalled();
         expect(sampler.play).not.toHaveBeenCalled();
         expect(sampler.stop).toHaveBeenCalled();
-    });
-
-    it('verschiebt um genau eine Oktave', () => {
-        expect(OSMD_HALFTONE_TO_MIDI).toBe(12);
     });
 });
 
@@ -96,7 +91,7 @@ describe('LocalSoundfontPlayer – Tonhöhe der Wiedergabe', () => {
         player.setTranspose(5);
         player.schedule(CHURCH_ORGAN, 0, notes);
 
-        expect(notes[0].note).toBe(A_PRIME_HALFTONE);
+        expect(notes[0].note).toBe(A_PRIME_MIDI);
     });
 
     it('lässt fallen, was durch die Verschiebung von der Klaviatur rutscht', () => {

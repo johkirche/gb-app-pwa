@@ -25,9 +25,8 @@ import {
  * changes: `instruments` lists ONLY the vendored instruments (PlaybackEngine
  * routes every unknown score instrument through its piano fallback, so midi ID
  * 0 must always be present), load() overrides nameToUrl to point at the local
- * files, and every note goes through midiKeyFor — the engine hands over OSMD
- * half-tones, which are an octave below the MIDI numbers this soundfont is
- * keyed by, and the reader's own playback offset is added in the same step.
+ * files, and every note goes through midiKeyFor, which adds the reader's own
+ * playback offset to the MIDI number the engine hands over.
  */
 
 export class LocalSoundfontPlayer implements HymnInstrumentPlayer {

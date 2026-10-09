@@ -40,28 +40,20 @@ export interface HymnInstrumentPlayer extends InstrumentPlayer {
     dispose?(): void;
 }
 
-/**
- * What must be added to an OSMD half-tone to get a MIDI note number.
- *
- * OSMD counts half-tones on its own scale, offset by an octave from MIDI: a
- * written a′ — MIDI 69, and 440 Hz by OSMD's own `Pitch.Frequency` — comes out
- * of the score as half-tone 57. `osmd-audio-player` passes that number straight
- * through to the instrument player as if it were MIDI (see
- * `PlaybackEngine.notePlaybackCallback`, which schedules `note.halfTone`), and
- * soundfont-player keys its samples by MIDI number. Uncorrected, every hymn
- * therefore sounds an octave below the page.
- *
- * Both sinks apply this, so the soundfont and a connected instrument agree.
- * Set it to 0 to get the old, octave-low behaviour back.
- */
-export const OSMD_HALFTONE_TO_MIDI = 12;
-
 /** ArticulationStyle.Staccato — kept local so the package import stays type-only. */
 export const ARTICULATION_STACCATO = 1;
 
 /**
- * The MIDI note a written half-tone is to sound as — or null, where the offset
- * has carried it off the keyboard.
+ * The MIDI note the engine's note is to sound as, moved by the reader's
+ * offset — or null, where the offset has carried it off the keyboard.
+ *
+ * What arrives is already a MIDI number. OSMD counts half-tones an octave below
+ * MIDI — a written a′, MIDI 69, is half-tone 57 — but `osmd-audio-player`
+ * converts on the way out: `PlaybackEngine.notePlaybackCallback` schedules
+ * `note.halfTone - fixedKey * 12`, and OSMD's `SubInstrument.fixedKey` is −1
+ * unless the sheet carries a `<midi-unpitched>`, which no hymn does. So the a′
+ * arrives as 69, and adding the octave here as well put every hymn an octave
+ * above the page (osmdAudioPlayerPatch.spec pins the engine's half of this).
  *
  * Both sinks go through this, so a hymn played an octave down sounds the same
  * whether it goes to the soundfont or to an organ, and so the one place that
@@ -72,8 +64,8 @@ export const ARTICULATION_STACCATO = 1;
  * transport offers — hymn melodies sit in the middle of the keyboard — but the
  * engine also sounds whatever else a sheet carries.
  */
-export function midiKeyFor(halfTone: number, semitones = 0): number | null {
-    const key = Math.round(halfTone) + OSMD_HALFTONE_TO_MIDI + semitones;
+export function midiKeyFor(midiNote: number, semitones = 0): number | null {
+    const key = Math.round(midiNote) + semitones;
     return key >= 0 && key <= 127 ? key : null;
 }
 
