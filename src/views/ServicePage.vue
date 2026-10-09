@@ -111,13 +111,16 @@
                     </div>
                     <p class="mt-2 px-1 text-[0.8125rem] text-muted-foreground">{{ expiryHint }}</p>
 
-                    <ServiceSongsList
-                        :songs="songs"
+                    <!-- Songs and readings in one list, in the order of the
+                         service: a Lesung goes where it is read. -->
+                    <ServiceItemsList
+                        :rows="rows"
                         :reorder-mode="reorderMode"
                         :verse-labels="verseLabels"
                         :active-song-id="songSheetOpen ? songSheetSong?.id : null"
                         @song-click="openSong"
                         @song-context-menu="showSongActions"
+                        @remove-lesung="serviceStore.removeLesung"
                         @reorder="handleReorder"
                     />
 
@@ -131,15 +134,6 @@
                         vorhanden. Synchronisieren Sie das Gesangbuch, um
                         {{ missingCount === 1 ? 'es' : 'sie' }} zu sehen.
                     </p>
-
-                    <!-- The readings, set from a verse in the Bibel tab -->
-                    <BibelPassageList
-                        heading="Lesungen"
-                        :passages="lesungen"
-                        :reorder-mode="reorderMode"
-                        @remove="serviceStore.removeLesung"
-                        @reorder="handleReorderLesungen"
-                    />
 
                     <div v-if="!reorderMode" class="mt-6 flex flex-wrap gap-2">
                         <Button variant="outline" @click="router.push('/tabs/lieder')">
@@ -213,8 +207,7 @@ import { useSongsStore } from '@/stores/songs';
 
 import { useConfirm } from '@/composables/useConfirm';
 
-import BibelPassageList from '@/components/bibel/BibelPassageList.vue';
-import ServiceSongsList from '@/components/service/ServiceSongsList.vue';
+import ServiceItemsList, { type ServiceRow } from '@/components/service/ServiceItemsList.vue';
 import ServiceSourcePanel from '@/components/service/ServiceSourcePanel.vue';
 import ServiceVersePanel from '@/components/service/ServiceVersePanel.vue';
 import AppPageHeader from '@/components/shell/AppPageHeader.vue';
@@ -249,7 +242,7 @@ const songsStore = useSongsStore();
 const playlistsStore = usePlaylistsStore();
 const navigationContext = useNavigationContextStore();
 
-const { plan, isLoading, hasSelection, entryCount, lesungen } = storeToRefs(serviceStore);
+const { plan, isLoading, hasSelection, entryCount, lesungen, items } = storeToRefs(serviceStore);
 const { songs: allSongs } = storeToRefs(songsStore);
 
 const reorderMode = ref(false);
@@ -265,6 +258,17 @@ const songs = computed<Song[]>(() => {
 });
 
 const missingCount = computed(() => entryCount.value - songs.value.length);
+
+// Every item on the plan as the list draws it, the songs resolved to their
+// records — and dropped, like `songs`, where this device has none.
+const rows = computed<ServiceRow[]>(() => {
+    const byId = new Map(songs.value.map((song) => [song.id, song]));
+    return items.value.flatMap((item): ServiceRow[] => {
+        if (item.kind === 'lesung') return [item];
+        const song = byId.get(item.entry.songId);
+        return song ? [{ kind: 'song', key: item.key, song }] : [];
+    });
+});
 
 // The service goes along into the song: during the Gottesdienst the next hymn
 // is one swipe away instead of a trip back to this list.
@@ -329,19 +333,11 @@ onActivated(async () => {
     await refreshSources();
 });
 
-async function handleReorder(orderedIds: string[]) {
+async function handleReorder(orderedKeys: string[]) {
     try {
-        await serviceStore.reorder(orderedIds);
+        await serviceStore.reorder(orderedKeys);
     } catch (err) {
         console.error('Failed to reorder the service selection:', err);
-    }
-}
-
-async function handleReorderLesungen(orderedKeys: string[]) {
-    try {
-        await serviceStore.reorderLesungen(orderedKeys);
-    } catch (err) {
-        console.error('Failed to reorder the Lesungen:', err);
     }
 }
 

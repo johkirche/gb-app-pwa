@@ -401,6 +401,14 @@ export interface ServicePlan {
     origin?: ServicePlanOrigin | null;
     /** The Lesungen, in the order they are read. Absent on older plans. */
     lesungen?: BibelPassage[];
+    /**
+     * How songs and readings interleave, as item keys (`serviceItemKey`). Only
+     * the interleaving: `entries` and `lesungen` keep their own order in step
+     * with it, so everything that reads just the songs still reads them in the
+     * service's order. Absent until the plan is first reordered — and whatever
+     * it does not name follows it, songs before readings.
+     */
+    order?: string[];
     createdAt: Date;
     updatedAt: Date;
 }

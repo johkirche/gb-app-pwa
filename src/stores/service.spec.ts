@@ -61,7 +61,7 @@ describe('useServiceStore — Lesungen', () => {
         await store.addLesung({ ...ROEMER });
         expect(store.lesungen).toEqual([ROEMER, PSALM]);
 
-        await store.reorderLesungen([passageKey(PSALM), passageKey(ROEMER)]);
+        await store.reorder([`lesung:${passageKey(PSALM)}`, `lesung:${passageKey(ROEMER)}`]);
         expect(store.lesungen).toEqual([PSALM, ROEMER]);
 
         await store.removeLesung(passageKey(PSALM));
@@ -96,5 +96,70 @@ describe('useServiceStore — Lesungen', () => {
         await store.addLesung(PSALM);
         expect(store.songIds).toEqual(['a']);
         expect(store.lesungen).toEqual([PSALM]);
+    });
+});
+
+describe('useServiceStore — one order for songs and readings', () => {
+    beforeEach(() => {
+        services.clear();
+        meta.clear();
+        setActivePinia(createPinia());
+    });
+
+    const keys = (store: ReturnType<typeof useServiceStore>) => store.items.map((i) => i.key);
+    const PSALM_KEY = `lesung:${passageKey(PSALM)}`;
+    const ROEMER_KEY = `lesung:${passageKey(ROEMER)}`;
+
+    it('lists songs before readings until it is reordered', async () => {
+        const store = useServiceStore();
+        await store.initPromise;
+
+        await store.addLesung(PSALM);
+        await store.addSong('a');
+        await store.addSong('b');
+        expect(keys(store)).toEqual(['song:a', 'song:b', PSALM_KEY]);
+    });
+
+    it('puts a reading between the songs and keeps both lists in step', async () => {
+        const store = useServiceStore();
+        await store.initPromise;
+
+        await store.addSong('a');
+        await store.addSong('b');
+        await store.addLesung(PSALM);
+        await store.addLesung(ROEMER);
+        await store.reorder(['song:b', ROEMER_KEY, 'song:a', PSALM_KEY]);
+
+        expect(keys(store)).toEqual(['song:b', ROEMER_KEY, 'song:a', PSALM_KEY]);
+        // The song swipe and a saved playlist read the songs alone.
+        expect(store.songIds).toEqual(['b', 'a']);
+        expect(store.lesungen).toEqual([ROEMER, PSALM]);
+
+        // It survives a reload.
+        setActivePinia(createPinia());
+        const reloaded = useServiceStore();
+        await reloaded.initPromise;
+        expect(keys(reloaded)).toEqual(['song:b', ROEMER_KEY, 'song:a', PSALM_KEY]);
+    });
+
+    it('adds at the end and forgets what was removed', async () => {
+        const store = useServiceStore();
+        await store.initPromise;
+
+        await store.addSong('a');
+        await store.addLesung(PSALM);
+        await store.reorder([PSALM_KEY, 'song:a']);
+
+        await store.addSong('b');
+        expect(keys(store)).toEqual([PSALM_KEY, 'song:a', 'song:b']);
+
+        await store.removeSong('a');
+        await store.removeLesung(passageKey(PSALM));
+        // 'b' came after the reorder, so it never had a key of its own.
+        expect(store.plan?.order).toEqual([]);
+
+        // Marked again, a song comes back at the end, not where it once stood.
+        await store.addSong('a');
+        expect(keys(store)).toEqual(['song:b', 'song:a']);
     });
 });

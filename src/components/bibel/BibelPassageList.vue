@@ -1,8 +1,8 @@
 <template>
-    <!-- Passages kept beside the songs of a service or a playlist. A section
-         of its own under the songs, not rows among them: the song list and
-         everything built on it (Strophenwahl, adopting a playlist) stays
-         about songs. -->
+    <!-- Passages kept beside the songs of a playlist. A section of its own
+         under the songs, not rows among them: the song list and everything
+         built on it stays about songs. (The Gottesdienst interleaves them —
+         see ServiceItemsList.) -->
     <section v-if="passages.length > 0" class="mt-6" :aria-labelledby="headingId">
         <h2 :id="headingId" class="label-micro mb-1 px-2 text-muted-foreground">
             {{ heading }}
@@ -66,17 +66,17 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, useId, watch } from 'vue';
+import { useId } from 'vue';
 
 import { BookOpen, GripVertical, X } from 'lucide-vue-next';
 import { VueDraggable } from 'vue-draggable-plus';
 import { RouterLink } from 'vue-router';
 
+import { usePassageSnippets } from '@/composables/usePassageSnippets';
+
 import { Button } from '@/components/ui/button';
 
 import type { BibelPassage } from '@/db';
-import { loadBook } from '@/utils/bibel';
-import { layoutChapter, snippet, verseText, versesOf } from '@/utils/bibelLayout';
 import { passageKey, passageLabel, passagePath } from '@/utils/bibelPassage';
 
 const props = defineProps<{
@@ -93,38 +93,7 @@ const emit = defineEmits<{
 }>();
 
 const headingId = useId();
-
-// The opening words under each reference, so the reader can tell the
-// readings apart at a glance. Read from the book where it is on the device;
-// where it is not, the reference stands alone.
-const snippets = reactive<Record<string, string>>({});
-
-async function loadSnippet(passage: BibelPassage) {
-    const key = passageKey(passage);
-    if (key in snippets) return;
-    snippets[key] = '';
-    try {
-        const chapters = await loadBook(passage.slug);
-        const laid = layoutChapter(chapters[passage.chapter - 1] ?? []);
-        const all = versesOf(laid);
-        const from = passage.verse ?? all[0] ?? 1;
-        const to = passage.endVerse ?? passage.verse ?? all.at(-1) ?? from;
-        const text = all
-            .filter((v) => v >= from && v <= to)
-            .map((v) => verseText(laid, v))
-            .join(' ');
-        snippets[key] = snippet(text, 120);
-    } catch {
-        // Not on the device and offline: let a later visit try again.
-        delete snippets[key];
-    }
-}
-
-watch(
-    () => props.passages,
-    (passages) => passages.forEach(loadSnippet),
-    { immediate: true },
-);
+const snippets = usePassageSnippets(() => props.passages);
 
 function handleReorder(reordered: BibelPassage[]) {
     emit('reorder', reordered.map(passageKey));

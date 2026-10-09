@@ -5,6 +5,7 @@ import { defineStore } from 'pinia';
 import { type BibelPassage, type ServicePlan, type ServicePlanOrigin, db } from '@/db';
 import {
     DEFAULT_SERVICE_TITLE,
+    type ServiceItem,
     type ServicePlanDraft,
     type VerseSelection,
     createPlan,
@@ -13,11 +14,15 @@ import {
     formatServiceDate,
     getServicePlanProvider,
     isPlanExpired,
+    lesungItemKey,
     normalizeVerseSelection,
+    reorderPlanContents,
+    serviceItems,
+    songItemKey,
     toPlainPlan,
     todayIsoDate,
 } from '@/services/servicePlans';
-import { reorderPassages, withPassage, withoutPassage } from '@/utils/bibelPassage';
+import { withPassage, withoutPassage } from '@/utils/bibelPassage';
 
 /**
  * Which stored plan is the one in use. The `services` table is keyed by id
@@ -47,6 +52,8 @@ export const useServiceStore = defineStore('service', () => {
     const entryCount = computed(() => entries.value.length);
     /** The readings, in the order they are read. Older plans have none. */
     const lesungen = computed<BibelPassage[]>(() => plan.value?.lesungen ?? []);
+    /** Songs and readings together, in the order the service holds them. */
+    const items = computed<ServiceItem[]>(() => (plan.value ? serviceItems(plan.value) : []));
     /** What the tab bar asks: is there anything to show? A reading counts too. */
     const hasSelection = computed(() => entryCount.value > 0 || lesungen.value.length > 0);
     /** The selection in one line („3 Lieder · Heute") — for rows that link to it. */
@@ -176,33 +183,41 @@ export const useServiceStore = defineStore('service', () => {
         else await addSong(songId, verses);
     }
 
+    /**
+     * The order without one item's key. A stale key would do no harm while the
+     * item is gone, but it would put the item back in its old place if it were
+     * marked again — and marking again means "add it", which means the end.
+     */
+    function orderWithout(key: string): Partial<ServicePlan> {
+        const order = plan.value?.order;
+        return order ? { order: order.filter((k) => k !== key) } : {};
+    }
+
     async function removeSong(songId: string): Promise<void> {
         if (!plan.value) return;
-        await update({ entries: plan.value.entries.filter((entry) => entry.songId !== songId) });
+        await update({
+            entries: plan.value.entries.filter((entry) => entry.songId !== songId),
+            ...orderWithout(songItemKey(songId)),
+        });
     }
 
     /**
-     * Reorder to `orderedIds`. Entries whose id is missing from the list are
-     * appended, so a caller that reorders only the songs it renders cannot drop
-     * the ones it filtered out.
+     * Reorder songs and readings together, to `orderedKeys` (`ServiceItem.key`
+     * each). Items missing from the list are appended, so a caller that
+     * reorders only what it renders cannot drop the songs it filtered out.
      */
-    async function reorder(orderedIds: string[]): Promise<void> {
+    async function reorder(orderedKeys: string[]): Promise<void> {
         if (!plan.value) return;
-        const byId = new Map(plan.value.entries.map((entry) => [entry.songId, entry]));
-        const ordered = orderedIds
-            .map((id) => byId.get(id))
-            .filter((entry): entry is NonNullable<typeof entry> => !!entry);
-        const orderedSet = new Set(ordered.map((entry) => entry.songId));
-        const rest = plan.value.entries.filter((entry) => !orderedSet.has(entry.songId));
-        await update({ entries: [...ordered, ...rest] });
+        await update(reorderPlanContents(plan.value, orderedKeys));
     }
 
     // --- Lesungen ---
-    // Passages, not songs, so they sit beside the entries rather than among
-    // them: the song list and everything built on it (Strophenwahl, adopting
-    // and saving playlists) stays about songs.
+    // Passages, not songs, so they are stored beside the entries rather than
+    // among them: the song list and everything built on it (Strophenwahl,
+    // adopting and saving playlists) stays about songs. Where they fall between
+    // the songs is `order`'s business (see `reorder`).
 
-    /** Put a passage on the plan, after the readings already there; once only. */
+    /** Put a passage on the plan, at the end; once only. */
     async function addLesung(passage: BibelPassage): Promise<void> {
         const current = await ensurePlan();
         await update({ lesungen: withPassage(current.lesungen, passage) });
@@ -211,13 +226,10 @@ export const useServiceStore = defineStore('service', () => {
     /** Take a reading off, by its passageKey. */
     async function removeLesung(key: string): Promise<void> {
         if (!plan.value) return;
-        await update({ lesungen: withoutPassage(plan.value.lesungen, key) });
-    }
-
-    /** Reorder the readings to `orderedKeys` (passageKey each). */
-    async function reorderLesungen(orderedKeys: string[]): Promise<void> {
-        if (!plan.value) return;
-        await update({ lesungen: reorderPassages(plan.value.lesungen, orderedKeys) });
+        await update({
+            lesungen: withoutPassage(plan.value.lesungen, key),
+            ...orderWithout(lesungItemKey(key)),
+        });
     }
 
     async function setDate(isoDate: string): Promise<void> {
@@ -308,6 +320,7 @@ export const useServiceStore = defineStore('service', () => {
         songIds,
         entryCount,
         lesungen,
+        items,
         hasSelection,
         selectionLabel,
         isInPlan,
@@ -322,7 +335,6 @@ export const useServiceStore = defineStore('service', () => {
         reorder,
         addLesung,
         removeLesung,
-        reorderLesungen,
         setDate,
         setTitle,
         replaceWith,

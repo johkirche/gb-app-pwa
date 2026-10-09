@@ -1,5 +1,5 @@
-import type { ServiceEntry, ServicePlan, ServicePlanOrigin } from '@/db';
-import { toPassages } from '@/utils/bibelPassage';
+import type { BibelPassage, ServiceEntry, ServicePlan, ServicePlanOrigin } from '@/db';
+import { passageKey, toPassages } from '@/utils/bibelPassage';
 
 import type { ServicePlanDraft } from './types';
 
@@ -91,8 +91,74 @@ export function toPlainPlan(plan: ServicePlan): ServicePlan {
         entries: plan.entries.map(toPlainEntry),
         origin: plan.origin ? { ...plan.origin } : null,
         ...(plan.lesungen ? { lesungen: toPassages(plan.lesungen) } : {}),
+        ...(plan.order ? { order: [...plan.order] } : {}),
         createdAt: new Date(plan.createdAt),
         updatedAt: new Date(plan.updatedAt),
+    };
+}
+
+/** One thing on the plan — a song or a reading — as the Gottesdienst lists it. */
+export type ServiceItem =
+    | { kind: 'song'; key: string; entry: ServiceEntry }
+    | { kind: 'lesung'; key: string; passage: BibelPassage };
+
+export function songItemKey(songId: string): string {
+    return `song:${songId}`;
+}
+
+/** By the reading's passageKey, which is what the page hands back to remove one. */
+export function lesungItemKey(key: string): string {
+    return `lesung:${key}`;
+}
+
+type PlanContents = Pick<ServicePlan, 'entries' | 'lesungen' | 'order'>;
+
+/**
+ * Put `items` in the order `keys` names. Whatever the keys do not name is
+ * appended in the order it came, so a partial or stale order can never drop
+ * anything — the same rule the song lists follow.
+ */
+function orderByKeys<T extends { key: string }>(items: T[], keys: string[]): T[] {
+    const byKey = new Map(items.map((item) => [item.key, item]));
+    const ordered = [...new Set(keys)]
+        .map((key) => byKey.get(key))
+        .filter((item): item is T => item !== undefined);
+    const placed = new Set(ordered.map((item) => item.key));
+    return [...ordered, ...items.filter((item) => !placed.has(item.key))];
+}
+
+/**
+ * Songs and readings in one list, in the order the service holds them. A plan
+ * never reordered — and every plan stored before it could be — lists its songs
+ * first and its readings after them, as the page always did.
+ */
+export function serviceItems(plan: PlanContents): ServiceItem[] {
+    const items: ServiceItem[] = [
+        ...plan.entries.map(
+            (entry): ServiceItem => ({ kind: 'song', key: songItemKey(entry.songId), entry }),
+        ),
+        ...(plan.lesungen ?? []).map(
+            (passage): ServiceItem => ({
+                kind: 'lesung',
+                key: lesungItemKey(passageKey(passage)),
+                passage,
+            }),
+        ),
+    ];
+    return orderByKeys(items, plan.order ?? []);
+}
+
+/**
+ * The plan's contents reordered to `keys`. Songs and readings are each put in
+ * the same relative order as the whole, so the song swipe and a playlist saved
+ * from the plan follow what the page shows.
+ */
+export function reorderPlanContents(plan: PlanContents, keys: string[]): Required<PlanContents> {
+    const items = orderByKeys(serviceItems(plan), keys);
+    return {
+        entries: items.flatMap((item) => (item.kind === 'song' ? [item.entry] : [])),
+        lesungen: items.flatMap((item) => (item.kind === 'lesung' ? [item.passage] : [])),
+        order: items.map((item) => item.key),
     };
 }
 
