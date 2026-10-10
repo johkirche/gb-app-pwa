@@ -17,21 +17,19 @@
         aria-label="Suchbereich"
         @update:model-value="onUpdate"
     >
-        <!-- h-auto und whitespace-normal gegen die Vorgaben des Bausteins:
-             „Titel + Text" in einer Zeile, die nicht umbrechen darf, läuft bei
-             200 % Größe seitlich aus dem Telefon heraus. Umbrechen darf es,
-             abgeschnitten werden nicht — die Beschriftung ist die halbe
-             Erklärung (tests/e2e/readability-scale.spec.ts). -->
+        <!-- „Titel + Text" darf bei 200 % Größe umbrechen — das tut jedes
+             Segment (ToggleGroupItem) —, abgeschnitten werden darf es nicht:
+             die Beschriftung ist die halbe Erklärung. -->
         <ToggleGroupItem
             value="titel"
-            class="h-auto min-h-8 min-w-0 flex-1 whitespace-normal px-2 py-1.5"
+            class="flex-1 px-2 py-1.5"
             aria-label="Nur in Titeln und Nummern suchen"
         >
             Titel
         </ToggleGroupItem>
         <ToggleGroupItem
             value="text"
-            class="h-auto min-h-8 min-w-0 flex-1 whitespace-normal px-2 py-1.5"
+            class="flex-1 px-2 py-1.5"
             aria-label="Auch in den Strophen suchen"
         >
             Titel + Text

@@ -1,7 +1,7 @@
 <template>
     <ToggleGroupRoot
         v-bind="forwardedProps"
-        :class="cn('inline-flex items-center rounded-lg bg-muted p-0.5', props.class)"
+        :class="cn('inline-flex items-stretch rounded-lg bg-muted p-0.5', props.class)"
         @update:model-value="onUpdateModelValue"
     >
         <slot />
