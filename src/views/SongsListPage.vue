@@ -43,9 +43,14 @@
             @select="scrollToSection"
         />
 
+        <!-- `relative` keeps the section headings in here. Each one is in the
+             document even when it is not drawn — sr-only, which is absolute —
+             and without a positioned scroller they were placed against the
+             page instead: forty headings strung down 50,000px of document,
+             outside the list, with the page's own scrollbar to reach them. -->
         <main
             ref="scrollRef"
-            class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            class="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
             :class="{ 'scrollbar-none': isIndexScrollerVisible }"
             @scroll="onScroll"
         >
@@ -58,8 +63,14 @@
             />
 
             <!-- The index rail overlays this column, so everything in it —
-                 Lied der Woche, states and the list — shares the same gutter. -->
-            <div class="page-col pb-8" :class="{ 'pr-12': isIndexScrollerVisible }">
+                 Lied der Woche, states and the list — shares the same gutter.
+                 The gutter is px because the rail is (IndexScroll.vue): a rem
+                 gutter grew with Größe while the rail stood still, and at 200%
+                 the list gave away 40px of a phone to empty space.
+                 The column is also the container the rows and the card ask
+                 "is there room for the wide layout?" — in rem, so the answer
+                 changes as the type grows, not only as the screen shrinks. -->
+            <div class="page-col @container pb-8" :class="{ 'pr-[48px]': isIndexScrollerVisible }">
                 <!-- Featured: Lied der Woche (hidden while searching/filtering) -->
                 <button
                     v-if="songOfTheWeek && !filters.searchQuery && !hasActiveFilters"
@@ -67,8 +78,15 @@
                     class="mb-2 mt-4 w-full rounded-lg border bg-card text-left text-card-foreground shadow-sm transition hover:border-primary/40 active:scale-[0.99]"
                     @click="openSongOfTheWeek"
                 >
-                    <span class="flex items-center gap-6 p-6">
-                        <span class="number-display shrink-0 text-6xl leading-none">
+                    <!-- Number beside the title while the column has room for
+                         both; once Größe takes that away, the number goes on
+                         top, rather than squeezing the title to a word a line. -->
+                    <span
+                        class="flex items-center gap-6 p-6 @max-[17rem]:flex-col @max-[17rem]:items-start @max-[17rem]:gap-3 @max-[17rem]:p-5"
+                    >
+                        <span
+                            class="number-display shrink-0 text-6xl leading-none @max-[17rem]:text-5xl"
+                        >
                             {{ songOfTheWeek.index }}
                         </span>
                         <span class="block min-w-0">
@@ -90,7 +108,7 @@
                 <!-- Loading State -->
                 <div
                     v-if="isLoading"
-                    class="flex flex-col items-center justify-center px-6 py-12 text-center"
+                    class="flex flex-col items-center justify-center px-2 py-12 text-center sm:px-6"
                 >
                     <Spinner size="lg" />
                     <p class="mt-4 text-muted-foreground">Lieder werden synchronisiert...</p>
@@ -107,7 +125,7 @@
                 <!-- Empty State (no songs at all) -->
                 <div
                     v-else-if="!hasSongs"
-                    class="flex flex-col items-center justify-center px-6 py-12 text-center"
+                    class="flex flex-col items-center justify-center px-2 py-12 text-center sm:px-6"
                 >
                     <Music class="h-14 w-14 text-muted-foreground/50" aria-hidden="true" />
                     <h2 class="mt-5 font-display text-2xl font-semibold">Keine Lieder vorhanden</h2>
@@ -124,7 +142,7 @@
                 <!-- No Results State (filtered to nothing) -->
                 <div
                     v-else-if="sortedSections.length === 0"
-                    class="flex flex-col items-center justify-center px-6 py-12 text-center"
+                    class="flex flex-col items-center justify-center px-2 py-12 text-center sm:px-6"
                 >
                     <Search class="h-14 w-14 text-muted-foreground/50" aria-hidden="true" />
                     <h2 class="mt-5 font-display text-2xl font-semibold">Keine Ergebnisse</h2>
@@ -184,11 +202,15 @@
                             <button
                                 v-long-press="(el: HTMLElement) => openSongActions(song.id, el)"
                                 type="button"
-                                class="flex min-w-0 flex-1 select-none items-baseline gap-4 py-3.5 pl-2 pr-2 text-left [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]"
+                                class="flex min-w-0 flex-1 select-none items-baseline gap-4 py-3.5 pl-2 pr-2 text-left @max-[17rem]:pl-1 @max-[17rem]:gap-3 [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]"
                                 @click="navigateToSong(song.id)"
                             >
+                                <!-- As wide as the widest number in the book
+                                     („400" is 1.53rem in this face), with room
+                                     for the italic's lean — no wider, or the
+                                     margin it leaves is space the title lacks. -->
                                 <span
-                                    class="number-display w-10 shrink-0 text-right text-lg leading-none"
+                                    class="number-display w-7 shrink-0 text-right text-lg leading-none"
                                 >
                                     <SearchHighlight
                                         v-if="song.index"
@@ -215,7 +237,7 @@
                                             (!showHeaders || sortMode !== 'category') &&
                                             formatCategories(song.kategorien)
                                         "
-                                        class="label-micro text-muted-foreground"
+                                        class="label-micro text-muted-foreground [overflow-wrap:anywhere]"
                                     >
                                         <SearchHighlight
                                             :text="formatCategories(song.kategorien)"
@@ -239,7 +261,7 @@
                                     </span>
                                 </span>
                                 <ChevronRight
-                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:text-primary group-data-[menu-open]:text-primary lg:group-hover:-translate-x-7 lg:group-data-[menu-open]:-translate-x-7"
+                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition @max-[17rem]:hidden group-hover:text-primary group-data-[menu-open]:text-primary lg:group-hover:-translate-x-7 lg:group-data-[menu-open]:-translate-x-7"
                                     aria-hidden="true"
                                 />
                             </button>
@@ -811,10 +833,12 @@ function navigateToSong(songId: string) {
     router.push(`/songs/${songId}`);
 }
 
-// Format categories for display
+// Format categories for display. „Schutz/Geleit/Kraft/Hilfe" is one word to a
+// line breaker, and set in tracked capitals it is wider than a phone at large
+// Größe — so it may break after each slash (a zero-width space, unseen).
 function formatCategories(categories: Category[]): string {
     return categories
-        .map((c) => c.name?.trim())
+        .map((c) => c.name?.trim().replaceAll('/', '/​'))
         .filter((name): name is string => !!name)
         .join(', ');
 }
