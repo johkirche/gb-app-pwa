@@ -46,7 +46,16 @@
             </div>
         </nav>
 
-        <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <!-- hyphens-auto: the descriptions here sit in a column between an
+             icon and a switch, and at 200% one German compound — „Orgelmodul"
+             — is wider than that column and ran on under the switch. The
+             document is lang="de", so the browser hyphenates it properly;
+             where it has no German dictionary, break-word still keeps the
+             word inside the column. -->
+        <main
+            ref="scrollRef"
+            class="min-h-0 flex-1 overflow-y-auto overscroll-contain hyphens-auto [overflow-wrap:break-word]"
+        >
             <!-- The panes are stacked in one grid cell, so the outgoing one
                  slides out under the incoming one instead of the page
                  collapsing to nothing between them. -->

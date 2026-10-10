@@ -15,7 +15,11 @@
             <Mail class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0">
                 <p class="text-[0.9375rem]">Kontakt &amp; Hilfe</p>
-                <p class="truncate text-sm text-muted-foreground">{{ SUPPORT_EMAIL }}</p>
+                <!-- Wrapped, not truncated: an address cut off at „support@johan…" is
+                     one nobody can copy down from the screen. -->
+                <p class="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                    {{ SUPPORT_EMAIL }}
+                </p>
             </div>
         </a>
 
