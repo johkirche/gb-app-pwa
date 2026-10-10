@@ -112,14 +112,9 @@
                             <Settings2 aria-hidden="true" />
                         </Button>
                     </PopoverTrigger>
-                    <!-- 16rem wächst mit der Größe mit und ist bei 200 % auf
-                         einem 390px-Telefon breiter als das Telefon. Der
-                         verfügbare Platz kommt von Reka aus der Kollisionsprüfung
-                         (tests/e2e/readability-scale.spec.ts). -->
-                    <PopoverContent
-                        align="end"
-                        class="w-64 max-w-[var(--reka-popper-available-width)]"
-                    >
+                    <!-- 16rem wächst mit der Größe mit; die Obergrenze aus
+                         Rekas Kollisionsprüfung setzt PopoverContent selbst. -->
+                    <PopoverContent align="end" class="w-64">
                         <p class="label-micro text-muted-foreground">Suchen in</p>
                         <SearchScopeToggle
                             class="mt-2"
