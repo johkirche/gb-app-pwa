@@ -1,5 +1,8 @@
 import { type Page, expect, test } from '@playwright/test';
 
+import { NO_RECORDING, RECORDING, hasRecording } from './support/backend';
+import { type LibraryFixture, openLibrary } from './support/library';
+
 /*
  * Größe is the whole app's size, and a page that grows until it runs off the
  * side of the phone has not honoured it — it has broken under it. The unit
@@ -71,6 +74,45 @@ async function overflowingAt(page: Page, where: string, scale: string) {
                 if (rect.right > limit || rect.left < -1) {
                     const cls = (el.className || '').toString().slice(0, 60);
                     out.push(`${where} @${scale}: <${el.tagName.toLowerCase()} class="${cls}">`);
+                }
+            }
+
+            // A box can stay on screen and still lose its content: a row of
+            // segments that will not shrink pushes the last one out of its
+            // track, well inside the phone. Whatever does not clip or scroll
+            // must hold what is in it.
+            for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+                if (el.clientWidth === 0) continue;
+                if (getComputedStyle(el).overflowX !== 'visible') continue;
+                if (el.scrollWidth > el.clientWidth + 1) {
+                    const cls = (el.className || '').toString().slice(0, 60);
+                    out.push(
+                        `${where} @${scale}: <${el.tagName.toLowerCase()} class="${cls}"> spills ${el.scrollWidth - el.clientWidth}px`,
+                    );
+                }
+            }
+
+            // Text can run out of a box that itself fits: one unbreakable word
+            // wider than its column — „SCHUTZ/GELEIT/KRAFT/HILFE" in tracked
+            // capitals — spills past the edge while every element stays put,
+            // and a scroller's overflow then cuts it off mid-word.
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            const range = document.createRange();
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                if (!node.textContent?.trim()) continue;
+                // A `truncate` line runs past its box by design and ends in an
+                // ellipsis where the box does: cut short, but on purpose.
+                const parent = node.parentElement;
+                if (parent && getComputedStyle(parent).textOverflow === 'ellipsis') continue;
+                range.selectNodeContents(node);
+                for (const rect of Array.from(range.getClientRects())) {
+                    if (rect.width === 0 || rect.height === 0) continue;
+                    if (rect.right > limit || rect.left < -1) {
+                        out.push(
+                            `${where} @${scale}: text „${node.textContent.trim().slice(0, 40)}"`,
+                        );
+                        break;
+                    }
                 }
             }
             return [...new Set(out)];
@@ -153,5 +195,72 @@ test.describe('the app at every size it offers', () => {
             await expect(back).toBeHidden();
             await settle(page);
         }
+    });
+});
+
+/*
+ * The pages that only exist with the book in them. The walk above runs on an
+ * empty library, so the Liederliste it sees has no rows, no Lied der Woche and
+ * no hymn to open — and every one of those had broken at 200%: the card stood
+ * its title one word to a line beside the number, the rows gave the title a
+ * quarter of the phone, and the song menu, 20rem wide, ran off the side.
+ *
+ * Nothing here sticking out is not enough for the list: a column squeezed to a
+ * word a line fits perfectly well. So it also asks that the title keep a
+ * reading measure — the share of the phone it had before Größe was found to
+ * take it away was 25%.
+ */
+test.describe('the book at every size it offers', () => {
+    test.skip(!RECORDING && !hasRecording, NO_RECORDING);
+    test.describe.configure({ mode: 'serial' });
+
+    let lib: LibraryFixture;
+    let page: Page;
+
+    test.beforeAll(async ({ browserName, baseURL }) => {
+        test.setTimeout(240_000);
+        lib = await openLibrary(browserName, baseURL!);
+        page = lib.page;
+        await page.setViewportSize(VIEWPORT);
+    });
+
+    test.afterAll(async () => {
+        await lib?.close();
+    });
+
+    test('keeps the list readable', async () => {
+        await page.goto('/tabs/lieder');
+        await expect(page.locator('.song-row').first()).toBeVisible({ timeout: 30_000 });
+        await page.evaluate(() => document.fonts.ready);
+        await expectNoOverflow(page, 'Lieder mit Buch');
+
+        for (const scale of SCALES) {
+            await setScale(page, scale);
+            const titleShare = await page.evaluate(() => {
+                const title = document.querySelector('.song-row button > span:nth-child(2)');
+                return title!.getBoundingClientRect().width / document.documentElement.clientWidth;
+            });
+            expect(titleShare, `the row's title column at ${scale}`).toBeGreaterThan(0.45);
+        }
+        await setScale(page, '1');
+    });
+
+    test('keeps the song menu inside the phone', async () => {
+        await page.goto('/tabs/lieder');
+        await page.locator('.song-row button').first().click();
+        await page.waitForURL(/\/(songs|lied)\//, { timeout: 30_000 });
+
+        for (const scale of SCALES) {
+            await setScale(page, scale);
+            await page.getByRole('button', { name: 'Einstellungen' }).click();
+            await expect(page.getByRole('slider', { name: 'Größe' })).toBeVisible();
+            await settle(page);
+            expect(await overflowingAt(page, 'Liedmenü', scale), `Liedmenü at ${scale}`).toEqual(
+                [],
+            );
+            await page.keyboard.press('Escape');
+            await expect(page.getByRole('slider', { name: 'Größe' })).toBeHidden();
+        }
+        await setScale(page, '1');
     });
 });
