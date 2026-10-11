@@ -196,6 +196,40 @@ test.describe('the app at every size it offers', () => {
             await settle(page);
         }
     });
+
+    // Meine Stellen full, and the Bibel tab's short lists leading to it. The
+    // dev tool's demo data is a reader's worth of marks; the Bible ships with
+    // the app, so none of this needs the recording. Each test has a context of
+    // its own, so what is seeded here is gone with it.
+    test('keeps Meine Stellen inside the phone', async ({ page }) => {
+        // Walked to, not gone to: a reload would forget the dev skip.
+        await nav(page).getByRole('link', { name: 'Einstellungen' }).click();
+        await page.locator('main section button').filter({ hasText: 'Bibel' }).click();
+        // The tab is off until a reader asks for it.
+        await page.getByRole('switch', { name: 'Bibel-Reiter' }).click();
+        await page.locator('main').getByText('Funktionen', { exact: true }).click();
+        await page.getByRole('button', { name: 'Demodaten einfüllen' }).click();
+        await expect(page.getByText(/^Fertig\./)).toBeVisible({ timeout: 20_000 });
+
+        await nav(page).getByRole('link', { name: 'Bibel' }).click();
+        const more = page.locator('main').getByRole('link', { name: /^Alle \d+ anzeigen/ });
+        await expect(more.first()).toBeVisible({ timeout: 20_000 });
+        await expectNoOverflow(page, 'Bibel');
+
+        // Markierungen: the colour chips, and a passage joined into one row.
+        await more.first().click();
+        await page.getByRole('button', { name: 'Markierungen', exact: true }).click();
+        const passage = page.locator('main').getByText('Psalm 23,1-3');
+        await expect(passage).toBeVisible();
+        await settle(page);
+        await expectNoOverflow(page, 'Meine Stellen');
+
+        await page.getByRole('button', { name: 'Auswählen' }).click();
+        await passage.click();
+        await expect(page.getByText('1 ausgewählt')).toBeVisible();
+        await settle(page);
+        await expectNoOverflow(page, 'Meine Stellen/Auswählen');
+    });
 });
 
 /*
