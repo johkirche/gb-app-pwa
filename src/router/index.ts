@@ -8,6 +8,7 @@ import BibelChapterPage from '../views/BibelChapterPage.vue';
 import BibelLeseplaenePage from '../views/BibelLeseplaenePage.vue';
 import BibelPage from '../views/BibelPage.vue';
 import BibelSearchPage from '../views/BibelSearchPage.vue';
+import BibelStellenPage from '../views/BibelStellenPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
 import DatenschutzPage from '../views/DatenschutzPage.vue';
 import DownloadPage from '../views/DownloadPage.vue';
@@ -112,7 +113,8 @@ const routes: Array<RouteRecordRaw> = [
                 component: BibelPage,
                 meta: { access: 'library' },
             },
-            // The tab's own pages: the search, and choosing a reading plan.
+            // The tab's own pages: the search, choosing a reading plan, and the
+            // reader's kept verses.
             // Inside the shell, so the sidebar and the tab bar stay — unlike
             // a chapter, which is read full-page like a song.
             {
@@ -125,6 +127,12 @@ const routes: Array<RouteRecordRaw> = [
                 path: 'bibel/plaene',
                 name: 'BibelLeseplaene',
                 component: BibelLeseplaenePage,
+                meta: { access: 'library' },
+            },
+            {
+                path: 'bibel/stellen',
+                name: 'BibelStellen',
+                component: BibelStellenPage,
                 meta: { access: 'library' },
             },
             {
