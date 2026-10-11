@@ -7,7 +7,6 @@ import {
     noteParts,
     toggleVerse,
     verseEnds,
-    verseEntries,
     verseListLabel,
     versesRefLabel,
 } from './bibelVerses';
@@ -82,31 +81,6 @@ describe('verseEnds', () => {
                 ['1.3.1', 3],
             ]),
         );
-    });
-});
-
-describe('verseEntries', () => {
-    const at = (day: number) => new Date(`2026-10-0${day}`);
-    const where = (verse: number) => ({
-        id: `psalm/23/${verse}`,
-        slug: 'psalm',
-        chapter: 23,
-        verse,
-    });
-
-    it('joins a verse marked and written on into one entry, newest first', () => {
-        const entries = verseEntries(
-            [
-                { ...where(1), color: 'gelb', createdAt: at(1) },
-                { ...where(4), color: 'blau', createdAt: at(3) },
-            ],
-            [{ ...where(1), text: 'Taufspruch', updatedAt: at(5) }],
-        );
-
-        expect(entries).toEqual([
-            { ...where(1), color: 'gelb', note: 'Taufspruch', at: at(5) },
-            { ...where(4), color: 'blau', at: at(3) },
-        ]);
     });
 });
 

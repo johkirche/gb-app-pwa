@@ -52,8 +52,10 @@
                 >
                     <BibelVerseOfTheWeek v-if="bibelFeatures.versDerWoche" />
 
-                    <!-- Lesezeichen, newest first. Set and taken off by tapping a
-                     verse number in the text; here they can also be removed. -->
+                    <!-- Lesezeichen, the newest few. Set and taken off by tapping a
+                     verse number in the text; here they can also be removed, and
+                     the rest are a tap away on Meine Stellen, so a long list
+                     does not push the books down the page. -->
                     <section
                         v-if="bibelFeatures.lesezeichen"
                         class="mt-6"
@@ -71,7 +73,7 @@
                         </p>
                         <ul v-else class="mt-1 divide-y divide-border">
                             <li
-                                v-for="mark in lesezeichenStore.sorted"
+                                v-for="mark in lesezeichenPreview"
                                 :key="mark.id"
                                 class="flex items-center rounded-sm transition-colors hover:bg-muted"
                             >
@@ -120,6 +122,11 @@
                                 </Button>
                             </li>
                         </ul>
+                        <BibelStellenMore
+                            :count="lesezeichenStore.sorted.length"
+                            :shown="lesezeichenPreview.length"
+                            to="/tabs/bibel/stellen?art=lesezeichen"
+                        />
                     </section>
 
                     <BibelVerseEntries v-if="bibelFeatures.notizen" />
@@ -219,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { onActivated, ref } from 'vue';
+import { computed, onActivated, ref } from 'vue';
 
 import { BookOpen, Bookmark, Check, ChevronRight, Search, X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
@@ -234,6 +241,7 @@ import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import BibelBookProgress from '@/components/bibel/BibelBookProgress.vue';
 import BibelHeuteLesen from '@/components/bibel/BibelHeuteLesen.vue';
 import BibelOfflineStatus from '@/components/bibel/BibelOfflineStatus.vue';
+import BibelStellenMore from '@/components/bibel/BibelStellenMore.vue';
 import BibelTestamentProgress from '@/components/bibel/BibelTestamentProgress.vue';
 import BibelVerseEntries from '@/components/bibel/BibelVerseEntries.vue';
 import BibelVerseOfTheWeek from '@/components/bibel/BibelVerseOfTheWeek.vue';
@@ -250,9 +258,11 @@ import {
     getLastRead,
     verseRefLabel,
 } from '@/utils/bibel';
+import { STELLEN_PREVIEW } from '@/utils/meineStellen';
 
 const router = useRouter();
 const lesezeichenStore = useLesezeichenStore();
+const lesezeichenPreview = computed(() => lesezeichenStore.sorted.slice(0, STELLEN_PREVIEW));
 // Each section of the tab can be switched off under Einstellungen → Bibel.
 const { bibelFeatures, bibelTranslation } = storeToRefs(usePreferencesStore());
 

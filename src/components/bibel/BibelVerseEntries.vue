@@ -1,6 +1,7 @@
 <template>
-    <!-- Highlights and notes, newest first, a verse with both as one row.
-         Made and changed in the text; here they are found again. -->
+    <!-- Highlights and notes, the newest few: a verse with both is one row, a
+         passage marked at once is one row. Made and changed in the text; all
+         of them are found again on Meine Stellen. -->
     <section class="mt-6" aria-labelledby="notizen-markierungen-heading">
         <h2 id="notizen-markierungen-heading" class="font-display text-xl font-semibold">
             Notizen &amp; Markierungen
@@ -9,55 +10,40 @@
             Noch keine. Im Text auf einen Vers tippen, um ihn zu markieren oder eine Notiz zu
             schreiben.
         </p>
-        <ul v-else class="mt-1 divide-y divide-border">
-            <li v-for="entry in entries" :key="entry.id">
-                <RouterLink
-                    :to="chapterPath(entry, entry.verse)"
-                    class="flex items-start gap-3 rounded-sm px-2 py-2.5 transition-colors hover:bg-muted"
-                >
-                    <span
-                        v-if="entry.color"
-                        class="mt-1 size-3.5 shrink-0 rounded-full border border-border"
-                        :style="{ background: `var(--bibel-mark-${entry.color})` }"
-                        aria-hidden="true"
-                    />
-                    <NotebookPen
-                        v-else
-                        class="mt-0.5 size-[1.125rem] shrink-0 text-gold"
-                        aria-hidden="true"
-                    />
-                    <span class="min-w-0">
-                        <span class="block text-[0.9375rem] font-medium leading-tight">
-                            {{ verseRefLabel(entry, entry.verse) }}
-                        </span>
-                        <span
-                            v-if="entry.note"
-                            class="mt-0.5 line-clamp-2 whitespace-pre-line text-sm text-muted-foreground"
-                            v-text="entry.note"
-                        />
-                    </span>
-                </RouterLink>
-            </li>
-        </ul>
+        <template v-else>
+            <ul class="mt-1 divide-y divide-border">
+                <li v-for="entry in preview" :key="entry.id">
+                    <BibelStellenRow :stelle="entry" />
+                </li>
+            </ul>
+            <BibelStellenMore
+                :count="entries.length"
+                :shown="preview.length"
+                to="/tabs/bibel/stellen"
+            />
+        </template>
     </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { NotebookPen } from 'lucide-vue-next';
-import { RouterLink } from 'vue-router';
-
 import { useMarkierungenStore } from '@/stores/markierungen';
 import { useNotizenStore } from '@/stores/notizen';
 
-import { chapterPath, verseRefLabel } from '@/utils/bibel';
-import { verseEntries } from '@/utils/bibelVerses';
+import BibelStellenMore from '@/components/bibel/BibelStellenMore.vue';
+import BibelStellenRow from '@/components/bibel/BibelStellenRow.vue';
 
-import './bibel-marks.css';
+import { STELLEN_PREVIEW, filterStellen, stellen } from '@/utils/meineStellen';
 
 const markierungen = useMarkierungenStore();
 const notizen = useNotizenStore();
 
-const entries = computed(() => verseEntries(markierungen.markierungen, notizen.notizen));
+const entries = computed(() =>
+    filterStellen(stellen([], markierungen.markierungen, notizen.notizen), {
+        art: 'alle',
+        ordnung: 'neueste',
+    }),
+);
+const preview = computed(() => entries.value.slice(0, STELLEN_PREVIEW));
 </script>
