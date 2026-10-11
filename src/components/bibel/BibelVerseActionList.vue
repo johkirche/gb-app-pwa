@@ -20,7 +20,7 @@
             <span class="mr-auto">Markieren</span>
             <span class="flex items-center gap-2" role="group" aria-label="Farbe">
                 <button
-                    v-for="color in COLORS"
+                    v-for="color in MARKIERUNGS_FARBEN"
                     :key="color.key"
                     type="button"
                     class="size-8 rounded-full border border-border transition-transform active:scale-95"
@@ -126,6 +126,7 @@ import { verseRefLabel } from '@/utils/bibel';
 import { snippet, verseText } from '@/utils/bibelLayout';
 import { passagesFromVerses } from '@/utils/bibelPassage';
 import { copyText, versesRefLabel } from '@/utils/bibelVerses';
+import { MARKIERUNGS_FARBEN } from '@/utils/meineStellen';
 
 import './bibel-marks.css';
 
@@ -142,13 +143,6 @@ import './bibel-marks.css';
 const ROW =
     'flex w-full items-center gap-4 rounded-lg px-2 py-2.5 text-left text-[0.9375rem] transition-colors hover:bg-muted active:bg-muted';
 const ICON = 'size-5 shrink-0 text-muted-foreground';
-
-const COLORS: { key: MarkierungsFarbe; label: string }[] = [
-    { key: 'gelb', label: 'Gelb' },
-    { key: 'gruen', label: 'Grün' },
-    { key: 'blau', label: 'Blau' },
-    { key: 'rosa', label: 'Rosa' },
-];
 
 withDefaults(
     defineProps<{
