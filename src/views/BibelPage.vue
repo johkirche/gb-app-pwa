@@ -8,7 +8,14 @@
             </template>
         </AppPageHeader>
 
-        <main ref="scrollRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <!-- hyphens-auto: at 200% one name alone — „Thessalonicher" — is
+             wider than a book row's column, beside its chapter count. The page
+             hyphenates (lang="de"), with break-word for engines without a
+             German dictionary. -->
+        <main
+            ref="scrollRef"
+            class="min-h-0 flex-1 overflow-y-auto overscroll-contain hyphens-auto [overflow-wrap:break-word]"
+        >
             <!-- Phone: one column, the reader's own things before the books.
                  Desktop: the books in the wide column, the reader's own
                  things — verse of the week, Lesezeichen, notes — beside them,
