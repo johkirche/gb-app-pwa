@@ -57,3 +57,5 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+# Playwright MCP's screenshots and console logs from interactive sessions
+.playwright-mcp/
