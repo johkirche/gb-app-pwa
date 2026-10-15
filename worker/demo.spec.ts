@@ -90,6 +90,12 @@ describe('demo endpoint', () => {
         expect(directus).not.toHaveBeenCalled();
     });
 
+    it('takes a key stored with the newline it was pasted with', async () => {
+        expect(
+            (await get('/api/demo/k3y-r1ght', { ...env, DEMO_KEY: ' k3y-r1ght\n' })).status,
+        ).toBe(200);
+    });
+
     it('closes after DEMO_UNTIL, and when the date does not parse', async () => {
         expect((await get('/api/demo/k3y-r1ght', env, after)).status).toBe(410);
         expect((await get('/api/demo/k3y-r1ght', { ...env, DEMO_UNTIL: 'Sonntag' })).status).toBe(

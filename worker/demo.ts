@@ -212,7 +212,10 @@ export async function handleDemoRequest(
     );
     // Unknown and switched-off answer alike, so the endpoint says nothing
     // about whether a demo is running to someone guessing at it.
-    if (!match || !env.DEMO_KEY || !sameKey(decodeURIComponent(match[1]), env.DEMO_KEY)) {
+    // Trimmed: a secret pasted into the dashboard easily keeps the newline
+    // that came with it, and no link can carry one.
+    const key = env.DEMO_KEY?.trim();
+    if (!match || !key || !sameKey(decodeURIComponent(match[1]), key)) {
         return json(404, { error: 'not found' });
     }
     if (hasEnded(env, now)) {
