@@ -2,6 +2,7 @@ import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
+import { DemoUnavailableError, fetchDemoSongs } from '@/api/demo.api';
 import { fetchFile } from '@/api/files.api';
 import {
     fetchChangeCounts,
@@ -11,6 +12,7 @@ import {
 } from '@/api/songs.api';
 import { type Song, db } from '@/db';
 import { syncBibelstellen } from '@/services/bibelstellenSync';
+import { setDemoKey } from '@/services/demoAccess';
 import { isSessionEndedError } from '@/services/errorHandler';
 import { requestPersistentStorage } from '@/services/storage';
 import {
@@ -48,6 +50,13 @@ export const useSongsStore = defineStore('songs', () => {
         total: 0,
         phase: '' as 'songs' | 'files' | '',
     });
+    // The demo link this library came from (see worker/demo.ts), or null for
+    // the real book. Kept in db.meta, so a demo opened once still knows what
+    // it is on the next cold start — and can be taken back when it closes.
+    const demoKey = ref<string | null>(null);
+    // Set when the endpoint said the demo is over and the songs were cleared.
+    // The shell watches it to tell the reader and leave the emptied page.
+    const demoClosed = ref(false);
 
     // Getters
     const hasSongs = computed(() => songs.value.length > 0);
@@ -62,6 +71,10 @@ export const useSongsStore = defineStore('songs', () => {
             isLoading.value = true;
             const allSongs = await db.songs.toArray();
             songs.value = allSongs;
+
+            const demoRow = await db.meta.get(DEMO_KEY_ROW);
+            demoKey.value = demoRow?.value ?? null;
+            setDemoKey(demoKey.value);
 
             // Hydrate the last sync time persisted across reloads
             const syncRow = await db.meta.get('lastSyncTime');
@@ -95,6 +108,18 @@ export const useSongsStore = defineStore('songs', () => {
             isLoading.value = false;
             isInitialized.value = true;
         }
+    }
+
+    const DEMO_KEY_ROW = 'demoKey';
+
+    async function persistDemoKey(key: string | null): Promise<void> {
+        if (key) {
+            await db.meta.put({ key: DEMO_KEY_ROW, value: key });
+        } else {
+            await db.meta.delete(DEMO_KEY_ROW);
+        }
+        demoKey.value = key;
+        setDemoKey(key);
     }
 
     // The download name of every file the library references, built once per
@@ -367,6 +392,11 @@ export const useSongsStore = defineStore('songs', () => {
                 await persistLastSyncTime();
             }
 
+            // A real sync has replaced whatever a demo link put here.
+            if (demoKey.value) {
+                await persistDemoKey(null);
+            }
+
             syncProgress.value.phase = '';
         } catch (err) {
             console.error('Error during sync:', err);
@@ -436,6 +466,91 @@ export const useSongsStore = defineStore('songs', () => {
         }
     }
 
+    /**
+     * Make the songs behind a demo link the library: exactly those, with their
+     * notation, and nothing of the real book.
+     *
+     * Also the refresh — run again with the same key, it picks up songs
+     * dropped into the list since and drops the ones taken out. Throws
+     * `DemoUnavailableError`; what to do about a closed demo is the caller's
+     * call (see `refreshDemo`).
+     */
+    async function loadDemo(key: string): Promise<void> {
+        if (isSyncing.value) return;
+
+        isSyncing.value = true;
+        error.value = null;
+        failedFiles.value = [];
+        syncProgress.value = { current: 0, total: 0, phase: 'songs' };
+
+        try {
+            const fetched = await fetchDemoSongs(key);
+            // An emptied list is how the demo is closed from Directus — read
+            // it as that, not as a library to empty and keep.
+            if (fetched.length === 0) {
+                throw new DemoUnavailableError('closed');
+            }
+
+            // Before the files: fetchFile reads the key to know where to ask.
+            await persistDemoKey(key);
+
+            const fetchedIds = new Set(fetched.map((song) => song.id));
+            const localIds = (await db.songs.toCollection().primaryKeys()) as string[];
+            await applySongUpdates(
+                fetched,
+                localIds.filter((id) => !fetchedIds.has(id)),
+            );
+
+            syncProgress.value.phase = 'files';
+            const present = new Set(await storedFileIds());
+            const missing = [
+                ...new Set(
+                    fetched.flatMap((song) =>
+                        [song.notentextSvg?.id, song.notentextMxml?.id].filter(
+                            (id): id is string => !!id && !present.has(id),
+                        ),
+                    ),
+                ),
+            ];
+            await downloadFileBatch(missing, songs.value);
+            await pruneOrphanedFiles();
+
+            if (failedFiles.value.length === 0) {
+                await persistLastSyncTime();
+            }
+        } finally {
+            isSyncing.value = false;
+            syncProgress.value.phase = '';
+        }
+    }
+
+    /**
+     * On a cold start of a demo library: bring it up to date, or take it back.
+     *
+     * Only the endpoint saying "closed" clears anything. Offline, a backend
+     * that is down, a 5xx — all leave the songs exactly where they are, or a
+     * dead hall Wi-Fi would empty every phone in it mid-service.
+     */
+    async function refreshDemo(): Promise<void> {
+        const key = demoKey.value;
+        if (!key || !navigator.onLine) return;
+
+        try {
+            await loadDemo(key);
+        } catch (err) {
+            if (err instanceof DemoUnavailableError && err.reason === 'closed') {
+                await clearAllData();
+                demoClosed.value = true;
+                return;
+            }
+            console.warn('Demo refresh unavailable:', err);
+        }
+    }
+
+    function acknowledgeDemoClosed(): void {
+        demoClosed.value = false;
+    }
+
     async function getFileBlob(fileId: string): Promise<Blob | null> {
         try {
             const file = await db.files.get(fileId);
@@ -493,6 +608,9 @@ export const useSongsStore = defineStore('songs', () => {
             songs.value = [];
             lastSyncTime.value = null;
             failedFiles.value = [];
+            // The row went with db.meta.
+            demoKey.value = null;
+            setDemoKey(null);
         } catch (err) {
             console.error('Error clearing data:', err);
             error.value = 'Failed to clear local data';
@@ -521,6 +639,8 @@ export const useSongsStore = defineStore('songs', () => {
         failedFiles,
         syncProgress,
         hasSongs,
+        demoKey,
+        demoClosed,
 
         // Actions
         loadSongsFromDB,
@@ -531,6 +651,9 @@ export const useSongsStore = defineStore('songs', () => {
         getOrFetchFileBlob,
         getStoredFilesCount,
         clearAllData,
+        loadDemo,
+        refreshDemo,
+        acknowledgeDemoClosed,
 
         // Initialization promise
         initPromise,
