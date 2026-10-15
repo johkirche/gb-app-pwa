@@ -2,6 +2,7 @@ import { useUserStore } from '@/stores/user';
 
 import { refreshAuthToken } from '@/composables/useAuth';
 
+import { demoUrl, getDemoKey } from '@/services/demoAccess';
 import { directusConfig } from '@/services/directus';
 import { SESSION_ENDED_ERROR, handleApiError } from '@/services/errorHandler';
 
@@ -33,6 +34,18 @@ async function getCurrentToken(): Promise<string | null> {
 export async function fetchFile(fileId: string): Promise<Blob> {
     try {
         const token = await getCurrentToken();
+
+        // A demo visitor has no session to ask Directus with; the demo endpoint
+        // answers for the files of its own songs instead.
+        const demoKey = getDemoKey();
+        if (!token && demoKey) {
+            const response = await fetch(demoUrl(demoKey, `/assets/${fileId}`));
+            if (!response.ok) {
+                throw new Error(`Failed to fetch demo file: ${response.status}`);
+            }
+            return await response.blob();
+        }
+
         const url = `${directusConfig.url}/assets/${fileId}`;
         const response = await fetch(url, {
             headers: {
