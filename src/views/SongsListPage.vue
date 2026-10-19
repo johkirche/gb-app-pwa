@@ -437,6 +437,12 @@ async function syncSongs() {
     // The gesture is available to everyone, because a reader pulling the list
     // has no way of knowing their session lapsed. It answers rather than fails:
     // the book is fine, only the abgleich needs an account.
+    // A demo library refreshes from its own link — no account involved.
+    if (!isLoggedIn.value && songsStore.demoKey) {
+        await songsStore.refreshDemo();
+        return;
+    }
+
     if (!isLoggedIn.value) {
         toast.info('Zum Synchronisieren ist eine Anmeldung erforderlich.', {
             description: 'Ihr heruntergeladenes Gesangbuch bleibt vollständig nutzbar.',

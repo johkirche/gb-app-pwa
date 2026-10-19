@@ -46,10 +46,52 @@ function enforceBackendUrl(): Plugin {
     };
 }
 
+// The demo endpoint under the dev server. In production it is the Worker
+// (worker/index.ts); here the same handler is loaded through Vite, so
+// `pnpm dev` serves /demo/<key> end to end without wrangler. The env comes
+// from .env — DEMO_KEY, DEMO_DIRECTUS_TOKEN, DEMO_UNTIL, none of them VITE_.
+function demoApiDev(): Plugin {
+    return {
+        name: 'demo-api-dev',
+        apply: 'serve',
+        configureServer(server) {
+            const env = loadEnv(server.config.mode, process.cwd(), '');
+            server.middlewares.use(async (req, res, next) => {
+                if (!req.url?.startsWith('/api/demo/')) return next();
+                try {
+                    const { handleDemoRequest } = (await server.ssrLoadModule(
+                        '/worker/demo.ts',
+                    )) as {
+                        handleDemoRequest(
+                            request: Request,
+                            env: Record<string, string | undefined>,
+                        ): Promise<Response>;
+                    };
+                    const response = await handleDemoRequest(
+                        new Request(new URL(req.url, 'http://localhost'), { method: req.method }),
+                        {
+                            DIRECTUS_URL: env.DIRECTUS_URL || env.VITE_BACKEND_URL,
+                            DEMO_DIRECTUS_TOKEN: env.DEMO_DIRECTUS_TOKEN,
+                            DEMO_KEY: env.DEMO_KEY,
+                            DEMO_UNTIL: env.DEMO_UNTIL,
+                        },
+                    );
+                    res.statusCode = response.status;
+                    response.headers.forEach((value, name) => res.setHeader(name, value));
+                    res.end(Buffer.from(await response.arrayBuffer()));
+                } catch (err) {
+                    next(err);
+                }
+            });
+        },
+    };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
         enforceBackendUrl(),
+        demoApiDev(),
         vue(),
         tailwindcss(),
         vueDevTools(),

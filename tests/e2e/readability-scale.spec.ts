@@ -298,3 +298,27 @@ test.describe('the book at every size it offers', () => {
         await setScale(page, '1');
     });
 });
+
+// The page a demo QR code lands on, in the two states that stay on screen.
+// No library and no session behind it, which is the point: nobody arriving
+// there has either. The endpoint is our own Worker, not the recorded backend,
+// so it is answered here.
+test.describe('the demo link at every size it offers', () => {
+    for (const [status, heading] of [
+        [410, 'Die Vorschau ist beendet'],
+        [503, 'Lieder konnten nicht geladen werden'],
+    ] as const) {
+        test(`keeps „${heading}" inside the phone`, async ({ page }) => {
+            await page.route('**/api/demo/**', (route) =>
+                route.fulfill({ status, json: { error: String(status) } }),
+            );
+            await page.goto('/demo/readability');
+            await expect(page.getByRole('heading', { name: heading })).toBeVisible({
+                timeout: 20_000,
+            });
+            await page.evaluate(() => document.fonts.ready);
+
+            await expectNoOverflow(page, heading);
+        });
+    }
+});

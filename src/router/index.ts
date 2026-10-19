@@ -11,6 +11,7 @@ import BibelSearchPage from '../views/BibelSearchPage.vue';
 import BibelStellenPage from '../views/BibelStellenPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
 import DatenschutzPage from '../views/DatenschutzPage.vue';
+import DemoPage from '../views/DemoPage.vue';
 import DownloadPage from '../views/DownloadPage.vue';
 import FavoritesPage from '../views/FavoritesPage.vue';
 import ImpressumPage from '../views/ImpressumPage.vue';
@@ -168,6 +169,16 @@ const routes: Array<RouteRecordRaw> = [
         path: '/password-reset',
         name: 'PasswordReset',
         component: PasswordResetPage,
+        meta: { access: 'public' },
+    },
+    // The demo link a QR code at an event carries (see worker/demo.ts): a few
+    // songs for people without an account. Public, because nobody arriving
+    // here has a session or a library yet — the page fetches the songs, makes
+    // them the library, and sends the visitor on into the ordinary app.
+    {
+        path: '/demo/:key',
+        name: 'Demo',
+        component: DemoPage,
         meta: { access: 'public' },
     },
     // Legal pages: public so they are reachable from the login page while logged out

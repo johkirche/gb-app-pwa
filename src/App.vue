@@ -25,6 +25,7 @@ import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import { usePreferencesStore } from '@/stores/preferences';
+import { useSongsStore } from '@/stores/songs';
 import { useUserStore } from '@/stores/user';
 
 import { syncMidiPreference } from '@/composables/useMidiOutput';
@@ -87,7 +88,30 @@ watch(
     },
 );
 
-onMounted(() => {
+// A demo library (see worker/demo.ts) is brought up to date on every cold
+// start — and taken back once its link has closed. Not on the demo page itself,
+// which is loading the same thing in the foreground.
+const songsStore = useSongsStore();
+
+watch(
+    () => songsStore.demoClosed,
+    (closed) => {
+        if (!closed) return;
+        songsStore.acknowledgeDemoClosed();
+        toast.info('Die Vorschau ist beendet.', {
+            description: 'Vielen Dank fürs Ausprobieren des neuen Gesangbuchs.',
+            duration: 8000,
+        });
+        void router.replace('/login');
+    },
+);
+
+onMounted(async () => {
     initTheme();
+
+    await Promise.all([songsStore.initPromise, router.isReady()]);
+    if (songsStore.demoKey && !userStore.isLoggedIn && router.currentRoute.value.name !== 'Demo') {
+        void songsStore.refreshDemo();
+    }
 });
 </script>
