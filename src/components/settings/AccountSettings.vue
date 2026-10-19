@@ -62,10 +62,13 @@
                 type="button"
                 variant="outline"
                 class="mt-4 w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                :disabled="deleting"
+                :aria-busy="deleting"
                 @click="handleDeleteAccount"
             >
-                <Trash2 aria-hidden="true" />
-                Konto löschen
+                <LoaderCircle v-if="deleting" class="animate-spin" aria-hidden="true" />
+                <Trash2 v-else aria-hidden="true" />
+                {{ deleting ? 'Wird gelöscht…' : 'Konto löschen' }}
             </Button>
         </div>
     </section>
@@ -108,7 +111,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { LogOut, SquarePen, Trash2, User } from 'lucide-vue-next';
+import { LoaderCircle, LogOut, SquarePen, Trash2, User } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
@@ -184,7 +187,13 @@ async function handleLogout() {
     router.push('/login');
 }
 
+// True while the server is deleting: the button spins and is disabled, so a
+// slow connection neither looks frozen nor invites a second request.
+const deleting = ref(false);
+
 async function handleDeleteAccount() {
+    if (deleting.value) return;
+
     const proceed = await confirm({
         title: 'Konto löschen',
         message:
@@ -194,12 +203,15 @@ async function handleDeleteAccount() {
     });
     if (!proceed) return;
 
+    deleting.value = true;
     const result = await deleteAccount();
     if (result.success) {
         // deleteAccount already wiped this device and is
         // hard-redirecting to /login — nothing left to do here.
+        // Leave the spinner running until the page goes.
         return;
     }
+    deleting.value = false;
 
     if (result.code === 'FORBIDDEN') {
         // Automatic deletion is not enabled on the server (yet):
