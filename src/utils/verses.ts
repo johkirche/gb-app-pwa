@@ -30,20 +30,61 @@ function verseSource(verse: VerseLike): string | null | undefined {
  * (.verse-col) is the book's own measure, so it flows to the same shape.
  *
  * A blank line survives as a break. That one was set deliberately — a Kehrvers
- * standing apart from the verse it follows — and it is what `pre-line` on
- * .verse-text is still there for. Rendering as text rather than markup means
- * the CMS field is never interpreted as HTML.
+ * standing apart from the verse it follows. Flattened to one string here, for
+ * search and the Strophenwahl; the verse list sets the paragraphs themselves
+ * from verseBlocks. Rendering as text rather than markup means the CMS field
+ * is never interpreted as HTML.
  */
 export function verseText(verse: VerseLike): string {
+    return verseBlocks(verse)
+        .map(({ label, text }) => [label, text].filter(Boolean).join('\n'))
+        .join('\n');
+}
+
+/** One paragraph of a verse, with the label it is set under, if any */
+export interface VerseBlock {
+    /** „Refrain", as the book sets it in italics above the refrain */
+    label?: string;
+    text: string;
+}
+
+/**
+ * A line that is nothing but „Refrain" — with or without a colon — names the
+ * paragraph that follows it. The capture writes it that way throughout (44
+ * songs, Lied 40 among them), so it is unambiguous to parse. Text standing on
+ * the same line after the colon is the refrain's own first words, as in the
+ * „Refrain: Kleiner Stern ..." cue.
+ */
+const LABEL_LINE = /^[^\S\r\n]*(Refrain|Kehrvers)[^\S\r\n]*(?::(.*))?$/i;
+
+/**
+ * The verse as it is set on the page, paragraph by paragraph.
+ *
+ * Paragraphs are what verseText documents: a blank line keeps one apart, a
+ * single break re-flows. A label line opens a paragraph of its own as well,
+ * blank line before it or not, so the refrain never runs on from the verse.
+ */
+export function verseBlocks(verse: VerseLike): VerseBlock[] {
     const text = verseSource(verse);
-    if (typeof text !== 'string') return '';
-    return (
-        text
-            // ¬ marks a syllable break for the engraver, never for the reader
-            .replace(/¬/g, '')
-            .split(/\r?\n[^\S\r\n]*(?:\r?\n)+/)
-            .map((block) => block.replace(/\s*\r?\n\s*/g, ' ').trim())
-            .filter(Boolean)
-            .join('\n')
-    );
+    if (typeof text !== 'string') return [];
+    const blocks: VerseBlock[] = [];
+    // ¬ marks a syllable break for the engraver, never for the reader
+    for (const raw of text.replace(/¬/g, '').split(/\r?\n[^\S\r\n]*(?:\r?\n)+/)) {
+        let current: VerseBlock | null = null;
+        for (const line of raw.split(/\r?\n/)) {
+            const label = LABEL_LINE.exec(line);
+            if (label) {
+                current = { label: label[1], text: label[2] ?? '' };
+                blocks.push(current);
+            } else if (current) {
+                current.text += ' ' + line;
+            } else {
+                current = { text: line };
+                blocks.push(current);
+            }
+        }
+    }
+    return blocks
+        .map((block) => ({ ...block, text: block.text.replace(/\s+/g, ' ').trim() }))
+        .filter((block) => block.label || block.text);
 }

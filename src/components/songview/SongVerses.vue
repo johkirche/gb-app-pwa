@@ -19,10 +19,18 @@
                         </span>
                         <!-- text-balance evens the lines out so a verse does
                              not trail off into a single orphaned word -->
-                        <p
-                            class="verse-text m-0 text-balance whitespace-pre-line font-hymnal text-foreground"
-                        >
-                            {{ verseText(strophe) }}
+                        <p class="verse-text m-0 text-balance font-hymnal text-foreground">
+                            <span
+                                v-for="(block, b) in verseBlocks(strophe)"
+                                :key="b"
+                                class="verse-block block"
+                                :class="{ 'verse-labelled': block.label }"
+                            >
+                                <em v-if="block.label" class="verse-label block">
+                                    {{ block.label }}
+                                </em>
+                                {{ block.text }}
+                            </span>
                         </p>
                         <p
                             v-if="strophe.anmerkung"
@@ -41,7 +49,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { isVerseSung as isSung } from '@/services/servicePlans';
-import { type VerseLike, verseText } from '@/utils/verses';
+import { type VerseLike, verseBlocks } from '@/utils/verses';
 
 const props = defineProps<{
     strophes: VerseLike[];
@@ -184,6 +192,14 @@ onBeforeUnmount(() => {
 
 .verse-number {
     min-width: calc(var(--verse-font-size, 1.125rem) * 1.3333);
+}
+
+/* A refrain stands apart from the verse it follows, under its name in italics,
+   as the printed book sets it (Lied 40). The gap is stated in verse type so it
+   grows with Textgröße; at the top of a verse there is nothing to stand apart
+   from. */
+.verse-labelled:not(:first-child) {
+    margin-top: calc(var(--verse-font-size, 1.125rem) * 0.75);
 }
 
 /* A verse this service does not sing. It stays legible — somebody will read
