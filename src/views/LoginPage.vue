@@ -32,6 +32,7 @@
                             <Input
                                 id="login-email"
                                 v-model="email"
+                                name="email"
                                 type="email"
                                 required
                                 autocomplete="email"
@@ -44,6 +45,7 @@
                             <Input
                                 id="login-password"
                                 v-model="password"
+                                name="password"
                                 type="password"
                                 required
                                 autocomplete="current-password"
