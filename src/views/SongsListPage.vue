@@ -602,8 +602,11 @@ function openSongOfTheWeek() {
     navigateToSong(songOfTheWeek.value.id);
 }
 
+// Not in a demo either: a handful of songs fits on a screen or two, and a rail
+// of jump targets over them is more chrome than list.
 const isIndexScrollerVisible = computed(() => {
     return (
+        !songsStore.isDemo &&
         showIndexScroll.value &&
         indexItems.value.length > 1 &&
         !isSearchActive.value &&

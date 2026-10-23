@@ -47,24 +47,28 @@
                     <span v-if="line.segments.length" class="text-muted-foreground">
                         {{ ' · ' }}
                     </span>
-                    <BookOpen
-                        class="mr-1 inline size-[1em] shrink-0 align-[-0.15em] text-muted-foreground"
-                        aria-hidden="true"
-                    />
-                    <!-- Die Beschriftung kommt fertig aus dem Script und steht
+                    <!-- Buchzeichen und Nummer brechen nur gemeinsam um: allein
+                         am Zeilenende sagt das Zeichen nichts. -->
+                    <span class="whitespace-nowrap">
+                        <BookOpen
+                            class="mr-1 inline size-[1em] shrink-0 align-[-0.15em] text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <!-- Die Beschriftung kommt fertig aus dem Script und steht
                          als einzige Interpolation im Link: statischer Text neben
                          einer Interpolation zieht sonst das Zeilenumbruch-
                          Leerzeichen der Vorlage mit in den Anker (Vue kürzt nur
                          reine Whitespace-Knoten weg). Dieses Leerzeichen lag
                          unter dem Unterstrich und riss den Link in eine zweite
                          Zeile, sobald die Zeile die Spalte ausfüllte. -->
-                    <RouterLink
-                        :to="{ path: '/tabs/lieder', query: { weise: line.weise.id } }"
-                        class="whitespace-nowrap underline decoration-dotted underline-offset-[3px] transition-colors hover:text-primary active:text-primary"
-                        :aria-label="`Lieder auf derselben Weise anzeigen (${line.weise.label})`"
-                    >
-                        {{ line.weise.label }}
-                    </RouterLink>
+                        <RouterLink
+                            :to="{ path: '/tabs/lieder', query: { weise: line.weise.id } }"
+                            class="whitespace-nowrap underline decoration-dotted underline-offset-[3px] transition-colors hover:text-primary active:text-primary"
+                            :aria-label="`Lieder auf derselben Weise anzeigen (${line.weise.label})`"
+                        >
+                            {{ line.weise.label }}
+                        </RouterLink>
+                    </span>
                 </template>
             </span>
         </div>
