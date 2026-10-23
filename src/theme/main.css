@@ -15,9 +15,11 @@
    Under the Aladdin Free Public License: free to pass on, never for payment,
    and only with the licence beside it — so the files ship verbatim, and the
    licence is served at public/licenses/URWClassico-AFPL.html.
-   Regular for the text, Italic for the per-verse notes, Bold for the semibold
-   titles (there is no cut in between). Every face declared here is one the
-   offline precache carries, so a face nothing names is a face to delete. */
+   Regular for the text and the song titles (there is no semibold, and Bold
+   beside Regular verses reads as shouting), Italic for the per-verse notes,
+   Bold for the marked verse numbers in the Bibel. Every face declared here is
+   one the offline precache carries, so a face nothing names is a face to
+   delete. */
 @font-face {
     font-family: 'URW Classico';
     src: url('../assets/font/URWClassico-Regular.otf') format('opentype');

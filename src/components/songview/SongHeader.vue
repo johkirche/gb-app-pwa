@@ -4,7 +4,7 @@
             <BackButton default-href="/tabs/lieder" />
         </template>
         <span v-if="songIndex" class="number-display mr-[0.4em]">{{ songIndex }}.</span>
-        <span class="font-hymnal">{{ songTitle }}</span>
+        <span class="font-hymnal font-normal">{{ songTitle }}</span>
         <template #trailing>
             <!-- The link that leaves here names the hymn by its number, which
                  is what a bulletin prints and a choir passes around. Only from
