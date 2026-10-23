@@ -582,7 +582,11 @@ function toggleSortOptions(anchor: PanelAnchor) {
 // The date is a live value: the page can stay open for days on a lectern.
 const today = useCurrentDate();
 
-const songOfTheWeek = computed(() => pickSongOfTheWeek(songs.value, today.value));
+// Not in a demo: a handful of songs picked for one event has no week to speak
+// of, and the card would only stand between the visitor and the list.
+const songOfTheWeek = computed(() =>
+    songsStore.isDemo ? null : pickSongOfTheWeek(songs.value, today.value),
+);
 
 const songOfTheWeekMeta = computed(() => {
     const song = songOfTheWeek.value;
