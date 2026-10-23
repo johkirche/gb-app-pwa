@@ -161,10 +161,11 @@ onBeforeUnmount(() => {
 /* Live text-size contract: the parent (.song-content.text-size-*) provides
    --verse-font-size / --verse-line-height so the popover's Textgröße setting
    updates the verses without re-render. */
-/* The verses are set in the hymnal's own face (font-hymnal in the template),
-   the one the Notenbild carries baked into its outlines: on the printed page
-   the lyrics under the notes and the verses beside them are one typeface at one
-   size, and the page only reads as a hymnal page when they still are. */
+/* The verses are set in the hymnal face (font-hymnal in the template), as near
+   as the app can get to the Optima the Notenbild carries baked into its
+   outlines: on the printed page the lyrics under the notes and the verses
+   beside them are one typeface at one size, and the page only reads as a
+   hymnal page when they still are. */
 .verse-number,
 .verse-text {
     font-size: var(--verse-font-size, 1.125rem);

@@ -6,26 +6,39 @@
 /* --- Self-hosted fonts (precached by the PWA, no external requests) --- */
 @import '@fontsource-variable/albert-sans';
 @import '@fontsource-variable/albert-sans/wght-italic.css';
-/* Optima LT Std — the face the printed hymnal is set in, for both the lyrics
-   under the notes and the verses beside them. The Notenbild carries it baked
-   into outlines, so the text around it can only match by using the real thing.
-   Registered under an own family name: a reader with "Optima LT Std" installed
-   locally must not silently get a different cut than the engraving does.
-   The italic is here for the per-verse notes; bold has no use on the song page
-   and every face shipped is one the offline precache carries. */
+/* URW Classico — Hermann Zapf's own revision of Optima for URW++, standing in
+   for the Optima LT Std the printed hymnal is set in. It is the hymnal face
+   (--font-hymnal below): the verses, the lyrics under the notes, the song
+   titles and the Bible's text. The Notenbild still carries Optima baked into
+   outlines, so the text beside it is a close cousin of the engraving, not the
+   same cut.
+   Under the Aladdin Free Public License: free to pass on, never for payment,
+   and only with the licence beside it — so the files ship verbatim, and the
+   licence is served at public/licenses/URWClassico-AFPL.html.
+   Regular for the text, Italic for the per-verse notes, Bold for the semibold
+   titles (there is no cut in between). Every face declared here is one the
+   offline precache carries, so a face nothing names is a face to delete. */
 @font-face {
-    font-family: 'GbOptima';
-    src: url('../assets/font/OptimaLTStd.otf') format('opentype');
+    font-family: 'URW Classico';
+    src: url('../assets/font/URWClassico-Regular.otf') format('opentype');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 
 @font-face {
-    font-family: 'GbOptima';
-    src: url('../assets/font/OptimaLTStd-Italic.otf') format('opentype');
+    font-family: 'URW Classico';
+    src: url('../assets/font/URWClassico-Italic.otf') format('opentype');
     font-weight: 400;
     font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'URW Classico';
+    src: url('../assets/font/URWClassico-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
     font-display: swap;
 }
 
@@ -121,9 +134,13 @@
     --verse-measure: 23.13;
     --font-sans: 'Albert Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
-    /* The hymnal's own face, for the text that sits with the notation. The
-       fallbacks are the humanist sans closest to Optima on each platform. */
-    --font-hymnal: 'GbOptima', Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif;
+    /* The hymnal face, and the one line that chooses it: the verses, the
+       lyrics OSMD engraves (SongMelody reads this token, it does not name a
+       face of its own), the song titles and the Bible's text all follow it.
+       To change the face, declare it with @font-face above and name it first
+       here. The fallbacks are the humanist sans closest to Optima on each
+       platform. */
+    --font-hymnal: 'URW Classico', Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif;
 }
 
 .dark {

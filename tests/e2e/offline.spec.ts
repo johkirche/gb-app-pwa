@@ -259,12 +259,17 @@ test('serves the book with the network gone', async ({ browserName }) => {
 
     // The face the hymnal is set in — the one the precache used to miss, so
     // every verse quietly fell back to Candara the moment a phone left the
-    // wifi. `document.fonts.check` is false unless it actually loaded.
-    const optima = await page.evaluate(async () => {
+    // wifi. `document.fonts.check` is false unless it actually loaded. Asked of
+    // the face --font-hymnal names first, so it follows whichever one that is.
+    const hymnal = await page.evaluate(async () => {
         await document.fonts.ready;
-        return document.fonts.check('1rem GbOptima');
+        const family = getComputedStyle(document.documentElement)
+            .getPropertyValue('--font-hymnal')
+            .split(',')[0]
+            .trim();
+        return { family, loaded: document.fonts.check(`1rem ${family}`) };
     });
-    expect(optima, 'GbOptima did not load offline').toBe(true);
+    expect(hymnal.loaded, `${hymnal.family} did not load offline`).toBe(true);
 
     /*
      * And nothing the shell needed was missing from the cache.
