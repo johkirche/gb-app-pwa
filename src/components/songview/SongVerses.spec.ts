@@ -30,8 +30,22 @@ afterEach(() => {
 // sind genau die, die die Strophe behalten hat.
 function gesetzt(strophe: string): string {
     return mount(SongVerses, { props: { strophes: [{ text: strophe }] } })
-        .get('.verse-text')
-        .text();
+        .findAll('.verse-block')
+        .map((block) => block.text())
+        .join('\n');
+}
+
+// Die Absätze einer Strophe, jeweils mit der Überschrift, unter der sie stehen.
+function absaetze(strophe: string) {
+    return mount(SongVerses, { props: { strophes: [{ text: strophe }] } })
+        .findAll('.verse-block')
+        .map((block) => {
+            const label = block.find('.verse-label');
+            const text = block.text();
+            return label.exists()
+                ? { label: label.text(), text: text.slice(label.text().length).trim() }
+                : { text };
+        });
 }
 
 describe('SongVerses – Umbrüche der Erfassung', () => {
@@ -65,6 +79,53 @@ describe('SongVerses – Umbrüche der Erfassung', () => {
 
     it('entfernt den Silbentrenner, den nur der Notensatz braucht', () => {
         expect(gesetzt('Ad¬vent will es\nnun wer¬den')).toBe('Advent will es nun werden');
+    });
+});
+
+// „Refrain" auf einer eigenen Zeile ist die Überschrift des Absatzes darunter,
+// so wie der Druck ihn kursiv über den Refrain setzt (Lied 40).
+describe('SongVerses – Refrain', () => {
+    it('setzt den Refrain unter seiner Überschrift ab (Lied 40, Strophe 3)', () => {
+        expect(
+            absaetze(
+                'Gib uns das, was wir brauchen, gib uns heut unser Brot.\n' +
+                    'Und vergib uns den Aufstand gegen dich und dein Gebot.\n\n' +
+                    'Refrain\nVater, unser Vater, alle Ehre deinem Namen.\n' +
+                    'Vater, unser Vater, bis ans Ende der Zeiten. Amen.',
+            ),
+        ).toEqual([
+            {
+                text:
+                    'Gib uns das, was wir brauchen, gib uns heut unser Brot. ' +
+                    'Und vergib uns den Aufstand gegen dich und dein Gebot.',
+            },
+            {
+                label: 'Refrain',
+                text:
+                    'Vater, unser Vater, alle Ehre deinem Namen. ' +
+                    'Vater, unser Vater, bis ans Ende der Zeiten. Amen.',
+            },
+        ]);
+    });
+
+    it('erkennt die Überschrift auch mit Doppelpunkt und ohne Leerzeile davor', () => {
+        expect(absaetze('Strophe\nRefrain: \nKehrvers eins\nKehrvers zwei')).toEqual([
+            { text: 'Strophe' },
+            { label: 'Refrain', text: 'Kehrvers eins Kehrvers zwei' },
+        ]);
+    });
+
+    it('lässt Worte auf der Überschriftzeile beim Refrain stehen', () => {
+        expect(absaetze('Refrain: Kleiner Stern ...\n\nScheinst so hell ...')).toEqual([
+            { label: 'Refrain', text: 'Kleiner Stern ...' },
+            { text: 'Scheinst so hell ...' },
+        ]);
+    });
+
+    it('hält ein Refrain im Satz für Text', () => {
+        expect(absaetze('Ich habe das Lied\nganz ohne Refrain gemacht')).toEqual([
+            { text: 'Ich habe das Lied ganz ohne Refrain gemacht' },
+        ]);
     });
 });
 

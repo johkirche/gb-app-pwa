@@ -19,10 +19,18 @@
                         </span>
                         <!-- text-balance evens the lines out so a verse does
                              not trail off into a single orphaned word -->
-                        <p
-                            class="verse-text m-0 text-balance whitespace-pre-line font-hymnal text-foreground"
-                        >
-                            {{ verseText(strophe) }}
+                        <p class="verse-text m-0 text-balance font-hymnal text-foreground">
+                            <span
+                                v-for="(block, b) in verseBlocks(strophe)"
+                                :key="b"
+                                class="verse-block block"
+                                :class="{ 'verse-labelled': block.label }"
+                            >
+                                <em v-if="block.label" class="verse-label block">
+                                    {{ block.label }}
+                                </em>
+                                {{ block.text }}
+                            </span>
                         </p>
                         <p
                             v-if="strophe.anmerkung"
@@ -41,7 +49,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { isVerseSung as isSung } from '@/services/servicePlans';
-import { type VerseLike, verseText } from '@/utils/verses';
+import { type VerseLike, verseBlocks } from '@/utils/verses';
 
 const props = defineProps<{
     strophes: VerseLike[];
@@ -161,10 +169,11 @@ onBeforeUnmount(() => {
 /* Live text-size contract: the parent (.song-content.text-size-*) provides
    --verse-font-size / --verse-line-height so the popover's Textgröße setting
    updates the verses without re-render. */
-/* The verses are set in the hymnal's own face (font-hymnal in the template),
-   the one the Notenbild carries baked into its outlines: on the printed page
-   the lyrics under the notes and the verses beside them are one typeface at one
-   size, and the page only reads as a hymnal page when they still are. */
+/* The verses are set in the hymnal face (font-hymnal in the template), as near
+   as the app can get to the Optima the Notenbild carries baked into its
+   outlines: on the printed page the lyrics under the notes and the verses
+   beside them are one typeface at one size, and the page only reads as a
+   hymnal page when they still are. */
 .verse-number,
 .verse-text {
     font-size: var(--verse-font-size, 1.125rem);
@@ -183,6 +192,14 @@ onBeforeUnmount(() => {
 
 .verse-number {
     min-width: calc(var(--verse-font-size, 1.125rem) * 1.3333);
+}
+
+/* A refrain stands apart from the verse it follows, under its name in italics,
+   as the printed book sets it (Lied 40). The gap is stated in verse type so it
+   grows with Textgröße; at the top of a verse there is nothing to stand apart
+   from. */
+.verse-labelled:not(:first-child) {
+    margin-top: calc(var(--verse-font-size, 1.125rem) * 0.75);
 }
 
 /* A verse this service does not sing. It stays legible — somebody will read

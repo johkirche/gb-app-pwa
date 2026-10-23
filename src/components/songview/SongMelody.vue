@@ -317,12 +317,18 @@ function getOsmdOptions() {
         defaultColorMusic: fg,
         defaultColorLabel: fg,
         defaultColorTitle: fg,
-        // The lyrics belong to the engraving, so they are set in the
-        // engraving's own face — the same Optima the Notenbild carries baked
-        // into outlines, so switching between the two views does not switch
+        // The lyrics are set in the hymnal face, the one the verses beside
+        // them use, so switching between the two views does not switch
         // typeface.
-        defaultFontFamily: 'GbOptima, Optima, Candara, Gill Sans, sans-serif',
+        defaultFontFamily: hymnalFont(),
     };
+}
+
+/** The hymnal face as the theme names it — `--font-hymnal` in main.css, the
+ *  one place it is chosen. Empty where nothing computes styles (tests). */
+function hymnalFont() {
+    const family = getComputedStyle(document.documentElement).getPropertyValue('--font-hymnal');
+    return family.trim() || 'sans-serif';
 }
 
 async function initOsmd() {
@@ -468,7 +474,7 @@ async function loadAndRender() {
         // are as wide as the fallback's, and the room they get is wrong for
         // the rest of the song. Nothing to wait for where the font API is
         // missing (tests) or the face fails: the fallback is then the truth.
-        await document.fonts?.load?.('1em GbOptima').catch(() => undefined);
+        await document.fonts?.load?.(`1em ${hymnalFont()}`).catch(() => undefined);
         if (superseded()) return;
 
         const isMxl = bytes[0] === 0x50 && bytes[1] === 0x4b;

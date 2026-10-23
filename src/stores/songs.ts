@@ -60,6 +60,10 @@ export const useSongsStore = defineStore('songs', () => {
 
     // Getters
     const hasSongs = computed(() => songs.value.length > 0);
+    // A demo library is read, not kept: the app it opens into is the songs and
+    // what helps sing them, without the parts that only make sense in one's
+    // own book (see TabsPage, SongPage and the song menu).
+    const isDemo = computed(() => demoKey.value !== null);
     const sortedSongs = computed(() =>
         [...songs.value].sort((a, b) => a.titel.localeCompare(b.titel)),
     );
@@ -641,6 +645,7 @@ export const useSongsStore = defineStore('songs', () => {
         hasSongs,
         demoKey,
         demoClosed,
+        isDemo,
 
         // Actions
         loadSongsFromDB,

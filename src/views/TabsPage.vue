@@ -27,19 +27,25 @@
             </RouterLink>
 
             <!-- Quick access (desktop only; on mobile these live inside the tabs) -->
-            <p class="label-micro mt-8 px-3 pb-1 text-muted-foreground">Schnellzugriff</p>
-            <RouterLink
-                v-for="link in quickLinks"
-                :key="link.to"
-                :to="link.to"
-                class="flex items-center gap-3 rounded-lg px-3 py-2 text-[0.875rem] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-                <component :is="link.icon" class="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
-                {{ link.label }}
-            </RouterLink>
+            <template v-if="!isDemo">
+                <p class="label-micro mt-8 px-3 pb-1 text-muted-foreground">Schnellzugriff</p>
+                <RouterLink
+                    v-for="link in quickLinks"
+                    :key="link.to"
+                    :to="link.to"
+                    class="flex items-center gap-3 rounded-lg px-3 py-2 text-[0.875rem] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                    <component
+                        :is="link.icon"
+                        class="h-[1.125rem] w-[1.125rem]"
+                        aria-hidden="true"
+                    />
+                    {{ link.label }}
+                </RouterLink>
+            </template>
 
-            <!-- Profile (bottom) -->
-            <div class="mt-auto border-t border-border pt-3">
+            <!-- Profile (bottom). A demo has no account to show. -->
+            <div v-if="!isDemo" class="mt-auto border-t border-border pt-3">
                 <DropdownMenu>
                     <DropdownMenuTrigger
                         class="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted"
@@ -107,8 +113,10 @@
             </main>
         </div>
 
-        <!-- Mobile (< lg): bottom tab bar -->
+        <!-- Mobile (< lg): bottom tab bar. A demo has the one tab, and a bar
+             with a single place to go is no menu — so it has none. -->
         <nav
+            v-if="!isDemo"
             ref="bottomBar"
             class="border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
             aria-label="Hauptnavigation"
@@ -155,6 +163,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
+import { useSongsStore } from '@/stores/songs';
 
 import { useAuth } from '@/composables/useAuth';
 import { useBottomBarInset } from '@/composables/useBottomBarInset';
@@ -181,6 +190,7 @@ useBottomBarInset(bottomBar);
 
 const { hasSelection } = storeToRefs(useServiceStore());
 const { serviceTab, showBibel } = storeToRefs(usePreferencesStore());
+const { isDemo } = storeToRefs(useSongsStore());
 
 /**
  * The Gottesdienst tab is an occasion, not a permanent fixture: it appears for
@@ -195,11 +205,7 @@ const showServiceTab = computed(
         route.path.startsWith('/tabs/gottesdienst'),
 );
 
-// `to` is the tab's own path, for telling which one is active; `href` is where
-// it leads, when that is more than the path — the Lieder tab goes back to the
-// list as it was left, filters included, since those live in its URL.
-const tabs = computed((): { to: string; href?: string; label: string; icon: Component }[] => [
-    { to: '/tabs/lieder', href: songsListPath.value, label: 'Lieder', icon: Music },
+const moreTabs = computed((): { to: string; label: string; icon: Component }[] => [
     { to: '/tabs/playlisten', label: 'Playlisten', icon: ListMusic },
     ...(showServiceTab.value
         ? [{ to: '/tabs/gottesdienst', label: 'Gottesdienst', icon: Church }]
@@ -209,6 +215,15 @@ const tabs = computed((): { to: string; href?: string; label: string; icon: Comp
         ? [{ to: '/tabs/bibel', label: 'Bibel', icon: BookOpen }]
         : []),
     { to: '/tabs/einstellungen', label: 'Einstellungen', icon: Settings },
+]);
+
+// `to` is the tab's own path, for telling which one is active; `href` is where
+// it leads, when that is more than the path — the Lieder tab goes back to the
+// list as it was left, filters included, since those live in its URL.
+const tabs = computed((): { to: string; href?: string; label: string; icon: Component }[] => [
+    { to: '/tabs/lieder', href: songsListPath.value, label: 'Lieder', icon: Music },
+    // A demo is the songs and nothing else (see the songs store's isDemo).
+    ...(isDemo.value ? [] : moreTabs.value),
 ]);
 
 const quickLinks = [
