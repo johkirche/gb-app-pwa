@@ -11,8 +11,10 @@
                  desktop width up: a phone's header has the title to carry and
                  three icons already crowd it, so there the entry lives in the
                  menu (see SongMenuPopover). -->
+            <!-- Neither in a demo: its songs are not the reader's own to keep,
+                 and the link would lead into a book nobody else can open. -->
             <Button
-                v-if="song"
+                v-if="song && !isDemo"
                 variant="ghost"
                 size="icon"
                 class="hidden lg:inline-flex"
@@ -22,7 +24,7 @@
                 <Share2 class="!size-5" aria-hidden="true" />
             </Button>
             <Button
-                v-if="songId"
+                v-if="songId && !isDemo"
                 variant="ghost"
                 size="icon"
                 :aria-label="isFavorited ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
@@ -47,6 +49,7 @@ import { computed } from 'vue';
 import { Heart, Share2 } from 'lucide-vue-next';
 
 import { useFavoritesStore } from '@/stores/favorites';
+import { useSongsStore } from '@/stores/songs';
 
 import { shareSong } from '@/composables/useShareSong';
 
@@ -65,6 +68,7 @@ const props = defineProps<{
 }>();
 
 const favoritesStore = useFavoritesStore();
+const isDemo = computed(() => useSongsStore().isDemo);
 
 const isFavorited = computed(() =>
     props.songId ? favoritesStore.isFavorite(props.songId) : false,

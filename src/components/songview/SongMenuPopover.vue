@@ -13,14 +13,16 @@
         >
             <div class="max-h-[70vh] overflow-y-auto p-3">
                 <!-- Actions Group -->
-                <p class="label-micro px-1 pb-2 pt-1 text-gold">Aktionen</p>
+                <p v-if="hasActions" class="label-micro px-1 pb-2 pt-1 text-gold">Aktionen</p>
                 <!-- Marking and choosing verses are two errands, not one.
                      Nearly every Sunday the whole hymn is sung, so marking it
                      is one tap and asks nothing; the Strophenwahl sits under it
                      for the rarer Sunday that wants three of seven, and marks
                      the song itself when it is saved. -->
+                <!-- A demo keeps only the Strophenwahl: which verses are sung
+                     is what helps in the hall, the rest is for one's own book. -->
                 <button
-                    v-if="!isInService"
+                    v-if="!isInService && !isDemo"
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="handleMarkForService"
@@ -38,7 +40,7 @@
                     {{ serviceVersesLabel }}
                 </button>
                 <button
-                    v-if="isInService"
+                    v-if="isInService && !isDemo"
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="handleRemoveFromService"
@@ -47,6 +49,7 @@
                     Aus Gottesdienst entfernen
                 </button>
                 <button
+                    v-if="!isDemo"
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="handleAddToPlaylist"
@@ -58,7 +61,7 @@
                      up the header carries its own share button, so the entry
                      steps back rather than offer the same thing twice. -->
                 <button
-                    v-if="song"
+                    v-if="song && !isDemo"
                     type="button"
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted lg:hidden"
                     @click="handleShare"
@@ -68,7 +71,10 @@
                 </button>
 
                 <!-- Display Settings Group -->
-                <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
+                <p
+                    class="label-micro px-1 pb-2 text-gold"
+                    :class="hasActions ? 'mt-3 border-t border-border pt-3' : 'pt-1'"
+                >
                     Anzeige
                 </p>
                 <div class="space-y-4 px-1 py-1">
@@ -100,7 +106,8 @@
                             @update:model-value="onScaleChange"
                         />
                     </div>
-                    <div class="flex items-center justify-between gap-3">
+                    <!-- There is no transport in a demo to show or hide. -->
+                    <div v-if="!isDemo" class="flex items-center justify-between gap-3">
                         <Label for="song-show-controls" class="flex items-center gap-2.5">
                             <Music
                                 class="size-4 shrink-0 text-muted-foreground"
@@ -137,7 +144,7 @@
                      the book's engraving, where neither of these changes
                      anything — and a switch that provably does nothing is worse
                      than no switch. -->
-                <template v-if="showsReflow && xmlSettings">
+                <template v-if="showsReflow && xmlSettings && !isDemo">
                     <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
                         Neu gesetzte Noten
                     </p>
@@ -221,6 +228,7 @@ import {
 import { toast } from 'vue-sonner';
 
 import { useServiceStore } from '@/stores/service';
+import { useSongsStore } from '@/stores/songs';
 
 import { shareSong } from '@/composables/useShareSong';
 import { isWakeLockSupported } from '@/composables/useWakeLock';
@@ -266,11 +274,15 @@ const emit = defineEmits<{
 }>();
 
 const serviceStore = useServiceStore();
+const isDemo = computed(() => useSongsStore().isDemo);
 const isInService = computed(() => serviceStore.isInPlan(props.songId));
 
 // A hymn of one verse has nothing to choose, so it is offered no Strophenwahl.
 const verseCount = computed(() => props.song?.strophen?.length ?? 0);
 const canChooseVerses = computed(() => verseCount.value > 1);
+
+// A demo's only action is the Strophenwahl, so a hymn of one verse has none.
+const hasActions = computed(() => !isDemo.value || canChooseVerses.value);
 
 /** The entry's label: what the song currently sings, once it is on the plan. */
 const serviceVersesLabel = computed(() => {

@@ -327,9 +327,16 @@ const playbackEngaged = ref(false);
 // Display options
 const showControls = ref(true);
 
+// Never in a demo. It is opened in a hall where the song is being sung, and a
+// phone that starts playing over the congregation is a disturbance, however
+// much fun it would be to try.
 const showTransport = computed(
     () =>
-        !!song.value && showControls.value && hasMelodyXml.value && notationState.value === 'ready',
+        !songsStore.isDemo &&
+        !!song.value &&
+        showControls.value &&
+        hasMelodyXml.value &&
+        notationState.value === 'ready',
 );
 
 // Check if song has a Notenbild: the vector engraving, or — for songs cached
