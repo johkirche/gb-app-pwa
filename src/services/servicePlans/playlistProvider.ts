@@ -14,7 +14,7 @@ import type { ServicePlanDraft, ServicePlanOffer, ServicePlanProvider } from './
 export const playlistServicePlanProvider: ServicePlanProvider = {
     id: 'playlist',
     label: 'Aus einer Playlist',
-    description: 'Eine vorbereitete Playlist für diesen Gottesdienst übernehmen',
+    description: 'Eine vorbereitete Playlist als Ablauf übernehmen',
 
     async isAvailable() {
         return (await db.playlists.count()) > 0;

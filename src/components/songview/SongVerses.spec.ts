@@ -131,7 +131,7 @@ describe('SongVerses – Refrain', () => {
 
 // Die Strophen, die dieser Gottesdienst nicht singt, bleiben stehen – sie
 // treten nur zurück. Gezählt wird dabei nach der gedruckten Nummer.
-describe('SongVerses – Strophen dieses Gottesdienstes', () => {
+describe('SongVerses – Strophen dieses Ablaufs', () => {
     const dreiStrophen = [{ text: 'Erste' }, { text: 'Zweite' }, { text: 'Dritte' }];
 
     function zeilen(sungVerses?: number[] | null) {

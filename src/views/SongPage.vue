@@ -121,7 +121,7 @@
                     v-if="serviceVerseHint"
                     class="verse-col mb-5 flex items-center justify-center gap-2 text-center"
                 >
-                    <Church class="size-3.5 shrink-0 text-gold" aria-hidden="true" />
+                    <ClipboardList class="size-3.5 shrink-0 text-gold" aria-hidden="true" />
                     <span class="label-micro text-gold">{{ serviceVerseHint }}</span>
                 </p>
 
@@ -193,7 +193,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import { Church, Music } from 'lucide-vue-next';
+import { ClipboardList, Music } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -389,7 +389,7 @@ const sungVerseHint = computed(() =>
 
 const serviceVerseHint = computed(() =>
     serviceVerses.value
-        ? `Gottesdienst · ${formatVerseSelection(serviceVerses.value, song.value?.strophen.length)}`
+        ? `Ablauf · ${formatVerseSelection(serviceVerses.value, song.value?.strophen.length)}`
         : '',
 );
 

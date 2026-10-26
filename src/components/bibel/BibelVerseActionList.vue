@@ -57,8 +57,8 @@
         </li>
         <li>
             <button type="button" :class="ROW" @click="toService">
-                <Church :class="ICON" aria-hidden="true" />
-                Zum Gottesdienst
+                <ClipboardList :class="ICON" aria-hidden="true" />
+                Zum Ablauf
             </button>
         </li>
         <!-- A playlist is chosen, not just added to. -->
@@ -94,7 +94,7 @@ import { computed } from 'vue';
 
 import {
     Bookmark,
-    Church,
+    ClipboardList,
     Copy,
     Eraser,
     Highlighter,

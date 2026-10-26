@@ -4,10 +4,10 @@ import { NO_RECORDING, RECORDING, hasRecording } from './support/backend';
 import { type LibraryFixture, nav, openLibrary, openTab } from './support/library';
 
 /*
- * The last views that had never been opened: the Gottesdienst tab, the download
+ * The last views that had never been opened: the Ablauf tab, the download
  * page and the install page.
  *
- * Gottesdienst is the interesting one. It is an occasion rather than a fixture:
+ * Ablauf is the interesting one. It is an occasion rather than a fixture:
  * the tab appears for as long as hymns are marked for one, so the test has to
  * make the occasion before it can visit it — which is also the only way to find
  * out whether marking a hymn actually raises the tab.
@@ -29,12 +29,12 @@ test.afterAll(async () => {
     await lib?.close();
 });
 
-test('with nothing marked, the Gottesdienst tab is not offered', async () => {
+test('with nothing marked, the Ablauf tab is not offered', async () => {
     await openTab(page, 'Lieder');
-    await expect(nav(page).getByRole('link', { name: 'Gottesdienst' })).toHaveCount(0);
+    await expect(nav(page).getByRole('link', { name: 'Ablauf' })).toHaveCount(0);
 
     // The route still resolves, so a link to it never dead-ends.
-    await page.goto('/tabs/gottesdienst');
+    await page.goto('/tabs/ablauf');
     await expect(page.getByText('Nichts vorgemerkt')).toBeVisible({ timeout: 15_000 });
 });
 
@@ -44,36 +44,36 @@ test('marking a hymn raises the tab and fills the page', async () => {
     await page.waitForURL(/\/(songs|lied)\//, { timeout: 30_000 });
 
     await page.getByRole('button', { name: 'Einstellungen' }).first().click();
-    await page.getByText('Für Gottesdienst vormerken').click();
+    await page.getByText('Zum Ablauf hinzufügen').click();
     // The toast is the app saying the plan was written, not just that a button
     // was pressed — and the tab below only appears once it has been.
-    await expect(page.getByText('Für den Gottesdienst vorgemerkt')).toBeVisible({
+    await expect(page.getByText('Zum Ablauf hinzugefügt')).toBeVisible({
         timeout: 15_000,
     });
     await page.waitForTimeout(500);
 
     // The tab is an occasion: it appears because something is marked for it.
     await openTab(page, 'Lieder');
-    await expect(nav(page).getByRole('link', { name: 'Gottesdienst' })).toBeVisible({
+    await expect(nav(page).getByRole('link', { name: 'Ablauf' })).toBeVisible({
         timeout: 15_000,
     });
 
-    await openTab(page, 'Gottesdienst');
+    await openTab(page, 'Ablauf');
     await expect(page.getByText('Nichts vorgemerkt')).toBeHidden();
     expect(await page.locator('main li').count(), 'the service plan is empty').toBeGreaterThan(0);
 });
 
 test('the marked hymn can be taken off again', async () => {
-    await openTab(page, 'Gottesdienst');
+    await openTab(page, 'Ablauf');
     await page.locator('main li button').first().click();
     await page.waitForURL(/\/(songs|lied)\//, { timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Einstellungen' }).first().click();
-    await page.getByText('Aus Gottesdienst entfernen').click();
-    await expect(page.getByText('Aus dem Gottesdienst entfernt')).toBeVisible({ timeout: 15_000 });
+    await page.getByText('Aus dem Ablauf entfernen').click();
+    await expect(page.getByText('Aus dem Ablauf entfernt')).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(500);
 
-    await page.goto('/tabs/gottesdienst');
+    await page.goto('/tabs/ablauf');
     await expect(page.getByText('Nichts vorgemerkt')).toBeVisible({ timeout: 15_000 });
 });
 

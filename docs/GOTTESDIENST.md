@@ -1,8 +1,9 @@
-# Gottesdienst — die vorgemerkte Liedauswahl
+# Ablauf — die vorgemerkte Liedauswahl
 
-Der Gottesdienst-Tab hält die zwei, drei Lieder einer Messe griffbereit, ohne dafür eine
+Der Ablauf-Tab (bis Oktober 2026 „Gottesdienst“) hält die zwei, drei Lieder eines
+Gottesdienstes, eines Abendgebets oder einer eigenen Andacht griffbereit, ohne dafür eine
 Playlist anzulegen oder die Favoriten zu belasten. Er erscheint, sobald etwas vorgemerkt
-ist, und verschwindet mit dem Tag wieder (Einstellungen → Gottesdienst → *Tab immer
+ist, und verschwindet mit dem Tag wieder (Einstellungen → Ablauf → *Tab immer
 anzeigen* pinnt ihn dauerhaft).
 
 Siehe [Issue #37](https://github.com/johkirche/gb-app-pwa/issues/37). Der Ablauf ist
@@ -19,7 +20,7 @@ zugleich der Einstiegspunkt für den Gottesdienst-Modus aus
 | `src/services/servicePlans/providers.ts` | Registry und `collectServicePlanOffers()` |
 | `src/services/servicePlans/playlistProvider.ts` | Referenz-Provider: die Playlists dieses Geräts |
 | `src/stores/service.ts` | Der Store: vormerken, sortieren, übernehmen, ablaufen lassen |
-| `src/views/ServicePage.vue` | Der Tab unter `/tabs/gottesdienst` |
+| `src/views/ServicePage.vue` | Der Tab unter `/tabs/ablauf` (`/tabs/gottesdienst` leitet dorthin weiter) |
 | `src/components/service/` | Liste und Quellen-Panel |
 
 ## Zwei Wege zur Auswahl

@@ -157,8 +157,8 @@ import { type Component } from 'vue';
 
 import {
     Bookmark,
-    Church,
     CircleCheck,
+    ClipboardList,
     Copy,
     Music2,
     NotebookPen,
@@ -184,14 +184,14 @@ defineProps<{
 const ACTIONS: { label: string; icon: Component }[] = [
     { label: 'Kopieren', icon: Copy },
     { label: 'Teilen', icon: Share2 },
-    { label: 'Zum Gottesdienst', icon: Church },
+    { label: 'Zum Ablauf', icon: ClipboardList },
 ];
 
 const COLORS = ['gelb', 'gruen', 'blau', 'rosa'] as const;
 
 // The one gesture that reaches each feature — what the sample cannot show.
 const HOW: Record<keyof BibelFeatures | 'lesen', string> = {
-    lesen: 'Einen Vers gedrückt halten wählt ihn aus; weitere Verse dann einfach antippen. Unten erscheint, was Sie damit tun können: kopieren, teilen, zum Gottesdienst, in eine Playlist. Auf den Kapiteltitel tippen öffnet alle Bücher und Kapitel, seitlich wischen blättert.',
+    lesen: 'Einen Vers gedrückt halten wählt ihn aus; weitere Verse dann einfach antippen. Unten erscheint, was Sie damit tun können: kopieren, teilen, zum Ablauf, in eine Playlist. Auf den Kapiteltitel tippen öffnet alle Bücher und Kapitel, seitlich wischen blättert.',
     fortschritt:
         'Am Ende jedes Kapitels „Als gelesen markieren“ tippen. Einen Leseplan wählen Sie im Bibel-Reiter unter „Lesepläne“; er hakt jeden Tag von selbst ab.',
     lesezeichen:

@@ -15,7 +15,7 @@
                         <!-- The dimming is the whole signal on screen; screen
                              readers get it said. -->
                         <span v-if="!isSung(sungVerses, idx + 1)" class="sr-only">
-                            Wird in diesem Gottesdienst nicht gesungen:
+                            Wird in diesem Ablauf nicht gesungen:
                         </span>
                         <!-- text-balance evens the lines out so a verse does
                              not trail off into a single orphaned word -->

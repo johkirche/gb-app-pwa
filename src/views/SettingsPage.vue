@@ -132,7 +132,7 @@ import {
     BookOpen,
     ChevronLeft,
     ChevronRight,
-    Church,
+    ClipboardList,
     Contrast,
     Database,
     Info,
@@ -251,8 +251,8 @@ const sections = computed(() => [
     },
     {
         key: 'gottesdienst' as const,
-        title: 'Gottesdienst',
-        icon: Church,
+        title: 'Ablauf',
+        icon: ClipboardList,
         summary: serviceSummary.value,
     },
     {

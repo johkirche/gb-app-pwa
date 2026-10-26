@@ -148,7 +148,7 @@ import { type Component, computed, ref } from 'vue';
 import {
     BookOpen,
     ChevronsUpDown,
-    Church,
+    ClipboardList,
     CloudDownload,
     Heart,
     ListMusic,
@@ -202,14 +202,12 @@ const showServiceTab = computed(
     () =>
         hasSelection.value ||
         serviceTab.value === 'always' ||
-        route.path.startsWith('/tabs/gottesdienst'),
+        route.path.startsWith('/tabs/ablauf'),
 );
 
 const moreTabs = computed((): { to: string; label: string; icon: Component }[] => [
     { to: '/tabs/playlisten', label: 'Playlisten', icon: ListMusic },
-    ...(showServiceTab.value
-        ? [{ to: '/tabs/gottesdienst', label: 'Gottesdienst', icon: Church }]
-        : []),
+    ...(showServiceTab.value ? [{ to: '/tabs/ablauf', label: 'Ablauf', icon: ClipboardList }] : []),
     // Switched on in the settings. Standing on it keeps it, as with Gottesdienst.
     ...(showBibel.value || route.path.startsWith('/tabs/bibel')
         ? [{ to: '/tabs/bibel', label: 'Bibel', icon: BookOpen }]

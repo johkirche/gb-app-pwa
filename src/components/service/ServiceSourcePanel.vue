@@ -2,7 +2,7 @@
     <ResponsivePanel
         :open="isOpen"
         :anchor="anchor"
-        label="Gottesdienst übernehmen"
+        label="Ablauf übernehmen"
         :snap-points="snapPoints"
         :initial-snap-point="0.5"
         drawer-class="h-full max-h-[97dvh]"
@@ -12,7 +12,7 @@
         <div
             class="sticky top-0 z-20 flex items-center justify-between gap-2 bg-popover py-1 pl-4 pr-2"
         >
-            <PanelTitle>Gottesdienst übernehmen</PanelTitle>
+            <PanelTitle>Ablauf übernehmen</PanelTitle>
             <Button variant="ghost" class="text-primary" @click="emit('close')">Fertig</Button>
         </div>
 

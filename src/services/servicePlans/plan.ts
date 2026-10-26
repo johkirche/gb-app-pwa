@@ -4,7 +4,7 @@ import { passageKey, toPassages } from '@/utils/bibelPassage';
 import type { ServicePlanDraft } from './types';
 
 /** What an unnamed selection is called on screen. */
-export const DEFAULT_SERVICE_TITLE = 'Gottesdienst';
+export const DEFAULT_SERVICE_TITLE = 'Ablauf';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

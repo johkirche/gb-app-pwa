@@ -156,7 +156,7 @@ const pageScaleSlider = computed<number[] | undefined>({
 });
 
 const SONG_PAGING_HINTS: Record<SongPagingMode, string> = {
-    lists: 'Vor und Zurück nur aus einer Playlist oder dem Gottesdienst heraus',
+    lists: 'Vor und Zurück nur aus einer Playlist oder dem Ablauf heraus',
     always: 'Vor und Zurück auch aus der Liederliste und nach Nummer',
     never: 'Kein Vor und Zurück unter dem Lied',
 };

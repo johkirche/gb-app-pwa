@@ -32,8 +32,8 @@
                             :disabled="resolvedSongs.length === 0"
                             @select="adoptAsService"
                         >
-                            <Church />
-                            Als Gottesdienst übernehmen
+                            <ClipboardList />
+                            Als Ablauf übernehmen
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem variant="destructive" @select="confirmDelete">
@@ -160,8 +160,8 @@
 import { computed, nextTick, ref } from 'vue';
 
 import {
-    Church,
     CircleAlert,
+    ClipboardList,
     EllipsisVertical,
     Music,
     Pencil,
@@ -292,8 +292,8 @@ async function adoptAsService() {
         return;
     }
 
-    toast.success('Als Gottesdienst übernommen', { duration: 2000 });
-    router.push('/tabs/gottesdienst');
+    toast.success('Als Ablauf übernommen', { duration: 2000 });
+    router.push('/tabs/ablauf');
 }
 
 function toggleReorderMode() {

@@ -123,7 +123,7 @@ describe('BibelVerseActions', () => {
             'Teilen',
             'Notiz schreiben',
             'Lesezeichen setzen',
-            'Zum Gottesdienst',
+            'Zum Ablauf',
         ]);
         expect(sheet()!.textContent).toContain('Markieren');
         expect(sheet()!.textContent).toContain('Weitere Verse antippen');

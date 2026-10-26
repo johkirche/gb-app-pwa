@@ -1,6 +1,6 @@
 <template>
     <div class="relative flex h-full flex-col bg-background">
-        <AppPageHeader :title="reorderMode ? 'Reihenfolge ändern' : 'Gottesdienst'">
+        <AppPageHeader :title="reorderMode ? 'Reihenfolge ändern' : 'Ablauf'">
             <template #trailing>
                 <Button
                     v-if="reorderMode"
@@ -47,16 +47,17 @@
                     v-else-if="!hasSelection"
                     class="flex min-h-[60vh] flex-col items-center justify-center px-6 py-12 text-center"
                 >
-                    <Church
+                    <ClipboardList
                         class="size-14 text-muted-foreground"
                         stroke-width="1.25"
                         aria-hidden="true"
                     />
                     <h2 class="mt-4 font-display text-2xl font-semibold">Nichts vorgemerkt</h2>
                     <p class="mt-2 max-w-96 text-sm leading-relaxed text-muted-foreground">
-                        Merken Sie die Lieder dieses Gottesdienstes vor — im Lied selbst oder über
-                        das Menü eines Eintrags in der Liederliste. Sie liegen dann hier bereit und
-                        verschwinden von allein, wenn der Tag vorbei ist.
+                        Stellen Sie Lieder für einen Gottesdienst, ein Abendgebet oder nur für sich
+                        zusammen — im Lied selbst oder über das Menü eines Eintrags in der
+                        Liederliste. Sie liegen dann hier bereit und verschwinden von allein, wenn
+                        der Tag vorbei ist.
                     </p>
                     <div class="mt-6 flex flex-col items-stretch gap-2">
                         <Button @click="router.push('/tabs/lieder')">
@@ -186,7 +187,7 @@ import { computed, onActivated, onMounted, ref } from 'vue';
 
 import {
     CalendarDays,
-    Church,
+    ClipboardList,
     EllipsisVertical,
     Import,
     ListMusic,
@@ -275,7 +276,7 @@ const rows = computed<ServiceRow[]>(() => {
 function openSong(song: Song) {
     navigationContext.setContext({
         kind: 'service',
-        label: 'Gottesdienst',
+        label: 'Ablauf',
         songIds: songs.value.map((entry) => entry.id),
     });
     router.push(`/songs/${song.id}`);
@@ -433,7 +434,7 @@ const songSheetActions = computed<ActionSheetAction[]>(() => [
           ]
         : []),
     {
-        label: 'Aus Gottesdienst entfernen',
+        label: 'Aus dem Ablauf entfernen',
         role: 'destructive',
         icon: Trash2,
         handler: () => {

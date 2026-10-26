@@ -94,7 +94,7 @@
                 {{ summary }}
             </p>
             <Button class="w-full" :disabled="chosen.size === 0" @click="save">
-                {{ isInPlan ? 'Auswahl sichern' : 'Zum Gottesdienst vormerken' }}
+                {{ isInPlan ? 'Auswahl sichern' : 'Zum Ablauf hinzufügen' }}
             </Button>
         </div>
     </ResponsivePanel>
@@ -215,7 +215,7 @@ async function save() {
         emit('close');
 
         const what = formatVerseSelection(verseSelection, verses.value.length);
-        toast.success(wasOnPlan ? `Gottesdienst · ${what}` : `Vorgemerkt · ${what}`, {
+        toast.success(wasOnPlan ? `Ablauf · ${what}` : `Vorgemerkt · ${what}`, {
             duration: 2000,
         });
     } catch (err) {
