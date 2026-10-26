@@ -2,7 +2,7 @@
     <SettingsList>
         <div class="flex items-center justify-between gap-4 px-2 py-3">
             <div class="flex min-w-0 items-center gap-4">
-                <Church class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <ClipboardList class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="min-w-0">
                     <Label for="settings-service-tab" class="text-[0.9375rem] font-normal">
                         Tab immer anzeigen
@@ -23,7 +23,7 @@
             v-if="hasServiceSelection"
             type="button"
             class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
-            @click="router.push('/tabs/gottesdienst')"
+            @click="router.push('/tabs/ablauf')"
         >
             <CalendarDays class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div class="min-w-0 flex-1">
@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { CalendarDays, ChevronRight, Church } from 'lucide-vue-next';
+import { CalendarDays, ChevronRight, ClipboardList } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 
 import { usePreferencesStore } from '@/stores/preferences';

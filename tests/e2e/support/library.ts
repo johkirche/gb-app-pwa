@@ -129,7 +129,7 @@ export function nav(page: Page) {
 const TAB_PATHS: Record<string, string> = {
     Lieder: '/tabs/lieder',
     Playlisten: '/tabs/playlisten',
-    Gottesdienst: '/tabs/gottesdienst',
+    Ablauf: '/tabs/ablauf',
     Einstellungen: '/tabs/einstellungen',
 };
 

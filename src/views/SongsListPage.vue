@@ -351,7 +351,7 @@ import type { FunctionalComponent } from 'vue';
 import {
     Check,
     ChevronRight,
-    Church,
+    ClipboardList,
     CloudDownload,
     FileText,
     Heart,
@@ -676,8 +676,8 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
         ...(!isInService
             ? [
                   {
-                      label: 'Für Gottesdienst vormerken',
-                      icon: Church,
+                      label: 'Zum Ablauf hinzufügen',
+                      icon: ClipboardList,
                       group: 'service',
                       handler: () => markForService(),
                   },
@@ -701,8 +701,8 @@ const songSheetActions = computed<ActionSheetAction[]>(() => {
         ...(isInService
             ? [
                   {
-                      label: 'Aus Gottesdienst entfernen',
-                      icon: Church,
+                      label: 'Aus dem Ablauf entfernen',
+                      icon: ClipboardList,
                       group: 'service',
                       handler: () => removeFromService(),
                   },
@@ -722,7 +722,7 @@ async function markForService() {
 
     try {
         await serviceStore.markSong(selectedSongId.value);
-        toast.success('Für den Gottesdienst vorgemerkt', { duration: 2000 });
+        toast.success('Zum Ablauf hinzugefügt', { duration: 2000 });
     } catch (err) {
         console.error('Failed to update the service selection:', err);
         toast.error('Die Auswahl konnte nicht gespeichert werden.');
@@ -733,7 +733,7 @@ async function removeFromService() {
     if (!selectedSongId.value) return;
     try {
         await serviceStore.removeSong(selectedSongId.value);
-        toast.success('Aus dem Gottesdienst entfernt', { duration: 2000 });
+        toast.success('Aus dem Ablauf entfernt', { duration: 2000 });
     } catch (err) {
         console.error('Failed to update the service selection:', err);
         toast.error('Die Auswahl konnte nicht gespeichert werden.');

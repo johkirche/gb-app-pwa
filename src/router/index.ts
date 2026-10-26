@@ -98,15 +98,22 @@ const routes: Array<RouteRecordRaw> = [
                 component: PlaylistsListPage,
                 meta: { access: 'library' },
             },
-            // The Gottesdienst tab. The route exists whether or not the tab
-            // is currently offered, so a link to it always resolves.
+            // The Ablauf tab — songs and readings put together for a service,
+            // an evening prayer or no occasion at all. The route exists whether
+            // or not the tab is currently offered, so a link to it always resolves.
             {
-                path: 'gottesdienst',
+                path: 'ablauf',
                 name: 'Service',
                 component: ServicePage,
                 meta: { access: 'library' },
             },
-            // The Bibel tab. Like Gottesdienst, the route stands whether or
+            // Its name until it outgrew the one occasion: installed apps and
+            // bookmarks may still point here.
+            {
+                path: 'gottesdienst',
+                redirect: '/tabs/ablauf',
+            },
+            // The Bibel tab. Like Ablauf, the route stands whether or
             // not the tab is offered, so a link into it always resolves.
             {
                 path: 'bibel',

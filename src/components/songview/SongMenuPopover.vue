@@ -27,8 +27,11 @@
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="handleMarkForService"
                 >
-                    <Church class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    Für Gottesdienst vormerken
+                    <ClipboardList
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    Zum Ablauf hinzufügen
                 </button>
                 <button
                     v-if="canChooseVerses"
@@ -45,8 +48,11 @@
                     class="flex w-full items-center gap-2.5 rounded-md px-1 py-2 text-left text-sm transition-colors hover:bg-muted active:bg-muted"
                     @click="handleRemoveFromService"
                 >
-                    <Church class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    Aus Gottesdienst entfernen
+                    <ClipboardList
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    Aus dem Ablauf entfernen
                 </button>
                 <button
                     v-if="!isDemo"
@@ -215,7 +221,7 @@
 import { computed, nextTick, ref } from 'vue';
 
 import {
-    Church,
+    ClipboardList,
     Lightbulb,
     List,
     ListMusic,
@@ -303,7 +309,7 @@ async function handleMarkForService() {
 
     try {
         await serviceStore.markSong(props.songId);
-        toast.success('Für den Gottesdienst vorgemerkt', { duration: 2000 });
+        toast.success('Zum Ablauf hinzugefügt', { duration: 2000 });
     } catch (err) {
         console.error('Failed to update the service selection:', err);
         toast.error('Die Auswahl konnte nicht gespeichert werden.');
@@ -322,7 +328,7 @@ async function handleRemoveFromService() {
     menuOpen.value = false;
     try {
         await serviceStore.removeSong(props.songId);
-        toast.success('Aus dem Gottesdienst entfernt', { duration: 2000 });
+        toast.success('Aus dem Ablauf entfernt', { duration: 2000 });
     } catch (err) {
         console.error('Failed to update the service selection:', err);
         toast.error('Die Auswahl konnte nicht gespeichert werden.');

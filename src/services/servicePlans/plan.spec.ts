@@ -78,7 +78,7 @@ describe('createPlan', () => {
         const plan = createPlan({ title: '   ', entries: [] }, { now: SUNDAY_MORNING });
 
         expect(plan.date).toBe(todayIsoDate(SUNDAY_MORNING));
-        expect(plan.title).toBe('Gottesdienst');
+        expect(plan.title).toBe('Ablauf');
         expect(plan.origin).toBeNull();
     });
 

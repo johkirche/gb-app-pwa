@@ -32,7 +32,7 @@ const props = defineProps<{ mode: SongPagingMode }>();
 // for the default, the list by number once paging is on everywhere.
 const SAMPLES = {
     lists: {
-        label: 'Gottesdienst',
+        label: 'Ablauf',
         position: 2,
         total: 4,
         prev: { id: 'a', index: 118, titel: 'O Heiland, reiß die Himmel auf' },
@@ -52,7 +52,7 @@ const sample = computed(() => (props.mode === 'never' ? null : SAMPLES[props.mod
 const caption = computed(() => {
     switch (props.mode) {
         case 'lists':
-            return 'So endet ein Lied, das aus einer Playlist oder dem Gottesdienst geöffnet wurde.';
+            return 'So endet ein Lied, das aus einer Playlist oder dem Ablauf geöffnet wurde.';
         case 'always':
             return 'So endet jedes Lied, auch aus der Liederliste.';
         default:
