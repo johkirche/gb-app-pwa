@@ -8,8 +8,9 @@ export type Akzent = 'silber' | 'gold';
 export const DEFAULT_AKZENT: Akzent = 'silber';
 
 // Named on the Datenschutz page and removed by errorHandler.clearAllLocalData(),
-// like settings.theme beside it — rename all three together or not at all.
+// like settings.theme beside them — rename all three together or not at all.
 const AKZENT_STORAGE_KEY = 'settings.akzent';
+const AKZENT_SHOWN_STORAGE_KEY = 'settings.akzentSichtbar';
 
 // Off until directus_users carries an `akzent` field the member policy may read
 // and update. Until then every request would only come back refused, and the
@@ -21,6 +22,17 @@ export function isAkzent(value: unknown): value is Akzent {
 }
 
 const akzent = ref<Akzent>(readStoredAkzent());
+// The switch is not offered yet: whoever knows the code brings it up, and it
+// stays up on this device until the code is entered again.
+const akzentShown = ref(readStoredShown());
+
+function readStoredShown(): boolean {
+    try {
+        return localStorage.getItem(AKZENT_SHOWN_STORAGE_KEY) === 'true';
+    } catch {
+        return false;
+    }
+}
 
 function readStoredAkzent(): Akzent {
     try {
@@ -69,5 +81,24 @@ export function useAkzent() {
         if (isAkzent(stored) && stored !== akzent.value) storeAkzent(stored);
     }
 
-    return { akzent: readonly(akzent), initAkzent, setAkzent, pullAkzentFromProfile };
+    /** Show the hidden switch, or hide it again. Returns whether it is shown now. */
+    function toggleAkzentShown(): boolean {
+        akzentShown.value = !akzentShown.value;
+        try {
+            if (akzentShown.value) localStorage.setItem(AKZENT_SHOWN_STORAGE_KEY, 'true');
+            else localStorage.removeItem(AKZENT_SHOWN_STORAGE_KEY);
+        } catch {
+            // ignore storage errors
+        }
+        return akzentShown.value;
+    }
+
+    return {
+        akzent: readonly(akzent),
+        akzentShown: readonly(akzentShown),
+        initAkzent,
+        setAkzent,
+        pullAkzentFromProfile,
+        toggleAkzentShown,
+    };
 }

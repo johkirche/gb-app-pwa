@@ -37,4 +37,15 @@ describe('useAkzent', () => {
         const { akzent } = await load();
         expect(akzent.value).toBe('silber');
     });
+
+    it('keeps the hidden switch up until the code comes again', async () => {
+        const first = await load();
+        expect(first.akzentShown.value).toBe(false);
+        expect(first.toggleAkzentShown()).toBe(true);
+
+        const second = await load();
+        expect(second.akzentShown.value).toBe(true);
+        expect(second.toggleAkzentShown()).toBe(false);
+        expect(localStorage.getItem('settings.akzentSichtbar')).toBeNull();
+    });
 });

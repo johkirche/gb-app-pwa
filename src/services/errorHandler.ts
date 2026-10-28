@@ -370,6 +370,7 @@ export async function clearAllLocalData(): Promise<void> {
         localStorage.removeItem('onboarding.currentStep');
         localStorage.removeItem('settings.theme');
         localStorage.removeItem('settings.akzent');
+        localStorage.removeItem('settings.akzentSichtbar');
     } catch {
         // ignore storage errors
     }

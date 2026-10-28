@@ -89,6 +89,8 @@
                                 <em>settings.theme</em>
                                 ), die gewählte Akzentfarbe (
                                 <em>settings.akzent</em>
+                                ,
+                                <em>settings.akzentSichtbar</em>
                                 ) und der Fortschritt der Ersteinrichtung (
                                 <em>onboarding.inProgress</em>
                                 ,
