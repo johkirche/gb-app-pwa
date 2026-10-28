@@ -1,6 +1,6 @@
 import { readonly, ref } from 'vue';
 
-import { readProfileAkzent, writeProfileAkzent } from '@/api/profile.api';
+import { readAppSettings, updateAppSettings } from '@/api/profile.api';
 
 /** The flourish color: the rules, song numbers and the Lied der Woche. */
 export type Akzent = 'silber' | 'gold';
@@ -12,13 +12,19 @@ export const DEFAULT_AKZENT: Akzent = 'silber';
 const AKZENT_STORAGE_KEY = 'settings.akzent';
 const AKZENT_SHOWN_STORAGE_KEY = 'settings.akzentSichtbar';
 
-// Off until directus_users carries an `akzent` field the member policy may read
-// and update. Until then every request would only come back refused, and the
-// e2e replay aborts anything its recording cannot answer.
-const PROFILE_SYNC = import.meta.env.VITE_AKZENT_PROFIL === 'true';
-
 export function isAkzent(value: unknown): value is Akzent {
     return value === 'silber' || value === 'gold';
+}
+
+// The profile's app_settings speaks English like the rest of directus_users,
+// so the color is named there as `accent`: 'silver' | 'gold'.
+const PROFILE_KEY = 'accent';
+const TO_PROFILE: Record<Akzent, string> = { silber: 'silver', gold: 'gold' };
+
+export function akzentFromProfile(value: unknown): Akzent | null {
+    if (value === 'silver') return 'silber';
+    if (value === 'gold') return 'gold';
+    return null;
 }
 
 const akzent = ref<Akzent>(readStoredAkzent());
@@ -61,8 +67,8 @@ function storeAkzent(value: Akzent) {
 /**
  * Single owner of the flourish color (`settings.akzent`: silber|gold), the
  * sibling of useTheme. The device keeps it so the page is drawn in it before
- * any request; the profile, where it is switched on, carries it to the next
- * device the reader logs in on.
+ * any request; the profile's app_settings carries it to the next device the
+ * reader logs in on.
  */
 export function useAkzent() {
     function initAkzent() {
@@ -71,14 +77,13 @@ export function useAkzent() {
 
     function setAkzent(value: Akzent) {
         storeAkzent(value);
-        if (PROFILE_SYNC) void writeProfileAkzent(value);
+        void updateAppSettings({ [PROFILE_KEY]: TO_PROFILE[value] });
     }
 
     /** Take the profile's color, if it has one. Called after a login. */
     async function pullAkzentFromProfile() {
-        if (!PROFILE_SYNC) return;
-        const stored = await readProfileAkzent();
-        if (isAkzent(stored) && stored !== akzent.value) storeAkzent(stored);
+        const stored = akzentFromProfile((await readAppSettings())?.[PROFILE_KEY]);
+        if (stored && stored !== akzent.value) storeAkzent(stored);
     }
 
     /** Show the hidden switch, or hide it again. Returns whether it is shown now. */

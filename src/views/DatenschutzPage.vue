@@ -58,7 +58,7 @@
                     </div>
                     <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
                         <p>
-                            Damit die App offline nutzbar ist, speichert sie Daten ausschließlich
+                            Damit die App offline nutzbar ist, speichert sie die folgenden Daten
                             lokal auf Ihrem Gerät:
                         </p>
                         <ul class="list-disc space-y-1.5 pl-5">
@@ -146,7 +146,11 @@
                             </li>
                             <li>
                                 <em>/users/&hellip;</em>
-                                &ndash; Abruf der eigenen Profildaten und Kontolöschung
+                                &ndash; Abruf der eigenen Profildaten, Kontolöschung und das
+                                Speichern der gewählten Akzentfarbe im eigenen Profil (
+                                <em>app_settings</em>
+                                ), damit sie nach der Anmeldung auf einem anderen Gerät übernommen
+                                wird
                             </li>
                             <li>
                                 <em>/directus-user-register-extension/&hellip;</em>

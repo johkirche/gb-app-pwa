@@ -48,4 +48,12 @@ describe('useAkzent', () => {
         expect(second.toggleAkzentShown()).toBe(false);
         expect(localStorage.getItem('settings.akzentSichtbar')).toBeNull();
     });
+
+    it('names the color in English on the profile', async () => {
+        const { akzentFromProfile } = await import('@/composables/useAkzent');
+        expect(akzentFromProfile('silver')).toBe('silber');
+        expect(akzentFromProfile('gold')).toBe('gold');
+        expect(akzentFromProfile('silber')).toBeNull();
+        expect(akzentFromProfile(undefined)).toBeNull();
+    });
 });
