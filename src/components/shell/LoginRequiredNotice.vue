@@ -1,6 +1,8 @@
 <template>
-    <div class="flex items-start gap-3 rounded-lg border-l-4 border-gold bg-gold/10 px-4 py-3">
-        <Info class="mt-0.5 size-5 shrink-0 text-gold" aria-hidden="true" />
+    <div
+        class="flex items-start gap-3 rounded-lg border-l-4 border-flourish bg-flourish/10 px-4 py-3"
+    >
+        <Info class="mt-0.5 size-5 shrink-0 text-flourish" aria-hidden="true" />
         <div class="min-w-0 flex-1">
             <p class="text-sm font-medium">{{ title }}</p>
             <p class="mt-1 text-sm leading-relaxed text-muted-foreground">

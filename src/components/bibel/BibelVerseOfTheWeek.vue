@@ -11,7 +11,7 @@
             :to="chapterPath(pick.ref, pick.ref.verse)"
             class="block rounded-lg p-5 transition hover:bg-muted/50 active:bg-muted/50"
         >
-            <span id="vers-der-woche-heading" class="label-micro block text-gold">
+            <span id="vers-der-woche-heading" class="label-micro block text-flourish">
                 Vers der Woche
             </span>
             <!-- Until the book is on the device the reference stands alone,
@@ -35,7 +35,7 @@
             :to="`/songs/${song.id}`"
             class="flex items-center gap-2 rounded-b-lg border-t border-border px-5 py-3 text-sm transition-colors hover:bg-muted active:bg-muted"
         >
-            <Music class="size-4 shrink-0 text-gold" aria-hidden="true" />
+            <Music class="size-4 shrink-0 text-flourish" aria-hidden="true" />
             <span class="min-w-0 truncate">
                 <span class="text-muted-foreground">Dazu im Gesangbuch:</span>
                 <span v-if="song.index" class="number-display ml-1">{{ song.index }}</span>

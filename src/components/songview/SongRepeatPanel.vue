@@ -184,7 +184,7 @@ const count = computed(() =>
 function rowClass(active: boolean): string {
     return [
         'flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted active:bg-muted',
-        active ? 'border-gold/50 bg-gold/5' : 'border-border bg-transparent',
+        active ? 'border-flourish/50 bg-flourish/5' : 'border-border bg-transparent',
     ].join(' ');
 }
 </script>

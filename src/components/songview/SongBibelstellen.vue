@@ -47,7 +47,7 @@
                 </summary>
 
                 <blockquote
-                    class="ml-[26px] mt-2 border-l-2 border-gold/40 pl-3 text-[0.9375rem] leading-relaxed"
+                    class="ml-[26px] mt-2 border-l-2 border-flourish/40 pl-3 text-[0.9375rem] leading-relaxed"
                 >
                     <template v-if="wording.get(stelle.ref)?.length">
                         <span v-for="(vers, idx) in wording.get(stelle.ref)" :key="idx">

@@ -50,7 +50,7 @@
             </button>
 
             <div class="mt-1 flex items-center gap-3">
-                <span class="label-micro shrink-0 text-gold">Playlisten</span>
+                <span class="label-micro shrink-0 text-flourish">Playlisten</span>
                 <Separator class="flex-1" />
             </div>
 

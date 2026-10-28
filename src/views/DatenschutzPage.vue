@@ -16,7 +16,7 @@
                         <Separator class="min-w-10 flex-1" />
                     </div>
                     <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
-                        <p class="italic text-gold">
+                        <p class="italic text-flourish">
                             [TODO: Von der Organisation zu ergänzen – Name und Anschrift des
                             Verantwortlichen im Sinne der DSGVO sowie ggf. Kontaktdaten des
                             Datenschutzbeauftragten.]
@@ -87,6 +87,8 @@
                                 <strong>Browser-Speicher</strong>
                                 (localStorage): das gewählte Farbschema (
                                 <em>settings.theme</em>
+                                ), die gewählte Akzentfarbe (
+                                <em>settings.akzent</em>
                                 ) und der Fortschritt der Ersteinrichtung (
                                 <em>onboarding.inProgress</em>
                                 ,
@@ -179,14 +181,14 @@
                         <Separator class="min-w-10 flex-1" />
                     </div>
                     <div class="mt-5 space-y-3 text-[0.9375rem] leading-relaxed">
-                        <p class="italic text-gold">
+                        <p class="italic text-flourish">
                             [TODO: Von der Organisation zu ergänzen – u.&nbsp;a. Rechtsgrundlagen
                             der Verarbeitung, Speicherdauer der serverseitig gespeicherten Daten
                             sowie die Betroffenenrechte (Auskunft, Berichtigung, Löschung,
                             Einschränkung, Datenübertragbarkeit, Widerspruch und Beschwerde bei
                             einer Aufsichtsbehörde).]
                         </p>
-                        <p class="italic text-gold">[TODO: Stand dieser Erklärung ergänzen]</p>
+                        <p class="italic text-flourish">[TODO: Stand dieser Erklärung ergänzen]</p>
                     </div>
                 </section>
             </div>

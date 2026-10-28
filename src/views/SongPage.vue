@@ -121,8 +121,8 @@
                     v-if="serviceVerseHint"
                     class="verse-col mb-5 flex items-center justify-center gap-2 text-center"
                 >
-                    <ClipboardList class="size-3.5 shrink-0 text-gold" aria-hidden="true" />
-                    <span class="label-micro text-gold">{{ serviceVerseHint }}</span>
+                    <ClipboardList class="size-3.5 shrink-0 text-flourish" aria-hidden="true" />
+                    <span class="label-micro text-flourish">{{ serviceVerseHint }}</span>
                 </p>
 
                 <!-- Song Verses: verse 1 is left out while the notation on

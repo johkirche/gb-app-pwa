@@ -17,9 +17,9 @@
                 <!-- Show logout reason message if present -->
                 <div
                     v-if="logoutMessage"
-                    class="mt-8 flex items-start gap-3 rounded-lg border-l-4 border-gold bg-gold/10 px-4 py-3"
+                    class="mt-8 flex items-start gap-3 rounded-lg border-l-4 border-flourish bg-flourish/10 px-4 py-3"
                 >
-                    <Info class="mt-0.5 size-5 shrink-0 text-gold" aria-hidden="true" />
+                    <Info class="mt-0.5 size-5 shrink-0 text-flourish" aria-hidden="true" />
                     <p class="text-sm leading-relaxed">
                         <strong class="font-medium">{{ logoutMessage }}</strong>
                     </p>

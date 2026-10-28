@@ -74,7 +74,7 @@ defineExpose({ sweep, bringIntoView });
 
 .playhead {
     border-radius: 0.375rem;
-    background: color-mix(in srgb, var(--gold) 14%, transparent);
+    background: color-mix(in srgb, var(--flourish) 14%, transparent);
     transition-property: left, top, width, height;
     transition-duration: 110ms;
     transition-timing-function: ease-out;
@@ -91,8 +91,8 @@ defineExpose({ sweep, bringIntoView });
     background: linear-gradient(
         to bottom,
         transparent,
-        color-mix(in srgb, var(--gold) 70%, transparent) 12%,
-        color-mix(in srgb, var(--gold) 70%, transparent) 88%,
+        color-mix(in srgb, var(--flourish) 70%, transparent) 12%,
+        color-mix(in srgb, var(--flourish) 70%, transparent) 88%,
         transparent
     );
     will-change: transform;

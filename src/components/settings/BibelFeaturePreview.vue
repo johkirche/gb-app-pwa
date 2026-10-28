@@ -1,7 +1,7 @@
 <template>
     <!-- A small, true-to-life sample of what a feature does in the reader, and
          the one gesture that reaches it. Drawn with the reader's own classes
-         (bibel-words.css, bibel-marks.css), so the gold tab, the wash and the
+         (bibel-words.css, bibel-marks.css), so the flourish tab, the wash and the
          note mark here are the ones on the page — the way the sample under
          Größe (Lieder) is the song page in miniature. Faded and without its
          colours while the feature is off — still readable, so the reader can
@@ -40,7 +40,7 @@
         <template v-else-if="feature === 'fortschritt'">
             <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                    <p class="label-micro text-gold">Heute lesen · Tag 12 von 30</p>
+                    <p class="label-micro text-flourish">Heute lesen · Tag 12 von 30</p>
                     <p class="mt-1 text-sm">
                         <span class="text-muted-foreground line-through">Psalm 56</span>
                         · Psalm 57 · Psalm 58
@@ -58,7 +58,7 @@
                         cx="18"
                         cy="18"
                         r="15"
-                        class="fill-none stroke-gold"
+                        class="fill-none stroke-flourish"
                         stroke-width="4"
                         stroke-dasharray="94.2"
                         stroke-dashoffset="58"
@@ -69,12 +69,12 @@
             <span
                 class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs"
             >
-                <CircleCheck class="size-3.5 text-gold" />
+                <CircleCheck class="size-3.5 text-flourish" />
                 Gelesen
             </span>
         </template>
 
-        <!-- Lesezeichen: the gold tab on a verse number. -->
+        <!-- Lesezeichen: the flourish tab on a verse number. -->
         <template v-else-if="feature === 'lesezeichen'">
             <p class="bibel-chapter font-hymnal text-[0.9375rem] leading-relaxed">
                 <span class="bibel-verse bibel-verse-set number-display">4</span>
@@ -82,7 +82,7 @@
                 mir …
             </p>
             <p class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <Bookmark class="size-3.5 fill-current text-gold" />
+                <Bookmark class="size-3.5 fill-current text-flourish" />
                 Psalm 23,4 — oben im Bibel-Reiter wiederzufinden
             </p>
         </template>
@@ -111,7 +111,7 @@
 
         <!-- Vers der Woche: the card at the top of the tab. -->
         <template v-else-if="feature === 'versDerWoche'">
-            <p class="label-micro text-gold">Vers der Woche</p>
+            <p class="label-micro text-flourish">Vers der Woche</p>
             <p class="mt-1 font-hymnal text-[0.9375rem] leading-snug">
                 Der HERR ist mein Hirt: mir mangelt nichts.
             </p>
@@ -122,7 +122,7 @@
         <template v-else-if="feature === 'lieder'">
             <p class="label-micro text-muted-foreground">Lieder zu diesem Kapitel</p>
             <p class="mt-1.5 flex items-baseline gap-2 text-sm">
-                <Music2 class="size-3.5 shrink-0 self-center text-gold" />
+                <Music2 class="size-3.5 shrink-0 self-center text-flourish" />
                 <span class="number-display">123.</span>
                 <span class="font-display text-[0.9375rem]">Der Herr ist mein getreuer Hirt</span>
             </p>
@@ -138,7 +138,7 @@
             <div
                 class="mt-2 flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
             >
-                <Volume2 class="size-4 text-gold" />
+                <Volume2 class="size-4 text-flourish" />
                 <span class="mr-auto">Liest Psalm 23,1</span>
                 <Pause class="size-4" />
                 <X class="size-4" />

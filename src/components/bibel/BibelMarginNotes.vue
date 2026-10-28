@@ -14,12 +14,12 @@
             :key="note.verse"
             :ref="(el) => setCard(note.verse, el as HTMLElement | null)"
             type="button"
-            class="pointer-events-auto absolute inset-x-0 rounded-md border-l-2 border-gold/60 py-1 pl-3 pr-2 text-left font-sans transition-colors hover:bg-muted"
+            class="pointer-events-auto absolute inset-x-0 rounded-md border-l-2 border-flourish/60 py-1 pl-3 pr-2 text-left font-sans transition-colors hover:bg-muted"
             :style="{ top: `${note.top}px` }"
             :aria-label="`Notiz zu Vers ${note.verse}: ${note.text}`"
             @click="selection.openNote(note.verse)"
         >
-            <span class="label-micro block text-gold" aria-hidden="true">
+            <span class="label-micro block text-flourish" aria-hidden="true">
                 Vers {{ note.verse }}
             </span>
             <span

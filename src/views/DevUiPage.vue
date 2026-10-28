@@ -4,7 +4,7 @@
         <main class="mx-auto w-full max-w-3xl px-5 pb-28 pt-14 sm:px-8 sm:pt-20">
             <!-- ================= Kopf ================= -->
             <header class="text-center">
-                <p class="label-micro text-gold">Design-System</p>
+                <p class="label-micro text-flourish">Design-System</p>
                 <h1 class="mt-3 font-display text-5xl font-semibold tracking-tight sm:text-6xl">
                     Gesangbuch
                 </h1>
@@ -95,7 +95,7 @@
                     <div class="flex flex-wrap items-end gap-x-14 gap-y-8">
                         <div>
                             <p class="label-micro text-muted-foreground">Micro-Label</p>
-                            <p class="label-micro mt-3 text-gold">Lob &amp; Dank</p>
+                            <p class="label-micro mt-3 text-flourish">Lob &amp; Dank</p>
                         </div>
                         <div>
                             <p class="label-micro text-muted-foreground">Liednummer</p>
@@ -123,7 +123,7 @@
 
                 <div class="mt-8">
                     <div class="flex items-center gap-3 px-2">
-                        <h3 class="label-micro shrink-0 text-gold">Lob &amp; Dank</h3>
+                        <h3 class="label-micro shrink-0 text-flourish">Lob &amp; Dank</h3>
                         <Separator class="flex-1" />
                     </div>
                     <ul class="mt-1 divide-y divide-border">
@@ -153,7 +153,7 @@
                             302
                         </span>
                         <div class="min-w-0">
-                            <p class="label-micro text-gold">Lied der Woche</p>
+                            <p class="label-micro text-flourish">Lied der Woche</p>
                             <h3
                                 class="mt-1.5 font-display text-2xl font-semibold leading-tight sm:text-3xl"
                             >
@@ -462,7 +462,7 @@
                                 </PopoverTrigger>
                                 <PopoverContent align="start" class="w-80">
                                     <div class="space-y-5">
-                                        <p class="label-micro text-gold">Liedanzeige</p>
+                                        <p class="label-micro text-flourish">Liedanzeige</p>
                                         <div class="flex items-center justify-between gap-4">
                                             <Label for="dev-notation">Darstellung</Label>
                                             <Select v-model="notation">
@@ -634,7 +634,7 @@
                             <Badge variant="secondary">Entwurf</Badge>
                             <Badge variant="outline">Kanon</Badge>
                             <Badge variant="destructive">Offline</Badge>
-                            <Badge variant="gold">Lied der Woche</Badge>
+                            <Badge variant="flourish">Lied der Woche</Badge>
                         </div>
                     </div>
                 </div>
@@ -774,7 +774,7 @@ const swatches: Swatch[] = [
         classes: 'bg-destructive text-destructive-foreground',
     },
     { label: 'Linie', token: 'border', classes: 'bg-border text-foreground' },
-    { label: 'Gold', token: 'gold', classes: 'bg-background text-gold' },
+    { label: 'Zierfarbe', token: 'flourish', classes: 'bg-background text-flourish' },
 ];
 
 // --- Liedliste --------------------------------------------------------------

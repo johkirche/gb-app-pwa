@@ -371,7 +371,7 @@ defineExpose({ mark, clearMark, sweep, refresh });
    source order rather than by what the rule means. */
 .noten-svg :deep([data-note].gb-play-active:not([data-part='stem'])),
 .noten-svg :deep([data-lyric].gb-play-active) {
-    fill: var(--gold);
+    fill: var(--flourish);
     transition: fill 90ms linear;
 }
 
@@ -382,7 +382,7 @@ defineExpose({ mark, clearMark, sweep, refresh });
    the glyph's own coordinates, some fifteen times scaled up, thickening every
    lit notehead into a blot. */
 .noten-svg :deep([data-part='stem'].gb-play-active) {
-    stroke: var(--gold);
+    stroke: var(--flourish);
     transition: stroke 90ms linear;
 }
 </style>

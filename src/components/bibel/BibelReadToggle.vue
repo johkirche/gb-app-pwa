@@ -4,7 +4,9 @@
         <Button
             variant="outline"
             :class="
-                read ? 'min-w-[14rem] border-gold/60 text-gold hover:text-gold' : 'min-w-[14rem]'
+                read
+                    ? 'min-w-[14rem] border-flourish/60 text-flourish hover:text-flourish'
+                    : 'min-w-[14rem]'
             "
             :aria-pressed="read"
             @click="toggle"

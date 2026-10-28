@@ -63,7 +63,7 @@
                              under every row would only be noise. -->
                         <span
                             v-if="verseLabels?.[row.song.id]"
-                            class="label-micro mt-0.5 block text-gold"
+                            class="label-micro mt-0.5 block text-flourish"
                         >
                             {{ verseLabels[row.song.id] }}
                         </span>
@@ -96,7 +96,7 @@
                     <!-- In the slot the songs number themselves in, so the two
                          kinds of row line up and tell themselves apart. -->
                     <span
-                        class="flex size-7 shrink-0 items-center justify-center rounded-full bg-gold/10 text-gold"
+                        class="flex size-7 shrink-0 items-center justify-center rounded-full bg-flourish/10 text-flourish"
                         aria-hidden="true"
                     >
                         <BookOpen class="size-[0.9375rem]" />

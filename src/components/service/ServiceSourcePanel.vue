@@ -37,7 +37,9 @@
         <div v-else class="px-4 pb-6">
             <section v-for="group in groups" :key="group.provider.id" class="mt-1">
                 <div class="flex items-center gap-3">
-                    <span class="label-micro shrink-0 text-gold">{{ group.provider.label }}</span>
+                    <span class="label-micro shrink-0 text-flourish">
+                        {{ group.provider.label }}
+                    </span>
                     <Separator class="flex-1" />
                 </div>
                 <p

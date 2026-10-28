@@ -28,7 +28,7 @@
                     class="flex min-w-0 flex-1 select-none items-start gap-3 py-3 pl-2"
                 >
                     <BookOpen
-                        class="mt-0.5 size-[1.125rem] shrink-0 text-gold"
+                        class="mt-0.5 size-[1.125rem] shrink-0 text-flourish"
                         aria-hidden="true"
                     />
                     <span class="min-w-0 flex-1">

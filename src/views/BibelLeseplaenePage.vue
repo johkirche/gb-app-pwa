@@ -19,9 +19,11 @@
                         v-for="plan in LESEPLAENE"
                         :key="plan.id"
                         class="flex flex-col rounded-lg border bg-card p-5 text-card-foreground shadow-sm"
-                        :class="{ 'border-gold/50': isActive(plan.id) }"
+                        :class="{ 'border-flourish/50': isActive(plan.id) }"
                     >
-                        <p v-if="isActive(plan.id)" class="label-micro mb-1 text-gold">Ihr Plan</p>
+                        <p v-if="isActive(plan.id)" class="label-micro mb-1 text-flourish">
+                            Ihr Plan
+                        </p>
                         <h2 class="font-display text-xl font-semibold leading-tight">
                             {{ plan.name }}
                         </h2>

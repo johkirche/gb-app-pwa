@@ -106,16 +106,16 @@ const description = computed(() => {
 /* Lit is the middle note by default — the position the band rests at when it
    is not sweeping, so a still preview still shows the two working together. */
 .preview-note-1.preview-lit {
-    color: var(--gold);
+    color: var(--flourish);
 }
 
 .preview-band {
-    fill: color-mix(in srgb, var(--gold) 14%, transparent);
+    fill: color-mix(in srgb, var(--flourish) 14%, transparent);
     transform: translateX(36px);
 }
 
 .preview-line {
-    fill: color-mix(in srgb, var(--gold) 70%, transparent);
+    fill: color-mix(in srgb, var(--flourish) 70%, transparent);
     transform: translateX(36px);
 }
 
@@ -163,7 +163,7 @@ const description = computed(() => {
 
 @keyframes preview-lit {
     0% {
-        color: var(--gold);
+        color: var(--flourish);
     }
     33.34% {
         color: var(--foreground);

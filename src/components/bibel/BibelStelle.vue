@@ -10,22 +10,22 @@
     />
     <Bookmark
         v-else-if="stelle.lesezeichen !== undefined"
-        class="mt-0.5 size-[1.125rem] shrink-0 fill-current text-gold"
+        class="mt-0.5 size-[1.125rem] shrink-0 fill-current text-flourish"
         aria-hidden="true"
     />
-    <NotebookPen v-else class="mt-0.5 size-[1.125rem] shrink-0 text-gold" aria-hidden="true" />
+    <NotebookPen v-else class="mt-0.5 size-[1.125rem] shrink-0 text-flourish" aria-hidden="true" />
     <span class="min-w-0 flex-1">
         <span class="flex items-center gap-1.5 text-[0.9375rem] font-medium leading-tight">
             <span class="min-w-0">{{ stelleLabel(stelle) }}</span>
             <!-- What else the verse carries, beside what the icon already says. -->
             <Bookmark
                 v-if="stelle.color && stelle.lesezeichen !== undefined"
-                class="size-[0.875rem] shrink-0 fill-current text-gold"
+                class="size-[0.875rem] shrink-0 fill-current text-flourish"
                 aria-label="mit Lesezeichen"
             />
             <NotebookPen
                 v-if="(stelle.color || stelle.lesezeichen !== undefined) && stelle.note"
-                class="size-[0.875rem] shrink-0 text-gold"
+                class="size-[0.875rem] shrink-0 text-flourish"
                 aria-label="mit Notiz"
             />
         </span>

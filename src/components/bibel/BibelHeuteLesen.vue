@@ -7,7 +7,7 @@
         aria-labelledby="heute-lesen-heading"
     >
         <div class="flex items-baseline justify-between gap-3">
-            <h2 id="heute-lesen-heading" class="label-micro text-gold">Heute lesen</h2>
+            <h2 id="heute-lesen-heading" class="label-micro text-flourish">Heute lesen</h2>
             <RouterLink
                 to="/tabs/bibel/plaene"
                 class="text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -27,7 +27,7 @@
             Geschafft: Sie haben den ganzen Plan gelesen.
             <RouterLink
                 to="/tabs/bibel/plaene"
-                class="text-gold underline-offset-4 hover:underline"
+                class="text-flourish underline-offset-4 hover:underline"
             >
                 Einen neuen wählen
             </RouterLink>
@@ -45,7 +45,7 @@
                     >
                         <CircleCheck
                             v-if="store.isReadForPlan(entry)"
-                            class="size-5 text-gold"
+                            class="size-5 text-flourish"
                             aria-hidden="true"
                         />
                         <Circle v-else class="size-5 text-muted-foreground" aria-hidden="true" />
@@ -68,7 +68,7 @@
                 {{ catchUp.text }}
                 <RouterLink
                     :to="chapterPath(catchUp.next)"
-                    class="whitespace-nowrap text-gold underline-offset-4 hover:underline"
+                    class="whitespace-nowrap text-flourish underline-offset-4 hover:underline"
                 >
                     Nachholen
                 </RouterLink>
@@ -81,7 +81,7 @@
         to="/tabs/bibel/plaene"
         class="mt-2 flex items-center gap-3 rounded-sm px-2 py-2.5 transition-colors hover:bg-muted active:bg-muted"
     >
-        <CalendarDays class="size-[1.125rem] shrink-0 text-gold" aria-hidden="true" />
+        <CalendarDays class="size-[1.125rem] shrink-0 text-flourish" aria-hidden="true" />
         <span class="min-w-0 flex-1">
             <span class="block text-[0.9375rem] font-medium leading-tight">Lesepläne</span>
             <span class="mt-0.5 block text-sm text-muted-foreground">

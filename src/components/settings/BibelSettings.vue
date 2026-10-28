@@ -123,7 +123,7 @@
                 <ChevronRight class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             </button>
 
-            <p class="label-micro px-2 pb-1 pt-4 text-gold">Offline</p>
+            <p class="label-micro px-2 pb-1 pt-4 text-flourish">Offline</p>
             <BibelOfflineStatus />
         </template>
     </SettingsList>

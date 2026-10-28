@@ -1,5 +1,5 @@
 <template>
-    <!-- Editorial section divider: gold micro-label + trailing hairline. Sticks to the
+    <!-- Editorial section divider: flourish micro-label + trailing hairline. Sticks to the
          top of the scroll container (the toolbar lives outside it after the migration).
          The class `section-header` is a load-bearing contract: SongsListPage measures the
          first one to clear the sticky row when it scrolls a section into view.
@@ -20,7 +20,7 @@
         "
         :aria-label="spokenLabel"
     >
-        <span class="label-micro min-w-0 truncate text-gold">{{ label }}</span>
+        <span class="label-micro min-w-0 truncate text-flourish">{{ label }}</span>
         <span class="h-px min-w-6 flex-1 bg-border" aria-hidden="true"></span>
     </h2>
 </template>

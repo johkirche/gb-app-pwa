@@ -10,7 +10,7 @@
 <template>
     <span>
         <template v-for="(part, index) in parts" :key="index">
-            <mark v-if="part.match" class="rounded-[2px] bg-gold/20 text-inherit">
+            <mark v-if="part.match" class="rounded-[2px] bg-flourish/20 text-inherit">
                 {{ part.text }}
             </mark>
             <span v-else>{{ part.text }}</span>

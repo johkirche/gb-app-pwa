@@ -13,7 +13,7 @@
         >
             <div class="max-h-[70vh] overflow-y-auto p-3">
                 <!-- Actions Group -->
-                <p v-if="hasActions" class="label-micro px-1 pb-2 pt-1 text-gold">Aktionen</p>
+                <p v-if="hasActions" class="label-micro px-1 pb-2 pt-1 text-flourish">Aktionen</p>
                 <!-- Marking and choosing verses are two errands, not one.
                      Nearly every Sunday the whole hymn is sung, so marking it
                      is one tap and asks nothing; the Strophenwahl sits under it
@@ -78,7 +78,7 @@
 
                 <!-- Display Settings Group -->
                 <p
-                    class="label-micro px-1 pb-2 text-gold"
+                    class="label-micro px-1 pb-2 text-flourish"
                     :class="hasActions ? 'mt-3 border-t border-border pt-3' : 'pt-1'"
                 >
                     Anzeige
@@ -151,7 +151,7 @@
                      anything — and a switch that provably does nothing is worse
                      than no switch. -->
                 <template v-if="showsReflow && xmlSettings && !isDemo">
-                    <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
+                    <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-flourish">
                         Neu gesetzte Noten
                     </p>
                     <div class="space-y-4 px-1 py-1">

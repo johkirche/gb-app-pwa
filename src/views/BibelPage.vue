@@ -32,9 +32,9 @@
                         class="mb-2 mt-4 block w-full rounded-lg border bg-card text-left text-card-foreground shadow-sm transition hover:border-primary/40 active:scale-[0.99]"
                     >
                         <span class="flex items-center gap-5 p-5">
-                            <BookOpen class="size-9 shrink-0 text-gold" aria-hidden="true" />
+                            <BookOpen class="size-9 shrink-0 text-flourish" aria-hidden="true" />
                             <span class="block min-w-0">
-                                <span class="label-micro block text-gold">Weiterlesen</span>
+                                <span class="label-micro block text-flourish">Weiterlesen</span>
                                 <span
                                     class="mt-1 block font-display text-2xl font-semibold leading-tight"
                                 >
@@ -87,7 +87,7 @@
                                     class="flex min-w-0 flex-1 items-start gap-3 py-2.5 pl-2"
                                 >
                                     <Bookmark
-                                        class="mt-0.5 size-[1.125rem] shrink-0 fill-current text-gold"
+                                        class="mt-0.5 size-[1.125rem] shrink-0 fill-current text-flourish"
                                         aria-hidden="true"
                                     />
                                     <span class="min-w-0">
@@ -202,7 +202,7 @@
                                             {{ n }}
                                             <Check
                                                 v-if="isRead(book.slug, n)"
-                                                class="absolute right-0.5 top-0.5 size-3 text-gold"
+                                                class="absolute right-0.5 top-0.5 size-3 text-flourish"
                                                 stroke-width="3"
                                                 aria-hidden="true"
                                             />

@@ -20,21 +20,21 @@
                     <div class="mt-5 space-y-5 text-[0.9375rem] leading-relaxed">
                         <div>
                             <h3 class="text-sm font-semibold">Anbieter</h3>
-                            <p class="mt-1 italic text-gold">
+                            <p class="mt-1 italic text-flourish">
                                 [TODO: Von der Organisation zu ergänzen]
                             </p>
                         </div>
 
                         <div>
                             <h3 class="text-sm font-semibold">Anschrift</h3>
-                            <p class="mt-1 italic text-gold">
+                            <p class="mt-1 italic text-flourish">
                                 [TODO: Von der Organisation zu ergänzen]
                             </p>
                         </div>
 
                         <div>
                             <h3 class="text-sm font-semibold">Vertretungsberechtigte</h3>
-                            <p class="mt-1 italic text-gold">
+                            <p class="mt-1 italic text-flourish">
                                 [TODO: Von der Organisation zu ergänzen]
                             </p>
                         </div>
@@ -61,7 +61,7 @@
 
                         <div>
                             <h3 class="text-sm font-semibold">Telefon</h3>
-                            <p class="mt-1 italic text-gold">
+                            <p class="mt-1 italic text-flourish">
                                 [TODO: Von der Organisation zu ergänzen]
                             </p>
                         </div>
@@ -76,7 +76,7 @@
                         <Separator class="flex-1" />
                     </div>
                     <div class="mt-5 text-[0.9375rem] leading-relaxed">
-                        <p class="italic text-gold">[TODO: Von der Organisation zu ergänzen]</p>
+                        <p class="italic text-flourish">[TODO: Von der Organisation zu ergänzen]</p>
                     </div>
                 </section>
             </div>

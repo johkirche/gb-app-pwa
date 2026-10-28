@@ -28,6 +28,7 @@ import { usePreferencesStore } from '@/stores/preferences';
 import { useSongsStore } from '@/stores/songs';
 import { useUserStore } from '@/stores/user';
 
+import { useAkzent } from '@/composables/useAkzent';
 import { syncMidiPreference } from '@/composables/useMidiOutput';
 import { usePageScale } from '@/composables/usePageScale';
 import { useTheme } from '@/composables/useTheme';
@@ -46,6 +47,7 @@ const ViewportPreview = showViewportPreview
     : null;
 
 const { isDark, initTheme } = useTheme();
+const { initAkzent, pullAkzentFromProfile } = useAkzent();
 
 // Bring the MIDI device layer in line with what was saved. Only a permission
 // that already stands is re-used — this never raises a prompt, so a reader who
@@ -106,8 +108,19 @@ watch(
     },
 );
 
+// The profile's Akzent comes down on every login and every cold start with a
+// session, so a color chosen on one device follows the reader to the next.
+watch(
+    () => userStore.isLoggedIn,
+    (loggedIn) => {
+        if (loggedIn) void pullAkzentFromProfile();
+    },
+    { immediate: true },
+);
+
 onMounted(async () => {
     initTheme();
+    initAkzent();
 
     await Promise.all([songsStore.initPromise, router.isReady()]);
     if (songsStore.demoKey && !userStore.isLoggedIn && router.currentRoute.value.name !== 'Demo') {
