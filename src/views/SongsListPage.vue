@@ -90,7 +90,7 @@
                             {{ songOfTheWeek.index }}
                         </span>
                         <span class="block min-w-0">
-                            <span class="label-micro block text-gold">Lied der Woche</span>
+                            <span class="label-micro block text-flourish">Lied der Woche</span>
                             <span
                                 class="mt-1.5 block font-hymnal text-2xl font-normal leading-tight"
                             >

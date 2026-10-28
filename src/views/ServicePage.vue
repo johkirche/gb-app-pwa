@@ -79,7 +79,7 @@
                 <!-- The service -->
                 <template v-else>
                     <header class="pt-6">
-                        <p class="label-micro text-gold">Vorgemerkt</p>
+                        <p class="label-micro text-flourish">Vorgemerkt</p>
                         <h2 class="mt-1.5 break-words font-display text-3xl font-semibold">
                             {{ plan?.title }}
                         </h2>

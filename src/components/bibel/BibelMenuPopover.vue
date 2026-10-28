@@ -13,7 +13,7 @@
         >
             <div class="max-h-[70vh] overflow-y-auto p-3">
                 <!-- Actions Group -->
-                <p class="label-micro px-1 pb-2 pt-1 text-gold">Aktionen</p>
+                <p class="label-micro px-1 pb-2 pt-1 text-flourish">Aktionen</p>
 
                 <!-- The verse at the top of the screen is the one being read,
                      so that is where the Lesezeichen goes — the same mark a
@@ -26,7 +26,7 @@
                 >
                     <BookmarkMinus
                         v-if="topVerseMarked"
-                        class="size-4 shrink-0 text-gold"
+                        class="size-4 shrink-0 text-flourish"
                         aria-hidden="true"
                     />
                     <BookmarkPlus
@@ -45,7 +45,10 @@
                     v-if="features.lesezeichen && chapterMarks.length"
                     class="flex flex-wrap items-center gap-1.5 px-1 pb-2 pt-1 text-sm text-muted-foreground"
                 >
-                    <Bookmark class="size-4 shrink-0 fill-current text-gold" aria-hidden="true" />
+                    <Bookmark
+                        class="size-4 shrink-0 fill-current text-flourish"
+                        aria-hidden="true"
+                    />
                     <span class="mr-0.5">In diesem Kapitel:</span>
                     <button
                         v-for="verse in chapterMarks"
@@ -86,7 +89,7 @@
                 <slot name="actions" :close="close" />
 
                 <!-- Display Settings Group -->
-                <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-gold">
+                <p class="label-micro mt-3 border-t border-border px-1 pb-2 pt-3 text-flourish">
                     Anzeige
                 </p>
                 <div class="space-y-4 px-1 py-1">

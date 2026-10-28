@@ -16,7 +16,10 @@
                     :to="`/songs/${song.id}`"
                     class="flex items-start gap-3 rounded-sm px-2 py-2.5 transition-colors hover:bg-muted active:bg-muted"
                 >
-                    <Music class="mt-0.5 size-[1.125rem] shrink-0 text-gold" aria-hidden="true" />
+                    <Music
+                        class="mt-0.5 size-[1.125rem] shrink-0 text-flourish"
+                        aria-hidden="true"
+                    />
                     <span class="min-w-0">
                         <span class="block text-[0.9375rem] font-medium leading-tight">
                             <span v-if="song.index" class="number-display mr-0.5">

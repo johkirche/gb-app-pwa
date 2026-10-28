@@ -1,0 +1,59 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// The composable holds its state at module level, read from localStorage on
+// import — so each test imports a fresh copy after arranging the storage.
+async function load() {
+    vi.resetModules();
+    return (await import('@/composables/useAkzent')).useAkzent();
+}
+
+describe('useAkzent', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        delete document.documentElement.dataset.akzent;
+    });
+
+    it('is silver until the reader chooses', async () => {
+        const { akzent, initAkzent } = await load();
+        initAkzent();
+        expect(akzent.value).toBe('silber');
+        expect(document.documentElement.dataset.akzent).toBe('silber');
+    });
+
+    it('keeps what was chosen, across a reload', async () => {
+        (await load()).setAkzent('gold');
+        expect(localStorage.getItem('settings.akzent')).toBe('gold');
+        expect(document.documentElement.dataset.akzent).toBe('gold');
+
+        delete document.documentElement.dataset.akzent;
+        const { akzent, initAkzent } = await load();
+        initAkzent();
+        expect(akzent.value).toBe('gold');
+        expect(document.documentElement.dataset.akzent).toBe('gold');
+    });
+
+    it('ignores a stored value it does not know', async () => {
+        localStorage.setItem('settings.akzent', 'kupfer');
+        const { akzent } = await load();
+        expect(akzent.value).toBe('silber');
+    });
+
+    it('keeps the hidden switch up until the code comes again', async () => {
+        const first = await load();
+        expect(first.akzentShown.value).toBe(false);
+        expect(first.toggleAkzentShown()).toBe(true);
+
+        const second = await load();
+        expect(second.akzentShown.value).toBe(true);
+        expect(second.toggleAkzentShown()).toBe(false);
+        expect(localStorage.getItem('settings.akzentSichtbar')).toBeNull();
+    });
+
+    it('names the color in English on the profile', async () => {
+        const { akzentFromProfile } = await import('@/composables/useAkzent');
+        expect(akzentFromProfile('silver')).toBe('silber');
+        expect(akzentFromProfile('gold')).toBe('gold');
+        expect(akzentFromProfile('silber')).toBeNull();
+        expect(akzentFromProfile(undefined)).toBeNull();
+    });
+});

@@ -28,7 +28,7 @@
         </div>
 
         <div v-else-if="complete" class="flex items-center gap-4 px-2 py-3">
-            <CircleCheck class="size-5 shrink-0 text-gold" aria-hidden="true" />
+            <CircleCheck class="size-5 shrink-0 text-flourish" aria-hidden="true" />
             <div class="min-w-0">
                 <p class="text-[0.9375rem]">Bibel offline verfügbar</p>
                 <p class="text-sm text-muted-foreground">

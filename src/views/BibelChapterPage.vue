@@ -66,7 +66,7 @@
                         >
                             <CircleCheck
                                 class="size-4 shrink-0"
-                                :class="chapterRead ? 'text-gold' : 'text-muted-foreground'"
+                                :class="chapterRead ? 'text-flourish' : 'text-muted-foreground'"
                                 aria-hidden="true"
                             />
                             {{
@@ -114,7 +114,9 @@
                             }"
                             :style="{ '--bibel-scale': bibelScale }"
                         >
-                            <p v-if="book" class="label-micro mb-2 text-gold">{{ book.title }}</p>
+                            <p v-if="book" class="label-micro mb-2 text-flourish">
+                                {{ book.title }}
+                            </p>
 
                             <div v-if="state === 'loading'" class="flex justify-center py-16">
                                 <Spinner size="lg" />
@@ -228,7 +230,7 @@
             aria-label="Vorlesen"
         >
             <div class="page-col flex h-14 items-center gap-2">
-                <Volume2 class="size-5 shrink-0 text-gold" aria-hidden="true" />
+                <Volume2 class="size-5 shrink-0 text-flourish" aria-hidden="true" />
                 <span class="min-w-0 flex-1 truncate text-sm" aria-live="polite">
                     {{ readingLabel }}
                 </span>
@@ -638,7 +640,7 @@ function onTouchEnd(event: TouchEvent) {
 
 /* Hidden numbers keep their place in the line at no width: they are still
    what the page measures to find the verse on screen and to scroll to one.
-   A verse marked with a Lesezeichen keeps its gold tab — the mark is the
+   A verse marked with a Lesezeichen keeps its flourish tab — the mark is the
    reader's own, not part of the apparatus being hidden. */
 .bibel-no-numbers :deep(.bibel-verse:not(.bibel-verse-set)) {
     padding: 0;

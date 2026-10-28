@@ -2,8 +2,8 @@
     <!-- Development only (mounted behind import.meta.env.DEV, so a production
          build drops it): fill the Bible with a reader's worth of marks to see
          the views full, and empty it again to see them bare. -->
-    <section class="mt-6 rounded-lg border border-dashed border-gold/60 px-3 py-3">
-        <p class="label-micro text-gold">Demodaten (nur Entwicklung)</p>
+    <section class="mt-6 rounded-lg border border-dashed border-flourish/60 px-3 py-3">
+        <p class="label-micro text-flourish">Demodaten (nur Entwicklung)</p>
         <p class="mt-1 text-sm text-muted-foreground">
             Lesezeichen, Markierungen, Notizen, gelesene Kapitel, ein laufender Leseplan und
             „Weiterlesen“ — wie bei jemandem, der die Bibel-Funktionen eine Weile benutzt.

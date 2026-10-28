@@ -1,8 +1,14 @@
 <template>
     <SettingsList>
         <div class="px-2 py-3">
+            <!-- Seven taps on the icon bring up the hidden Akzent switch: the
+                 phone's way in, where there are no arrow keys for the code. -->
             <div class="flex items-center gap-4">
-                <Contrast class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <Contrast
+                    class="size-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                    @click="onSchemeIconTap"
+                />
                 <p class="text-[0.9375rem]">Farbschema</p>
             </div>
             <ToggleGroup
@@ -15,6 +21,41 @@
                 <ToggleGroupItem value="system" class="flex-1">System</ToggleGroupItem>
                 <ToggleGroupItem value="light" class="flex-1">Hell</ToggleGroupItem>
                 <ToggleGroupItem value="dark" class="flex-1">Dunkel</ToggleGroupItem>
+            </ToggleGroup>
+        </div>
+
+        <!-- The flourish color. Built but not offered yet: silver is the
+             default while the choice settles, so the switch shows only in
+             development or once the Konami code (or seven taps on the
+             Farbschema icon) has brought it up on this device. -->
+        <div v-if="showAkzent" class="px-2 py-3">
+            <div class="flex items-center gap-4">
+                <Palette class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <p class="text-[0.9375rem]">Akzent</p>
+            </div>
+            <ToggleGroup
+                type="single"
+                class="mt-3 flex w-full"
+                aria-label="Akzent"
+                :model-value="akzent"
+                @update:model-value="onAkzentChange"
+            >
+                <ToggleGroupItem value="silber" class="flex-1 gap-2">
+                    <span
+                        class="size-3 rounded-full bg-flourish"
+                        aria-hidden="true"
+                        data-akzent="silber"
+                    />
+                    Silber
+                </ToggleGroupItem>
+                <ToggleGroupItem value="gold" class="flex-1 gap-2">
+                    <span
+                        class="size-3 rounded-full bg-flourish"
+                        aria-hidden="true"
+                        data-akzent="gold"
+                    />
+                    Gold
+                </ToggleGroupItem>
             </ToggleGroup>
         </div>
 
@@ -117,11 +158,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { ArrowLeftRight, Contrast, Lightbulb, Type } from 'lucide-vue-next';
+import { ArrowLeftRight, Contrast, Lightbulb, Palette, Type } from 'lucide-vue-next';
 import type { AcceptableValue } from 'reka-ui';
+import { toast } from 'vue-sonner';
 
 import { usePreferencesStore } from '@/stores/preferences';
 
+import { isAkzent, useAkzent } from '@/composables/useAkzent';
+import { useKonamiCode } from '@/composables/useKonamiCode';
 import { useTheme } from '@/composables/useTheme';
 import { isWakeLockSupported } from '@/composables/useWakeLock';
 
@@ -139,6 +183,32 @@ const preferencesStore = usePreferencesStore();
 // useTheme owns persistence ('settings.theme') and applies the `dark` class, so
 // the segment reads straight from it instead of keeping a second copy in sync.
 const { theme, setTheme } = useTheme();
+const { akzent, akzentShown, setAkzent, toggleAkzentShown } = useAkzent();
+
+const showAkzent = computed(() => import.meta.env.DEV || akzentShown.value);
+
+function revealAkzent() {
+    const shown = toggleAkzentShown();
+    toast.info(shown ? 'Akzent freigeschaltet' : 'Akzent wieder ausgeblendet');
+}
+
+useKonamiCode(revealAkzent);
+
+// Taps count only while they come in a run: a pause longer than this starts over.
+const TAPS_TO_REVEAL = 7;
+const TAP_PAUSE_MS = 1500;
+let taps = 0;
+let lastTap = 0;
+
+function onSchemeIconTap() {
+    const now = Date.now();
+    taps = now - lastTap > TAP_PAUSE_MS ? 1 : taps + 1;
+    lastTap = now;
+    if (taps === TAPS_TO_REVEAL) {
+        taps = 0;
+        revealAkzent();
+    }
+}
 
 const wakeLockSupported = isWakeLockSupported();
 
@@ -168,6 +238,10 @@ function onSongPagingChange(value: AcceptableValue | AcceptableValue[]) {
     if (value === 'lists' || value === 'always' || value === 'never') {
         preferencesStore.setSongPaging(value);
     }
+}
+
+function onAkzentChange(value: AcceptableValue | AcceptableValue[]) {
+    if (isAkzent(value)) setAkzent(value);
 }
 
 function onThemeModeChange(value: AcceptableValue | AcceptableValue[]) {

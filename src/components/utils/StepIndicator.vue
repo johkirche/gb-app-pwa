@@ -19,7 +19,7 @@
                     currentStep === step
                         ? 'w-6 bg-primary'
                         : currentStep > step
-                          ? 'w-2 bg-gold'
+                          ? 'w-2 bg-flourish'
                           : 'w-2 bg-border'
                 "
             ></span>

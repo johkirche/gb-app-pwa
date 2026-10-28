@@ -1738,11 +1738,11 @@ onBeforeUnmount(async () => {
 .notation-canvas :deep(.gb-play-active .vf-flag path),
 .notation-canvas :deep(text.gb-play-active),
 .notation-canvas :deep(.gb-play-active > text) {
-    fill: var(--gold);
+    fill: var(--flourish);
 }
 
 .notation-canvas :deep(.gb-play-active .vf-stem path),
 .notation-canvas :deep(.gb-play-active .vf-ledger path) {
-    stroke: var(--gold);
+    stroke: var(--flourish);
 }
 </style>

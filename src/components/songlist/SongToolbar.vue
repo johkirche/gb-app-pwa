@@ -200,7 +200,7 @@
                 <button
                     v-if="filterIndexRange"
                     type="button"
-                    :class="[chipBase, 'border-gold/40 text-gold']"
+                    :class="[chipBase, 'border-flourish/40 text-flourish']"
                     @click="$emit('setIndexRange', null)"
                 >
                     <List class="h-3 w-3" aria-hidden="true" />
@@ -296,7 +296,7 @@ function onOpenSort(event: MouseEvent) {
 }
 
 // Shared chip styling; the color classes keep the original filter-type distinction
-// (search = primary, category = secondary, author = accent, range = flourish gold).
+// (search = primary, category = secondary, author = accent, range = flourish).
 const chipBase =
     'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors';
 

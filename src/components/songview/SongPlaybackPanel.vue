@@ -24,7 +24,7 @@
                         class="flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
                         :class="
                             preset.key === chosen.key
-                                ? 'border-gold/50 bg-gold/5'
+                                ? 'border-flourish/50 bg-flourish/5'
                                 : 'border-border bg-transparent'
                         "
                         :aria-pressed="preset.key === chosen.key"

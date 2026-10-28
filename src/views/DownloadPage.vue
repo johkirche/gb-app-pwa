@@ -20,7 +20,7 @@
                 <!-- Sync Status -->
                 <section>
                     <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">
+                        <h2 class="label-micro shrink-0 text-flourish">
                             {{ isLoggedIn ? 'Synchronisierungsstatus' : 'Auf diesem Gerät' }}
                         </h2>
                         <Separator class="flex-1" />
@@ -38,7 +38,7 @@
                             <component
                                 :is="isLoggedIn ? UserCheck : UserRound"
                                 class="size-5 shrink-0"
-                                :class="isLoggedIn ? 'text-muted-foreground' : 'text-gold'"
+                                :class="isLoggedIn ? 'text-muted-foreground' : 'text-flourish'"
                                 aria-hidden="true"
                             />
                             <div
@@ -113,7 +113,7 @@
                             v-if="updatesAvailable === true"
                             class="flex items-center gap-4 px-2 py-3"
                         >
-                            <RefreshCw class="size-5 shrink-0 text-gold" aria-hidden="true" />
+                            <RefreshCw class="size-5 shrink-0 text-flourish" aria-hidden="true" />
                             <p class="text-sm leading-relaxed text-muted-foreground">
                                 Neue Inhalte verfügbar. Bitte synchronisieren Sie erneut.
                             </p>
@@ -125,7 +125,7 @@
                 <!-- Sync Action -->
                 <section>
                     <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Synchronisierung</h2>
+                        <h2 class="label-micro shrink-0 text-flourish">Synchronisierung</h2>
                         <Separator class="flex-1" />
                     </div>
                     <div class="mt-4 px-2">
@@ -180,7 +180,7 @@
                 <!-- Progress (shown during sync) -->
                 <section v-if="isSyncing">
                     <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Wird synchronisiert...</h2>
+                        <h2 class="label-micro shrink-0 text-flourish">Wird synchronisiert...</h2>
                         <Separator class="flex-1" />
                     </div>
                     <div class="mt-4 max-w-prose rounded-lg bg-muted px-6 py-6 text-center">
@@ -212,7 +212,7 @@
                 <!-- Partial Failure -->
                 <section
                     v-if="!isSyncing && failedFiles.length > 0"
-                    class="rounded-lg border-l-4 border-gold bg-gold/10 px-4 py-4"
+                    class="rounded-lg border-l-4 border-flourish bg-flourish/10 px-4 py-4"
                 >
                     <h2 class="font-medium">Unvollständige Synchronisierung</h2>
                     <p class="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -259,11 +259,11 @@
                      without a session it would restate the notice above it. -->
                 <section v-if="isLoggedIn">
                     <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Hinweise</h2>
+                        <h2 class="label-micro shrink-0 text-flourish">Hinweise</h2>
                         <Separator class="flex-1" />
                     </div>
                     <div class="mt-3 flex items-start gap-4 px-2">
-                        <Wifi class="mt-0.5 size-5 shrink-0 text-gold" aria-hidden="true" />
+                        <Wifi class="mt-0.5 size-5 shrink-0 text-flourish" aria-hidden="true" />
                         <p class="max-w-prose text-sm leading-relaxed text-muted-foreground">
                             Für die Synchronisierung wird eine Internetverbindung benötigt. Der
                             Download kann je nach Verbindung einige Minuten dauern.
@@ -274,7 +274,7 @@
                 <!-- Delete Data -->
                 <section>
                     <div class="flex items-center gap-3 px-2">
-                        <h2 class="label-micro shrink-0 text-gold">Daten löschen</h2>
+                        <h2 class="label-micro shrink-0 text-flourish">Daten löschen</h2>
                         <Separator class="flex-1" />
                     </div>
                     <div class="mt-4 px-2">

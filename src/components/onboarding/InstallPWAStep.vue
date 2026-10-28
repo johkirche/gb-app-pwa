@@ -38,10 +38,10 @@
             <!-- Heuristic: we suspect the app might be installed -->
             <div
                 v-if="isSuspectedInstalled"
-                class="mt-8 flex flex-col items-center gap-2 rounded-lg border-l-4 border-gold bg-gold/10 px-6 py-6"
+                class="mt-8 flex flex-col items-center gap-2 rounded-lg border-l-4 border-flourish bg-flourish/10 px-6 py-6"
             >
                 <div class="flex items-center gap-2">
-                    <Info class="size-6 shrink-0 text-gold" aria-hidden="true" />
+                    <Info class="size-6 shrink-0 text-flourish" aria-hidden="true" />
                     <span class="font-medium">Die App scheint bereits installiert zu sein</span>
                 </div>
                 <p class="text-center text-sm leading-relaxed text-muted-foreground">

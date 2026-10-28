@@ -28,7 +28,7 @@
              already know them to be. -->
         <div v-if="view === 'buecher'" ref="listRef" class="px-4 pb-6">
             <section v-for="testament in testaments" :key="testament.key">
-                <h3 class="label-micro mb-1 mt-3 text-gold">{{ testament.label }}</h3>
+                <h3 class="label-micro mb-1 mt-3 text-flourish">{{ testament.label }}</h3>
                 <ul class="divide-y divide-border">
                     <!-- scroll-mt: clear of the sticky header when opened at it. -->
                     <li
@@ -49,7 +49,7 @@
                                 class="min-w-0 flex-1 truncate text-[0.9375rem] leading-tight"
                                 :class="
                                     entry.slug === here.slug
-                                        ? 'font-semibold text-gold'
+                                        ? 'font-semibold text-flourish'
                                         : 'font-medium'
                                 "
                             >
@@ -80,7 +80,7 @@
                                 class="relative flex h-11 items-center justify-center rounded-md border text-[0.9375rem] transition-colors hover:border-primary/40 hover:bg-muted active:bg-muted"
                                 :class="
                                     isHere(entry.slug, n)
-                                        ? 'border-gold bg-gold/10 font-semibold'
+                                        ? 'border-flourish bg-flourish/10 font-semibold'
                                         : 'border-border'
                                 "
                                 :aria-current="isHere(entry.slug, n) ? 'page' : undefined"
@@ -89,7 +89,7 @@
                                 {{ n }}
                                 <Check
                                     v-if="isRead(entry.slug, n)"
-                                    class="absolute right-0.5 top-0.5 size-3 text-gold"
+                                    class="absolute right-0.5 top-0.5 size-3 text-flourish"
                                     stroke-width="3"
                                     aria-hidden="true"
                                 />
@@ -134,7 +134,7 @@
                             class="number-display shrink-0 text-sm"
                             :class="
                                 entry.chapter === here.chapter
-                                    ? 'text-gold'
+                                    ? 'text-flourish'
                                     : 'text-muted-foreground'
                             "
                         >

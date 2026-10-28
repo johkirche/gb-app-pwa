@@ -18,13 +18,13 @@
                 fill="none"
                 stroke-width="2.5"
                 stroke-linecap="round"
-                class="stroke-gold"
+                class="stroke-flourish"
                 :stroke-dasharray="`${filled} ${CIRCUMFERENCE}`"
             />
         </svg>
         <Check
             v-if="complete"
-            class="absolute inset-0 m-auto size-3 text-gold"
+            class="absolute inset-0 m-auto size-3 text-flourish"
             stroke-width="3"
             aria-hidden="true"
         />

@@ -6,7 +6,7 @@
     <SettingsList>
         <!-- What the reader always does, whatever is switched on below: none of
              it is a button anyone would go looking for. -->
-        <p class="label-micro px-2 pb-1 pt-1 text-gold">So lesen Sie</p>
+        <p class="label-micro px-2 pb-1 pt-1 text-flourish">So lesen Sie</p>
         <div class="px-2 py-3">
             <div class="flex items-center gap-4">
                 <Pointer class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -17,7 +17,7 @@
 
         <!-- Switching one off takes its controls and sections away and keeps
              what was stored for it. -->
-        <p class="label-micro px-2 pb-1 pt-4 text-gold">Funktionen</p>
+        <p class="label-micro px-2 pb-1 pt-4 text-flourish">Funktionen</p>
         <div v-for="feature in BIBEL_FEATURE_LIST" :key="feature.key" class="px-2 py-3">
             <div class="flex items-center justify-between gap-4">
                 <div class="flex min-w-0 items-center gap-4">
