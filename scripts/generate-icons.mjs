@@ -1,10 +1,13 @@
 // Regenerate all PWA / favicon / app-icon assets from the source logo.
 //
-//   Source:  assets/logo/logo.svg   (gradient line-art, viewBox 0 0 686 677)
+//   Logo:    assets/logo/logo.svg       (the Kreuz-Taube, copied as is)
+//   Icons:   assets/logo/logo-alt.svg   (the Buch-Taube, gradient line-art, viewBox 0 0 686 677)
 //   Run:     pnpm generate:icons
 //
-// Re-run whenever assets/logo/logo.svg changes. Everything below is derived,
-// so the generated files should never be hand-edited.
+// The app's logo is the Kreuz-Taube; the icons on the home screen are still
+// drawn from the Buch-Taube it replaced, until the Kreuz-Taube has an icon
+// that holds up at 16 px. Re-run whenever either source changes. Everything
+// below is derived, so the generated files should never be hand-edited.
 import { Buffer } from 'node:buffer';
 import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -13,7 +16,8 @@ import pngToIco from 'png-to-ico';
 import sharp from 'sharp';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = path.join(root, 'assets/logo/logo.svg');
+const LOGO = path.join(root, 'assets/logo/logo.svg');
+const SRC = path.join(root, 'assets/logo/logo-alt.svg');
 const PUB = path.join(root, 'public');
 const ANDROID = path.join(PUB, 'pwaicons/android');
 
@@ -73,7 +77,7 @@ async function write(file, buf) {
 await mkdir(ANDROID, { recursive: true });
 
 console.log('logo (served in-app):');
-await copyFile(SRC, path.join(PUB, 'logo.svg'));
+await copyFile(LOGO, path.join(PUB, 'logo.svg'));
 console.log(`  public/logo.svg  (copied)`);
 await write(path.join(PUB, 'logo.png'), await renderNative(svg, 686));
 await write(path.join(PUB, 'logo-black.png'), await renderNative(svgBlack, 686));
