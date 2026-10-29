@@ -50,6 +50,10 @@ function enforceBackendUrl(): Plugin {
 // (worker/index.ts); here the same handler is loaded through Vite, so
 // `pnpm dev` serves /demo/<key> end to end without wrangler. The env comes
 // from .env — DEMO_KEY, DEMO_DIRECTUS_TOKEN, DEMO_UNTIL, none of them VITE_.
+//
+// Or, with DEMO_ORIGIN set to a deployed copy of the app, the requests go on to
+// that Worker instead: its token stays where it is, and the link's own key is
+// all a local run needs to show the new code with the real demo songs.
 function demoApiDev(): Plugin {
     return {
         name: 'demo-api-dev',
@@ -59,6 +63,19 @@ function demoApiDev(): Plugin {
             server.middlewares.use(async (req, res, next) => {
                 if (!req.url?.startsWith('/api/demo/')) return next();
                 try {
+                    if (env.DEMO_ORIGIN) {
+                        const response = await fetch(new URL(req.url, env.DEMO_ORIGIN), {
+                            method: req.method,
+                        });
+                        res.statusCode = response.status;
+                        response.headers.forEach((value, name) => {
+                            // fetch has already unpacked the body these describe.
+                            if (name === 'content-encoding' || name === 'content-length') return;
+                            res.setHeader(name, value);
+                        });
+                        res.end(Buffer.from(await response.arrayBuffer()));
+                        return;
+                    }
                     const { handleDemoRequest } = (await server.ssrLoadModule(
                         '/worker/demo.ts',
                     )) as {
