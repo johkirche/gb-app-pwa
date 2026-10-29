@@ -261,12 +261,19 @@
                                     </span>
                                 </span>
                                 <ChevronRight
-                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition @max-[17rem]:hidden group-hover:text-primary group-data-[menu-open]:text-primary lg:group-hover:-translate-x-7 lg:group-data-[menu-open]:-translate-x-7"
+                                    class="h-4 w-4 shrink-0 self-center text-muted-foreground transition @max-[17rem]:hidden group-hover:text-primary group-data-[menu-open]:text-primary"
+                                    :class="
+                                        !songsStore.isDemo &&
+                                        'lg:group-hover:-translate-x-7 lg:group-data-[menu-open]:-translate-x-7'
+                                    "
                                     aria-hidden="true"
                                 />
                             </button>
 
+                            <!-- A demo's songs are read, not kept: nothing to
+                                 favour, collect or mark for a service. -->
                             <RowActionsTrigger
+                                v-if="!songsStore.isDemo"
                                 overlay
                                 :label="`Aktionen für ${song.titel}`"
                                 :active="showSongActions && selectedSongId === song.id"
@@ -742,6 +749,7 @@ async function removeFromService() {
 
 // Long-press / right-click handler
 function openSongActions(songId: string, anchor: PanelAnchor) {
+    if (songsStore.isDemo) return;
     selectedSongId.value = songId;
     songAnchor.value = anchor;
     showSongActions.value = true;
