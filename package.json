@@ -10,6 +10,7 @@
         "build:prod": "cross-env NODE_ENV=production vue-tsc && vite build",
         "preview": "vite preview",
         "generate:icons": "node scripts/generate-icons.mjs",
+        "generate:emoji-font": "node scripts/subset-emoji-font.mjs",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:record": "cross-env E2E_RECORD=1 playwright test --project=chromium --workers=1",

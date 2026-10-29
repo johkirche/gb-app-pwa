@@ -44,6 +44,21 @@
     font-display: swap;
 }
 
+/* Noto Emoji — Google's monochrome emoji, the line-drawn sibling of Noto Color
+   Emoji. The category glyphs and the playlist icons are set in it (--font-emoji
+   below), so they draw in currentColor like the rest of the page instead of in
+   whichever colour set the device ships. Cut down by `pnpm generate:emoji-font`
+   to the emoji the app defines; one it doesn't falls through to the system's
+   colour face. Under the SIL Open Font License, served at
+   public/licenses/NotoEmoji-OFL.html. */
+@font-face {
+    font-family: 'Noto Emoji';
+    src: url('../assets/font/NotoEmoji-Subset.woff2') format('woff2');
+    font-weight: 300 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Latin subsets only — the app is German; other subsets would bloat the offline precache */
 @import '@fontsource/cormorant-garamond/latin-400.css';
 @import '@fontsource/cormorant-garamond/latin-ext-400.css';
@@ -145,6 +160,9 @@
        here. The fallbacks are the humanist sans closest to Optima on each
        platform. */
     --font-hymnal: 'URW Classico', Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif;
+    /* The emoji face: categories and playlists. Anything after it is only
+       reached by an emoji the subset doesn't carry. */
+    --font-emoji: 'Noto Emoji', var(--font-sans);
 }
 
 .dark {
@@ -230,6 +248,7 @@
     /* Also re-exported here so the token survives: a --font-* variable that no
        theme entry references is treated as an unused theme value and dropped. */
     --font-hymnal: var(--font-hymnal);
+    --font-emoji: var(--font-emoji);
 
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
