@@ -91,8 +91,9 @@ watch(
 );
 
 // A demo library (see worker/demo.ts) is brought up to date on every cold
-// start — and taken back once its link has closed. Not on the demo page itself,
-// which is loading the same thing in the foreground.
+// start and every return to the app — and taken back once its link has
+// closed, which ends on the page that says what the whole book holds. Not on
+// the demo page itself, which is loading the same thing in the foreground.
 const songsStore = useSongsStore();
 
 watch(
@@ -100,11 +101,7 @@ watch(
     (closed) => {
         if (!closed) return;
         songsStore.acknowledgeDemoClosed();
-        toast.info('Die Vorschau ist beendet.', {
-            description: 'Vielen Dank fürs Ausprobieren des neuen Gesangbuchs.',
-            duration: 8000,
-        });
-        void router.replace('/login');
+        void router.replace({ name: 'DemoEnd' });
     },
 );
 
@@ -123,8 +120,19 @@ onMounted(async () => {
     initAkzent();
 
     await Promise.all([songsStore.initPromise, router.isReady()]);
+    refreshDemo();
+    // An installed app on a phone is rarely started cold: it comes back from
+    // the background, days later, where the event left it. That return is when
+    // a closed demo has to notice. The shell lives as long as the page does, so
+    // the listener is never taken down.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshDemo();
+    });
+});
+
+function refreshDemo() {
     if (songsStore.demoKey && !userStore.isLoggedIn && router.currentRoute.value.name !== 'Demo') {
         void songsStore.refreshDemo();
     }
-});
+}
 </script>

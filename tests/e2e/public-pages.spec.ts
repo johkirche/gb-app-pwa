@@ -31,6 +31,7 @@ const PAGES: PublicPage[] = [
     { path: '/password-reset', heading: /Passwort zurücksetzen/, contains: /E-Mail/i },
     { path: '/impressum', heading: /Impressum/, contains: /Angaben gemäß/i },
     { path: '/datenschutz', heading: /Datenschutz/, contains: /Verantwortlicher/i },
+    { path: '/vorschau-beendet', heading: /Danke fürs Ausprobieren/, contains: /Auch ohne Netz/ },
 ];
 
 for (const { path, heading, contains } of PAGES) {

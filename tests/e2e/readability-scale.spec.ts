@@ -299,13 +299,27 @@ test.describe('the book at every size it offers', () => {
     });
 });
 
-// The page a demo QR code lands on, in the two states that stay on screen.
-// No library and no session behind it, which is the point: nobody arriving
-// there has either. The endpoint is our own Worker, not the recorded backend,
-// so it is answered here.
+// The page a demo QR code lands on, in each state it can be read in, and the
+// one a closed link goes on to. No library and no session behind it, which is
+// the point: nobody arriving there has either. The endpoint is our own Worker,
+// not the recorded backend, so it is answered here.
 test.describe('the demo link at every size it offers', () => {
+    test('keeps the welcome inside the phone while the songs load', async ({ page }) => {
+        // Never answered: the welcome is what is on screen until they arrive.
+        await page.route('**/api/demo/**', () => {});
+        await page.goto('/demo/readability');
+        const heading = 'Willkommen beim neuen Gesangbuch';
+        await expect(page.getByRole('heading', { name: heading })).toBeVisible({
+            timeout: 20_000,
+        });
+        await expect(page.getByRole('button', { name: 'Lieder ansehen' })).toBeDisabled();
+        await page.evaluate(() => document.fonts.ready);
+
+        await expectNoOverflow(page, heading);
+    });
+
     for (const [status, heading] of [
-        [410, 'Die Vorschau ist beendet'],
+        [410, 'Danke fürs Ausprobieren'],
         [503, 'Lieder konnten nicht geladen werden'],
     ] as const) {
         test(`keeps „${heading}" inside the phone`, async ({ page }) => {
