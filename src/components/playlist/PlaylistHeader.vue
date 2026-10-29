@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col items-center px-4 pb-2 pt-8 text-center">
-        <div class="text-6xl leading-none">{{ emoji }}</div>
+        <div class="font-emoji text-6xl leading-none">{{ lineEmoji(emoji) }}</div>
         <h1 class="mt-4 break-words font-display text-3xl font-semibold leading-tight">
             {{ name }}
         </h1>
@@ -16,6 +16,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import { lineEmoji } from '@/utils/lineEmoji';
 
 const props = defineProps<{
     emoji: string;

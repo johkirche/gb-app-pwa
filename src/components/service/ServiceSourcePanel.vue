@@ -57,9 +57,9 @@
                             @click="emit('select', group.provider.id, offer.id)"
                         >
                             <span
-                                class="flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-xl leading-none"
+                                class="flex size-9 shrink-0 items-center justify-center rounded-md border border-border font-emoji text-xl leading-none"
                             >
-                                <template v-if="offer.emoji">{{ offer.emoji }}</template>
+                                <template v-if="offer.emoji">{{ lineEmoji(offer.emoji) }}</template>
                                 <Church v-else class="size-[1.125rem]" aria-hidden="true" />
                             </span>
                             <span class="min-w-0 flex-1">
@@ -101,6 +101,7 @@ import {
     collectServicePlanOffers,
     formatServiceDate,
 } from '@/services/servicePlans';
+import { lineEmoji } from '@/utils/lineEmoji';
 
 const props = defineProps<{
     isOpen: boolean;

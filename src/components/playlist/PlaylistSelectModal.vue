@@ -64,9 +64,9 @@
                         @click="addToPlaylist(playlist.id)"
                     >
                         <span
-                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-xl leading-none"
+                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border font-emoji text-xl leading-none"
                         >
-                            {{ playlist.emoji }}
+                            {{ lineEmoji(playlist.emoji) }}
                         </span>
                         <span class="min-w-0 flex-1">
                             <span
@@ -108,6 +108,7 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 
 import type { PanelAnchor } from '@/lib/anchor';
+import { lineEmoji } from '@/utils/lineEmoji';
 
 const props = defineProps<{
     isOpen: boolean;

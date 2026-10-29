@@ -12,10 +12,10 @@
             <div class="flex justify-center pt-2">
                 <button
                     type="button"
-                    class="flex h-24 w-24 items-center justify-center rounded-2xl border border-border bg-muted text-6xl leading-none transition-transform hover:scale-105 active:scale-95"
+                    class="flex h-24 w-24 items-center justify-center rounded-2xl border border-border bg-muted font-emoji text-6xl leading-none transition-transform hover:scale-105 active:scale-95"
                     @click="showEmojiPicker = true"
                 >
-                    {{ localEmoji }}
+                    {{ lineEmoji(localEmoji) }}
                 </button>
             </div>
 
@@ -74,6 +74,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+import { lineEmoji } from '@/utils/lineEmoji';
 
 import EmojiPicker from './EmojiPicker.vue';
 

@@ -115,8 +115,11 @@
                             @toggle="$emit('toggleCategory', $event)"
                         >
                             <template #glyph="{ option }">
-                                <span class="shrink-0 text-base leading-none" aria-hidden="true">
-                                    {{ categoryEmoji(option.label) }}
+                                <span
+                                    class="shrink-0 font-emoji text-base leading-none text-muted-foreground"
+                                    aria-hidden="true"
+                                >
+                                    {{ lineEmoji(categoryEmoji(option.label)) }}
                                 </span>
                             </template>
                         </FilterOptionList>
@@ -202,6 +205,7 @@ import { Slider } from '@/components/ui/slider';
 
 import type { PanelAnchor } from '@/lib/anchor';
 import { categoryEmoji } from '@/utils/categoryEmoji';
+import { lineEmoji } from '@/utils/lineEmoji';
 
 const props = defineProps<{
     isOpen: boolean;

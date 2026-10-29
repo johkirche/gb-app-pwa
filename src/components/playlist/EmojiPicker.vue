@@ -13,7 +13,7 @@
                         v-for="emoji in emojis"
                         :key="emoji"
                         type="button"
-                        class="flex h-12 w-12 items-center justify-center rounded-lg border text-[1.75rem] leading-none transition-colors"
+                        class="flex h-12 w-12 items-center justify-center rounded-lg border font-emoji text-[1.75rem] leading-none transition-colors"
                         :class="
                             emoji === selectedEmoji
                                 ? 'border-primary bg-primary/10'
@@ -22,7 +22,7 @@
                         :aria-pressed="emoji === selectedEmoji"
                         @click="emit('select', emoji)"
                     >
-                        {{ emoji }}
+                        {{ lineEmoji(emoji) }}
                     </button>
                 </div>
             </div>
@@ -111,6 +111,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+
+import { lineEmoji } from '@/utils/lineEmoji';
 
 defineProps<{
     isOpen: boolean;

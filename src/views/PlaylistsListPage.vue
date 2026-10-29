@@ -58,9 +58,9 @@
                                 @click="navigateToPlaylist(playlist.id)"
                             >
                                 <span
-                                    class="flex h-10 w-11 shrink-0 items-center justify-center rounded-md border border-border text-[1.375rem] leading-none"
+                                    class="flex h-10 w-11 shrink-0 items-center justify-center rounded-md border border-border font-emoji text-[1.375rem] leading-none"
                                 >
-                                    {{ playlist.emoji }}
+                                    {{ lineEmoji(playlist.emoji) }}
                                 </span>
                                 <span class="min-w-0 flex-1">
                                     <span
@@ -155,6 +155,7 @@ import { Spinner } from '@/components/ui/spinner';
 import type { Playlist } from '@/db';
 import { longPressDirective as vLongPress } from '@/directives/longPress';
 import { type PanelAnchor, anchorFromEvent } from '@/lib/anchor';
+import { lineEmoji } from '@/utils/lineEmoji';
 
 const router = useRouter();
 

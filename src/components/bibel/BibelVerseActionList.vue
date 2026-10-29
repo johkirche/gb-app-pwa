@@ -80,7 +80,9 @@
                         :key="playlist.id"
                         @select="toPlaylist(playlist.id, playlist.name)"
                     >
-                        <span aria-hidden="true">{{ playlist.emoji }}</span>
+                        <span class="font-emoji" aria-hidden="true">
+                            {{ lineEmoji(playlist.emoji) }}
+                        </span>
                         <span class="truncate">{{ playlist.name }}</span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -126,6 +128,7 @@ import { verseRefLabel } from '@/utils/bibel';
 import { snippet, verseText } from '@/utils/bibelLayout';
 import { passagesFromVerses } from '@/utils/bibelPassage';
 import { copyText, versesRefLabel } from '@/utils/bibelVerses';
+import { lineEmoji } from '@/utils/lineEmoji';
 import { MARKIERUNGS_FARBEN } from '@/utils/meineStellen';
 
 import './bibel-marks.css';

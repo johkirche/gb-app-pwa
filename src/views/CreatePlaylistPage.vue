@@ -23,10 +23,10 @@
                 <div class="flex flex-col items-center gap-2">
                     <button
                         type="button"
-                        class="flex h-24 w-24 items-center justify-center rounded-2xl border border-border bg-muted text-6xl leading-none transition-transform hover:scale-105 active:scale-95"
+                        class="flex h-24 w-24 items-center justify-center rounded-2xl border border-border bg-muted font-emoji text-6xl leading-none transition-transform hover:scale-105 active:scale-95"
                         @click="showEmojiPicker = true"
                     >
-                        {{ selectedEmoji }}
+                        {{ lineEmoji(selectedEmoji) }}
                     </button>
                     <p class="text-sm text-muted-foreground">Tippen zum Ändern</p>
                 </div>
@@ -87,6 +87,8 @@ import BackButton from '@/components/shell/BackButton.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+import { lineEmoji } from '@/utils/lineEmoji';
 
 const router = useRouter();
 const route = useRoute();
