@@ -11,6 +11,7 @@ import BibelSearchPage from '../views/BibelSearchPage.vue';
 import BibelStellenPage from '../views/BibelStellenPage.vue';
 import CreatePlaylistPage from '../views/CreatePlaylistPage.vue';
 import DatenschutzPage from '../views/DatenschutzPage.vue';
+import DemoEndPage from '../views/DemoEndPage.vue';
 import DemoPage from '../views/DemoPage.vue';
 import DownloadPage from '../views/DownloadPage.vue';
 import FavoritesPage from '../views/FavoritesPage.vue';
@@ -186,6 +187,14 @@ const routes: Array<RouteRecordRaw> = [
         path: '/demo/:key',
         name: 'Demo',
         component: DemoPage,
+        meta: { access: 'public' },
+    },
+    // Where a demo ends, once its link has closed (see worker/demo.ts for the
+    // three ways to close it). Public: by then the songs are gone again.
+    {
+        path: '/vorschau-beendet',
+        name: 'DemoEnd',
+        component: DemoEndPage,
         meta: { access: 'public' },
     },
     // Legal pages: public so they are reachable from the login page while logged out
