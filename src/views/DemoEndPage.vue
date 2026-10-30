@@ -38,7 +38,9 @@
                 </li>
             </ul>
 
-            <div class="mt-auto flex items-center gap-3 pt-10 text-xs text-muted-foreground">
+            <div
+                class="mt-auto flex items-center justify-center gap-3 pt-10 text-xs text-muted-foreground"
+            >
                 <RouterLink to="/impressum" class="transition-colors hover:text-foreground">
                     Impressum
                 </RouterLink>
