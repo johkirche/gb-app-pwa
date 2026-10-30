@@ -3,7 +3,7 @@
         <template #leading>
             <BackButton default-href="/tabs/lieder" />
         </template>
-        <span v-if="songIndex" class="number-display mr-[0.4em]">{{ songIndex }}.</span>
+        <span v-if="songIndex" class="number-display mr-[0.4em]">{{ songIndex }}</span>
         <span class="font-hymnal font-normal">{{ songTitle }}</span>
         <template #trailing>
             <!-- The link that leaves here names the hymn by its number, which
