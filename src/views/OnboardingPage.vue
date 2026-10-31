@@ -18,6 +18,7 @@
                 <DownloadContentStep
                     v-if="currentStep === 2"
                     :is-syncing="isSyncing"
+                    :download-started="downloadStarted"
                     :sync-error="syncError"
                     :sync-progress="syncProgress"
                     :download-complete="downloadComplete"
@@ -59,6 +60,7 @@ const currentStep = ref(1);
 const totalSteps = 2;
 
 // Download state
+const downloadStarted = ref(false);
 const downloadComplete = ref(false);
 const storage = ref<StorageSpace | null>(null);
 
@@ -75,6 +77,11 @@ function prevStep() {
 }
 
 async function handleDownload() {
+    // A second press while one is running would launch a sync alongside it.
+    if (songsStore.isSyncing) {
+        return;
+    }
+    downloadStarted.value = true;
     try {
         downloadComplete.value = false;
         await songsStore.syncAll();
@@ -87,21 +94,17 @@ async function handleDownload() {
     }
 }
 
-// The download is not optional: it starts automatically when the download step
-// becomes active. Guarded so re-entering the step (or a restored onboarding
-// session) never launches a second sync alongside a running one, and an already
-// fully synced library skips straight to the finished state.
-let autoStartAttempted = false;
-function maybeAutoStartDownload() {
-    if (autoStartAttempted || songsStore.isSyncing) {
+// The download waits to be asked for: the reader may be on mobile data and
+// rather wait for WLAN, so the step quotes the transfer and leaves the moment to
+// them. An already fully synced library has nothing to ask about and goes
+// straight to the finished state.
+function markCompleteIfSynced() {
+    if (songsStore.isSyncing) {
         return;
     }
     if (songsStore.hasSongs && songsStore.failedFiles.length === 0) {
         downloadComplete.value = true;
-        return;
     }
-    autoStartAttempted = true;
-    void handleDownload();
 }
 
 async function handleRetry() {
@@ -143,7 +146,7 @@ watch(
     (step) => {
         localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
         if (step === 2) {
-            maybeAutoStartDownload();
+            markCompleteIfSynced();
         }
     },
     { immediate: true },
