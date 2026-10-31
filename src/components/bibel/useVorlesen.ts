@@ -27,13 +27,21 @@ export function isVorlesenSupported(): boolean {
     );
 }
 
-/** A German voice, the one for Germany first; null leaves it to the lang tag. */
-function germanVoice(): SpeechSynthesisVoice | null {
-    const voices = window.speechSynthesis.getVoices();
+/**
+ * A German voice, the one for Germany first; null leaves it to the lang tag.
+ * A voice on the device before one online: Chrome also offers its maker's
+ * online voices ("Google Deutsch"), which send the text away to be spoken —
+ * used only where the device has no German voice of its own (the
+ * Datenschutzerklärung says so).
+ */
+export function germanVoice(
+    voices: SpeechSynthesisVoice[] = window.speechSynthesis.getVoices(),
+): SpeechSynthesisVoice | null {
+    const german = (voice: SpeechSynthesisVoice) => voice.lang.toLowerCase().startsWith('de');
+    const pick = (list: SpeechSynthesisVoice[]) =>
+        list.find((voice) => voice.lang === 'de-DE') ?? list.find(german) ?? null;
     return (
-        voices.find((voice) => voice.lang === 'de-DE') ??
-        voices.find((voice) => voice.lang.toLowerCase().startsWith('de')) ??
-        null
+        pick(voices.filter((v) => v.localService)) ?? pick(voices.filter((v) => !v.localService))
     );
 }
 
