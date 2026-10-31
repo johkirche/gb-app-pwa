@@ -137,8 +137,8 @@ Only the recording uses them; a replay stubs the login, so no password and no
 real token is ever written into a fixture.
 
 Onboarding is a two-step wizard, so the recording walks it: „Weiter" past the
-install prompt, then the download starts on its own and the run sits out the
-whole book, printing each phase as it goes.
+install prompt, „Jetzt laden" past the question about mobile data, then the run
+sits out the whole book, printing each phase as it goes.
 
 The recorder is our own (`tests/e2e/support/recorder.ts`), not Playwright's
 `routeFromHAR`. The HAR tracer reads response bodies back out of Chromium after
