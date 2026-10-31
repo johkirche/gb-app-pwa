@@ -12,8 +12,14 @@
     },
     "vars": {
         "DIRECTUS_URL": "https://gb26-admin.johannische-kirche.org",
-        // The demo link (worker/demo.ts) answers 410 after this moment.
+        // The demo link (worker/demo.ts) answers 410 after this moment, and
+        // every phone that opened it clears its songs on the next open.
         // DEMO_KEY and DEMO_DIRECTUS_TOKEN are secrets: `wrangler secret put`.
-        "DEMO_UNTIL": "2026-11-03T00:00:00+01:00",
+        // Refofest was 31 October; the link stays open the week after it,
+        // through Saturday 7 November.
+        "DEMO_UNTIL": "2026-11-08T00:00:00+01:00",
+        // From this moment the demo's songs can be played: the evening after
+        // Refofest, once nobody is singing in the hall any more. Unset, never.
+        "DEMO_PLAYBACK_FROM": "2026-10-31T22:00:00+01:00",
     },
 }
