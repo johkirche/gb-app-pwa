@@ -186,6 +186,22 @@
                             Anmeldungen und andere Anfragen an das Backend können dort im Rahmen der
                             üblichen serverseitigen Protokollierung erfasst werden.
                         </p>
+                        <!-- The demo link (worker/demo.ts): the one path on which the
+                             device does not talk to the backend. The Worker asks with
+                             headers of its own, so nothing of the visitor's request
+                             goes on to Directus. -->
+                        <p>
+                            Eine Ausnahme ist der Vorschau-Link (
+                            <em>/demo/&hellip;</em>
+                            ), mit dem sich die App ohne Konto ausprobieren lässt. Dabei fragt das
+                            Gerät nicht beim Backend an, sondern unter der Adresse der App selbst (
+                            <em>/api/demo/&hellip;</em>
+                            ). Von dort werden die Lieder der Vorschau und ihre Notendateien beim
+                            Backend abgerufen, ohne Angaben über Sie weiterzugeben. Auf dem Gerät
+                            werden nur diese Lieder und der Vorschau-Link gespeichert; endet die
+                            Vorschau, löscht die App sie beim nächsten Öffnen mit
+                            Internetverbindung.
+                        </p>
                     </div>
                 </section>
 
