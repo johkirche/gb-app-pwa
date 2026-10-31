@@ -18,7 +18,13 @@ export class DemoUnavailableError extends Error {
     }
 }
 
-export async function fetchDemoSongs(key: string): Promise<Song[]> {
+export interface DemoContent {
+    songs: Song[];
+    /** Whether the songs may be played — false until the event is over. */
+    playback: boolean;
+}
+
+export async function fetchDemoSongs(key: string): Promise<DemoContent> {
     let response: Response;
     try {
         response = await fetch(demoUrl(key), { cache: 'no-store' });
@@ -34,8 +40,10 @@ export async function fetchDemoSongs(key: string): Promise<Song[]> {
     }
 
     try {
-        const body = (await response.json()) as { songs?: Song[] };
-        return body.songs ?? [];
+        const body = (await response.json()) as { songs?: Song[]; playback?: unknown };
+        // Only a plain `true` plays: an endpoint from before the field existed
+        // answers without it, and is the one that never played.
+        return { songs: body.songs ?? [], playback: body.playback === true };
     } catch {
         // Not the endpoint answering — a deploy without the Worker serves the
         // app's index.html here, with a 200.

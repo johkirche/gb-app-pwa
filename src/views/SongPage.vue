@@ -238,8 +238,19 @@ const songsStore = useSongsStore();
 const { songs, isLoading } = storeToRefs(songsStore);
 
 const preferencesStore = usePreferencesStore();
-const { pageScale, xmlSettings, keepScreenAwake, exactTempo, pitchControl, showBibelstellen } =
-    storeToRefs(preferencesStore);
+const {
+    pageScale,
+    xmlSettings,
+    keepScreenAwake,
+    exactTempo: exactTempoChosen,
+    pitchControl: pitchControlChosen,
+    showBibelstellen,
+} = storeToRefs(preferencesStore);
+// A demo plays the tempo in words and nothing finer. The BPM and the Tonhöhe
+// are switched on in Einstellungen, which a demo does not have — and a phone
+// that once had them on for the real book does not bring them along into it.
+const exactTempo = computed(() => exactTempoChosen.value && !songsStore.isDemo);
+const pitchControl = computed(() => pitchControlChosen.value && !songsStore.isDemo);
 
 const { getFileUrl, releaseFileUrl } = useStoredFiles();
 const melodySvgMarkup = ref<string | null>(null);
@@ -327,12 +338,13 @@ const playbackEngaged = ref(false);
 // Display options
 const showControls = ref(true);
 
-// Never in a demo. It is opened in a hall where the song is being sung, and a
-// phone that starts playing over the congregation is a disturbance, however
-// much fun it would be to try.
+// Not in a demo until its link says so. It is first opened in a hall where the
+// song is being sung, and a phone that starts playing over the congregation is
+// a disturbance, however much fun it would be to try; once the event is over,
+// the Worker lets the songs play (DEMO_PLAYBACK_FROM in worker/demo.ts).
 const showTransport = computed(
     () =>
-        !songsStore.isDemo &&
+        (!songsStore.isDemo || songsStore.demoPlayback) &&
         !!song.value &&
         showControls.value &&
         hasMelodyXml.value &&

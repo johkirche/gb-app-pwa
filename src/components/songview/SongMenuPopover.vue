@@ -112,8 +112,9 @@
                             @update:model-value="onScaleChange"
                         />
                     </div>
-                    <!-- There is no transport in a demo to show or hide. -->
-                    <div v-if="!isDemo" class="flex items-center justify-between gap-3">
+                    <!-- Nor a transport to show or hide in a demo, until its
+                         songs may be played (see SongPage's showTransport). -->
+                    <div v-if="hasTransport" class="flex items-center justify-between gap-3">
                         <Label for="song-show-controls" class="flex items-center gap-2.5">
                             <Music
                                 class="size-4 shrink-0 text-muted-foreground"
@@ -280,7 +281,9 @@ const emit = defineEmits<{
 }>();
 
 const serviceStore = useServiceStore();
-const isDemo = computed(() => useSongsStore().isDemo);
+const songsStore = useSongsStore();
+const isDemo = computed(() => songsStore.isDemo);
+const hasTransport = computed(() => !songsStore.isDemo || songsStore.demoPlayback);
 const isInService = computed(() => serviceStore.isInPlan(props.songId));
 
 // A hymn of one verse has nothing to choose, so it is offered no Strophenwahl.

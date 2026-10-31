@@ -28,8 +28,14 @@
                 </blockquote>
                 <figcaption class="label-micro mt-2 text-flourish">Psalm 98</figcaption>
             </figure>
+            <!-- Listening comes in once the event is over (DEMO_PLAYBACK_FROM
+                 in worker/demo.ts); until then a phone in the hall reads. -->
             <p class="mt-6 text-sm leading-relaxed text-muted-foreground">
-                Probieren Sie es aus: Lied öffnen und mitlesen.
+                {{
+                    demoPlayback
+                        ? 'Probieren Sie es aus: Lied öffnen, mitlesen und anhören.'
+                        : 'Probieren Sie es aus: Lied öffnen und mitlesen.'
+                }}
             </p>
 
             <div class="mt-auto pt-10">
@@ -98,7 +104,7 @@ const route = useRoute();
 const router = useRouter();
 const songsStore = useSongsStore();
 const userStore = useUserStore();
-const { syncProgress } = storeToRefs(songsStore);
+const { syncProgress, demoPlayback } = storeToRefs(songsStore);
 
 const state = ref<'loading' | 'ready' | 'unreachable'>('loading');
 

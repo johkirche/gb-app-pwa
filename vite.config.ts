@@ -49,7 +49,8 @@ function enforceBackendUrl(): Plugin {
 // The demo endpoint under the dev server. In production it is the Worker
 // (worker/index.ts); here the same handler is loaded through Vite, so
 // `pnpm dev` serves /demo/<key> end to end without wrangler. The env comes
-// from .env — DEMO_KEY, DEMO_DIRECTUS_TOKEN, DEMO_UNTIL, none of them VITE_.
+// from .env — DEMO_KEY, DEMO_DIRECTUS_TOKEN, DEMO_UNTIL, DEMO_PLAYBACK_FROM,
+// none of them VITE_.
 //
 // Or, with DEMO_ORIGIN set to a deployed copy of the app, the requests go on to
 // that Worker instead: its token stays where it is, and the link's own key is
@@ -91,6 +92,7 @@ function demoApiDev(): Plugin {
                             DEMO_DIRECTUS_TOKEN: env.DEMO_DIRECTUS_TOKEN,
                             DEMO_KEY: env.DEMO_KEY,
                             DEMO_UNTIL: env.DEMO_UNTIL,
+                            DEMO_PLAYBACK_FROM: env.DEMO_PLAYBACK_FROM,
                         },
                     );
                     res.statusCode = response.status;

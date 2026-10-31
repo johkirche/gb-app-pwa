@@ -12,7 +12,7 @@ import type { Song } from '../src/db';
  * files each of them points at. Nothing else of the backend is reachable
  * through it.
  *
- *   GET /api/demo/<key>              → { songs: Song[], until: string | null }
+ *   GET /api/demo/<key>              → { songs, until, playback }
  *   GET /api/demo/<key>/assets/<id>  → the file, if it belongs to one of them
  *
  * Three ways to close it again, none of which need a deploy: unset DEMO_KEY
@@ -31,6 +31,13 @@ export interface DemoEnv {
     DEMO_KEY?: string;
     /** ISO timestamp after which the link answers 410. Unset, it does not expire. */
     DEMO_UNTIL?: string;
+    /**
+     * ISO timestamp from which the demo's songs can be played. Unset, they
+     * cannot: the link is first scanned in the hall where the songs are being
+     * sung, and a phone playing over the congregation is a disturbance. Once
+     * the event is over there is nobody left to disturb.
+     */
+    DEMO_PLAYBACK_FROM?: string;
 }
 
 /** The `settings` field the songs are dropped into in Directus. */
@@ -83,6 +90,13 @@ function hasEnded(env: DemoEnv, now: number): boolean {
     // A value that does not parse closes the demo rather than leaving it open
     // for good: a typo should fail towards the copyright, not away from it.
     return Number.isNaN(until) || now > until;
+}
+
+/** Like DEMO_UNTIL, a value that does not parse fails towards the hall: silent. */
+function playsFrom(env: DemoEnv, now: number): boolean {
+    if (!env.DEMO_PLAYBACK_FROM) return false;
+    const from = Date.parse(env.DEMO_PLAYBACK_FROM);
+    return !Number.isNaN(from) && now >= from;
 }
 
 async function directus<T>(env: DemoEnv, path: string, init?: RequestInit): Promise<T> {
@@ -242,5 +256,11 @@ export async function handleDemoRequest(
         return serveAsset(env, fileId, request);
     }
 
-    return json(200, { songs, until: env.DEMO_UNTIL ?? null });
+    return json(200, {
+        songs,
+        until: env.DEMO_UNTIL ?? null,
+        // Decided here rather than on the phone, so the Worker's clock is the
+        // one that counts — the same clock that closes the demo.
+        playback: playsFrom(env, now),
+    });
 }

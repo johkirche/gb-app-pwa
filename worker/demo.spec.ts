@@ -104,6 +104,17 @@ describe('demo endpoint', () => {
         expect(directus).not.toHaveBeenCalled();
     });
 
+    it('plays from DEMO_PLAYBACK_FROM on, and stays silent without one or with a typo', async () => {
+        const evening = { ...env, DEMO_PLAYBACK_FROM: '2026-10-31T19:00:00+01:00' };
+        const plays = async (e: DemoEnv, now: number) =>
+            (await (await get('/api/demo/k3y-r1ght', e, now)).json()).playback;
+
+        expect(await plays(env, before)).toBe(false);
+        expect(await plays(evening, Date.parse('2026-10-31T18:59:59+01:00'))).toBe(false);
+        expect(await plays(evening, Date.parse('2026-10-31T19:00:00+01:00'))).toBe(true);
+        expect(await plays({ ...env, DEMO_PLAYBACK_FROM: 'heute Abend' }, before)).toBe(false);
+    });
+
     it("serves a listed song's notation file", async () => {
         const response = await get(`/api/demo/k3y-r1ght/assets/${SVG_ID}`);
 

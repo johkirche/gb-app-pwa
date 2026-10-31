@@ -344,4 +344,110 @@ test.describe('the demo link at every size it offers', () => {
             await expectNoOverflow(page, heading);
         });
     }
+
+    // From the evening after the event the demo plays (DEMO_PLAYBACK_FROM in
+    // worker/demo.ts), and says so above its list. The song is one of our own
+    // setting, so nothing of the book is written into the suite.
+    test('keeps the note that the songs now play inside the phone', async ({ page }) => {
+        await serveDemo(page, { playback: true });
+        await enterDemo(page);
+
+        const notice = 'Jetzt auch zum Anhören.';
+        await expect(page.locator('main').getByText(notice)).toBeVisible({ timeout: 20_000 });
+        await page.evaluate(() => document.fonts.ready);
+
+        await expectNoOverflow(page, notice);
+    });
+
+    test("keeps a demo hymn's transport inside the phone", async ({ page }) => {
+        await serveDemo(page, { playback: true });
+        await enterDemo(page);
+        await page.locator('main').getByText(MEASURING_SONG.titel).click();
+
+        // The transport only stands once the sheet has rendered.
+        await expect(page.getByRole('button', { name: 'Wiedergabe', exact: true })).toBeVisible({
+            timeout: 20_000,
+        });
+        await page.evaluate(() => document.fonts.ready);
+        await expectNoOverflow(page, 'demo hymn');
+
+        // The tempo in words and nothing finer: no BPM, no Tonhöhe.
+        await page.getByRole('button', { name: /^Tempo: / }).click();
+        await expect(page.getByRole('button', { name: /^Normal/ })).toBeVisible();
+        await expect(page.getByText('Genaues Tempo')).toHaveCount(0);
+        await expect(page.getByText('Tonhöhe')).toHaveCount(0);
+    });
+
+    test('shows no transport while the demo does not play yet', async ({ page }) => {
+        await serveDemo(page, { playback: false });
+        await enterDemo(page);
+        await expect(page.locator('main').getByText('Jetzt auch zum Anhören.')).toHaveCount(0);
+        await page.locator('main').getByText(MEASURING_SONG.titel).click();
+
+        // Rendered, and still no transport under it.
+        await expect(page.locator('main svg').first()).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByRole('button', { name: 'Wiedergabe', exact: true })).toHaveCount(0);
+    });
 });
+
+const MEASURING_XML_ID = '00000000-0000-4000-8000-0000000000aa';
+
+/** A hymn that exists only here: two verses, one bar of melody. */
+const MEASURING_SONG = {
+    id: 'readability-1',
+    index: 1,
+    titel: 'Ein Lied zum Nachmessen',
+    strophen: [
+        { strophe: '1', text: 'Eine Strophe, die nur in diesem Test gesungen wird.' },
+        { strophe: '2', text: 'Und eine zweite, damit es etwas zu wählen gibt.' },
+    ],
+    textAutoren: [],
+    melodieAutoren: [],
+    noten: [],
+    notentextMxml: { id: MEASURING_XML_ID, filename_download: 'nachmessen.musicxml' },
+    notentextSvg: null,
+    kategorien: [],
+};
+
+const MEASURING_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Melodie</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      ${['C', 'D', 'E', 'F']
+          .map(
+              (step) =>
+                  `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>`,
+          )
+          .join('')}
+    </measure>
+  </part>
+</score-partwise>`;
+
+/** The demo endpoint (worker/demo.ts), answering for the one song above. */
+async function serveDemo(page: Page, { playback }: { playback: boolean }) {
+    await page.route('**/api/demo/**', (route) =>
+        route.request().url().includes('/assets/')
+            ? route.fulfill({ contentType: 'application/xml', body: MEASURING_XML })
+            : route.fulfill({ json: { songs: [MEASURING_SONG], until: null, playback } }),
+    );
+}
+
+/**
+ * Through the welcome into the demo's song list. Pressed, not clicked: on a
+ * phone the service worker's „offline verfügbar" toast comes up over the
+ * button just as it is enabled, and a click aimed at it lands on the toast.
+ */
+async function enterDemo(page: Page) {
+    await page.goto('/demo/readability');
+    const enter = page.getByRole('button', { name: 'Lieder ansehen' });
+    await expect(enter).toBeEnabled({ timeout: 20_000 });
+    await enter.press('Enter');
+    await expect(page).toHaveURL(/\/tabs\/lieder/);
+}

@@ -54,6 +54,11 @@ export const useSongsStore = defineStore('songs', () => {
     // the real book. Kept in db.meta, so a demo opened once still knows what
     // it is on the next cold start — and can be taken back when it closes.
     const demoKey = ref<string | null>(null);
+    // Whether the demo's songs may be played: never while the event they were
+    // handed out at is on, and from DEMO_PLAYBACK_FROM after it (see
+    // worker/demo.ts). Kept in db.meta with the key, so a phone that learnt
+    // it once still plays in flight mode.
+    const demoPlayback = ref(false);
     // Set when the endpoint said the demo is over and the songs were cleared.
     // The shell watches it to tell the reader and leave the emptied page.
     const demoClosed = ref(false);
@@ -79,6 +84,7 @@ export const useSongsStore = defineStore('songs', () => {
             const demoRow = await db.meta.get(DEMO_KEY_ROW);
             demoKey.value = demoRow?.value ?? null;
             setDemoKey(demoKey.value);
+            demoPlayback.value = !!demoKey.value && !!(await db.meta.get(DEMO_PLAYBACK_ROW));
 
             // Hydrate the last sync time persisted across reloads
             const syncRow = await db.meta.get('lastSyncTime');
@@ -115,15 +121,28 @@ export const useSongsStore = defineStore('songs', () => {
     }
 
     const DEMO_KEY_ROW = 'demoKey';
+    // Present only while the demo plays; the row's absence is "silent".
+    const DEMO_PLAYBACK_ROW = 'demoPlayback';
 
     async function persistDemoKey(key: string | null): Promise<void> {
         if (key) {
             await db.meta.put({ key: DEMO_KEY_ROW, value: key });
         } else {
             await db.meta.delete(DEMO_KEY_ROW);
+            // Goes with the demo it belonged to.
+            await persistDemoPlayback(false);
         }
         demoKey.value = key;
         setDemoKey(key);
+    }
+
+    async function persistDemoPlayback(on: boolean): Promise<void> {
+        if (on) {
+            await db.meta.put({ key: DEMO_PLAYBACK_ROW, value: 'true' });
+        } else {
+            await db.meta.delete(DEMO_PLAYBACK_ROW);
+        }
+        demoPlayback.value = on;
     }
 
     // The download name of every file the library references, built once per
@@ -488,7 +507,7 @@ export const useSongsStore = defineStore('songs', () => {
         syncProgress.value = { current: 0, total: 0, phase: 'songs' };
 
         try {
-            const fetched = await fetchDemoSongs(key);
+            const { songs: fetched, playback } = await fetchDemoSongs(key);
             // An emptied list is how the demo is closed from Directus — read
             // it as that, not as a library to empty and keep.
             if (fetched.length === 0) {
@@ -497,6 +516,7 @@ export const useSongsStore = defineStore('songs', () => {
 
             // Before the files: fetchFile reads the key to know where to ask.
             await persistDemoKey(key);
+            await persistDemoPlayback(playback);
 
             const fetchedIds = new Set(fetched.map((song) => song.id));
             const localIds = (await db.songs.toCollection().primaryKeys()) as string[];
@@ -612,9 +632,10 @@ export const useSongsStore = defineStore('songs', () => {
             songs.value = [];
             lastSyncTime.value = null;
             failedFiles.value = [];
-            // The row went with db.meta.
+            // The rows went with db.meta.
             demoKey.value = null;
             setDemoKey(null);
+            demoPlayback.value = false;
         } catch (err) {
             console.error('Error clearing data:', err);
             error.value = 'Failed to clear local data';
@@ -644,6 +665,7 @@ export const useSongsStore = defineStore('songs', () => {
         syncProgress,
         hasSongs,
         demoKey,
+        demoPlayback,
         demoClosed,
         isDemo,
 

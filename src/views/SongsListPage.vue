@@ -105,6 +105,30 @@
                     </span>
                 </button>
 
+                <!-- A demo has no Lied der Woche. What it does get, once the
+                     event is over, is the songs played aloud — and whoever
+                     scanned the code in the hall found a demo without it, so
+                     it is said once, small, above the list. -->
+                <p
+                    v-if="
+                        songsStore.isDemo &&
+                        songsStore.demoPlayback &&
+                        !filters.searchQuery &&
+                        !hasActiveFilters
+                    "
+                    class="mb-2 mt-4 flex items-start gap-3 rounded-lg border border-flourish/40 bg-flourish/5 px-4 py-3 text-sm leading-snug"
+                >
+                    <Play
+                        class="mt-0.5 size-4 shrink-0 fill-current text-flourish"
+                        aria-hidden="true"
+                    />
+                    <span class="min-w-0">
+                        <span class="font-medium">Jetzt auch zum Anhören.</span>
+                        Lied öffnen und unten auf Wiedergabe tippen, die klingende Note wird
+                        mitgezeigt.
+                    </span>
+                </p>
+
                 <!-- Loading State -->
                 <div
                     v-if="isLoading"
@@ -365,6 +389,7 @@ import {
     ListMusic,
     ListOrdered,
     Music,
+    Play,
     Search,
 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
