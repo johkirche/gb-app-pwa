@@ -12,6 +12,11 @@ import { expect, test } from '@playwright/test';
  *
  * No recording, no library, no session — which is the point. If one of these
  * ever starts needing the backend to render, this spec is where it shows.
+ *
+ * Two of them do ask it for something: the Impressum and the Datenschutz-
+ * erklärung read the organisation's entries from Directus (rechtstexte). The
+ * backend is cut off here, so that asking is allowed and depending is not —
+ * each page has to stand without an answer, and say that the entries follow.
  */
 
 const PHONE = { width: 390, height: 844 };
@@ -23,21 +28,40 @@ interface PublicPage {
     heading: RegExp;
     /** Something on the page that proves it rendered its own content. */
     contains: RegExp;
+    /** The one backend path it may ask for: an answer it can do without. */
+    asks?: string;
 }
 
 const PAGES: PublicPage[] = [
     { path: '/login', heading: /Gesangbuch/, contains: /Melden Sie sich an/i },
     { path: '/register', heading: /Willkommen/, contains: /Konto/i },
     { path: '/password-reset', heading: /Passwort zurücksetzen/, contains: /E-Mail/i },
-    { path: '/impressum', heading: /Impressum/, contains: /Angaben gemäß/i },
-    { path: '/datenschutz', heading: /Datenschutz/, contains: /Verantwortlicher/i },
+    {
+        path: '/impressum',
+        heading: /Impressum/,
+        contains: /Angaben gemäß/i,
+        asks: '/items/rechtstexte',
+    },
+    {
+        path: '/datenschutz',
+        heading: /Datenschutz/,
+        contains: /Verantwortlicher/i,
+        asks: '/items/rechtstexte',
+    },
     { path: '/vorschau-beendet', heading: /Danke fürs Ausprobieren/, contains: /Auch ohne Netz/ },
 ];
 
-for (const { path, heading, contains } of PAGES) {
+for (const { path, heading, contains, asks } of PAGES) {
     test(`${path} renders without a session`, async ({ page }) => {
-        const failures: string[] = [];
-        page.on('requestfailed', (r) => failures.push(`${r.url()} ${r.failure()?.errorText}`));
+        // The backend cut off: whatever leaves the app's own origin fails.
+        const asked: string[] = [];
+        await page.route(
+            (url) => url.hostname !== 'localhost',
+            (route) => {
+                asked.push(new URL(route.request().url()).pathname);
+                return route.abort();
+            },
+        );
 
         await page.goto(path);
 
@@ -46,9 +70,17 @@ for (const { path, heading, contains } of PAGES) {
         await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
         await expect(page.getByText(contains).first()).toBeVisible();
 
-        // Nothing on a public page may depend on the backend being reachable.
+        if (asks) {
+            // Without the answer the entries say when they will come, rather
+            // than leaving a gap or a placeholder.
+            await expect(
+                page.getByText('Wird geladen, sobald das Gerät mit dem Internet verbunden ist.'),
+            ).not.toHaveCount(0);
+        }
+
+        // Nothing else on a public page may reach the backend at all.
         expect(
-            failures.filter((f) => !f.includes('localhost')),
+            asked.filter((p) => p !== asks),
             'a public page reached off-origin',
         ).toEqual([]);
     });
