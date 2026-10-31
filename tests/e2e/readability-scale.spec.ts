@@ -67,10 +67,22 @@ async function overflowingAt(page: Page, where: string, scale: string) {
                 out.push(`${where} @${scale}: the page scrolls sideways by ${sideways}px`);
             }
 
+            // A `truncate` line runs past its box by design and ends in an
+            // ellipsis where the box does: cut short, but on purpose. So is
+            // whatever sits inline inside it — a hymn's number and title are
+            // two spans in the one truncated heading.
+            const cutShort = (from: Element | null) => {
+                for (let at = from; at; at = at.parentElement) {
+                    if (getComputedStyle(at).textOverflow === 'ellipsis') return true;
+                }
+                return false;
+            };
+
             const limit = root.clientWidth + 1;
             for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
                 const rect = el.getBoundingClientRect();
                 if (rect.width === 0 || rect.height === 0) continue;
+                if (cutShort(el.parentElement)) continue;
                 if (rect.right > limit || rect.left < -1) {
                     const cls = (el.className || '').toString().slice(0, 60);
                     out.push(`${where} @${scale}: <${el.tagName.toLowerCase()} class="${cls}">`);
@@ -100,10 +112,7 @@ async function overflowingAt(page: Page, where: string, scale: string) {
             const range = document.createRange();
             for (let node = walker.nextNode(); node; node = walker.nextNode()) {
                 if (!node.textContent?.trim()) continue;
-                // A `truncate` line runs past its box by design and ends in an
-                // ellipsis where the box does: cut short, but on purpose.
-                const parent = node.parentElement;
-                if (parent && getComputedStyle(parent).textOverflow === 'ellipsis') continue;
+                if (cutShort(node.parentElement)) continue;
                 range.selectNodeContents(node);
                 for (const rect of Array.from(range.getClientRects())) {
                     if (rect.width === 0 || rect.height === 0) continue;
