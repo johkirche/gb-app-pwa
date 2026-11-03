@@ -133,6 +133,20 @@ export const useUserStore = defineStore('user', () => {
         });
     }
 
+    /**
+     * The session as IndexedDB holds it now, which is not always what this tab
+     * read at startup: another tab of the app may have refreshed since, and
+     * Directus rotated the refresh token this one keeps in memory.
+     */
+    async function readStoredAuth(): Promise<AuthData | null> {
+        try {
+            return (await db.auth.toArray())[0] ?? null;
+        } catch (err) {
+            console.error('Error reading auth data:', err);
+            return null;
+        }
+    }
+
     function setDevSkipAuth(skip: boolean) {
         devSkipAuth.value = skip;
     }
@@ -211,6 +225,7 @@ export const useUserStore = defineStore('user', () => {
         setUser,
         updateUserRole,
         updateTokens,
+        readStoredAuth,
         setDevSkipAuth,
         endSession,
         acknowledgeSessionExpired,
