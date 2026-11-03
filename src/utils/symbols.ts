@@ -1,3 +1,5 @@
+import { SYMBOL_NAMES } from '@/config/symbols';
+
 /** A symbol as the picker offers it. */
 export interface SymbolOption {
     id: string;
@@ -18,39 +20,57 @@ export interface SymbolFile {
 }
 
 const SEPARATORS = /[\s_-]+/;
+const NUMBER = /^\d+$/;
 
-/** Directus' tokens for a name: the title, or the download name without its extension. */
-function tokens(file: SymbolFile): string[] {
-    const source = file.title?.trim() || file.filename_download?.replace(/\.[^.]+$/, '') || '';
-    return source.split(SEPARATORS).filter(Boolean);
+function split(source: string | null | undefined): string[] {
+    return (source ?? '')
+        .replace(/\.[^.]+$/, '')
+        .split(SEPARATORS)
+        .filter(Boolean);
+}
+
+/** What comes after the last number: „Gesangbuch-Symbole_v06_23_Drei_Voegel" → Drei, Voegel. */
+function nameTokens(parts: string[]): string[] {
+    let lastNumber = -1;
+    parts.forEach((part, i) => {
+        if (NUMBER.test(part)) lastNumber = i;
+    });
+    return parts.slice(lastNumber + 1);
 }
 
 /**
- * The symbol's name, from whatever Directus holds for it.
- *
- * The files arrive named for the print run — „Gesangbuch-Symbole_v06_23_Taube"
- * — and Directus makes the same into a title, „Gesangbuch Symbole V06 23
- * Taube". Everything up to the last number is the series, not the symbol, so
- * it goes. A title somebody has written by hand („Drei Vögel") has no number
- * in it and is taken as it stands, which is how the umlauts the file names
- * spell out („Voegel") get put right: in Directus, not here.
+ * The key SYMBOL_NAMES is looked up by: the name part of the file, lower case,
+ * hyphenated — „drei-voegel". The download name first, which is what the print
+ * run named it; Directus' title is the same words, capitalised („Drei
+ * Voegel"), so it gives the same key when the download name is missing.
+ */
+export function symbolSlug(file: SymbolFile): string {
+    const fromName = nameTokens(split(file.filename_download));
+    const tokens = fromName.length ? fromName : nameTokens(split(file.title));
+    return tokens.join('-').toLowerCase();
+}
+
+/**
+ * The symbol's name. SYMBOL_NAMES has the book's own, with its umlauts and
+ * articles; a symbol it does not know yet (one added to the folder since) is
+ * named by its title when somebody wrote one by hand, and by its file name
+ * otherwise — „Drei Voegel" rather than nothing.
  */
 export function symbolLabel(file: SymbolFile): string {
-    const parts = tokens(file);
-    let lastNumber = -1;
-    parts.forEach((part, i) => {
-        if (/^\d+$/.test(part)) lastNumber = i;
-    });
-    const name = parts.slice(lastNumber + 1).join(' ');
-    return name || parts.join(' ') || 'Symbol';
+    const known = SYMBOL_NAMES[symbolSlug(file)];
+    if (known) return known;
+
+    const title = file.title?.trim();
+    if (title && !split(title).some((part) => NUMBER.test(part))) return title;
+
+    const parts = split(file.filename_download || file.title);
+    return nameTokens(parts).join(' ') || parts.join(' ') || 'Symbol';
 }
 
 /** The number in the book's series („…_v06_23_Taube" is 23), or Infinity. */
 export function symbolOrder(file: SymbolFile): number {
-    const source = file.filename_download?.replace(/\.[^.]+$/, '') ?? file.title ?? '';
-    const numbers = source
-        .split(SEPARATORS)
-        .filter((part) => /^\d+$/.test(part))
+    const numbers = split(file.filename_download ?? file.title)
+        .filter((part) => NUMBER.test(part))
         .map(Number);
     return numbers.length ? numbers[numbers.length - 1] : Infinity;
 }
