@@ -42,8 +42,11 @@
              size — that is what a data plan pays.
              Worded to be true either way: on an iPhone the app cannot tell
              WLAN from mobile data, so it must not ask someone sitting in
-             their WLAN to switch to it. -->
-        <div v-if="awaitingChoice" class="mt-6 flex items-start gap-4 rounded-lg bg-muted p-4">
+             their WLAN to switch to it.
+             There is one way on and no „later": the book is the app, and
+             without it the Liederliste is empty. Not now is closing the app,
+             and the next start comes back to this step. -->
+        <div v-if="awaitingStart" class="mt-6 flex items-start gap-4 rounded-lg bg-muted p-4">
             <Wifi class="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
             <p class="min-w-0 text-[0.9375rem] leading-relaxed">
                 Der Download ist ca. {{ formatBytes(ESTIMATED_TRANSFER_BYTES) }} groß. Ohne WLAN
@@ -107,23 +110,16 @@
         </div>
 
         <div class="mt-auto flex flex-col gap-2 pt-8">
-            <template v-if="awaitingChoice">
-                <Button type="button" size="lg" class="w-full" @click="$emit('download')">
-                    <Download aria-hidden="true" />
-                    Jetzt laden
-                </Button>
-                <!-- Leaving is not losing the download: the empty Liederliste
-                     offers it again, and Einstellungen › Daten always does. -->
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="lg"
-                    class="w-full text-muted-foreground"
-                    @click="$emit('skip')"
-                >
-                    Später laden
-                </Button>
-            </template>
+            <Button
+                v-if="awaitingStart"
+                type="button"
+                size="lg"
+                class="w-full"
+                @click="$emit('download')"
+            >
+                <Download aria-hidden="true" />
+                Herunterladen
+            </Button>
             <Button
                 v-if="downloadComplete"
                 type="button"
@@ -200,10 +196,10 @@ defineEmits<{
     skip: [];
 }>();
 
-// Nothing asked for yet and nothing already running or done: the step is the
-// question. A sync started elsewhere (a restored session) shows its progress
-// instead of asking about one that is already under way.
-const awaitingChoice = computed(
+// Nothing asked for yet and nothing already running or done: the step waits for
+// the press. A sync started elsewhere (a restored session) shows its progress
+// instead of offering one that is already under way.
+const awaitingStart = computed(
     () => !props.downloadStarted && !props.isSyncing && !props.downloadComplete,
 );
 </script>

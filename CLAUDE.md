@@ -138,9 +138,9 @@ real token is ever written into a fixture.
 
 Onboarding is a two-step wizard, so the recording walks it: „Weiter" past the
 install prompt, then the download starts on its own and the run sits out the
-whole book, printing each phase as it goes. (A phone would first ask about
-mobile data; the projects are desktops with a mouse, so the question never
-comes up.)
+whole book, printing each phase as it goes. (A phone would first wait for
+„Herunterladen", with the transfer size beside it; the projects are desktops
+with a mouse, so that never comes up.)
 
 The recorder is our own (`tests/e2e/support/recorder.ts`), not Playwright's
 `routeFromHAR`. The HAR tracer reads response bodies back out of Chromium after

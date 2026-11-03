@@ -107,8 +107,8 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // Step 2 of 2 — starts by itself once the step is active. A phone would
-    // ask about mobile data first (mayUseMobileData); every project here is a
-    // desk with a mouse, where there is no data plan to ask about.
+    // wait for „Herunterladen" first (mayUseMobileData); every project here is
+    // a desk with a mouse, where there is no data plan to wait for.
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
     await waitForDownload(page, DOWNLOAD_BUDGET);
 
