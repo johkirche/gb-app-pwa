@@ -57,4 +57,17 @@ const mobileOffset = {
     border-radius: var(--radius) !important;
     font-family: var(--font-sans) !important;
 }
+
+/* sonner draws the icon of a warning, error or success toast at a fixed 20px,
+   which ignores Größe: at 50 % it ran out of its box, and at 200 % it stayed
+   small beside a message that had doubled. In rem it goes with its line. */
+.gb-toast [data-icon] {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.gb-toast [data-icon] svg {
+    width: 100%;
+    height: 100%;
+}
 </style>
