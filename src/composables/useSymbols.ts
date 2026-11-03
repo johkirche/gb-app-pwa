@@ -1,4 +1,4 @@
-import { computed, reactive, ref, shallowRef } from 'vue';
+import { reactive, ref, shallowRef } from 'vue';
 
 import { fetchFile, listFolderFiles } from '@/api/files.api';
 import { SYMBOL_FOLDER_ID } from '@/config/symbols';
@@ -15,7 +15,7 @@ import { type SymbolFile, type SymbolOption, toSymbols } from '@/utils/symbols';
  * made once.
  */
 
-const FIELDS = ['id', 'title', 'filename_download', 'filesize'];
+const FIELDS = ['id', 'title', 'filename_download'];
 
 /** At once, of 32: enough to fill the grid quickly, few enough not to queue the book's download. */
 const PARALLEL = 4;
@@ -94,16 +94,11 @@ function loadImages(): Promise<void> {
 }
 
 export function useSymbols() {
-    /** What the whole set weighs, for a reader asked before it is loaded. */
-    const totalBytes = computed(() => symbols.value.reduce((sum, s) => sum + s.filesize, 0));
-
     return {
         symbols,
         listState,
         images,
         imagesFailed,
-        totalBytes,
-        loadList,
         /** The list, then every roundel not yet in hand. */
         async loadAll() {
             await loadList();

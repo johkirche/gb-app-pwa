@@ -42,25 +42,16 @@
                 Die Symbole stammen aus dem gedruckten Gesangbuch. Das gewählte steht in der App
                 neben Ihrem Namen.
             </p>
-            <SymbolPicker v-model="avatar" :initials="previewInitials" :ask-first="askFirst" />
+            <SymbolPicker v-model="avatar" :initials="previewInitials" />
         </section>
 
         <div class="mt-auto flex flex-col gap-2 pt-8">
-            <DownloadStatus
-                class="mb-2"
-                v-bind="download"
-                @download="$emit('download')"
-                @retry="$emit('retry')"
-            />
-            <!-- Held while the book is still coming down, as „Fertig" always
-                 was: a Liederliste with half its engravings is no place to be
-                 sent. -->
             <Button
                 type="submit"
                 form="onboarding-profile"
                 size="lg"
                 class="w-full"
-                :disabled="download.isSyncing || saving"
+                :disabled="saving"
                 :aria-busy="saving"
             >
                 <Spinner v-if="saving" size="sm" class="text-primary-foreground" />
@@ -84,8 +75,6 @@ import { useUserStore } from '@/stores/user';
 import { initialsOf, useProfile } from '@/composables/useProfile';
 import { useSymbols } from '@/composables/useSymbols';
 
-import DownloadStatus from '@/components/onboarding/DownloadStatus.vue';
-import type { DownloadState } from '@/components/onboarding/downloadState';
 import SymbolPicker from '@/components/profile/SymbolPicker.vue';
 import UserAvatar from '@/components/profile/UserAvatar.vue';
 import { Button } from '@/components/ui/button';
@@ -93,17 +82,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 
-const props = defineProps<{
-    download: DownloadState;
-    /** The reader put the book off for WLAN: the symbols wait to be asked for too. */
-    askFirst: boolean;
-}>();
-
-const emit = defineEmits<{
-    download: [];
-    retry: [];
-    finish: [];
-}>();
+const emit = defineEmits<{ finish: [] }>();
 
 const userStore = useUserStore();
 const { avatarUrl, saveProfile } = useProfile();
@@ -125,7 +104,7 @@ const previewSrc = computed(() => {
 });
 
 async function finish() {
-    if (props.download.isSyncing || saving.value) return;
+    if (saving.value) return;
     saving.value = true;
     try {
         const saved = await saveProfile({

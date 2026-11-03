@@ -306,8 +306,7 @@ test.describe('the book at every size it offers', () => {
 // The onboarding's tour, and its profile step: a grid of pictures that has to
 // give up columns rather than room as the type grows, and a name typed in long.
 // No session behind it — the dev skip again — so the backend is answered here: a folder of
-// symbols with a roundel each, and nothing else, which leaves the download the
-// step starts failing as it would offline. What is measured is the step.
+// symbols with a roundel each, and nothing else. What is measured is the step.
 test.describe('the onboarding at every size it offers', () => {
     test('keeps the tour and the profile step inside the phone', async ({ page }) => {
         const backend = (process.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '');
@@ -323,7 +322,6 @@ test.describe('the onboarding at every size it offers', () => {
                             id: `symbol-${i + 1}`,
                             title: null,
                             filename_download: `Gesangbuch-Symbole_v06_${i + 1}_Heilige_Drei_Koenige.svg`,
-                            filesize: 60_000,
                         })),
                     },
                 });

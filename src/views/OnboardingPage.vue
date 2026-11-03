@@ -27,33 +27,21 @@
                     @download="handleDownload"
                     @retry="handleRetry"
                     @next="nextStep"
-                    @later="nextStep"
+                    @skip="skipOnboarding"
                 />
 
-                <!-- From here on the book comes down behind the steps, which
-                     fill the wait and keep its progress in sight. Each slide of
-                     the tour is a step of its own, so there is one row of dots
-                     to read and the back arrow goes back one slide. -->
+                <!-- Each slide of the tour is a step of its own, so there is one
+                     row of dots to read and the back arrow goes back one slide. -->
                 <TourStep
                     v-if="tourSlide"
                     :slide="tourSlide"
                     :is-last="currentStep === lastTourStep"
-                    :download="download"
-                    @download="handleDownload"
-                    @retry="handleRetry"
                     @next="nextStep"
                     @skip="currentStep = totalSteps"
                 />
 
                 <!-- Last: name and symbol -->
-                <ProfileStep
-                    v-if="currentStep === totalSteps"
-                    :download="download"
-                    :ask-first="askBeforeDownload && !downloadStarted && !downloadComplete"
-                    @download="handleDownload"
-                    @retry="handleRetry"
-                    @finish="finishOnboarding"
-                />
+                <ProfileStep v-if="currentStep === totalSteps" @finish="finishOnboarding" />
             </div>
         </main>
     </div>
@@ -71,7 +59,6 @@ import DownloadContentStep from '@/components/onboarding/DownloadContentStep.vue
 import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
 import ProfileStep from '@/components/onboarding/ProfileStep.vue';
 import TourStep from '@/components/onboarding/TourStep.vue';
-import type { DownloadState } from '@/components/onboarding/downloadState';
 import { TOUR } from '@/components/onboarding/tour';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
@@ -114,16 +101,6 @@ const tourSlide = computed(() => TOUR[currentStep.value - FIRST_TOUR_STEP] ?? nu
 const downloadStarted = ref(false);
 const downloadComplete = ref(false);
 const storage = ref<StorageSpace | null>(null);
-
-/** The download as the steps after it are told about it. */
-const download = computed<DownloadState>(() => ({
-    isSyncing: isSyncing.value,
-    downloadStarted: downloadStarted.value,
-    downloadComplete: downloadComplete.value,
-    failedCount: failedFiles.value.length,
-    syncError: syncError.value,
-    syncProgress: syncProgress.value,
-}));
 
 function nextStep() {
     if (currentStep.value < totalSteps) {
@@ -208,10 +185,7 @@ watch(
     currentStep,
     (step) => {
         localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
-        // The steps after it too: a reload there (the download cut off with
-        // the page) has to pick the book up again, or „Fertig" would send the
-        // reader off with half of it.
-        if (step >= 2) {
+        if (step === 2) {
             enterDownloadStep();
         }
     },

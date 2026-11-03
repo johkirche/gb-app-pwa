@@ -72,9 +72,6 @@
                 :model-value="syncProgress.current / syncProgress.total"
                 class="mt-4"
             />
-            <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
-                Der Download läuft im Hintergrund weiter. Sie können schon zum nächsten Schritt.
-            </p>
         </div>
 
         <!-- Download Complete -->
@@ -123,11 +120,10 @@
                 <Download aria-hidden="true" />
                 Herunterladen
             </Button>
-            <!-- On while the download runs, not only once it is done: the
-                 tour and the profile are there to fill the wait, and keep the
-                 progress in sight. -->
+            <!-- Only once the book is down: the steps after this one are the
+                 app's, and the app has nothing to show without it. -->
             <Button
-                v-else-if="!failed"
+                v-if="downloadComplete"
                 type="button"
                 size="lg"
                 class="w-full"
@@ -144,7 +140,7 @@
                 variant="ghost"
                 size="lg"
                 class="w-full text-muted-foreground"
-                @click="$emit('next')"
+                @click="$emit('skip')"
             >
                 Später fortfahren
             </Button>
@@ -193,8 +189,10 @@ const props = defineProps<{
 defineEmits<{
     download: [];
     retry: [];
-    /** On to the tour, the download running or done. */
+    /** On to the tour, the book being down. */
     next: [];
+    /** Out of the onboarding, the download having failed. */
+    skip: [];
 }>();
 
 // Nothing asked for yet and nothing already running or done: the step waits for

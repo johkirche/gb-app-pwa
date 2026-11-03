@@ -1,20 +1,6 @@
 <template>
     <div>
-        <!-- A reader who put the book off for WLAN has said what they think of
-             mobile data; the roundels wait to be asked for too. The list
-             itself is a few hundred bytes and says what the set weighs. -->
-        <div v-if="waiting" class="flex flex-col items-start gap-3">
-            <p class="text-sm leading-relaxed text-muted-foreground">
-                Die Symbole laden wir nur, wenn Sie sie sehen möchten.
-            </p>
-            <Button type="button" variant="outline" @click="consented = true">
-                <Images aria-hidden="true" />
-                Symbole laden
-                <template v-if="totalBytes">(ca. {{ formatBytes(totalBytes) }})</template>
-            </Button>
-        </div>
-
-        <div v-else-if="listState === 'error'" class="flex flex-col items-start gap-3">
+        <div v-if="listState === 'error'" class="flex flex-col items-start gap-3">
             <p class="text-sm leading-relaxed text-muted-foreground">
                 Die Symbole konnten nicht geladen werden.
             </p>
@@ -95,9 +81,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted } from 'vue';
 
-import { Images, RotateCw } from 'lucide-vue-next';
+import { RotateCw } from 'lucide-vue-next';
 import { type AcceptableValue, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 
 import { useUserStore } from '@/stores/user';
@@ -108,15 +94,11 @@ import { useSymbols } from '@/composables/useSymbols';
 import UserAvatar from '@/components/profile/UserAvatar.vue';
 import { Button } from '@/components/ui/button';
 
-import { formatBytes } from '@/services/storage';
-
 const props = defineProps<{
     /** The chosen symbol's file id; null for none. */
     modelValue: string | null;
     /** What the „Ohne Symbol" tile shows instead. */
     initials: string;
-    /** Hold the roundels back until the reader asks for them (mobile data). */
-    askFirst?: boolean;
     /** What the picker sits on, for the sticky preview's background. */
     surface?: 'background' | 'popover';
 }>();
@@ -129,10 +111,7 @@ const NONE = 'none';
 const tile =
     'aspect-square rounded-full ring-offset-2 ring-offset-background transition-shadow focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring data-[state=checked]:ring-3 data-[state=checked]:ring-primary';
 
-const { symbols, listState, images, imagesFailed, totalBytes, loadList, loadAll } = useSymbols();
-
-const consented = ref(false);
-const waiting = computed(() => props.askFirst && !consented.value);
+const { symbols, listState, images, imagesFailed, loadAll } = useSymbols();
 
 const userStore = useUserStore();
 const { avatarUrl } = useProfile();
@@ -161,12 +140,5 @@ function load() {
     void loadAll();
 }
 
-onMounted(() => {
-    if (waiting.value) void loadList();
-    else load();
-});
-
-watch(consented, (yes) => {
-    if (yes) load();
-});
+onMounted(load);
 </script>

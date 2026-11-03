@@ -1,5 +1,5 @@
 /**
- * The short tour the onboarding shows while the book comes down: what a reader
+ * The short tour the onboarding shows once the book is down: what a reader
  * will look for first, and where it is. Each slide is a step of the onboarding
  * of its own, and names the control as the app labels it, so what is read here
  * is what is then found on the screen.

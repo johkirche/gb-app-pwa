@@ -7,8 +7,6 @@ export interface SymbolOption {
     label: string;
     /** Its place in the book's own numbering; unnumbered ones go last. */
     order: number;
-    /** Bytes, as Directus reports them; 0 when it does not. */
-    filesize: number;
 }
 
 /** A file in the symbols folder, in the fields the list asks Directus for. */
@@ -16,7 +14,6 @@ export interface SymbolFile {
     id: string;
     title?: string | null;
     filename_download?: string | null;
-    filesize?: number | string | null;
 }
 
 const SEPARATORS = /[\s_-]+/;
@@ -82,7 +79,6 @@ export function toSymbols(files: SymbolFile[]): SymbolOption[] {
             id: file.id,
             label: symbolLabel(file),
             order: symbolOrder(file),
-            filesize: Number(file.filesize) || 0,
         }))
         .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label, 'de'));
 }

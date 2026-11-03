@@ -26,12 +26,6 @@
         </Transition>
 
         <div class="mt-auto flex flex-col gap-2 pt-8">
-            <DownloadStatus
-                class="mb-2"
-                v-bind="download"
-                @download="$emit('download')"
-                @retry="$emit('retry')"
-            />
             <Button type="button" size="lg" class="w-full" @click="$emit('next')">
                 Weiter
                 <ArrowRight aria-hidden="true" />
@@ -53,10 +47,8 @@
 <script setup lang="ts">
 import { ArrowRight } from 'lucide-vue-next';
 
-import DownloadStatus from '@/components/onboarding/DownloadStatus.vue';
 import TourBibelChoice from '@/components/onboarding/TourBibelChoice.vue';
 import TourIllustration from '@/components/onboarding/TourIllustration.vue';
-import type { DownloadState } from '@/components/onboarding/downloadState';
 import type { TourSlide } from '@/components/onboarding/tour';
 import { Button } from '@/components/ui/button';
 
@@ -64,12 +56,9 @@ defineProps<{
     slide: TourSlide;
     /** The last slide has nothing left to skip to but the next step. */
     isLast: boolean;
-    download: DownloadState;
 }>();
 
 defineEmits<{
-    download: [];
-    retry: [];
     next: [];
     /** Past the rest of the tour, to the step after it. */
     skip: [];

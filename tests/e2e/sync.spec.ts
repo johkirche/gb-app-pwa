@@ -13,8 +13,7 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
  *
  * Onboarding is a wizard, not an automatic run: the Install step waits for
  * „Weiter", and only then does the download start on its own; the tour and
- * the profile after it fill the wait, and the profile holds „Fertig" until the
- * book is down. This spec sits
+ * the profile come once the book is down. This spec sits
  * the download out on its own step, where the progress and the failures are
  * worded in full. The recording run is measured in minutes and prints what it
  * is doing while it works.
@@ -132,7 +131,6 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     // Last, name and symbol, both optional. Left empty, so the run writes
     // nothing to the account it records with.
     await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
-    await expect(page.getByText('Das Gesangbuch ist geladen.')).toBeVisible();
     await page.getByRole('button', { name: 'Fertig' }).click();
 
     const nav = page.locator('nav[aria-label="Hauptnavigation"]:visible');

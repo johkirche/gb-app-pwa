@@ -111,11 +111,10 @@ describe('toSymbols', () => {
             {
                 id: 'a',
                 filename_download: 'Gesangbuch-Symbole_v06_1_Drei_Voegel.svg',
-                filesize: '1200',
             },
             { id: 'b', filename_download: 'Gesangbuch-Symbole_v06_2_Stadt_mit_Kreuz.svg' },
         ]);
         expect(symbols.map((s) => s.id)).toEqual(['a', 'b', 'c', 'x']);
-        expect(symbols[0]).toEqual({ id: 'a', label: 'Drei Vögel', order: 1, filesize: 1200 });
+        expect(symbols[0]).toEqual({ id: 'a', label: 'Drei Vögel', order: 1 });
     });
 });

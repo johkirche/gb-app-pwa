@@ -118,24 +118,22 @@ export async function syncLibrary(page: Page) {
 }
 
 /**
- * Through the onboarding, the download left to run.
- *
- * Install, then the download step — which offers „Weiter" as soon as the book
- * is coming down, so the steps after it can fill the wait — then past the tour
- * to the profile, whose „Fertig" holds until the download is done. Nothing is
- * typed into the profile: an empty one is saved without a request, so the
- * recording never learns of a write and a replay never needs one.
+ * Through the onboarding: install, the download step — which offers „Weiter"
+ * once the book is down — then past the tour to the profile and its „Fertig".
+ * Nothing is typed into the profile: an empty one is saved without a request,
+ * so the recording never learns of a write and a replay never needs one.
  */
 export async function walkOnboarding(page: Page, downloadBudgetMs: number) {
     await page.getByRole('button', { name: 'Weiter' }).click();
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
-    await page.getByRole('button', { name: 'Weiter' }).click();
+
+    const next = page.getByRole('button', { name: 'Weiter' });
+    await expect(next).toBeVisible({ timeout: downloadBudgetMs });
+    await next.click();
+
     await page.getByRole('button', { name: 'Überspringen' }).click();
     await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
-
-    const done = page.getByRole('button', { name: 'Fertig' });
-    await expect(done).toBeEnabled({ timeout: downloadBudgetMs });
-    await done.click();
+    await page.getByRole('button', { name: 'Fertig' }).click();
 }
 
 /** The tab bar that is on screen — a second, hidden one exists for ≥ lg. */
