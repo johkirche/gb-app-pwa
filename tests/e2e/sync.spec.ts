@@ -109,9 +109,9 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     // First the PWA install prompt, which only moves on when asked to.
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // Then the download, which starts by itself once the step is active. A phone would
-    // ask about mobile data first (mayUseMobileData); every project here is a
-    // desk with a mouse, where there is no data plan to ask about.
+    // Then the download, which starts by itself once the step is active. A phone
+    // would wait for „Herunterladen" first (mayUseMobileData); every project here
+    // is a desk with a mouse, where there is no data plan to wait for.
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
     await waitForDownload(page, DOWNLOAD_BUDGET);
     await page.getByRole('button', { name: 'Weiter' }).click();

@@ -39,12 +39,18 @@
         <!-- Before the download, on a phone (see mayUseMobileData): the reader
              may be on mobile data, so it is their call when the book comes
              down, not the step's. The quote is the transfer, not the stored
-             size — that is what a data plan pays. -->
-        <div v-if="awaitingChoice" class="mt-6 flex items-start gap-4 rounded-lg bg-muted p-4">
+             size — that is what a data plan pays.
+             Worded to be true either way: on an iPhone the app cannot tell
+             WLAN from mobile data, so it must not ask someone sitting in
+             their WLAN to switch to it.
+             There is one way on and no „later": the book is the app, and
+             without it the Liederliste is empty. Not now is closing the app,
+             and the next start comes back to this step. -->
+        <div v-if="awaitingStart" class="mt-6 flex items-start gap-4 rounded-lg bg-muted p-4">
             <Wifi class="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
             <p class="min-w-0 text-[0.9375rem] leading-relaxed">
-                Der Download braucht ca. {{ formatBytes(ESTIMATED_TRANSFER_BYTES) }}. Jetzt laden
-                oder vorher ins WLAN wechseln?
+                Der Download ist ca. {{ formatBytes(ESTIMATED_TRANSFER_BYTES) }} groß. Ohne WLAN
+                geht er von Ihrem mobilen Datenvolumen ab.
             </p>
         </div>
 
@@ -107,24 +113,16 @@
         </div>
 
         <div class="mt-auto flex flex-col gap-2 pt-8">
-            <template v-if="awaitingChoice">
-                <Button type="button" size="lg" class="w-full" @click="$emit('download')">
-                    <Download aria-hidden="true" />
-                    Jetzt laden
-                </Button>
-                <!-- Putting it off is not losing it: the steps after this one
-                     offer it again, so does the empty Liederliste, and
-                     Einstellungen › Daten always does. -->
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="lg"
-                    class="w-full text-muted-foreground"
-                    @click="$emit('later')"
-                >
-                    Später im WLAN
-                </Button>
-            </template>
+            <Button
+                v-if="awaitingStart"
+                type="button"
+                size="lg"
+                class="w-full"
+                @click="$emit('download')"
+            >
+                <Download aria-hidden="true" />
+                Herunterladen
+            </Button>
             <!-- On while the download runs, not only once it is done: the
                  tour and the profile are there to fill the wait, and keep the
                  progress in sight. -->
@@ -197,14 +195,12 @@ defineEmits<{
     retry: [];
     /** On to the tour, the download running or done. */
     next: [];
-    /** On to the tour without it: the reader would rather wait for WLAN. */
-    later: [];
 }>();
 
-// Nothing asked for yet and nothing already running or done: the step is the
-// question. A sync started elsewhere (a restored session) shows its progress
-// instead of asking about one that is already under way.
-const awaitingChoice = computed(
+// Nothing asked for yet and nothing already running or done: the step waits for
+// the press. A sync started elsewhere (a restored session) shows its progress
+// instead of offering one that is already under way.
+const awaitingStart = computed(
     () => !props.downloadStarted && !props.isSyncing && !props.downloadComplete,
 );
 
