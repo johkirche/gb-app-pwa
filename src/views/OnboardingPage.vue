@@ -57,8 +57,24 @@ const ONBOARDING_IN_PROGRESS_KEY = 'onboarding.inProgress';
 const ONBOARDING_STEP_KEY = 'onboarding.currentStep';
 
 // Step management
-const currentStep = ref(1);
 const totalSteps = 2;
+
+/**
+ * Where an onboarding cut off by a reload (or an installed app launched
+ * fresh) left off. Read here, in setup, and not in onMounted: the step watcher
+ * below runs at once and stores the step it starts on, so by the time the page
+ * mounted it had already written „1" over the step it was meant to restore.
+ */
+function storedStep(): number {
+    try {
+        const step = Number(localStorage.getItem(ONBOARDING_STEP_KEY));
+        return Number.isInteger(step) && step >= 1 && step <= totalSteps ? step : 1;
+    } catch {
+        return 1;
+    }
+}
+
+const currentStep = ref(storedStep());
 
 // Download state
 const downloadStarted = ref(false);
@@ -141,12 +157,6 @@ function skipOnboarding() {
 
 onMounted(async () => {
     localStorage.setItem(ONBOARDING_IN_PROGRESS_KEY, '1');
-
-    const storedStep = Number(localStorage.getItem(ONBOARDING_STEP_KEY));
-    if (!Number.isNaN(storedStep) && storedStep >= 1 && storedStep <= totalSteps) {
-        currentStep.value = storedStep;
-    }
-
     storage.value = await getStorageEstimate();
 });
 
