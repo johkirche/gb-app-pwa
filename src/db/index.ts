@@ -99,6 +99,14 @@ export interface UserData {
     email: string;
     firstName?: string;
     lastName?: string;
+    /** The chosen symbol's file id in Directus (config/symbols.ts), or none. */
+    avatar?: string | null;
+    /**
+     * That symbol's SVG, kept with the user so the avatar shows offline and
+     * leaves with the account on logout. Only ever drawn through an <img>,
+     * never inlined, so nothing in the file can run.
+     */
+    avatarSvg?: string | null;
     role: string;
     activated: boolean;
 }

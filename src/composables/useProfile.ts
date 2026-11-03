@@ -1,0 +1,127 @@
+import { computed } from 'vue';
+
+import { useUserStore } from '@/stores/user';
+
+import { fetchSymbolSvg, svgDataUrl } from '@/composables/useSymbols';
+
+import { type Profile, readProfile, updateProfile } from '@/api/profile.api';
+
+/** What the reader is called, and how they are drawn: the name, and the symbol they chose. */
+export function useProfile() {
+    const userStore = useUserStore();
+
+    /** The name as one line, or null when none was given. */
+    const fullName = computed(() => {
+        const name = [userStore.user?.firstName, userStore.user?.lastName]
+            .map((part) => part?.trim())
+            .filter(Boolean)
+            .join(' ');
+        return name || null;
+    });
+
+    /** Two letters for the avatar when there is no symbol; the email's first without a name. */
+    const initials = computed(
+        () =>
+            initialsOf(userStore.user?.firstName, userStore.user?.lastName) ||
+            (userStore.user?.email?.[0]?.toUpperCase() ?? ''),
+    );
+
+    const avatarUrl = computed(() =>
+        userStore.user?.avatarSvg ? svgDataUrl(userStore.user.avatarSvg) : null,
+    );
+
+    /**
+     * Save a new name and/or symbol, and say whether the server took it.
+     * Only what changed is sent; nothing changed is a success with no request.
+     * The device shows the new profile only once Directus has it, so a refused
+     * write never leaves the app showing a name the account does not have.
+     */
+    async function saveProfile(next: {
+        firstName?: string;
+        lastName?: string;
+        avatar?: string | null;
+    }): Promise<boolean> {
+        const user = userStore.user;
+        if (!user) return false;
+
+        const patch: Partial<Profile> = {};
+        if (next.firstName !== undefined && clean(next.firstName) !== clean(user.firstName)) {
+            patch.firstName = clean(next.firstName);
+        }
+        if (next.lastName !== undefined && clean(next.lastName) !== clean(user.lastName)) {
+            patch.lastName = clean(next.lastName);
+        }
+        if (next.avatar !== undefined && next.avatar !== (user.avatar ?? null)) {
+            patch.avatar = next.avatar;
+        }
+        if (Object.keys(patch).length === 0) return true;
+
+        // The picture first: a symbol the device cannot keep is not worth
+        // writing to the account, where every other device would then miss it.
+        let avatarSvg: string | null | undefined;
+        if ('avatar' in patch) {
+            try {
+                avatarSvg = patch.avatar ? await fetchSymbolSvg(patch.avatar) : null;
+            } catch (err) {
+                console.warn('Could not fetch the chosen symbol:', err);
+                return false;
+            }
+        }
+
+        if (!(await updateProfile(patch))) return false;
+
+        await userStore.patchUser({
+            ...('firstName' in patch && { firstName: patch.firstName ?? undefined }),
+            ...('lastName' in patch && { lastName: patch.lastName ?? undefined }),
+            ...('avatar' in patch && { avatar: patch.avatar, avatarSvg }),
+        });
+        return true;
+    }
+
+    /**
+     * Bring the device in line with the account: a name or symbol changed on
+     * another device, or a symbol this one has not got the picture of yet.
+     * Quiet when the profile cannot be read — what the device has stays.
+     */
+    async function pullProfile(): Promise<void> {
+        const profile = await readProfile();
+        const user = userStore.user;
+        if (!profile || !user) return;
+
+        let avatarSvg = user.avatarSvg ?? null;
+        if (profile.avatar !== (user.avatar ?? null) || (profile.avatar && !avatarSvg)) {
+            if (!profile.avatar) {
+                avatarSvg = null;
+            } else {
+                try {
+                    avatarSvg = await fetchSymbolSvg(profile.avatar);
+                } catch (err) {
+                    console.warn('Could not fetch the profile’s symbol:', err);
+                    return;
+                }
+            }
+        }
+
+        await userStore.patchUser({
+            firstName: profile.firstName ?? undefined,
+            lastName: profile.lastName ?? undefined,
+            avatar: profile.avatar,
+            avatarSvg,
+        });
+    }
+
+    return { fullName, initials, avatarUrl, saveProfile, pullProfile };
+}
+
+/** A name part as Directus should store it: trimmed, and absent rather than empty. */
+function clean(value: string | null | undefined): string | null {
+    return value?.trim() || null;
+}
+
+/** The first letter of each name given, upper-cased: „EM" for Erika Muster. */
+export function initialsOf(firstName?: string | null, lastName?: string | null): string {
+    return [firstName, lastName]
+        .map((part) => part?.trim()?.[0] ?? '')
+        .join('')
+        .toUpperCase();
+}

@@ -101,13 +101,44 @@ export interface DirectusFileInfo {
  * connection would read as the file having been taken down.
  */
 export async function findFileByName(filename: string): Promise<DirectusFileInfo | null> {
-    const params = new URLSearchParams({
-        'filter[filename_download][_eq]': filename,
-        fields: 'id,modified_on,uploaded_on',
-        sort: '-uploaded_on',
-        limit: '1',
-    });
-    const url = `${directusConfig.url}/files?${params}`;
+    const files = await queryFiles<{
+        id: string;
+        modified_on?: string | null;
+        uploaded_on?: string | null;
+    }>(
+        {
+            'filter[filename_download][_eq]': filename,
+            fields: 'id,modified_on,uploaded_on',
+            sort: '-uploaded_on',
+            limit: '1',
+        },
+        `look up ${filename}`,
+    );
+    const file = files[0];
+    if (!file) return null;
+    return { id: file.id, modifiedOn: file.modified_on ?? file.uploaded_on ?? null };
+}
+
+/**
+ * Every file in one folder of the library, with the fields asked for. Throws
+ * when the folder cannot be read, as findFileByName does: an empty list is an
+ * answer, a failed request is not.
+ */
+export async function listFolderFiles<T>(folderId: string, fields: string[]): Promise<T[]> {
+    return queryFiles<T>(
+        {
+            'filter[folder][_eq]': folderId,
+            fields: fields.join(','),
+            // A folder of symbols, not a library: one page is all of it.
+            limit: '200',
+        },
+        `list folder ${folderId}`,
+    );
+}
+
+/** GET /files with the session, refreshed once if it turns out to have expired. */
+async function queryFiles<T>(query: Record<string, string>, what: string): Promise<T[]> {
+    const url = `${directusConfig.url}/files?${new URLSearchParams(query)}`;
 
     const request = async () => {
         const token = await getCurrentToken();
@@ -119,13 +150,9 @@ export async function findFileByName(filename: string): Promise<DirectusFileInfo
         response = await request();
     }
     if (!response.ok) {
-        throw new Error(`Failed to look up ${filename}: ${response.status}`);
+        throw new Error(`Failed to ${what}: ${response.status}`);
     }
 
-    const body = (await response.json()) as {
-        data?: { id: string; modified_on?: string | null; uploaded_on?: string | null }[];
-    };
-    const file = body.data?.[0];
-    if (!file) return null;
-    return { id: file.id, modifiedOn: file.modified_on ?? file.uploaded_on ?? null };
+    const body = (await response.json()) as { data?: T[] };
+    return body.data ?? [];
 }

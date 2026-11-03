@@ -122,6 +122,12 @@ export const useUserStore = defineStore('user', () => {
         await saveUserData(updatedUser);
     }
 
+    /** Change some of the signed-in user's fields, keeping the rest. */
+    async function patchUser(patch: Partial<Omit<UserData, 'id'>>) {
+        if (!user.value) return;
+        await saveUserData({ ...user.value, ...patch });
+    }
+
     async function updateTokens(accessToken: string, refreshToken: string, expiresAt: number) {
         if (!authData.value) return;
 
@@ -210,6 +216,7 @@ export const useUserStore = defineStore('user', () => {
         loadUserFromDB,
         setUser,
         updateUserRole,
+        patchUser,
         updateTokens,
         setDevSkipAuth,
         endSession,

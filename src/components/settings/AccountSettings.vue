@@ -29,7 +29,28 @@
             <div class="min-w-0">
                 <p class="text-[0.9375rem]">Name</p>
                 <p class="truncate text-sm text-muted-foreground">
-                    {{ displayName }}
+                    {{ fullName ?? 'Nicht angegeben' }}
+                </p>
+            </div>
+        </button>
+
+        <!-- The row's icon is the symbol itself: a 1.25rem roundel is too
+             small to read, so it stands a size up, where it can be told apart. -->
+        <button
+            v-if="isLoggedIn"
+            type="button"
+            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
+            @click="openSymbolDialog"
+        >
+            <UserAvatar
+                :src="avatarUrl"
+                :initials="initials"
+                class="-mx-1.5 size-8 text-[0.8125rem]"
+            />
+            <div class="min-w-0">
+                <p class="text-[0.9375rem]">Symbol</p>
+                <p class="truncate text-sm text-muted-foreground">
+                    {{ user?.avatar ? 'Aus dem Gesangbuch' : 'Ohne – Ihre Initialen' }}
                 </p>
             </div>
         </button>
@@ -102,14 +123,33 @@
                 <DialogClose as-child>
                     <Button type="button" variant="outline">Abbrechen</Button>
                 </DialogClose>
-                <Button type="button" @click="saveEditedName">Speichern</Button>
+                <Button type="button" :disabled="saving" @click="saveEditedName">Speichern</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Symbol wählen -->
+    <Dialog v-model:open="symbolOpen">
+        <DialogContent class="max-h-[90dvh] overflow-y-auto">
+            <DialogHeader>
+                <DialogTitle>Symbol</DialogTitle>
+                <DialogDescription>
+                    Die Bilder aus dem gedruckten Gesangbuch – eines davon steht für Sie.
+                </DialogDescription>
+            </DialogHeader>
+            <SymbolPicker v-if="symbolOpen" v-model="editAvatar" :initials="initials" />
+            <DialogFooter>
+                <DialogClose as-child>
+                    <Button type="button" variant="outline">Abbrechen</Button>
+                </DialogClose>
+                <Button type="button" :disabled="saving" @click="saveSymbol">Speichern</Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 import { LoaderCircle, LogOut, SquarePen, Trash2, User } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
@@ -117,7 +157,10 @@ import { toast } from 'vue-sonner';
 
 import { useAuth } from '@/composables/useAuth';
 import { useConfirm } from '@/composables/useConfirm';
+import { useProfile } from '@/composables/useProfile';
 
+import SymbolPicker from '@/components/profile/SymbolPicker.vue';
+import UserAvatar from '@/components/profile/UserAvatar.vue';
 import SettingsList from '@/components/settings/SettingsList.vue';
 import LoginRequiredNotice from '@/components/shell/LoginRequiredNotice.vue';
 import { Button } from '@/components/ui/button';
@@ -139,12 +182,28 @@ const router = useRouter();
 const { user, logout, deleteAccount, isLoggedIn } = useAuth();
 const { confirm } = useConfirm();
 
-const displayName = computed(() => {
-    if (user.value?.firstName || user.value?.lastName) {
-        return [user.value.firstName, user.value.lastName].filter(Boolean).join(' ');
+const { fullName, initials, avatarUrl, saveProfile } = useProfile();
+
+// One write at a time: a second „Speichern" on a slow line would race the first.
+const saving = ref(false);
+
+/** Save, and say so when it did not reach the account. Closes the dialog only on success. */
+async function save(patch: Parameters<typeof saveProfile>[0], close: () => void) {
+    if (saving.value) return;
+    saving.value = true;
+    try {
+        if (await saveProfile(patch)) {
+            close();
+        } else {
+            toast.error(
+                'Konnte nicht gespeichert werden. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut.',
+                { duration: 4000 },
+            );
+        }
+    } finally {
+        saving.value = false;
     }
-    return 'Nicht angegeben';
-});
+}
 
 // Name ändern dialog
 const editNameOpen = ref(false);
@@ -157,21 +216,25 @@ function openEditNameModal() {
     editNameOpen.value = true;
 }
 
-async function saveEditedName() {
-    editNameOpen.value = false;
-    await updateUserName(editFirstName.value, editLastName.value);
+function saveEditedName() {
+    void save({ firstName: editFirstName.value, lastName: editLastName.value }, () => {
+        editNameOpen.value = false;
+    });
 }
 
-async function updateUserName(_firstName: string, _lastName: string) {
-    try {
-        // TODO: Implement API call to update user name on server
-        // For now, show a toast that the feature is coming
-        toast.warning('Name-Änderung wird in einer zukünftigen Version verfügbar sein.', {
-            duration: 3000,
-        });
-    } catch (error) {
-        console.error('Error updating name:', error);
-    }
+// Symbol dialog
+const symbolOpen = ref(false);
+const editAvatar = ref<string | null>(null);
+
+function openSymbolDialog() {
+    editAvatar.value = user.value?.avatar ?? null;
+    symbolOpen.value = true;
+}
+
+function saveSymbol() {
+    void save({ avatar: editAvatar.value }, () => {
+        symbolOpen.value = false;
+    });
 }
 
 async function handleLogout() {

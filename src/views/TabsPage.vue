@@ -51,13 +51,11 @@
                         class="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted"
                         aria-label="Kontomenü"
                     >
-                        <span
-                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-[0.9375rem] font-semibold text-accent-foreground"
-                            aria-hidden="true"
-                        >
-                            <template v-if="initials">{{ initials }}</template>
-                            <User v-else class="h-4 w-4" />
-                        </span>
+                        <UserAvatar
+                            :src="avatarUrl"
+                            :initials="initials"
+                            class="size-9 text-[0.9375rem]"
+                        />
                         <span class="min-w-0 flex-1">
                             <span class="block truncate text-sm font-medium text-foreground">
                                 {{ profileName }}
@@ -156,7 +154,6 @@ import {
     LogOut,
     Music,
     Settings,
-    User,
 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
@@ -168,8 +165,10 @@ import { useSongsStore } from '@/stores/songs';
 import { useAuth } from '@/composables/useAuth';
 import { useBottomBarInset } from '@/composables/useBottomBarInset';
 import { useConfirm } from '@/composables/useConfirm';
+import { useProfile } from '@/composables/useProfile';
 import { songsListPath } from '@/composables/useSongFilterHistory';
 
+import UserAvatar from '@/components/profile/UserAvatar.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -233,19 +232,8 @@ function isActive(to: string) {
     return route.path.startsWith(to);
 }
 
-const profileName = computed(() => {
-    if (user.value?.firstName || user.value?.lastName) {
-        return [user.value.firstName, user.value.lastName].filter(Boolean).join(' ');
-    }
-    return user.value?.email ?? 'Nicht angemeldet';
-});
-
-const initials = computed(() => {
-    const first = user.value?.firstName?.trim()?.[0] ?? '';
-    const last = user.value?.lastName?.trim()?.[0] ?? '';
-    if (first || last) return (first + last).toUpperCase();
-    return user.value?.email?.[0]?.toUpperCase() ?? '';
-});
+const { fullName, initials, avatarUrl } = useProfile();
+const profileName = computed(() => fullName.value ?? user.value?.email ?? 'Nicht angemeldet');
 
 // Same flow and copy as SettingsPage's Abmelden row
 async function handleLogout() {
