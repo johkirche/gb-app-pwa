@@ -25,29 +25,10 @@
                     </header>
 
                     <form class="mt-8" @submit.prevent="goToStep2">
+                        <!-- Only what an account cannot be made without. The name
+                             is asked for once the reader is in, in the onboarding,
+                             with the symbol beside it. -->
                         <div class="space-y-5">
-                            <div class="space-y-2">
-                                <Label for="register-first-name">Vorname (optional)</Label>
-                                <Input
-                                    id="register-first-name"
-                                    v-model="firstName"
-                                    type="text"
-                                    autocomplete="given-name"
-                                    :disabled="isLoading"
-                                />
-                            </div>
-
-                            <div class="space-y-2">
-                                <Label for="register-last-name">Nachname (optional)</Label>
-                                <Input
-                                    id="register-last-name"
-                                    v-model="lastName"
-                                    type="text"
-                                    autocomplete="family-name"
-                                    :disabled="isLoading"
-                                />
-                            </div>
-
                             <div class="space-y-2">
                                 <Label for="register-email">E-Mail-Adresse</Label>
                                 <Input
@@ -330,8 +311,6 @@ const currentStep = ref(1);
 
 // Form fields
 const activationCode = ref('');
-const firstName = ref('');
-const lastName = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
@@ -368,13 +347,7 @@ async function handleRegister() {
         return;
     }
 
-    const result = await register(
-        email.value,
-        password.value,
-        activationCode.value,
-        firstName.value || undefined,
-        lastName.value || undefined,
-    );
+    const result = await register(email.value, password.value, activationCode.value);
 
     if (result.success) {
         // Navigate to onboarding after successful registration

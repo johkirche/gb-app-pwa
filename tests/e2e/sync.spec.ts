@@ -11,10 +11,12 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
  * delta, but nothing has watched a real manifest become a real download become
  * rows in IndexedDB. That is what this walks.
  *
- * Onboarding is a two-step wizard, not an automatic run: the Install step waits
- * for „Weiter", and only then does the download start on its own and offer
- * „Fertig" at the end. The recording run is measured in minutes and prints what
- * it is doing while it works.
+ * Onboarding is a three-step wizard, not an automatic run: the Install step
+ * waits for „Weiter", and only then does the download start on its own; the
+ * profile step after it holds „Fertig" until the book is down. This spec sits
+ * the download out on its own step, where the progress and the failures are
+ * worded in full. The recording run is measured in minutes and prints what it
+ * is doing while it works.
  *
  *   pnpm test:e2e:record
  */
@@ -51,7 +53,7 @@ test.beforeAll(() => {
  * coming.
  */
 async function waitForDownload(page: Page, budgetMs: number) {
-    const done = page.getByRole('button', { name: 'Fertig' });
+    const done = page.getByText('Alle Inhalte wurden erfolgreich heruntergeladen!');
     const progress = page.getByText(/von \d+ Dateien|Lieder werden geladen|Daten werden geladen/);
     const failed = page.getByText(/konnten nicht heruntergeladen werden/);
     const retry = page.getByRole('button', { name: 'Erneut versuchen' });
@@ -103,15 +105,20 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     // required for.
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 60_000 });
 
-    // Step 1 of 2 — the PWA install prompt, which only moves on when asked to.
+    // Step 1 of 3 — the PWA install prompt, which only moves on when asked to.
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // Step 2 of 2 — starts by itself once the step is active. A phone would
+    // Step 2 of 3 — starts by itself once the step is active. A phone would
     // ask about mobile data first (mayUseMobileData); every project here is a
     // desk with a mouse, where there is no data plan to ask about.
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
     await waitForDownload(page, DOWNLOAD_BUDGET);
+    await page.getByRole('button', { name: 'Weiter' }).click();
 
+    // Step 3 of 3 — name and symbol, both optional. Left empty, so the run
+    // writes nothing to the account it records with.
+    await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
+    await expect(page.getByText('Das Gesangbuch ist geladen.')).toBeVisible();
     await page.getByRole('button', { name: 'Fertig' }).click();
 
     const nav = page.locator('nav[aria-label="Hauptnavigation"]:visible');

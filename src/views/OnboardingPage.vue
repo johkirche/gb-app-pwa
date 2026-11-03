@@ -26,8 +26,23 @@
                     :storage-estimate="storage"
                     @download="handleDownload"
                     @retry="handleRetry"
+                    @next="nextStep"
+                    @later="nextStep"
+                />
+
+                <!-- Step 3: Name and symbol, while the book comes down behind it -->
+                <ProfileStep
+                    v-if="currentStep === 3"
+                    :is-syncing="isSyncing"
+                    :download-started="downloadStarted"
+                    :download-complete="downloadComplete"
+                    :failed-count="failedFiles.length"
+                    :sync-error="syncError"
+                    :sync-progress="syncProgress"
+                    :ask-first="askBeforeDownload && !downloadStarted && !downloadComplete"
+                    @download="handleDownload"
+                    @retry="handleRetry"
                     @finish="finishOnboarding"
-                    @skip="skipOnboarding"
                 />
             </div>
         </main>
@@ -44,6 +59,7 @@ import { useSongsStore } from '@/stores/songs';
 
 import DownloadContentStep from '@/components/onboarding/DownloadContentStep.vue';
 import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
+import ProfileStep from '@/components/onboarding/ProfileStep.vue';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
 import { type StorageSpace, getStorageEstimate } from '@/services/storage';
@@ -57,7 +73,7 @@ const ONBOARDING_IN_PROGRESS_KEY = 'onboarding.inProgress';
 const ONBOARDING_STEP_KEY = 'onboarding.currentStep';
 
 // Step management
-const totalSteps = 2;
+const totalSteps = 3;
 
 /**
  * Where an onboarding cut off by a reload (or an installed app launched
@@ -164,7 +180,10 @@ watch(
     currentStep,
     (step) => {
         localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
-        if (step === 2) {
+        // The profile step too: a reload there (the download cut off with the
+        // page) has to pick the book up again, or „Fertig" would send the
+        // reader off with half of it.
+        if (step >= 2) {
             enterDownloadStep();
         }
     },

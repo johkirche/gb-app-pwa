@@ -66,6 +66,9 @@
                 :model-value="syncProgress.current / syncProgress.total"
                 class="mt-4"
             />
+            <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+                Sie können schon weitermachen – der Download läuft im Hintergrund.
+            </p>
         </div>
 
         <!-- Download Complete -->
@@ -109,42 +112,41 @@
                     <Download aria-hidden="true" />
                     Jetzt laden
                 </Button>
-                <!-- Leaving is not losing the download: the empty Liederliste
-                     offers it again, and Einstellungen › Daten always does. -->
+                <!-- Putting it off is not losing it: the profile step offers it
+                     again, so does the empty Liederliste, and Einstellungen ›
+                     Daten always does. -->
                 <Button
                     type="button"
                     variant="ghost"
                     size="lg"
                     class="w-full text-muted-foreground"
-                    @click="$emit('skip')"
+                    @click="$emit('later')"
                 >
                     Später im WLAN
                 </Button>
             </template>
+            <!-- On while the download runs, not only once it is done: the
+                 profile step is there to fill the wait, and keeps the
+                 progress in sight. -->
             <Button
-                v-if="downloadComplete"
+                v-else-if="!failed"
                 type="button"
                 size="lg"
                 class="w-full"
-                @click="$emit('finish')"
+                @click="$emit('next')"
             >
-                Fertig
-                <Check aria-hidden="true" />
+                Weiter
+                <ArrowRight aria-hidden="true" />
             </Button>
             <!-- Escape hatch when the download failed (e.g. offline): never trap
                  the user in onboarding. -->
             <Button
-                v-if="
-                    downloadStarted &&
-                    !isSyncing &&
-                    !downloadComplete &&
-                    (syncError || failedCount > 0)
-                "
+                v-if="failed"
                 type="button"
                 variant="ghost"
                 size="lg"
                 class="w-full text-muted-foreground"
-                @click="$emit('skip')"
+                @click="$emit('next')"
             >
                 Später fortfahren
             </Button>
@@ -156,7 +158,7 @@
 import { computed } from 'vue';
 
 import {
-    Check,
+    ArrowRight,
     CircleAlert,
     CircleCheck,
     CloudDownload,
@@ -193,8 +195,10 @@ const props = defineProps<{
 defineEmits<{
     download: [];
     retry: [];
-    finish: [];
-    skip: [];
+    /** On to the profile, the download running or done. */
+    next: [];
+    /** On to the profile without it: the reader would rather wait for WLAN. */
+    later: [];
 }>();
 
 // Nothing asked for yet and nothing already running or done: the step is the
@@ -202,5 +206,13 @@ defineEmits<{
 // instead of asking about one that is already under way.
 const awaitingChoice = computed(
     () => !props.downloadStarted && !props.isSyncing && !props.downloadComplete,
+);
+
+const failed = computed(
+    () =>
+        props.downloadStarted &&
+        !props.isSyncing &&
+        !props.downloadComplete &&
+        (!!props.syncError || props.failedCount > 0),
 );
 </script>

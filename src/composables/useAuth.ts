@@ -210,8 +210,6 @@ export function useAuth() {
         email: string,
         password: string,
         activationCode: string,
-        firstName?: string,
-        lastName?: string,
     ): Promise<RegisterResult> {
         try {
             userStore.isLoading = true;
@@ -219,6 +217,8 @@ export function useAuth() {
 
             // Register via the directus-user-register-extension. It validates the
             // registration code, creates an activated user and marks the code as used.
+            // It would take first_name/last_name too; the app asks for those in
+            // the onboarding instead (ProfileStep), once the account exists.
             // The Directus SDK expects a *command function* returning the request
             // options; `method` must be set explicitly (it defaults to GET otherwise)
             // and Content-Type defaults to application/json.
@@ -229,8 +229,6 @@ export function useAuth() {
                     email,
                     password,
                     registration_code: activationCode,
-                    first_name: firstName,
-                    last_name: lastName,
                 }),
             }));
 
