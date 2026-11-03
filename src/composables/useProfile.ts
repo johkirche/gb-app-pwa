@@ -42,19 +42,20 @@ export function useProfile() {
         avatar?: string | null;
     }): Promise<boolean> {
         const user = userStore.user;
-        if (!user) return false;
 
         const patch: Partial<Profile> = {};
-        if (next.firstName !== undefined && clean(next.firstName) !== clean(user.firstName)) {
+        if (next.firstName !== undefined && clean(next.firstName) !== clean(user?.firstName)) {
             patch.firstName = clean(next.firstName);
         }
-        if (next.lastName !== undefined && clean(next.lastName) !== clean(user.lastName)) {
+        if (next.lastName !== undefined && clean(next.lastName) !== clean(user?.lastName)) {
             patch.lastName = clean(next.lastName);
         }
-        if (next.avatar !== undefined && next.avatar !== (user.avatar ?? null)) {
+        if (next.avatar !== undefined && next.avatar !== (user?.avatar ?? null)) {
             patch.avatar = next.avatar;
         }
+        // Nothing to say is nothing that can fail — with or without a session.
         if (Object.keys(patch).length === 0) return true;
+        if (!user) return false;
 
         // The picture first: a symbol the device cannot keep is not worth
         // writing to the account, where every other device would then miss it.

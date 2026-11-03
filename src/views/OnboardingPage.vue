@@ -30,16 +30,23 @@
                     @later="nextStep"
                 />
 
-                <!-- Step 3: Name and symbol, while the book comes down behind it -->
+                <!-- Steps 3 and 4 fill the wait: the book comes down behind
+                     them, and each keeps its progress in sight. -->
+
+                <!-- Step 3: Name and symbol -->
                 <ProfileStep
                     v-if="currentStep === 3"
-                    :is-syncing="isSyncing"
-                    :download-started="downloadStarted"
-                    :download-complete="downloadComplete"
-                    :failed-count="failedFiles.length"
-                    :sync-error="syncError"
-                    :sync-progress="syncProgress"
+                    :download="download"
                     :ask-first="askBeforeDownload && !downloadStarted && !downloadComplete"
+                    @download="handleDownload"
+                    @retry="handleRetry"
+                    @next="nextStep"
+                />
+
+                <!-- Step 4: A short tour of the app -->
+                <TourStep
+                    v-if="currentStep === 4"
+                    :download="download"
                     @download="handleDownload"
                     @retry="handleRetry"
                     @finish="finishOnboarding"
@@ -50,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
@@ -60,6 +67,8 @@ import { useSongsStore } from '@/stores/songs';
 import DownloadContentStep from '@/components/onboarding/DownloadContentStep.vue';
 import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
 import ProfileStep from '@/components/onboarding/ProfileStep.vue';
+import TourStep from '@/components/onboarding/TourStep.vue';
+import type { DownloadState } from '@/components/onboarding/downloadState';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
 import { type StorageSpace, getStorageEstimate } from '@/services/storage';
@@ -73,7 +82,7 @@ const ONBOARDING_IN_PROGRESS_KEY = 'onboarding.inProgress';
 const ONBOARDING_STEP_KEY = 'onboarding.currentStep';
 
 // Step management
-const totalSteps = 3;
+const totalSteps = 4;
 
 /**
  * Where an onboarding cut off by a reload (or an installed app launched
@@ -96,6 +105,16 @@ const currentStep = ref(storedStep());
 const downloadStarted = ref(false);
 const downloadComplete = ref(false);
 const storage = ref<StorageSpace | null>(null);
+
+/** The download as the steps after it are told about it. */
+const download = computed<DownloadState>(() => ({
+    isSyncing: isSyncing.value,
+    downloadStarted: downloadStarted.value,
+    downloadComplete: downloadComplete.value,
+    failedCount: failedFiles.value.length,
+    syncError: syncError.value,
+    syncProgress: syncProgress.value,
+}));
 
 function nextStep() {
     if (currentStep.value < totalSteps) {
@@ -180,8 +199,8 @@ watch(
     currentStep,
     (step) => {
         localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
-        // The profile step too: a reload there (the download cut off with the
-        // page) has to pick the book up again, or „Fertig" would send the
+        // The steps after it too: a reload there (the download cut off with
+        // the page) has to pick the book up again, or „Fertig" would send the
         // reader off with half of it.
         if (step >= 2) {
             enterDownloadStep();

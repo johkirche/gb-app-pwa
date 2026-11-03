@@ -309,7 +309,7 @@ test.describe('the book at every size it offers', () => {
 // symbols with a roundel each, and nothing else, which leaves the download the
 // step starts failing as it would offline. What is measured is the step.
 test.describe('the onboarding at every size it offers', () => {
-    test('keeps the profile step inside the phone', async ({ page }) => {
+    test('keeps the profile step and the tour inside the phone', async ({ page }) => {
         const backend = (process.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '');
         const roundel =
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">' +
@@ -355,6 +355,28 @@ test.describe('the onboarding at every size it offers', () => {
         await page.evaluate(() => document.fonts.ready);
 
         await expectNoOverflow(page, heading);
+
+        // On to the tour, and each of its sketches: drawn in rem, they grow
+        // with the type, and none of them may grow past the phone. The profile
+        // is emptied first: the dev skip has no account to save it to, and
+        // the toast saying so would sit on the tour's buttons.
+        await page.getByLabel('Vorname').fill('');
+        await page.getByLabel('Nachname').fill('');
+        await page.getByRole('radio', { name: 'Ohne Symbol' }).click();
+        await page.getByRole('button', { name: 'Weiter' }).click();
+        for (const title of [
+            'Lieder finden',
+            'Größer lesen',
+            'Melodie anhören',
+            'Für den Gottesdienst',
+        ]) {
+            await expect(page.getByRole('heading', { name: title })).toBeVisible();
+            await expectNoOverflow(page, title);
+            if (title !== 'Für den Gottesdienst') {
+                await page.getByRole('button', { name: 'Weiter' }).click();
+            }
+        }
+        await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
     });
 });
 
