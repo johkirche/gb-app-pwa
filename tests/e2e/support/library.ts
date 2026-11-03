@@ -114,7 +114,6 @@ export async function syncLibrary(page: Page) {
 
     await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
     await page.getByRole('button', { name: 'Weiter' }).click();
-    await page.getByRole('button', { name: 'Jetzt laden' }).click();
 
     const done = page.getByRole('button', { name: 'Fertig' });
     await done.waitFor({ state: 'visible', timeout: 180_000 });

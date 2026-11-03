@@ -36,9 +36,10 @@
             </li>
         </ul>
 
-        <!-- Before the download: the reader may be on mobile data, so it is
-             their call when the book comes down, not the step's. The quote is
-             the transfer, not the stored size — that is what a data plan pays. -->
+        <!-- Before the download, on a phone (see mayUseMobileData): the reader
+             may be on mobile data, so it is their call when the book comes
+             down, not the step's. The quote is the transfer, not the stored
+             size — that is what a data plan pays. -->
         <div v-if="awaitingChoice" class="mt-6 flex items-start gap-4 rounded-lg bg-muted p-4">
             <Wifi class="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
             <p class="min-w-0 text-[0.9375rem] leading-relaxed">
@@ -175,7 +176,7 @@ import { ESTIMATED_SYNC_BYTES, ESTIMATED_TRANSFER_BYTES, formatBytes } from '@/s
 // Props
 const props = defineProps<{
     isSyncing: boolean;
-    /** The reader has asked for the download (it does not start by itself). */
+    /** The download has begun: asked for on a phone, started by itself at a desk. */
     downloadStarted: boolean;
     syncError: string | null;
     syncProgress: {

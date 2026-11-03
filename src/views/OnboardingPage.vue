@@ -47,6 +47,7 @@ import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
 import { type StorageSpace, getStorageEstimate } from '@/services/storage';
+import { mayUseMobileData } from '@/utils/mobileData';
 
 const router = useRouter();
 const songsStore = useSongsStore();
@@ -94,16 +95,24 @@ async function handleDownload() {
     }
 }
 
-// The download waits to be asked for: the reader may be on mobile data and
-// rather wait for WLAN, so the step quotes the transfer and leaves the moment to
-// them. An already fully synced library has nothing to ask about and goes
-// straight to the finished state.
-function markCompleteIfSynced() {
-    if (songsStore.isSyncing) {
+// On a phone the download waits to be asked for: the reader may be on mobile
+// data and rather wait for WLAN, so the step quotes the transfer and leaves the
+// moment to them. At a desk, or on a handheld that says it is on WLAN, there is
+// nothing to ask, and the download starts as soon as the step is active.
+// Guarded so re-entering the step never starts it twice, and an already fully
+// synced library goes straight to the finished state.
+const askBeforeDownload = mayUseMobileData();
+
+function enterDownloadStep() {
+    if (songsStore.isSyncing || downloadStarted.value) {
         return;
     }
     if (songsStore.hasSongs && songsStore.failedFiles.length === 0) {
         downloadComplete.value = true;
+        return;
+    }
+    if (!askBeforeDownload) {
+        void handleDownload();
     }
 }
 
@@ -146,7 +155,7 @@ watch(
     (step) => {
         localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
         if (step === 2) {
-            markCompleteIfSynced();
+            enterDownloadStep();
         }
     },
     { immediate: true },

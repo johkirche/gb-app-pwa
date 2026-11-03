@@ -12,10 +12,9 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
  * rows in IndexedDB. That is what this walks.
  *
  * Onboarding is a two-step wizard, not an automatic run: the Install step waits
- * for „Weiter", the download step quotes the transfer and waits for „Jetzt
- * laden", and only then does the book come down and „Fertig" appear. The
- * recording run is measured in minutes and prints what it is doing while it
- * works.
+ * for „Weiter", and only then does the download start on its own and offer
+ * „Fertig" at the end. The recording run is measured in minutes and prints what
+ * it is doing while it works.
  *
  *   pnpm test:e2e:record
  */
@@ -107,12 +106,10 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     // Step 1 of 2 — the PWA install prompt, which only moves on when asked to.
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // Step 2 of 2 — asks before it spends anyone's data plan: nothing is
-    // fetched until the reader says so.
+    // Step 2 of 2 — starts by itself once the step is active. A phone would
+    // ask about mobile data first (mayUseMobileData); every project here is a
+    // desk with a mouse, where there is no data plan to ask about.
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
-    await expect(page.getByText(/Der Download braucht ca\. \d/)).toBeVisible();
-    await expect(page.getByText(/Lieder werden geladen|von \d+ Dateien/)).toHaveCount(0);
-    await page.getByRole('button', { name: 'Jetzt laden' }).click();
     await waitForDownload(page, DOWNLOAD_BUDGET);
 
     await page.getByRole('button', { name: 'Fertig' }).click();
