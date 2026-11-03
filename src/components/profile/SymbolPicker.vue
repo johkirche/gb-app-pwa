@@ -33,8 +33,8 @@
                 class="sticky top-0 z-10 mb-3 flex items-center gap-4 py-2"
                 :class="surface === 'popover' ? 'bg-popover' : 'bg-background'"
             >
-                <UserAvatar :src="chosenSrc" :initials="initials" class="size-14 text-[1.25rem]" />
-                <p class="min-w-0 text-[0.9375rem]" aria-live="polite" aria-atomic="true">
+                <UserAvatar :src="chosenSrc" :initials="initials" class="size-24 text-[2.25rem]" />
+                <p class="min-w-0 font-display text-xl" aria-live="polite" aria-atomic="true">
                     {{ chosenLabel }}
                 </p>
             </div>

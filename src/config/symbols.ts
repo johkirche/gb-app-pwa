@@ -16,7 +16,8 @@ export const SYMBOL_FOLDER_ID = 'e16a2921-5e5f-4a02-b24b-be938ab066ef';
  */
 export const SYMBOL_NAMES: Readonly<Record<string, string>> = {
     'drei-voegel': 'Drei Vögel',
-    'stadt-mit-kreuz': 'Stadt mit Kreuz',
+    // The Johannische Kirche's own place, not a city: the file only describes the picture.
+    'stadt-mit-kreuz': 'Waldfrieden',
     'stern-ueber-stadt': 'Stern über der Stadt',
     'arche-noah': 'Arche Noah',
     aehren: 'Ähren',
