@@ -81,31 +81,23 @@ export type DeleteAccountResult =
  */
 let inFlightRefresh: Promise<boolean> | null = null;
 
+/**
+ * Run `task` while no other tab of the app is refreshing.
+ *
+ * The in-flight promise above only reaches callers in this tab. Two tabs — or the
+ * installed app and a browser tab — share one session in IndexedDB but each read
+ * it into memory at startup, so without this the second to refresh would send the
+ * refresh token the first one has just rotated away, and end the session for both.
+ * Where the Web Locks API is missing the task simply runs.
+ */
+function acrossTabs<T>(task: () => Promise<T>): Promise<T> {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    return locks ? locks.request('gesangbuch-auth-refresh', task) : task();
+}
+
 async function performRefresh(): Promise<boolean> {
     try {
-        const userStore = useUserStore();
-        const refreshToken = userStore.authData?.refreshToken;
-
-        if (!refreshToken) {
-            return false;
-        }
-
-        const result = await directusClient.request(
-            withoutAccessToken(
-                refresh({
-                    refresh_token: refreshToken,
-                    mode: 'json',
-                }),
-            ),
-        );
-
-        if (result.access_token && result.refresh_token) {
-            const expiresAt = Date.now() + (result.expires || 900000);
-            await userStore.updateTokens(result.access_token, result.refresh_token, expiresAt);
-            return true;
-        }
-
-        return false;
+        return await acrossTabs(refreshStoredSession);
     } catch (error) {
         console.error('Error refreshing token:', error);
 
@@ -118,6 +110,44 @@ async function performRefresh(): Promise<boolean> {
 
         return false;
     }
+}
+
+async function refreshStoredSession(): Promise<boolean> {
+    const userStore = useUserStore();
+    const inMemory = userStore.authData?.refreshToken;
+    if (!inMemory) {
+        return false;
+    }
+
+    // IndexedDB, not memory, is the session's current state: if another tab
+    // refreshed while this one waited for the lock, the token this tab holds is
+    // already spent. Take that tab's tokens, and only ask the server again if
+    // they are close to running out themselves.
+    const stored = await userStore.readStoredAuth();
+    if (stored && stored.refreshToken !== inMemory) {
+        await userStore.updateTokens(stored.accessToken, stored.refreshToken, stored.expiresAt);
+        if (!userStore.isTokenExpired) {
+            return true;
+        }
+    }
+    const refreshToken = stored?.refreshToken ?? inMemory;
+
+    const result = await directusClient.request(
+        withoutAccessToken(
+            refresh({
+                refresh_token: refreshToken,
+                mode: 'json',
+            }),
+        ),
+    );
+
+    if (result.access_token && result.refresh_token) {
+        const expiresAt = Date.now() + (result.expires || 900000);
+        await userStore.updateTokens(result.access_token, result.refresh_token, expiresAt);
+        return true;
+    }
+
+    return false;
 }
 
 /**

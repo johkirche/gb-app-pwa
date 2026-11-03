@@ -37,6 +37,9 @@ const translateRegistrationError = vi.fn();
 const isInvalidCredentialsError = vi.fn();
 const isNetworkError = vi.fn();
 const updateTokens = vi.fn();
+// Defaults to undefined (no row read), so the refresh falls back to the token in
+// memory; the cross-tab tests below hand it what another tab left on disk.
+const readStoredAuth = vi.fn();
 const setUser = vi.fn();
 const storeLogout = vi.fn();
 const favoritesClearAll = vi.fn();
@@ -59,6 +62,7 @@ function freshUserStore() {
         isLoading: false,
         error: null as string | null,
         updateTokens: (...args: unknown[]) => updateTokens(...args),
+        readStoredAuth: (...args: unknown[]) => readStoredAuth(...args),
         setUser: (...args: unknown[]) => setUser(...args),
         logout: (...args: unknown[]) => storeLogout(...args),
         setDevSkipAuth: vi.fn(),
@@ -152,7 +156,8 @@ describe('refreshAuthToken', () => {
         // Five parallel callers, mirroring the download loop's batch size.
         const calls = Promise.all(Array.from({ length: 5 }, () => refreshAuthToken()));
 
-        expect(request).toHaveBeenCalledTimes(1);
+        // The request goes out once the session has been read back from disk.
+        await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
 
         release({ access_token: 'new-access', refresh_token: 'new-refresh', expires: 900000 });
         const results = await calls;
@@ -185,6 +190,61 @@ describe('refreshAuthToken', () => {
         expect(results).toEqual([false, false, false, false, false]);
         // A failed refresh must not trigger the destructive account-deleted path.
         expect(handleApiError).not.toHaveBeenCalled();
+    });
+
+    // Two tabs share one session on disk but each read it into memory at startup.
+    // The one in memory may already have been rotated away by the other tab.
+    it('refreshes with the token on disk when another tab rotated the one in memory', async () => {
+        readStoredAuth.mockResolvedValue({
+            id: 'current',
+            accessToken: 'disk-access',
+            refreshToken: 'disk-refresh',
+            expiresAt: 0,
+        });
+        // The other tab's tokens are about to run out as well.
+        userStore.isTokenExpired = true;
+        request.mockResolvedValue({ access_token: 'a', refresh_token: 'b', expires: 900000 });
+
+        expect(await refreshAuthToken()).toBe(true);
+
+        expect(request).toHaveBeenCalledWith({ refresh_token: 'disk-refresh', mode: 'json' });
+        expect(updateTokens).toHaveBeenLastCalledWith('a', 'b', expect.any(Number));
+    });
+
+    it('takes a session another tab just refreshed, without asking the server', async () => {
+        readStoredAuth.mockResolvedValue({
+            id: 'current',
+            accessToken: 'disk-access',
+            refreshToken: 'disk-refresh',
+            expiresAt: Date.now() + 900000,
+        });
+
+        expect(await refreshAuthToken()).toBe(true);
+
+        expect(request).not.toHaveBeenCalled();
+        expect(updateTokens).toHaveBeenCalledWith(
+            'disk-access',
+            'disk-refresh',
+            expect.any(Number),
+        );
+    });
+
+    it('refreshes under a lock the other tabs wait on', async () => {
+        const lockRequest = vi.fn((_name: string, task: () => Promise<unknown>) => task());
+        Object.defineProperty(navigator, 'locks', {
+            value: { request: lockRequest },
+            configurable: true,
+        });
+        request.mockResolvedValue({ access_token: 'a', refresh_token: 'b', expires: 900000 });
+
+        try {
+            expect(await refreshAuthToken()).toBe(true);
+        } finally {
+            delete (navigator as { locks?: unknown }).locks;
+        }
+
+        expect(lockRequest).toHaveBeenCalledWith('gesangbuch-auth-refresh', expect.any(Function));
+        expect(request).toHaveBeenCalledTimes(1);
     });
 });
 
