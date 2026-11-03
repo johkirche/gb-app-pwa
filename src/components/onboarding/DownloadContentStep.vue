@@ -39,12 +39,15 @@
         <!-- Before the download, on a phone (see mayUseMobileData): the reader
              may be on mobile data, so it is their call when the book comes
              down, not the step's. The quote is the transfer, not the stored
-             size — that is what a data plan pays. -->
+             size — that is what a data plan pays.
+             Worded to be true either way: on an iPhone the app cannot tell
+             WLAN from mobile data, so it must not ask someone sitting in
+             their WLAN to switch to it. -->
         <div v-if="awaitingChoice" class="mt-6 flex items-start gap-4 rounded-lg bg-muted p-4">
             <Wifi class="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
             <p class="min-w-0 text-[0.9375rem] leading-relaxed">
-                Der Download braucht ca. {{ formatBytes(ESTIMATED_TRANSFER_BYTES) }}. Jetzt laden
-                oder vorher ins WLAN wechseln?
+                Der Download ist ca. {{ formatBytes(ESTIMATED_TRANSFER_BYTES) }} groß. Ohne WLAN
+                geht er von Ihrem mobilen Datenvolumen ab.
             </p>
         </div>
 
@@ -118,7 +121,7 @@
                     class="w-full text-muted-foreground"
                     @click="$emit('skip')"
                 >
-                    Später im WLAN
+                    Später laden
                 </Button>
             </template>
             <Button
