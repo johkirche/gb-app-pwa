@@ -19,7 +19,7 @@ import { useUserStore } from '@/stores/user';
 
 import { SUPPORT_EMAIL } from '@/config/support';
 import type { UserData } from '@/db';
-import { directusClient } from '@/services/directus';
+import { directusClient, withoutAccessToken } from '@/services/directus';
 import {
     NETWORK_ERROR_MESSAGE,
     REGISTRATION_LOGIN_FAILED,
@@ -91,10 +91,12 @@ async function performRefresh(): Promise<boolean> {
         }
 
         const result = await directusClient.request(
-            refresh({
-                refresh_token: refreshToken,
-                mode: 'json',
-            }),
+            withoutAccessToken(
+                refresh({
+                    refresh_token: refreshToken,
+                    mode: 'json',
+                }),
+            ),
         );
 
         if (result.access_token && result.refresh_token) {
@@ -336,7 +338,9 @@ export function useAuth() {
             if (refreshToken) {
                 try {
                     await directusClient.request(
-                        directusLogout({ refresh_token: refreshToken, mode: 'json' }),
+                        withoutAccessToken(
+                            directusLogout({ refresh_token: refreshToken, mode: 'json' }),
+                        ),
                     );
                 } catch (err) {
                     // Server-side revoke is best effort: logging out while offline

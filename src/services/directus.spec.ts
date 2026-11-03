@@ -24,9 +24,11 @@ function paths() {
 
 vi.mock('@/config/directus', () => ({ directusConfig: { url: 'https://directus.example' } }));
 
-// The SDK reads globalThis.fetch once, when it is first imported.
+// The SDK reads globalThis.fetch once, when it is first imported — so nothing
+// may import it before the stub is in place.
 vi.stubGlobal('fetch', fetchMock);
-const { directusClient } = await import('./directus');
+const { refresh } = await import('@directus/sdk');
+const { directusClient, withoutAccessToken } = await import('./directus');
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -67,5 +69,20 @@ describe('directusClient', () => {
 
         const [, init] = fetchMock.mock.calls[0];
         expect(init.headers.Authorization).toBe('Bearer access-from-the-store');
+    });
+
+    // Directus checks a bearer before it routes, /auth included: an expired one
+    // fails the refresh with TOKEN_EXPIRED before the refresh token is read.
+    it('sends a refresh without the access token it holds', async () => {
+        await directusClient.setToken('expired-access');
+
+        await directusClient.request(
+            withoutAccessToken(refresh({ mode: 'json', refresh_token: 'refresh-1' })),
+        );
+
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(new URL(String(url)).pathname).toBe('/auth/refresh');
+        expect(init.headers).not.toHaveProperty('Authorization');
+        expect(JSON.parse(init.body)).toEqual({ mode: 'json', refresh_token: 'refresh-1' });
     });
 });

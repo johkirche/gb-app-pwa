@@ -1,9 +1,11 @@
 import {
     type AuthenticationData,
+    type RestCommand,
     authentication,
     createDirectus,
     graphql,
     rest,
+    withOptions,
 } from '@directus/sdk';
 
 import { directusConfig } from '@/config/directus';
@@ -56,6 +58,24 @@ const client = createDirectus(directusConfig.url)
 
 // Export client for use in API modules and composables
 export const directusClient = client;
+
+/**
+ * A command sent without the access token the client would otherwise attach.
+ *
+ * For /auth/refresh and /auth/logout. Directus checks a bearer token before it
+ * routes a request, /auth included, so an expired one fails the refresh with
+ * TOKEN_EXPIRED before the refresh token in the body is even read — and the
+ * token in hand is expired exactly when a refresh is overdue. The refresh token
+ * is the whole credential there; the header only gets in its way.
+ */
+export function withoutAccessToken<Output, Schema>(
+    command: RestCommand<Output, Schema>,
+): RestCommand<Output, Schema> {
+    return withOptions(command, (options) => {
+        const { Authorization: _, ...headers } = (options.headers ?? {}) as Record<string, string>;
+        return { ...options, headers };
+    });
+}
 
 // Export config for URL access
 export { directusConfig };

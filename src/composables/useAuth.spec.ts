@@ -72,6 +72,8 @@ vi.mock('@/services/directus', () => ({
         login: (...args: unknown[]) => clientLogin(...args),
         setToken: (...args: unknown[]) => setToken(...args),
     },
+    // Passes the command through, so the assertions below still see the payload.
+    withoutAccessToken: (command: unknown) => command,
     directusConfig: { url: 'https://example.invalid' },
 }));
 
