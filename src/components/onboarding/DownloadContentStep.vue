@@ -67,7 +67,7 @@
                 class="mt-4"
             />
             <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
-                Sie können schon weitermachen – der Download läuft im Hintergrund.
+                Der Download läuft im Hintergrund weiter. Sie können schon zum nächsten Schritt.
             </p>
         </div>
 

@@ -351,7 +351,7 @@ test.describe('the onboarding at every size it offers', () => {
         await page.getByLabel('Vorname').fill('Maximiliane-Theodora');
         await page.getByLabel('Nachname').fill('Hohenzollern-Sigmaringen');
         await page.getByRole('radio').nth(5).click();
-        await expect(page.getByText('Gewählt:')).toBeVisible();
+        await expect(page.getByRole('radio').nth(5)).toBeChecked();
         await page.evaluate(() => document.fonts.ready);
 
         await expectNoOverflow(page, heading);

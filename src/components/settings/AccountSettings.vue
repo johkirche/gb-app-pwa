@@ -50,7 +50,7 @@
             <div class="min-w-0">
                 <p class="text-[0.9375rem]">Symbol</p>
                 <p class="truncate text-sm text-muted-foreground">
-                    {{ user?.avatar ? 'Aus dem Gesangbuch' : 'Ohne – Ihre Initialen' }}
+                    {{ user?.avatar ? 'Aus dem Gesangbuch' : 'Nicht gewählt' }}
                 </p>
             </div>
         </button>
@@ -134,10 +134,16 @@
             <DialogHeader>
                 <DialogTitle>Symbol</DialogTitle>
                 <DialogDescription>
-                    Die Bilder aus dem gedruckten Gesangbuch – eines davon steht für Sie.
+                    Die Symbole stammen aus dem gedruckten Gesangbuch. Das gewählte steht in der App
+                    neben Ihrem Namen.
                 </DialogDescription>
             </DialogHeader>
-            <SymbolPicker v-if="symbolOpen" v-model="editAvatar" :initials="initials" />
+            <SymbolPicker
+                v-if="symbolOpen"
+                v-model="editAvatar"
+                :initials="initials"
+                surface="popover"
+            />
             <DialogFooter>
                 <DialogClose as-child>
                     <Button type="button" variant="outline">Abbrechen</Button>
@@ -195,10 +201,9 @@ async function save(patch: Parameters<typeof saveProfile>[0], close: () => void)
         if (await saveProfile(patch)) {
             close();
         } else {
-            toast.error(
-                'Konnte nicht gespeichert werden. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut.',
-                { duration: 4000 },
-            );
+            toast.error('Das hat nicht geklappt. Bitte versuchen Sie es später noch einmal.', {
+                duration: 4000,
+            });
         }
     } finally {
         saving.value = false;

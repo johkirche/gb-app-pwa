@@ -10,8 +10,7 @@
 
         <h1 class="text-center font-display text-3xl font-semibold">Wie dürfen wir Sie nennen?</h1>
         <p class="mt-3 text-center text-[0.9375rem] leading-relaxed text-muted-foreground">
-            Ihr Name und ein Symbol aus dem Gesangbuch machen das Konto zu Ihrem. Beides ist
-            freiwillig und lässt sich in den Einstellungen jederzeit ändern.
+            Name und Symbol sind freiwillig. Sie können beides später in den Einstellungen ändern.
         </p>
 
         <form id="onboarding-profile" class="mt-8 space-y-5" @submit.prevent="finish">
@@ -40,7 +39,8 @@
         <section class="mt-10" aria-labelledby="onboarding-symbol-heading">
             <h2 id="onboarding-symbol-heading" class="text-[0.9375rem] font-medium">Ihr Symbol</h2>
             <p class="mb-4 mt-1 text-sm leading-relaxed text-muted-foreground">
-                Die Bilder aus dem gedruckten Gesangbuch – eines davon steht künftig für Sie.
+                Die Symbole stammen aus dem gedruckten Gesangbuch. Das gewählte steht in der App
+                neben Ihrem Namen.
             </p>
             <SymbolPicker v-model="avatar" :initials="previewInitials" :ask-first="askFirst" />
         </section>
@@ -86,8 +86,8 @@
             </div>
             <div v-else class="flex flex-col items-start gap-2">
                 <p class="text-sm leading-relaxed text-muted-foreground">
-                    Das Gesangbuch ist noch nicht auf diesem Gerät. Die Liederliste bietet den
-                    Download wieder an.
+                    Das Gesangbuch ist noch nicht heruntergeladen. Das geht jetzt oder später über
+                    die Liederliste.
                 </p>
                 <Button type="button" variant="ghost" size="sm" @click="$emit('download')">
                     <Download aria-hidden="true" />

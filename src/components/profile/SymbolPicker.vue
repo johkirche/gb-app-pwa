@@ -5,18 +5,18 @@
              itself is a few hundred bytes and says what the set weighs. -->
         <div v-if="waiting" class="flex flex-col items-start gap-3">
             <p class="text-sm leading-relaxed text-muted-foreground">
-                Die Symbole werden erst geladen, wenn Sie sie sehen möchten.
+                Die Symbole laden wir nur, wenn Sie sie sehen möchten.
             </p>
             <Button type="button" variant="outline" @click="consented = true">
                 <Images aria-hidden="true" />
                 Symbole laden
-                <template v-if="totalBytes">· ca. {{ formatBytes(totalBytes) }}</template>
+                <template v-if="totalBytes">(ca. {{ formatBytes(totalBytes) }})</template>
             </Button>
         </div>
 
         <div v-else-if="listState === 'error'" class="flex flex-col items-start gap-3">
             <p class="text-sm leading-relaxed text-muted-foreground">
-                Die Symbole konnten gerade nicht geladen werden.
+                Die Symbole konnten nicht geladen werden.
             </p>
             <Button type="button" variant="outline" @click="load">
                 <RotateCw aria-hidden="true" />
@@ -25,18 +25,32 @@
         </div>
 
         <template v-else>
-            <!-- auto-fill on a rem minimum: at Größe 200 % the roundels keep
-                 their size and the grid takes fewer of them a row, instead of
-                 shrinking them to fit five. -->
+            <!-- The choice, kept in sight: the grid runs longer than a phone,
+                 and by halfway down it the step's large picture has scrolled
+                 away. Sticky against whatever scrolls the picker, so it needs
+                 that surface's own background. -->
+            <div
+                class="sticky top-0 z-10 mb-3 flex items-center gap-4 py-2"
+                :class="surface === 'popover' ? 'bg-popover' : 'bg-background'"
+            >
+                <UserAvatar :src="chosenSrc" :initials="initials" class="size-14 text-[1.25rem]" />
+                <p class="min-w-0 text-[0.9375rem]" aria-live="polite" aria-atomic="true">
+                    {{ chosenLabel }}
+                </p>
+            </div>
+
+            <!-- auto-fill on a rem minimum: four a row on a phone, and at
+                 Größe 200 % the roundels keep their size and the grid takes
+                 fewer of them a row instead of shrinking them to fit. -->
             <RadioGroupRoot
                 :model-value="modelValue ?? NONE"
                 aria-label="Symbol"
                 loop
-                class="grid grid-cols-[repeat(auto-fill,minmax(3.5rem,1fr))] gap-3"
+                class="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-3"
                 @update:model-value="onPick"
             >
                 <RadioGroupItem :value="NONE" aria-label="Ohne Symbol" :class="tile">
-                    <UserAvatar :initials="initials" class="size-full text-[1.125rem]" />
+                    <UserAvatar :initials="initials" class="size-full text-[1.375rem]" />
                 </RadioGroupItem>
                 <RadioGroupItem
                     v-for="symbol in symbols"
@@ -58,7 +72,7 @@
                 <!-- While the list is on its way: the grid's shape, not a spinner. -->
                 <template v-if="listState !== 'ready'">
                     <span
-                        v-for="n in 11"
+                        v-for="n in 7"
                         :key="`placeholder-${n}`"
                         class="aspect-square animate-pulse rounded-full bg-muted"
                         aria-hidden="true"
@@ -66,21 +80,8 @@
                 </template>
             </RadioGroupRoot>
 
-            <p
-                class="mt-4 min-h-[1.5em] text-sm text-muted-foreground"
-                aria-live="polite"
-                aria-atomic="true"
-            >
-                <template v-if="chosen">
-                    Gewählt:
-                    <span class="text-foreground">{{ chosen.label }}</span>
-                </template>
-                <template v-else-if="modelValue === null">
-                    Ohne Symbol – es werden Ihre Initialen gezeigt.
-                </template>
-            </p>
-            <p v-if="imagesFailed" class="text-sm text-muted-foreground">
-                Einige Symbole fehlen noch.
+            <p v-if="imagesFailed" class="mt-4 text-sm text-muted-foreground">
+                Einige Symbole konnten nicht geladen werden.
                 <button
                     type="button"
                     class="font-medium text-primary underline-offset-4 hover:underline"
@@ -99,6 +100,9 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Images, RotateCw } from 'lucide-vue-next';
 import { type AcceptableValue, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 
+import { useUserStore } from '@/stores/user';
+
+import { useProfile } from '@/composables/useProfile';
 import { useSymbols } from '@/composables/useSymbols';
 
 import UserAvatar from '@/components/profile/UserAvatar.vue';
@@ -113,6 +117,8 @@ const props = defineProps<{
     initials: string;
     /** Hold the roundels back until the reader asks for them (mobile data). */
     askFirst?: boolean;
+    /** What the picker sits on, for the sticky preview's background. */
+    surface?: 'background' | 'popover';
 }>();
 
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
@@ -128,7 +134,24 @@ const { symbols, listState, images, imagesFailed, totalBytes, loadList, loadAll 
 const consented = ref(false);
 const waiting = computed(() => props.askFirst && !consented.value);
 
+const userStore = useUserStore();
+const { avatarUrl } = useProfile();
+
 const chosen = computed(() => symbols.value.find((s) => s.id === props.modelValue) ?? null);
+
+// The account's own symbol is on the device before the grid has loaded it.
+const chosenSrc = computed(() => {
+    if (!props.modelValue) return null;
+    return (
+        images[props.modelValue] ??
+        (props.modelValue === userStore.user?.avatar ? avatarUrl.value : null)
+    );
+});
+
+const chosenLabel = computed(() => {
+    if (props.modelValue === null) return 'Ohne Symbol';
+    return chosen.value?.label ?? '';
+});
 
 function onPick(value: AcceptableValue) {
     emit('update:modelValue', value === NONE || typeof value !== 'string' ? null : value);
