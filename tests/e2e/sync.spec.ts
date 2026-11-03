@@ -11,10 +11,10 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
  * delta, but nothing has watched a real manifest become a real download become
  * rows in IndexedDB. That is what this walks.
  *
- * Onboarding is a four-step wizard, not an automatic run: the Install step
- * waits for „Weiter", and only then does the download start on its own; the
- * profile and the tour after it fill the wait, and the tour holds „Fertig"
- * until the book is down. This spec sits
+ * Onboarding is a wizard, not an automatic run: the Install step waits for
+ * „Weiter", and only then does the download start on its own; the tour and
+ * the profile after it fill the wait, and the profile holds „Fertig" until the
+ * book is down. This spec sits
  * the download out on its own step, where the progress and the failures are
  * worded in full. The recording run is measured in minutes and prints what it
  * is doing while it works.
@@ -106,27 +106,33 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     // required for.
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 60_000 });
 
-    // Step 1 of 4 — the PWA install prompt, which only moves on when asked to.
+    // First the PWA install prompt, which only moves on when asked to.
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // Step 2 of 4 — starts by itself once the step is active. A phone would
+    // Then the download, which starts by itself once the step is active. A phone would
     // ask about mobile data first (mayUseMobileData); every project here is a
     // desk with a mouse, where there is no data plan to ask about.
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
     await waitForDownload(page, DOWNLOAD_BUDGET);
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // Step 3 of 4 — name and symbol, both optional. Left empty, so the run
-    // writes nothing to the account it records with.
-    await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
-    await expect(page.getByText('Das Gesangbuch ist geladen.')).toBeVisible();
-    await page.getByRole('button', { name: 'Weiter' }).click();
-
-    // Step 4 of 4 — the tour, every slide of it, to the „Fertig" at its end.
-    await expect(page.getByRole('heading', { name: 'Lieder finden' })).toBeVisible();
-    for (let slide = 1; slide < 4; slide++) {
+    // The tour, every slide of it. The Bible stays as it is offered: off.
+    for (const title of [
+        'Lieder finden',
+        'Gedrückt halten',
+        'Größer lesen',
+        'Melodie anhören',
+        'Für den Gottesdienst',
+        'Bibel lesen',
+    ]) {
+        await expect(page.getByRole('heading', { name: title })).toBeVisible();
         await page.getByRole('button', { name: 'Weiter' }).click();
     }
+
+    // Last, name and symbol, both optional. Left empty, so the run writes
+    // nothing to the account it records with.
+    await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
+    await expect(page.getByText('Das Gesangbuch ist geladen.')).toBeVisible();
     await page.getByRole('button', { name: 'Fertig' }).click();
 
     const nav = page.locator('nav[aria-label="Hauptnavigation"]:visible');

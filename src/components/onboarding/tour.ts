@@ -1,10 +1,14 @@
 /**
  * The short tour the onboarding shows while the book comes down: what a reader
- * will look for first, and where it is. Each slide names the control as the
- * app labels it, so what is read here is what is then found on the screen.
+ * will look for first, and where it is. Each slide is a step of the onboarding
+ * of its own, and names the control as the app labels it, so what is read here
+ * is what is then found on the screen.
+ *
+ * `bibel` is the one that asks something: the Bible is off until someone wants
+ * it, and this is where they are most likely to.
  */
 
-export type TourKind = 'suchen' | 'groesse' | 'hoeren' | 'ablauf';
+export type TourKind = 'suchen' | 'gedrueckt' | 'groesse' | 'hoeren' | 'ablauf' | 'bibel';
 
 export interface TourSlide {
     kind: TourKind;
@@ -16,7 +20,12 @@ export const TOUR: readonly TourSlide[] = [
     {
         kind: 'suchen',
         title: 'Lieder finden',
-        text: 'Tippen Sie eine Nummer oder einen Titel ein. Mit „Titel + Text" sucht die App auch in den Strophen, und die Filter grenzen nach Kategorie, Autor oder Weise ein.',
+        text: 'Tippen Sie oben rechts auf die Lupe und geben Sie eine Nummer oder einen Titel ein. Mit „Titel + Text" sucht die App auch in den Strophen.',
+    },
+    {
+        kind: 'gedrueckt',
+        title: 'Gedrückt halten',
+        text: 'Halten Sie ein Lied in der Liste gedrückt, am Computer genügt ein Rechtsklick. Im Menü legen Sie es zu den Favoriten, in eine Playlist oder in den Ablauf.',
     },
     {
         kind: 'groesse',
@@ -31,6 +40,11 @@ export const TOUR: readonly TourSlide[] = [
     {
         kind: 'ablauf',
         title: 'Für den Gottesdienst',
-        text: 'Mit „Zum Ablauf hinzufügen" im Liedmenü stellen Sie die Lieder für einen Gottesdienst zusammen; sie stehen dann im Tab „Ablauf". Was Sie öfter brauchen, speichern Sie als Playlist.',
+        text: 'Mit „Zum Ablauf hinzufügen" stellen Sie die Lieder für einen Gottesdienst zusammen. Sie stehen dann im Tab „Ablauf". Was Sie öfter brauchen, speichern Sie als Playlist.',
+    },
+    {
+        kind: 'bibel',
+        title: 'Bibel lesen',
+        text: 'Auf Wunsch bekommt die App einen eigenen Reiter mit der Bibel. Sie können das später in den Einstellungen ändern.',
     },
 ];

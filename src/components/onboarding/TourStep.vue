@@ -1,102 +1,79 @@
 <template>
     <div class="flex flex-1 flex-col animate-in duration-300 fade-in slide-in-from-bottom-2">
-        <p class="label-micro text-center text-flourish">
-            Kurz erklärt · {{ index + 1 }} von {{ TOUR.length }}
-        </p>
+        <p class="label-micro text-center text-flourish">Kurz erklärt</p>
 
         <Transition name="tour" mode="out-in">
             <div :key="slide.kind" class="mt-4">
-                <TourIllustration :kind="slide.kind" />
-                <h1 class="mt-8 text-center font-display text-3xl font-semibold">
+                <!-- The one slide that asks something: question first, then
+                     what can be answered. The others show, then say. -->
+                <TourIllustration v-if="slide.kind !== 'bibel'" :kind="slide.kind" />
+                <h1
+                    class="text-center font-display text-3xl font-semibold"
+                    :class="slide.kind === 'bibel' ? 'mt-2' : 'mt-8'"
+                >
                     {{ slide.title }}
                 </h1>
-                <!-- Four lines' room whatever the slide says, so the dots and
-                     buttons under it stay put from one slide to the next. -->
+                <!-- Five lines' room whatever the slide says, so the buttons
+                     under it stay put from one slide to the next. -->
                 <p
-                    class="mt-3 min-h-[4lh] text-center text-[0.9375rem] leading-relaxed text-muted-foreground"
+                    class="mt-3 text-center text-[0.9375rem] leading-relaxed text-muted-foreground"
+                    :class="slide.kind === 'bibel' ? undefined : 'min-h-[5lh]'"
                 >
                     {{ slide.text }}
                 </p>
+                <TourBibelChoice v-if="slide.kind === 'bibel'" class="mt-6" />
             </div>
         </Transition>
 
-        <!-- The slides as dots, and a way straight to any of them. -->
-        <div class="mt-6 flex justify-center gap-2">
-            <button
-                v-for="(item, i) in TOUR"
-                :key="item.kind"
-                type="button"
-                class="h-2 rounded-full transition-all"
-                :class="i === index ? 'w-6 bg-primary' : 'w-2 bg-foreground/20'"
-                :aria-label="`${i + 1} von ${TOUR.length}: ${item.title}`"
-                :aria-current="i === index ? 'step' : undefined"
-                @click="index = i"
-            />
-        </div>
-
-        <DownloadStatus
-            class="mt-8"
-            v-bind="download"
-            @download="$emit('download')"
-            @retry="$emit('retry')"
-        />
-
         <div class="mt-auto flex flex-col gap-2 pt-8">
-            <template v-if="!isLast">
-                <Button type="button" size="lg" class="w-full" @click="index++">
-                    Weiter
-                    <ArrowRight aria-hidden="true" />
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="lg"
-                    class="w-full text-muted-foreground"
-                    @click="index = TOUR.length - 1"
-                >
-                    Überspringen
-                </Button>
-            </template>
-            <!-- Held while the book is still coming down, as „Fertig" always
-                 was: a Liederliste with half its engravings is no place to be
-                 sent. -->
+            <DownloadStatus
+                class="mb-2"
+                v-bind="download"
+                @download="$emit('download')"
+                @retry="$emit('retry')"
+            />
+            <Button type="button" size="lg" class="w-full" @click="$emit('next')">
+                Weiter
+                <ArrowRight aria-hidden="true" />
+            </Button>
             <Button
-                v-else
+                v-if="!isLast"
                 type="button"
+                variant="ghost"
                 size="lg"
-                class="w-full"
-                :disabled="download.isSyncing"
-                @click="$emit('finish')"
+                class="w-full text-muted-foreground"
+                @click="$emit('skip')"
             >
-                Fertig
-                <Check aria-hidden="true" />
+                Überspringen
             </Button>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-
-import { ArrowRight, Check } from 'lucide-vue-next';
+import { ArrowRight } from 'lucide-vue-next';
 
 import DownloadStatus from '@/components/onboarding/DownloadStatus.vue';
+import TourBibelChoice from '@/components/onboarding/TourBibelChoice.vue';
 import TourIllustration from '@/components/onboarding/TourIllustration.vue';
 import type { DownloadState } from '@/components/onboarding/downloadState';
-import { TOUR } from '@/components/onboarding/tour';
+import type { TourSlide } from '@/components/onboarding/tour';
 import { Button } from '@/components/ui/button';
 
-defineProps<{ download: DownloadState }>();
+defineProps<{
+    slide: TourSlide;
+    /** The last slide has nothing left to skip to but the next step. */
+    isLast: boolean;
+    download: DownloadState;
+}>();
 
 defineEmits<{
     download: [];
     retry: [];
-    finish: [];
+    next: [];
+    /** Past the rest of the tour, to the step after it. */
+    skip: [];
 }>();
-
-const index = ref(0);
-const slide = computed(() => TOUR[index.value]);
-const isLast = computed(() => index.value === TOUR.length - 1);
 </script>
 
 <style scoped>

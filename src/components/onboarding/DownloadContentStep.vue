@@ -112,9 +112,9 @@
                     <Download aria-hidden="true" />
                     Jetzt laden
                 </Button>
-                <!-- Putting it off is not losing it: the profile step offers it
-                     again, so does the empty Liederliste, and Einstellungen ›
-                     Daten always does. -->
+                <!-- Putting it off is not losing it: the steps after this one
+                     offer it again, so does the empty Liederliste, and
+                     Einstellungen › Daten always does. -->
                 <Button
                     type="button"
                     variant="ghost"
@@ -126,7 +126,7 @@
                 </Button>
             </template>
             <!-- On while the download runs, not only once it is done: the
-                 profile step is there to fill the wait, and keeps the
+                 tour and the profile are there to fill the wait, and keep the
                  progress in sight. -->
             <Button
                 v-else-if="!failed"
@@ -195,9 +195,9 @@ const props = defineProps<{
 defineEmits<{
     download: [];
     retry: [];
-    /** On to the profile, the download running or done. */
+    /** On to the tour, the download running or done. */
     next: [];
-    /** On to the profile without it: the reader would rather wait for WLAN. */
+    /** On to the tour without it: the reader would rather wait for WLAN. */
     later: [];
 }>();
 

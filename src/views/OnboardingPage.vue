@@ -30,23 +30,26 @@
                     @later="nextStep"
                 />
 
-                <!-- Steps 3 and 4 fill the wait: the book comes down behind
-                     them, and each keeps its progress in sight. -->
-
-                <!-- Step 3: Name and symbol -->
-                <ProfileStep
-                    v-if="currentStep === 3"
+                <!-- From here on the book comes down behind the steps, which
+                     fill the wait and keep its progress in sight. Each slide of
+                     the tour is a step of its own, so there is one row of dots
+                     to read and the back arrow goes back one slide. -->
+                <TourStep
+                    v-if="tourSlide"
+                    :slide="tourSlide"
+                    :is-last="currentStep === lastTourStep"
                     :download="download"
-                    :ask-first="askBeforeDownload && !downloadStarted && !downloadComplete"
                     @download="handleDownload"
                     @retry="handleRetry"
                     @next="nextStep"
+                    @skip="currentStep = totalSteps"
                 />
 
-                <!-- Step 4: A short tour of the app -->
-                <TourStep
-                    v-if="currentStep === 4"
+                <!-- Last: name and symbol -->
+                <ProfileStep
+                    v-if="currentStep === totalSteps"
                     :download="download"
+                    :ask-first="askBeforeDownload && !downloadStarted && !downloadComplete"
                     @download="handleDownload"
                     @retry="handleRetry"
                     @finish="finishOnboarding"
@@ -69,6 +72,7 @@ import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
 import ProfileStep from '@/components/onboarding/ProfileStep.vue';
 import TourStep from '@/components/onboarding/TourStep.vue';
 import type { DownloadState } from '@/components/onboarding/downloadState';
+import { TOUR } from '@/components/onboarding/tour';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
 import { type StorageSpace, getStorageEstimate } from '@/services/storage';
@@ -82,7 +86,10 @@ const ONBOARDING_IN_PROGRESS_KEY = 'onboarding.inProgress';
 const ONBOARDING_STEP_KEY = 'onboarding.currentStep';
 
 // Step management
-const totalSteps = 4;
+// Install, download, a step per slide of the tour, then the profile.
+const FIRST_TOUR_STEP = 3;
+const lastTourStep = FIRST_TOUR_STEP + TOUR.length - 1;
+const totalSteps = lastTourStep + 1;
 
 /**
  * Where an onboarding cut off by a reload (or an installed app launched
@@ -100,6 +107,8 @@ function storedStep(): number {
 }
 
 const currentStep = ref(storedStep());
+
+const tourSlide = computed(() => TOUR[currentStep.value - FIRST_TOUR_STEP] ?? null);
 
 // Download state
 const downloadStarted = ref(false);

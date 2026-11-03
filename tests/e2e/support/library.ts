@@ -118,11 +118,11 @@ export async function syncLibrary(page: Page) {
 }
 
 /**
- * Through the four steps of the onboarding, the download left to run.
+ * Through the onboarding, the download left to run.
  *
  * Install, then the download step — which offers „Weiter" as soon as the book
- * is coming down, so the steps after it can fill the wait — then the profile,
- * then the tour, whose „Fertig" holds until the download is done. Nothing is
+ * is coming down, so the steps after it can fill the wait — then past the tour
+ * to the profile, whose „Fertig" holds until the download is done. Nothing is
  * typed into the profile: an empty one is saved without a request, so the
  * recording never learns of a write and a replay never needs one.
  */
@@ -130,9 +130,8 @@ export async function walkOnboarding(page: Page, downloadBudgetMs: number) {
     await page.getByRole('button', { name: 'Weiter' }).click();
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
     await page.getByRole('button', { name: 'Weiter' }).click();
-    await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
-    await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('button', { name: 'Überspringen' }).click();
+    await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
 
     const done = page.getByRole('button', { name: 'Fertig' });
     await expect(done).toBeEnabled({ timeout: downloadBudgetMs });

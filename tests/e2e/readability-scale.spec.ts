@@ -303,13 +303,13 @@ test.describe('the book at every size it offers', () => {
     });
 });
 
-// The onboarding's profile step: a grid of pictures that has to give up columns
-// rather than room as the type grows, and a name typed in long. No session
-// behind it — the dev skip again — so the backend is answered here: a folder of
+// The onboarding's tour, and its profile step: a grid of pictures that has to
+// give up columns rather than room as the type grows, and a name typed in long.
+// No session behind it — the dev skip again — so the backend is answered here: a folder of
 // symbols with a roundel each, and nothing else, which leaves the download the
 // step starts failing as it would offline. What is measured is the step.
 test.describe('the onboarding at every size it offers', () => {
-    test('keeps the profile step and the tour inside the phone', async ({ page }) => {
+    test('keeps the tour and the profile step inside the phone', async ({ page }) => {
         const backend = (process.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '');
         const roundel =
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">' +
@@ -343,39 +343,40 @@ test.describe('the onboarding at every size it offers', () => {
             history.pushState({}, '', '/onboarding');
             dispatchEvent(new PopStateEvent('popstate'));
         });
-        const heading = 'Wie dürfen wir Sie nennen?';
-        await expect(page.getByRole('heading', { name: heading })).toBeVisible({
+        await expect(page.getByRole('heading', { name: 'Lieder finden' })).toBeVisible({
             timeout: 20_000,
         });
+        await page.evaluate(() => document.fonts.ready);
+
+        // The tour, each of its slides: the sketches are drawn in rem, so they
+        // grow with the type, and none of them may grow past the phone. The
+        // row of dots above them has one for every slide and has to survive
+        // that too. The Bible's slide is measured with the longest note showing.
+        for (const title of [
+            'Lieder finden',
+            'Gedrückt halten',
+            'Größer lesen',
+            'Melodie anhören',
+            'Für den Gottesdienst',
+            'Bibel lesen',
+        ]) {
+            await expect(page.getByRole('heading', { name: title })).toBeVisible();
+            if (title === 'Bibel lesen') {
+                await page.getByRole('radio', { name: /Luther/ }).click();
+            }
+            await expectNoOverflow(page, title);
+            await page.getByRole('button', { name: 'Weiter' }).click();
+        }
+
+        const heading = 'Wie dürfen wir Sie nennen?';
+        await expect(page.getByRole('heading', { name: heading })).toBeVisible();
         await expect(page.getByRole('radio').last().locator('img')).toBeVisible();
         await page.getByLabel('Vorname').fill('Maximiliane-Theodora');
         await page.getByLabel('Nachname').fill('Hohenzollern-Sigmaringen');
         await page.getByRole('radio').nth(5).click();
         await expect(page.getByRole('radio').nth(5)).toBeChecked();
-        await page.evaluate(() => document.fonts.ready);
 
         await expectNoOverflow(page, heading);
-
-        // On to the tour, and each of its sketches: drawn in rem, they grow
-        // with the type, and none of them may grow past the phone. The profile
-        // is emptied first: the dev skip has no account to save it to, and
-        // the toast saying so would sit on the tour's buttons.
-        await page.getByLabel('Vorname').fill('');
-        await page.getByLabel('Nachname').fill('');
-        await page.getByRole('radio', { name: 'Ohne Symbol' }).click();
-        await page.getByRole('button', { name: 'Weiter' }).click();
-        for (const title of [
-            'Lieder finden',
-            'Größer lesen',
-            'Melodie anhören',
-            'Für den Gottesdienst',
-        ]) {
-            await expect(page.getByRole('heading', { name: title })).toBeVisible();
-            await expectNoOverflow(page, title);
-            if (title !== 'Für den Gottesdienst') {
-                await page.getByRole('button', { name: 'Weiter' }).click();
-            }
-        }
         await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
     });
 });

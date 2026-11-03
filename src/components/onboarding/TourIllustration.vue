@@ -6,20 +6,29 @@
          fixed width, so the sketch grows with the type and never past the
          phone. -->
     <div
-        class="flex min-h-[15.5rem] w-full items-center justify-center overflow-hidden rounded-2xl bg-muted px-6 py-6"
+        class="flex min-h-[16.5rem] w-full items-center justify-center overflow-hidden rounded-2xl bg-muted px-6 py-6"
         aria-hidden="true"
     >
-        <!-- Lieder finden: a search for a number, and what it finds -->
-        <div v-if="kind === 'suchen'" class="w-full max-w-[18rem] space-y-3">
+        <!-- Lieder finden: the magnifier that opens the search, what is typed,
+             and what it finds -->
+        <div v-if="kind === 'suchen'" class="w-full max-w-[18rem] space-y-2.5">
+            <div class="flex items-center justify-between gap-3 px-1">
+                <span class="min-w-0 truncate font-display text-xl">Lieder</span>
+                <span
+                    class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-primary/20"
+                >
+                    <Search class="size-5" />
+                </span>
+            </div>
             <div
-                class="flex h-11 items-center gap-2 rounded-lg border border-border bg-background px-3 shadow-sm"
+                class="flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3 shadow-sm"
             >
                 <Search class="size-[1.125rem] shrink-0 text-muted-foreground" />
                 <span class="text-[0.9375rem]">23</span>
                 <span class="h-[1.1em] w-px animate-pulse bg-foreground" />
             </div>
             <div
-                v-for="(number, i) in ['23', '123', '230']"
+                v-for="(number, i) in ['23', '123']"
                 :key="number"
                 class="flex items-center gap-3 rounded-lg bg-background/70 px-3 py-1.5"
             >
@@ -31,9 +40,37 @@
                 <span class="min-w-0 flex-1">
                     <span
                         class="block h-2 rounded-full bg-foreground/15"
-                        :class="['w-full', 'w-2/3', 'w-1/2'][i]"
+                        :class="['w-full', 'w-2/3'][i]"
                     />
                 </span>
+            </div>
+        </div>
+
+        <!-- Gedrückt halten: a finger on a row, and the menu it opens -->
+        <div v-else-if="kind === 'gedrueckt'" class="w-full max-w-[18rem] space-y-2">
+            <div
+                class="flex items-center gap-3 rounded-lg bg-background px-3 py-2 shadow-sm ring-2 ring-primary/30"
+            >
+                <span class="w-[2.5em] shrink-0 font-display text-lg tabular-nums">42</span>
+                <span class="min-w-0 flex-1">
+                    <span class="block h-2 w-3/4 rounded-full bg-foreground/15" />
+                </span>
+                <span
+                    class="size-6 shrink-0 rounded-full bg-primary/30 ring-[0.375rem] ring-primary/15"
+                />
+            </div>
+            <div class="ml-auto w-5/6 rounded-lg border border-border bg-background py-1 shadow-md">
+                <div
+                    v-for="item in MENU"
+                    :key="item.label"
+                    class="flex items-center gap-3 px-3 py-1.5"
+                >
+                    <component
+                        :is="item.icon"
+                        class="size-[1.125rem] shrink-0 text-muted-foreground"
+                    />
+                    <span class="min-w-0 truncate text-sm">{{ item.label }}</span>
+                </div>
             </div>
         </div>
 
@@ -122,11 +159,18 @@
 </template>
 
 <script setup lang="ts">
-import { ClipboardList, ListMusic, Music, Play, Search, Settings } from 'lucide-vue-next';
+import { ClipboardList, Heart, ListMusic, Music, Play, Search, Settings } from 'lucide-vue-next';
 
 import type { TourKind } from '@/components/onboarding/tour';
 
 defineProps<{ kind: TourKind }>();
+
+/** What a long press on a song offers, as the Aktionen sheet labels it, shortened to fit. */
+const MENU = [
+    { label: 'Zu Favoriten', icon: Heart },
+    { label: 'Zu Playlist', icon: ListMusic },
+    { label: 'Zum Ablauf', icon: ClipboardList },
+];
 
 /** A phrase that climbs and falls back, the fourth note sounding. Positions in % of the stave. */
 const NOTES = [

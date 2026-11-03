@@ -5,7 +5,7 @@
         <UserAvatar
             :src="previewSrc"
             :initials="previewInitials"
-            class="mx-auto mb-6 size-32 text-[3rem] shadow-sm"
+            class="mx-auto mb-6 size-24 text-[2.25rem] shadow-sm"
         />
 
         <h1 class="text-center font-display text-3xl font-semibold">Wie dürfen wir Sie nennen?</h1>
@@ -13,7 +13,7 @@
             Name und Symbol sind freiwillig. Sie können beides später in den Einstellungen ändern.
         </p>
 
-        <form id="onboarding-profile" class="mt-8 space-y-5" @submit.prevent="next">
+        <form id="onboarding-profile" class="mt-8 space-y-5" @submit.prevent="finish">
             <div class="space-y-2">
                 <Label for="onboarding-first-name">Vorname</Label>
                 <Input
@@ -45,28 +45,28 @@
             <SymbolPicker v-model="avatar" :initials="previewInitials" :ask-first="askFirst" />
         </section>
 
-        <DownloadStatus
-            class="mt-8"
-            v-bind="download"
-            @download="$emit('download')"
-            @retry="$emit('retry')"
-        />
-
         <div class="mt-auto flex flex-col gap-2 pt-8">
-            <!-- On while the book comes down: the tour after this step is
-                 there to fill the rest of the wait, and holds „Fertig". -->
+            <DownloadStatus
+                class="mb-2"
+                v-bind="download"
+                @download="$emit('download')"
+                @retry="$emit('retry')"
+            />
+            <!-- Held while the book is still coming down, as „Fertig" always
+                 was: a Liederliste with half its engravings is no place to be
+                 sent. -->
             <Button
                 type="submit"
                 form="onboarding-profile"
                 size="lg"
                 class="w-full"
-                :disabled="saving"
+                :disabled="download.isSyncing || saving"
                 :aria-busy="saving"
             >
                 <Spinner v-if="saving" size="sm" class="text-primary-foreground" />
                 <template v-else>
-                    Weiter
-                    <ArrowRight aria-hidden="true" />
+                    Fertig
+                    <Check aria-hidden="true" />
                 </template>
             </Button>
         </div>
@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { ArrowRight } from 'lucide-vue-next';
+import { Check } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 
 import { useUserStore } from '@/stores/user';
@@ -93,7 +93,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 
-defineProps<{
+const props = defineProps<{
     download: DownloadState;
     /** The reader put the book off for WLAN: the symbols wait to be asked for too. */
     askFirst: boolean;
@@ -102,7 +102,7 @@ defineProps<{
 const emit = defineEmits<{
     download: [];
     retry: [];
-    next: [];
+    finish: [];
 }>();
 
 const userStore = useUserStore();
@@ -124,8 +124,8 @@ const previewSrc = computed(() => {
     );
 });
 
-async function next() {
-    if (saving.value) return;
+async function finish() {
+    if (props.download.isSyncing || saving.value) return;
     saving.value = true;
     try {
         const saved = await saveProfile({
@@ -142,6 +142,6 @@ async function next() {
     } finally {
         saving.value = false;
     }
-    emit('next');
+    emit('finish');
 }
 </script>

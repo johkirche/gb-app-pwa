@@ -1,10 +1,10 @@
 <template>
-    <!-- The download carries on behind the steps after it; what it is doing
-         stays in sight on each of them, worded as the download step words
-         it. -->
-    <div class="rounded-lg bg-muted p-4">
+    <!-- The download carries on behind the steps after it, so what it is doing
+         stays in sight on each of them: one small line above the button, not a
+         second thing to read beside what the step is about. -->
+    <div class="text-[0.8125rem] leading-relaxed text-muted-foreground">
         <template v-if="isSyncing">
-            <p class="text-sm text-muted-foreground">
+            <p class="text-center">
                 <template v-if="filesKnown">
                     Das Gesangbuch wird geladen ·
                     <span class="tabular-nums">
@@ -16,49 +16,45 @@
             <Progress
                 v-if="filesKnown"
                 :model-value="syncProgress.current / syncProgress.total"
-                class="mt-3"
+                class="mt-1.5 h-1"
             />
         </template>
-        <p v-else-if="downloadComplete" class="flex items-center gap-3 text-sm">
-            <CircleCheck class="size-5 shrink-0 text-primary" aria-hidden="true" />
+        <p v-else-if="downloadComplete" class="flex items-center justify-center gap-1.5">
+            <CircleCheck class="size-3.5 shrink-0 text-primary" aria-hidden="true" />
             Das Gesangbuch ist geladen.
         </p>
-        <div v-else-if="failed" class="flex flex-col items-start gap-2">
-            <p class="text-sm leading-relaxed text-destructive">
-                <template v-if="failedCount > 0">
-                    {{ failedCount }} Dateien konnten nicht heruntergeladen werden.
-                </template>
-                <template v-else>{{ syncError }}</template>
-            </p>
-            <Button
+        <p v-else-if="failed" class="text-center text-destructive">
+            <template v-if="failedCount > 0">
+                {{ failedCount }} Dateien konnten nicht heruntergeladen werden.
+            </template>
+            <template v-else>{{ syncError }}</template>
+            <button
                 type="button"
-                variant="ghost"
-                size="sm"
+                class="ml-1 font-medium underline underline-offset-2"
                 @click="failedCount > 0 ? $emit('retry') : $emit('download')"
             >
                 Erneut versuchen
-            </Button>
-        </div>
-        <div v-else class="flex flex-col items-start gap-2">
-            <p class="text-sm leading-relaxed text-muted-foreground">
-                Das Gesangbuch ist noch nicht heruntergeladen. Das geht jetzt oder später über die
-                Liederliste.
-            </p>
-            <Button type="button" variant="ghost" size="sm" @click="$emit('download')">
-                <Download aria-hidden="true" />
+            </button>
+        </p>
+        <p v-else class="text-center">
+            Das Gesangbuch ist noch nicht heruntergeladen.
+            <button
+                type="button"
+                class="ml-1 font-medium text-primary underline underline-offset-2"
+                @click="$emit('download')"
+            >
                 Jetzt laden
-            </Button>
-        </div>
+            </button>
+        </p>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { CircleCheck, Download } from 'lucide-vue-next';
+import { CircleCheck } from 'lucide-vue-next';
 
 import type { DownloadState } from '@/components/onboarding/downloadState';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 
 const props = defineProps<DownloadState>();
