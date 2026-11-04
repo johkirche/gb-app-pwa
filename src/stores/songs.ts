@@ -406,7 +406,14 @@ export const useSongsStore = defineStore('songs', () => {
             }
 
             if (manifest) {
-                await persistFileStamps(buildFileStamps(manifest, new Set(await storedFileIds())));
+                await persistFileStamps(
+                    buildFileStamps(
+                        manifest,
+                        new Set(await storedFileIds()),
+                        new Set(failedFiles.value.map((file) => file.id)),
+                        await loadFileStamps(),
+                    ),
+                );
             }
 
             // Only a sync without failed files may record success — a partial

@@ -156,6 +156,28 @@ describe('buildFileStamps', () => {
     it('lässt eine fehlgeschlagene Datei aus, damit sie erneut geholt wird', () => {
         expect(buildFileStamps([entry('1')], new Set())).toEqual({});
     });
+
+    // Am Platz ersetzt, und der neue Download schlug fehl: Hier liegen weiter die
+    // alten Bytes, also darf auch nur der alte Stempel hier liegen. Ohne Stempel
+    // hielte diffFiles die Datei für aktuell.
+    it('behält für eine vorhandene Datei, deren Download fehlschlug, den alten Stempel', () => {
+        const present = new Set(['svg-1', 'mxml-1']);
+        const stamps = buildFileStamps([entry('1')], present, new Set(['svg-1']), {
+            'svg-1': '2026-01-01T00:00:00.000Z',
+            'mxml-1': '2026-01-01T00:00:00.000Z',
+        });
+
+        expect(stamps).toEqual({
+            'svg-1': '2026-01-01T00:00:00.000Z',
+            'mxml-1': '2026-08-23T15:00:00.000Z',
+        });
+        expect(diffFiles([entry('1')], present, stamps)).toEqual(['svg-1']);
+    });
+
+    it('nimmt eine fehlgeschlagene Datei ohne alten Stempel als ohne Stempel', () => {
+        const stamps = buildFileStamps([entry('1')], new Set(['svg-1']), new Set(['svg-1']), {});
+        expect(stamps).toEqual({ 'svg-1': null });
+    });
 });
 
 describe('findOrphanFileIds', () => {

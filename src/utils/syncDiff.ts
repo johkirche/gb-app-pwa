@@ -145,16 +145,26 @@ export function diffFiles(
 
 /**
  * The stamp map to persist after a sync: what the server says, for the files
- * actually held. A file whose download failed is absent from `presentIds` and
- * so stays out of the map — the next sync sees it missing and retries.
+ * actually held. A file whose download failed and that was never here is absent
+ * from `presentIds` and so stays out of the map — the next sync sees it missing
+ * and retries.
+ *
+ * A failed download of a file already held is the other case: a file replaced in
+ * place, still here with its old bytes. It keeps the stamp those bytes came with,
+ * and leaving it out would not do, because `diffFiles` takes a held file without
+ * a stamp for current. A retry that then succeeds has no manifest to stamp it
+ * from, so the next sync fetches that file once more: a request, nothing worse.
  */
 export function buildFileStamps(
     manifest: SongManifestEntry[],
     presentIds: Set<string>,
+    failedIds: ReadonlySet<string> = new Set(),
+    previous: Record<string, string | null> = {},
 ): Record<string, string | null> {
     const stamps: Record<string, string | null> = {};
     for (const file of manifestFiles(manifest)) {
-        if (presentIds.has(file.id)) stamps[file.id] = file.modifiedOn;
+        if (!presentIds.has(file.id)) continue;
+        stamps[file.id] = failedIds.has(file.id) ? (previous[file.id] ?? null) : file.modifiedOn;
     }
     return stamps;
 }
