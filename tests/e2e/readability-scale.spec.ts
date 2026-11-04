@@ -30,6 +30,10 @@ test.use({
     // to a fade (SettingsPage.vue honours it), which leaves nothing to race:
     // what this spec measures is settled layout, not animation.
     reducedMotion: 'reduce',
+    // The dev server registers the worker too, and its „offline verfügbar" toast
+    // comes up over whatever a test is about to press, then hangs around while
+    // the pointer rests on it. offline.spec.ts is where the worker is tested.
+    serviceWorkers: 'block',
 });
 
 /** The tab bar that is on screen — the app renders a second, hidden one for ≥ lg. */
@@ -180,6 +184,9 @@ test.describe('the app at every size it offers', () => {
     });
 
     test('keeps every Einstellungen section inside the phone', async ({ page }) => {
+        // Every section at three sizes, each measured over the whole DOM. Alone
+        // that fits the default budget; WebKit in a full run's load does not.
+        test.slow();
         await nav(page).getByRole('link', { name: 'Einstellungen' }).click();
 
         // The overview's rows are the only buttons in the pane; the one in the
@@ -318,6 +325,8 @@ test.describe('the book at every size it offers', () => {
 // symbols with a roundel each, and nothing else. What is measured is the step.
 test.describe('the onboarding at every size it offers', () => {
     test('keeps the tour and the profile step inside the phone', async ({ page }) => {
+        // Every slide at three sizes: as long a walk as the Einstellungen above.
+        test.slow();
         const backend = (process.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '');
         const roundel =
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">' +
@@ -519,15 +528,11 @@ async function serveDemo(page: Page, { playback }: { playback: boolean }) {
     );
 }
 
-/**
- * Through the welcome into the demo's song list. Pressed, not clicked: on a
- * phone the service worker's „offline verfügbar" toast comes up over the
- * button just as it is enabled, and a click aimed at it lands on the toast.
- */
+/** Through the welcome into the demo's song list. */
 async function enterDemo(page: Page) {
     await page.goto('/demo/readability');
     const enter = page.getByRole('button', { name: 'Lieder ansehen' });
     await expect(enter).toBeEnabled({ timeout: 20_000 });
-    await enter.press('Enter');
+    await enter.click();
     await expect(page).toHaveURL(/\/tabs\/lieder/);
 }
