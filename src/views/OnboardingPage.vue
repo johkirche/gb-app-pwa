@@ -90,13 +90,15 @@ async function handleDownload() {
 // The download is not optional: it starts automatically when the download step
 // becomes active. Guarded so re-entering the step (or a restored onboarding
 // session) never launches a second sync alongside a running one, and an already
-// fully synced library skips straight to the finished state.
+// fully synced library skips straight to the finished state. Songs alone do not
+// say that: a sync stores them first and the notation after, so a tab closed in
+// between leaves the songs and no files. Only a finished sync writes lastSyncTime.
 let autoStartAttempted = false;
 function maybeAutoStartDownload() {
     if (autoStartAttempted || songsStore.isSyncing) {
         return;
     }
-    if (songsStore.hasSongs && songsStore.failedFiles.length === 0) {
+    if (songsStore.hasSongs && songsStore.lastSyncTime && songsStore.failedFiles.length === 0) {
         downloadComplete.value = true;
         return;
     }
