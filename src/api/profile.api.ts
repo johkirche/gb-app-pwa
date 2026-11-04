@@ -9,13 +9,13 @@ import { directusClient } from '@/services/directus';
 /**
  * Profile API
  *
- * The reader's own settings on their directus_users row, in one JSON field,
- * `app_settings` — prefixed because Directus' own `appearance` and `theme_*`
- * fields beside it style the Data Studio, not the app. Keys are English like
- * the rest of the row: `{ "accent": "gold" }`.
+ * The reader's own directus_users row: their name and symbol in Directus' own
+ * fields, and the app's settings in one JSON field, `app_settings` — prefixed
+ * because Directus' own `appearance` and `theme_*` fields beside it style the
+ * Data Studio, not the app. Keys are English like the rest of the row:
+ * `{ "accent": "gold" }`.
  *
- * Best effort throughout: a setting that does not reach the profile still
- * holds on this device, so nothing here throws, and nothing here may end a
+ * Best effort throughout: nothing here throws, and nothing here may end a
  * session.
  */
 
@@ -50,6 +50,69 @@ export async function readAppSettings(): Promise<AppSettings | null> {
     } catch (err) {
         console.warn('Could not read the app settings from the profile:', err);
         return null;
+    }
+}
+
+/**
+ * Who the reader says they are: the name and the symbol on their row.
+ * `avatar` is Directus' own field, a file in the symbols folder
+ * (config/symbols.ts) — so the Data Studio shows the same roundel beside the
+ * account that the app does.
+ */
+export interface Profile {
+    firstName: string | null;
+    lastName: string | null;
+    avatar: string | null;
+}
+
+/**
+ * The profile's name and symbol, or null if they cannot be read.
+ *
+ * Asked for apart from the login's readMe on purpose: Directus refuses a whole
+ * request that names one field the policy does not grant, and the login must
+ * not hinge on whether `avatar` has been opened to readers yet.
+ */
+export async function readProfile(): Promise<Profile | null> {
+    try {
+        if (!(await authorize())) return null;
+        const me = (await directusClient.request(
+            readMe({ fields: ['first_name', 'last_name', 'avatar'] }),
+        )) as { first_name?: string | null; last_name?: string | null; avatar?: unknown };
+        return {
+            firstName: me.first_name ?? null,
+            lastName: me.last_name ?? null,
+            // A file id; an expanded relation would be an object with one.
+            avatar:
+                typeof me.avatar === 'string'
+                    ? me.avatar
+                    : ((me.avatar as { id?: string } | null)?.id ?? null),
+        };
+    } catch (err) {
+        console.warn('Could not read the profile:', err);
+        return null;
+    }
+}
+
+/**
+ * Write the name and/or symbol, and say whether it took. Unlike the settings
+ * above this is something the reader typed and is waiting to see, so the
+ * caller gets to tell them when it did not reach the server — it still never
+ * throws, and never ends a session.
+ */
+export async function updateProfile(patch: Partial<Profile>): Promise<boolean> {
+    try {
+        if (!(await authorize())) return false;
+        const item: Record<string, string | null> = {};
+        if ('firstName' in patch) item.first_name = patch.firstName || null;
+        if ('lastName' in patch) item.last_name = patch.lastName || null;
+        if ('avatar' in patch) item.avatar = patch.avatar ?? null;
+        await directusClient.request(
+            updateMe(item as Parameters<typeof updateMe>[0], { fields: ['id'] }),
+        );
+        return true;
+    } catch (err) {
+        console.warn('Could not save the profile:', err);
+        return false;
     }
 }
 

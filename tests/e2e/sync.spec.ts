@@ -11,10 +11,12 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
  * delta, but nothing has watched a real manifest become a real download become
  * rows in IndexedDB. That is what this walks.
  *
- * Onboarding is a two-step wizard, not an automatic run: the Install step waits
- * for „Weiter", and only then does the download start on its own and offer
- * „Fertig" at the end. The whole book is about 90 MB, so the recording run is
- * measured in minutes and prints what it is doing while it works.
+ * Onboarding is a wizard, not an automatic run: the Install step waits for
+ * „Weiter", and only then does the download start on its own; the tour and
+ * the profile come once the book is down. This spec sits
+ * the download out on its own step, where the progress and the failures are
+ * worded in full. The recording run is measured in minutes and prints what it
+ * is doing while it works.
  *
  *   pnpm test:e2e:record
  */
@@ -51,7 +53,7 @@ test.beforeAll(() => {
  * coming.
  */
 async function waitForDownload(page: Page, budgetMs: number) {
-    const done = page.getByRole('button', { name: 'Fertig' });
+    const done = page.getByText('Alle Inhalte wurden erfolgreich heruntergeladen!');
     const progress = page.getByText(/von \d+ Dateien|Lieder werden geladen|Daten werden geladen/);
     const failed = page.getByText(/konnten nicht heruntergeladen werden/);
     const retry = page.getByRole('button', { name: 'Erneut versuchen' });
@@ -103,13 +105,32 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     // required for.
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 60_000 });
 
-    // Step 1 of 2 — the PWA install prompt, which only moves on when asked to.
+    // First the PWA install prompt, which only moves on when asked to.
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // Step 2 of 2 — starts by itself once the step is active.
+    // Then the download, which starts by itself once the step is active. A phone
+    // would wait for „Herunterladen" first (mayUseMobileData); every project here
+    // is a desk with a mouse, where there is no data plan to wait for.
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
     await waitForDownload(page, DOWNLOAD_BUDGET);
+    await page.getByRole('button', { name: 'Weiter' }).click();
 
+    // The tour, every slide of it. The Bible stays as it is offered: off.
+    for (const title of [
+        'Lieder finden',
+        'Gedrückt halten',
+        'Größer lesen',
+        'Melodie anhören',
+        'Für den Gottesdienst',
+        'Bibel lesen',
+    ]) {
+        await expect(page.getByRole('heading', { name: title })).toBeVisible();
+        await page.getByRole('button', { name: 'Weiter' }).click();
+    }
+
+    // Last, name and symbol, both optional. Left empty, so the run writes
+    // nothing to the account it records with.
+    await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
     await page.getByRole('button', { name: 'Fertig' }).click();
 
     const nav = page.locator('nav[aria-label="Hauptnavigation"]:visible');

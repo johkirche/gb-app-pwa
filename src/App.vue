@@ -31,6 +31,7 @@ import { useUserStore } from '@/stores/user';
 import { useAkzent } from '@/composables/useAkzent';
 import { syncMidiPreference } from '@/composables/useMidiOutput';
 import { usePageScale } from '@/composables/usePageScale';
+import { useProfile } from '@/composables/useProfile';
 import { useTheme } from '@/composables/useTheme';
 
 import { ConfirmHost } from '@/components/ui/confirm';
@@ -48,6 +49,7 @@ const ViewportPreview = showViewportPreview
 
 const { isDark, initTheme } = useTheme();
 const { initAkzent, pullAkzentFromProfile } = useAkzent();
+const { pullProfile } = useProfile();
 
 // Bring the MIDI device layer in line with what was saved. Only a permission
 // that already stands is re-used — this never raises a prompt, so a reader who
@@ -110,7 +112,11 @@ watch(
 watch(
     () => userStore.isLoggedIn,
     (loggedIn) => {
-        if (loggedIn) void pullAkzentFromProfile();
+        if (!loggedIn) return;
+        void pullAkzentFromProfile();
+        // The name and symbol may have changed on another device, and a fresh
+        // login brings neither picture of the symbol with it.
+        void pullProfile();
     },
     { immediate: true },
 );

@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import { chromium, firefox, webkit } from '@playwright/test';
+import { chromium, expect, firefox, webkit } from '@playwright/test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -113,12 +113,27 @@ export async function syncLibrary(page: Page) {
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
     await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
-    await page.getByRole('button', { name: 'Weiter' }).click();
-
-    const done = page.getByRole('button', { name: 'Fertig' });
-    await done.waitFor({ state: 'visible', timeout: 180_000 });
-    await done.click();
+    await walkOnboarding(page, 180_000);
     await page.locator('nav[aria-label="Hauptnavigation"]:visible').waitFor({ timeout: 30_000 });
+}
+
+/**
+ * Through the onboarding: install, the download step — which offers „Weiter"
+ * once the book is down — then past the tour to the profile and its „Fertig".
+ * Nothing is typed into the profile: an empty one is saved without a request,
+ * so the recording never learns of a write and a replay never needs one.
+ */
+export async function walkOnboarding(page: Page, downloadBudgetMs: number) {
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
+
+    const next = page.getByRole('button', { name: 'Weiter' });
+    await expect(next).toBeVisible({ timeout: downloadBudgetMs });
+    await next.click();
+
+    await page.getByRole('button', { name: 'Überspringen' }).click();
+    await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
+    await page.getByRole('button', { name: 'Fertig' }).click();
 }
 
 /** The tab bar that is on screen — a second, hidden one exists for ≥ lg. */

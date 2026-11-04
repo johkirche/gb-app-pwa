@@ -147,9 +147,15 @@ They are read by `playwright.config.ts` in Node and never reach the bundle.
 Only the recording uses them; a replay stubs the login, so no password and no
 real token is ever written into a fixture.
 
-Onboarding is a two-step wizard, so the recording walks it: „Weiter" past the
-install prompt, then the download starts on its own and the run sits out the
-whole book, printing each phase as it goes.
+Onboarding is a wizard, so the recording walks it: „Weiter" past the install
+prompt, then the download starts on its own and the run sits out the whole
+book, printing each phase as it goes. (A phone would first wait for
+„Herunterladen", with the transfer size beside it; the projects are desktops
+with a mouse, so that never comes up.) Then through the tour, a step per slide,
+to the profile step and its „Fertig". The profile is left empty on purpose: an
+empty one is saved without a request, so the recording never writes to the
+account it runs as. `walkOnboarding()` in `support/library.ts` is the same walk
+without the watching, for the specs that just need the book.
 
 The recorder is our own (`tests/e2e/support/recorder.ts`), not Playwright's
 `routeFromHAR`. The HAR tracer reads response bodies back out of Chromium after

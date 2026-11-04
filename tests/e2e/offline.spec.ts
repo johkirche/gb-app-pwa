@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { NO_RECORDING, hasRecording } from './support/backend';
-import { PHONE } from './support/library';
+import { PHONE, walkOnboarding } from './support/library';
 import { type Preview, servePreview } from './support/preview';
 import { serveRecording } from './support/recorder';
 
@@ -163,10 +163,7 @@ test('installs, and stores the whole shell', async () => {
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
     await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
-    await page.getByRole('button', { name: 'Weiter' }).click();
-    const done = page.getByRole('button', { name: 'Fertig' });
-    await done.waitFor({ state: 'visible', timeout: 240_000 });
-    await done.click();
+    await walkOnboarding(page, 240_000);
     await page.locator('nav[aria-label="Hauptnavigation"]:visible').waitFor({ timeout: 30_000 });
 
     // The worker registers with `immediate: true`, but storing ~8.5 MB (two

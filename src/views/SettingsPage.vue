@@ -82,8 +82,18 @@
                                     class="flex w-full items-center gap-4 rounded-sm px-2 py-3.5 text-left transition-colors hover:bg-muted active:bg-muted"
                                     @click="selectSection(section.key)"
                                 >
+                                    <!-- Konto shows whose it is: the symbol, a
+                                         size up so it can be told apart, with
+                                         the same row height as the rest. -->
+                                    <UserAvatar
+                                        v-if="section.key === 'konto' && isLoggedIn"
+                                        :src="avatarUrl"
+                                        :initials="initials"
+                                        class="-mx-1.5 -my-1.5 size-8 text-[0.8125rem]"
+                                    />
                                     <component
                                         :is="section.icon"
+                                        v-else
                                         class="size-5 shrink-0 text-muted-foreground"
                                         aria-hidden="true"
                                     />
@@ -147,8 +157,10 @@ import { useSongsStore } from '@/stores/songs';
 import { useAuth } from '@/composables/useAuth';
 import { useKeepAliveScroll } from '@/composables/useKeepAliveScroll';
 import { useIsDesktop } from '@/composables/useMediaQuery';
+import { useProfile } from '@/composables/useProfile';
 import { useTheme } from '@/composables/useTheme';
 
+import UserAvatar from '@/components/profile/UserAvatar.vue';
 import AboutSettings from '@/components/settings/AboutSettings.vue';
 import AccountSettings from '@/components/settings/AccountSettings.vue';
 import AppearanceSettings from '@/components/settings/AppearanceSettings.vue';
@@ -182,7 +194,8 @@ const route = useRoute();
 const router = useRouter();
 const isDesktop = useIsDesktop();
 
-const { user } = useAuth();
+const { user, isLoggedIn } = useAuth();
+const { fullName, initials, avatarUrl } = useProfile();
 const { theme } = useTheme();
 const songsStore = useSongsStore();
 const preferencesStore = usePreferencesStore();
@@ -235,7 +248,7 @@ const sections = computed(() => [
         key: 'konto' as const,
         title: 'Konto',
         icon: User,
-        summary: user.value?.email || 'Nicht angemeldet',
+        summary: fullName.value ?? (user.value?.email || 'Nicht angemeldet'),
     },
     {
         key: 'darstellung' as const,

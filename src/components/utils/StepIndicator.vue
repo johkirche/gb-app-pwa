@@ -10,7 +10,9 @@
             <ArrowLeft class="!size-5" aria-hidden="true" />
         </Button>
         <div v-else class="w-10" aria-hidden="true"></div>
-        <div class="flex items-center justify-center gap-2">
+        <!-- Wraps rather than runs off: the onboarding has a dot for every
+             slide of its tour, and at Größe 200 % they no longer fit one row. -->
+        <div class="flex min-w-0 flex-wrap items-center justify-center gap-2">
             <span
                 v-for="step in totalSteps"
                 :key="step"
