@@ -8,8 +8,9 @@ import { hasRecording as fixtureExists, serveRecording, startRecording } from '.
 /**
  * The Gesangbuch's backend, recorded once and replayed forever after.
  *
- * The app talks to exactly three things — a GraphQL endpoint, Directus' auth
- * routes, and /assets/<id> for the two notation files a song carries — so
+ * The app talks to exactly four things — a GraphQL endpoint, Directus' auth
+ * routes, /files to find the notation archive and the Bibelstellen by name, and
+ * /assets/<id> for those and for the two notation files a song carries — so
  * rather than hand-build a fake that would drift from the real schema the
  * moment someone adds a field, the suite records the real traffic and replays
  * it. What the tests run against is therefore not an imitation of the backend;

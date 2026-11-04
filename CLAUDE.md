@@ -74,14 +74,24 @@ starts itself:
 pnpm test:e2e                  # --ui to step through, --project=webkit to narrow
 ```
 
-Seven specs, and they divide by what they need behind them:
+Nine specs, and they divide by what they need behind them:
 
 - `public-pages.spec.ts` — the `access: 'public'` routes, with **no recording
   and no session**, which is the point: each has to work for someone who cannot
   get in. It fails if one of them starts reaching off-origin to render.
 - `readability-scale.spec.ts` — the shell at 50%, 100% and 200% (see above).
+- `notation-bundle.spec.ts` — the reader of the notation archive
+  (`src/utils/notationBundle.ts`), imported on its own into an empty page and
+  handed a small synthetic archive built in Node. No recording and no session:
+  only the dev server has to answer. The reader leans on what differs per engine
+  — `DecompressionStream`, `Blob.stream`, the type a Blob ends up with — and the
+  unit spec's Node streams say nothing about those, so all three engines read it.
 - `sync.spec.ts` — login, onboarding and the whole download, asserting rows in
-  IndexedDB. This is the only test of `src/api/`.
+  IndexedDB. This is the only test of `src/api/`'s queries. Which download
+  depends on the recording: one taken while the archive is in the file library
+  replays through it and no longer walks the per-file path, and one taken before
+  has no answer for the archive's lookup, so the sync falls back as it would for
+  a reader.
 - `song.spec.ts`, `playlists.spec.ts`, `service-and-data.spec.ts` — the reading
   app, against a synced library.
 - `offline.spec.ts` — the service worker, which every other context blocks. It
@@ -118,8 +128,9 @@ never standing where it could press one. And scope text assertions to `main` —
 the desktop sidebar is in the document at phone widths too, hidden, and
 `getByText('Favoriten').first()` will happily find its link instead of the page.
 
-**The backend is recorded, not faked.** The app talks to exactly three things —
-a GraphQL endpoint, Directus' auth routes, and `/assets/<id>` for the two
+**The backend is recorded, not faked.** The app talks to exactly four things —
+a GraphQL endpoint, Directus' auth routes, `/files` to find the notation archive
+and the Bibelstellen by name, and `/assets/<id>` for those and for the two
 notation files a song carries. A hand-built fake of that would drift from the
 real schema the moment someone adds a field and would go on passing while it
 did. So the suite records the real traffic into a HAR and replays it: what the

@@ -18,6 +18,10 @@ import type { SongManifestEntry } from '@/utils/syncDiff';
  * The set the app carries: every Lied the kleiner Kreis has passed as "Rein".
  * Every query below is scoped by it — a delta must be a delta of the same set,
  * or a song leaving the book would read as a song that never existed.
+ *
+ * The notation archive is not. It holds the set as of its last build, so a song
+ * taken off this list goes on being handed out with every first download until
+ * the archive is rebuilt or deleted (see gb-scripts' app/36).
  */
 const REIN_FILTER = { bewertungKleinerKreis: { bezeichner: { _eq: 'Rein' } } };
 

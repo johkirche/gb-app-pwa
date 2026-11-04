@@ -14,6 +14,7 @@ import { type Song, db } from '@/db';
 import { syncBibelstellen } from '@/services/bibelstellenSync';
 import { setDemoKey } from '@/services/demoAccess';
 import { isSessionEndedError } from '@/services/errorHandler';
+import { NOTATION_BUNDLE_MIN_FILES, syncNotationBundle } from '@/services/notationBundleSync';
 import { requestPersistentStorage } from '@/services/storage';
 import {
     type SongManifestEntry,
@@ -22,6 +23,7 @@ import {
     diffSongs,
     findOrphanFileIds,
     latestLocalStamp,
+    manifestFiles,
     stampSongs,
 } from '@/utils/syncDiff';
 
@@ -166,6 +168,11 @@ export const useSongsStore = defineStore('songs', () => {
         return names;
     }
 
+    function filenameLookup(allSongs: Song[]): (fileId: string) => string {
+        const filenames = buildFilenameIndex(allSongs);
+        return (fileId) => filenames.get(fileId) ?? `${fileId}.bin`;
+    }
+
     // Mirror the in-memory failed list into db.meta so it survives restarts.
     // Best-effort: a failure here (e.g. quota) must not mask the sync result.
     async function persistFailedFiles(): Promise<void> {
@@ -189,8 +196,7 @@ export const useSongsStore = defineStore('songs', () => {
         syncProgress.value.total = fileIds.length;
         syncProgress.value.current = 0;
 
-        const filenames = buildFilenameIndex(allSongs);
-        const nameOf = (fileId: string) => filenames.get(fileId) ?? `${fileId}.bin`;
+        const nameOf = filenameLookup(allSongs);
 
         const batchSize = 5;
         let quotaHit = false;
@@ -233,6 +239,27 @@ export const useSongsStore = defineStore('songs', () => {
                 'Nicht genügend Speicherplatz auf Ihrem Gerät. Bitte geben Sie Speicherplatz frei und versuchen Sie es erneut.';
             throw new Error('QuotaExceededError');
         }
+    }
+
+    // Take from the notation archive what it can vouch for, and leave the rest.
+    // total stays 0 while the archive is on its way, which is the UI's cue for
+    // its generic line: there is no file count to show until it has been read.
+    async function fetchFromNotationBundle(
+        manifest: SongManifestEntry[],
+        fileIds: string[],
+    ): Promise<string[]> {
+        const missing = new Set(fileIds);
+        const stored = new Set(
+            await syncNotationBundle(
+                manifestFiles(manifest).filter((file) => missing.has(file.id)),
+                filenameLookup(songs.value),
+                (current, total) => {
+                    syncProgress.value.current = current;
+                    syncProgress.value.total = total;
+                },
+            ),
+        );
+        return fileIds.filter((id) => !stored.has(id));
     }
 
     async function persistLastSyncTime(): Promise<void> {
@@ -392,7 +419,13 @@ export const useSongsStore = defineStore('songs', () => {
             // Step 2: download the files that are missing or superseded
             syncProgress.value.phase = 'files';
 
-            await downloadFileBatch(fileIds, songs.value);
+            // The archive first, and only with a manifest and without `full`:
+            // its stamps are all the archive is trusted by, a manifest is what
+            // they are held against, and `full` means no stamp may be trusted.
+            const stillMissing =
+                manifest && !full ? await fetchFromNotationBundle(manifest, fileIds) : fileIds;
+
+            await downloadFileBatch(stillMissing, songs.value);
 
             await pruneOrphanedFiles();
 
@@ -451,6 +484,16 @@ export const useSongsStore = defineStore('songs', () => {
     // Retry ONLY the files that failed during the last sync/retry.
     async function retryFailedFiles(): Promise<void> {
         if (isSyncing.value || failedFiles.value.length === 0) return;
+
+        // A connection dropped on a first install fails nearly the whole book, and
+        // retrying that singly is the 1140 requests the archive exists to avoid. A
+        // retry has no manifest to hold the archive's stamps against, so this one
+        // is a sync, which diffs again and collects whatever still fails. Not for a
+        // demo: it has no session to sync with, and its own endpoint for the files.
+        if (failedFiles.value.length >= NOTATION_BUNDLE_MIN_FILES && !isDemo.value) {
+            await syncAll();
+            return;
+        }
 
         isSyncing.value = true;
         error.value = null;

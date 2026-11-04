@@ -31,7 +31,10 @@ async function getCurrentToken(): Promise<string | null> {
 }
 
 // Fetch a file (PNG/JPG/SVG) from Directus
-export async function fetchFile(fileId: string): Promise<Blob> {
+export async function fetchFile(
+    fileId: string,
+    options: { cache?: RequestCache } = {},
+): Promise<Blob> {
     try {
         const token = await getCurrentToken();
 
@@ -39,7 +42,7 @@ export async function fetchFile(fileId: string): Promise<Blob> {
         // answers for the files of its own songs instead.
         const demoKey = getDemoKey();
         if (!token && demoKey) {
-            const response = await fetch(demoUrl(demoKey, `/assets/${fileId}`));
+            const response = await fetch(demoUrl(demoKey, `/assets/${fileId}`), options);
             if (!response.ok) {
                 throw new Error(`Failed to fetch demo file: ${response.status}`);
             }
@@ -48,6 +51,7 @@ export async function fetchFile(fileId: string): Promise<Blob> {
 
         const url = `${directusConfig.url}/assets/${fileId}`;
         const response = await fetch(url, {
+            ...options,
             headers: {
                 Authorization: token ? `Bearer ${token}` : '',
             },
@@ -61,6 +65,7 @@ export async function fetchFile(fileId: string): Promise<Blob> {
                     // Retry with new token
                     const newToken = await getCurrentToken();
                     const retryResponse = await fetch(url, {
+                        ...options,
                         headers: {
                             Authorization: newToken ? `Bearer ${newToken}` : '',
                         },

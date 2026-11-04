@@ -126,13 +126,14 @@ export default defineConfig({
                 maximumFileSizeToCacheInBytes: precacheMaxFileSize,
                 // Runtime caching for the Bible's books alone — see below. For
                 // the rest, deliberately none. At run time the app talks to
-                // exactly three things, and a workbox route can match none of
+                // exactly four things, and a workbox route can match none of
                 // them: the GraphQL endpoint and Directus' auth routes are
-                // POSTs, and /assets/<uuid> carries an Authorization header,
-                // has no file extension, and is stored in IndexedDB by the
-                // sync — caching it in the service worker would hold ~87 MB of
-                // notation twice. The three rules that used to stand here (a
-                // NetworkFirst on an /items/ REST path the app never requests,
+                // POSTs, and the /files lookup and /assets/<uuid> carry an
+                // Authorization header and have no file extension. /assets is
+                // stored in IndexedDB by the sync besides — caching it in the
+                // service worker would hold ~87 MB of notation twice. The
+                // three rules that used to stand here (a NetworkFirst on an
+                // /items/ REST path the app never requests,
                 // and extension matches for images and fonts that the precache
                 // answers first) could not fire once between them, and sent
                 // anyone debugging an offline failure looking in caches that

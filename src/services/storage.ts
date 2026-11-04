@@ -33,6 +33,14 @@ export interface StorageSpace {
  * collectSyncFileIds in api/songs.api.ts — and counting it only ever made the
  * quote too high.
  *
+ * A sync that gets the notation archive (services/notationBundleSync.ts) pays
+ * ~7 MB instead, and one that finds no archive pays the ~8 MB above. An archive
+ * that turns out useless costs both, ~15 MB: it comes down whole before a stamp
+ * can be held against the manifest, so a re-export without a rebuild, or a
+ * checksum that fails, is paid for twice. The quote stays at ~8 MB knowingly: the
+ * ~15 MB takes a mistake on our side, and quoting it would tell every reader the
+ * wrong number to spare the few who meet one.
+ *
  * Re-measure when the notation set changes.
  */
 
