@@ -30,7 +30,19 @@ async function getCurrentToken(): Promise<string | null> {
     return token;
 }
 
-// Fetch a file (PNG/JPG/SVG) from Directus
+/**
+ * Whether a refresh that just returned false was the session ending. A refresh
+ * the server turned down clears it; one that failed on the network returns false
+ * too and leaves it standing, and that must not read as a lost session.
+ */
+function sessionEnded(): boolean {
+    return !useUserStore().authData;
+}
+
+/**
+ * Fetch a file (PNG/JPG/SVG) from Directus. Throws SESSION_ENDED_ERROR when the
+ * answer was a 401 and the session did not survive asking for a new token.
+ */
 export async function fetchFile(
     fileId: string,
     options: { cache?: RequestCache } = {},
@@ -73,6 +85,8 @@ export async function fetchFile(
                     if (retryResponse.ok) {
                         return await retryResponse.blob();
                     }
+                } else if (sessionEnded()) {
+                    throw new Error(SESSION_ENDED_ERROR);
                 }
             }
             throw new Error(`Failed to fetch file: ${response.statusText}`);
@@ -103,7 +117,8 @@ export interface DirectusFileInfo {
  * The newest file in the library with this download name, or null when there
  * is none. Throws when the question cannot be answered (offline, no access):
  * the caller must tell "not there" from "could not ask", or a dropped
- * connection would read as the file having been taken down.
+ * connection would read as the file having been taken down. A session that did
+ * not survive the question throws SESSION_ENDED_ERROR, as in fetchFile.
  */
 export async function findFileByName(filename: string): Promise<DirectusFileInfo | null> {
     const params = new URLSearchParams({
@@ -120,8 +135,12 @@ export async function findFileByName(filename: string): Promise<DirectusFileInfo
     };
 
     let response = await request();
-    if (response.status === 401 && (await refreshAuthToken())) {
-        response = await request();
+    if (response.status === 401) {
+        if (await refreshAuthToken()) {
+            response = await request();
+        } else if (sessionEnded()) {
+            throw new Error(SESSION_ENDED_ERROR);
+        }
     }
     if (!response.ok) {
         throw new Error(`Failed to look up ${filename}: ${response.status}`);
