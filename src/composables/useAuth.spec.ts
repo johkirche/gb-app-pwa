@@ -55,7 +55,8 @@ function freshUserStore() {
         user: null as import('@/db').UserData | null,
         isLoggedIn: false,
         isActivated: false,
-        isTokenExpired: false,
+        isTokenExpired: (() => false) as () => boolean,
+        adoptStoredTokens: vi.fn<() => Promise<boolean>>(),
         isLoading: false,
         error: null as string | null,
         updateTokens: (...args: unknown[]) => updateTokens(...args),
@@ -150,7 +151,7 @@ describe('refreshAuthToken', () => {
         // Five parallel callers, mirroring the download loop's batch size.
         const calls = Promise.all(Array.from({ length: 5 }, () => refreshAuthToken()));
 
-        expect(request).toHaveBeenCalledTimes(1);
+        await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
 
         release({ access_token: 'new-access', refresh_token: 'new-refresh', expires: 900000 });
         const results = await calls;
@@ -183,6 +184,59 @@ describe('refreshAuthToken', () => {
         expect(results).toEqual([false, false, false, false, false]);
         // A failed refresh must not trigger the destructive account-deleted path.
         expect(handleApiError).not.toHaveBeenCalled();
+    });
+
+    // Across tabs: each has its own copy of the store, and a refresh token one of
+    // them has used is dead for all. The whole round through a real browser's lock
+    // and database is in tests/e2e/session.spec.ts.
+    it('asks the server nothing when another tab has already renewed', async () => {
+        userStore.adoptStoredTokens.mockResolvedValue(true);
+
+        expect(await refreshAuthToken()).toBe(true);
+        expect(request).not.toHaveBeenCalled();
+        expect(updateTokens).not.toHaveBeenCalled();
+    });
+
+    it('renews with the newer token when that one has run out as well', async () => {
+        userStore.isTokenExpired = () => true;
+        userStore.adoptStoredTokens.mockImplementation(async () => {
+            userStore.authData = {
+                accessToken: 'newer-access',
+                refreshToken: 'newer-refresh',
+                expiresAt: 0,
+            };
+            return true;
+        });
+        request.mockResolvedValue({ access_token: 'a', refresh_token: 'b', expires: 900000 });
+
+        await refreshAuthToken();
+
+        expect(request).toHaveBeenCalledWith({ refresh_token: 'newer-refresh', mode: 'json' });
+    });
+
+    it('waits behind another tab, and only then looks at the tokens', async () => {
+        let letGo: (value?: unknown) => void = () => {};
+        const held = new Promise((resolve) => {
+            letGo = resolve;
+        });
+        vi.stubGlobal('navigator', {
+            locks: { request: (_name: string, work: () => unknown) => held.then(work) },
+        });
+        request.mockResolvedValue({ access_token: 'a', refresh_token: 'b', expires: 900000 });
+
+        try {
+            const renewal = refreshAuthToken();
+            await Promise.resolve();
+            expect(userStore.adoptStoredTokens).not.toHaveBeenCalled();
+            expect(request).not.toHaveBeenCalled();
+
+            letGo();
+            expect(await renewal).toBe(true);
+            expect(userStore.adoptStoredTokens).toHaveBeenCalledOnce();
+            expect(request).toHaveBeenCalledOnce();
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });
 
@@ -502,7 +556,7 @@ describe('deleteAccount', () => {
 
     it('refuses the delete when the expired session cannot be refreshed', async () => {
         userStore.user = signedInUser;
-        userStore.isTokenExpired = true;
+        userStore.isTokenExpired = () => true;
         // The expired token forces a refresh, and that refresh fails.
         request.mockRejectedValue(new Error('refresh token rotated away'));
 

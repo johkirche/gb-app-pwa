@@ -60,7 +60,7 @@ async function getCurrentToken(): Promise<string | null> {
     if (!token) return null;
 
     // Refresh if access token is expired/near-expiry (store includes a buffer)
-    if (userStore.isTokenExpired && userStore.authData?.refreshToken) {
+    if (userStore.isTokenExpired() && userStore.authData?.refreshToken) {
         const refreshed = await refreshAuthToken();
         if (refreshed) {
             return userStore.authData?.accessToken || null;

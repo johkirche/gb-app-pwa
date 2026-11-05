@@ -74,7 +74,7 @@ starts itself:
 pnpm test:e2e                  # --ui to step through, --project=webkit to narrow
 ```
 
-Ten specs, and they divide by what they need behind them:
+Eleven specs, and they divide by what they need behind them:
 
 - `public-pages.spec.ts` — the `access: 'public'` routes, with **no recording
   and no session**, which is the point: each has to work for someone who cannot
@@ -86,6 +86,10 @@ Ten specs, and they divide by what they need behind them:
   only the dev server has to answer. The reader leans on what differs per engine
   — `DecompressionStream`, `Blob.stream`, the type a Blob ends up with — and the
   unit spec's Node streams say nothing about those, so all three engines read it.
+- `session.spec.ts` — a session outliving its access token: an app left open past
+  it, and two tabs sharing one refresh token. No recording here either. Its backend
+  is a small stand-in with made-up tokens for the one rule that matters, that a
+  refresh token dies the moment it is used, and the fake clock does the waiting.
 - `toast.spec.ts` — a toast swiped away, by mouse on all three engines and by a
   thumb on Chromium, the only one Playwright can send a touch swipe to. No recording
   and no session: `/dev/ui` has a button that raises one.

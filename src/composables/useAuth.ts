@@ -81,29 +81,52 @@ export type DeleteAccountResult =
  */
 let inFlightRefresh: Promise<boolean> | null = null;
 
+/**
+ * The same race across tabs, where that promise is no help: each tab has its own, and
+ * all of them share one refresh token through the database. So a renewal also holds a
+ * lock the browser keeps for the whole origin, and a tab that waited for it finds the
+ * new tokens in the database, with nothing left to ask the server.
+ */
+const REFRESH_LOCK = 'gesangbuch.token-refresh';
+
+function whileHoldingRefreshLock(renew: () => Promise<boolean>): Promise<boolean> {
+    // There is no lock to take on an insecure origin, such as a phone testing against
+    // a dev machine's address. That leaves the race, not the app, without it.
+    return navigator.locks ? navigator.locks.request(REFRESH_LOCK, renew) : renew();
+}
+
+async function renewTokens(): Promise<boolean> {
+    const userStore = useUserStore();
+
+    if ((await userStore.adoptStoredTokens()) && !userStore.isTokenExpired()) {
+        return true;
+    }
+
+    const refreshToken = userStore.authData?.refreshToken;
+
+    if (!refreshToken) {
+        return false;
+    }
+
+    const result = await directusClient.request(
+        refresh({
+            refresh_token: refreshToken,
+            mode: 'json',
+        }),
+    );
+
+    if (result.access_token && result.refresh_token) {
+        const expiresAt = Date.now() + (result.expires || 900000);
+        await userStore.updateTokens(result.access_token, result.refresh_token, expiresAt);
+        return true;
+    }
+
+    return false;
+}
+
 async function performRefresh(): Promise<boolean> {
     try {
-        const userStore = useUserStore();
-        const refreshToken = userStore.authData?.refreshToken;
-
-        if (!refreshToken) {
-            return false;
-        }
-
-        const result = await directusClient.request(
-            refresh({
-                refresh_token: refreshToken,
-                mode: 'json',
-            }),
-        );
-
-        if (result.access_token && result.refresh_token) {
-            const expiresAt = Date.now() + (result.expires || 900000);
-            await userStore.updateTokens(result.access_token, result.refresh_token, expiresAt);
-            return true;
-        }
-
-        return false;
+        return await whileHoldingRefreshLock(renewTokens);
     } catch (error) {
         console.error('Error refreshing token:', error);
 
@@ -480,7 +503,7 @@ export function useAuth() {
 
     // Refresh token if needed
     async function ensureValidToken() {
-        if (userStore.isTokenExpired && userStore.authData?.refreshToken) {
+        if (userStore.isTokenExpired() && userStore.authData?.refreshToken) {
             return await refreshAuthToken();
         }
         return true;

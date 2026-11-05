@@ -25,7 +25,7 @@ export type AppSettings = Record<string, unknown>;
 async function authorize(): Promise<boolean> {
     const userStore = useUserStore();
     if (!userStore.isLoggedIn) return false;
-    if (userStore.isTokenExpired && !(await refreshAuthToken())) return false;
+    if (userStore.isTokenExpired() && !(await refreshAuthToken())) return false;
 
     const token = userStore.authData?.accessToken;
     if (!token) return false;

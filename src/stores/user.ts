@@ -33,14 +33,17 @@ export const useUserStore = defineStore('user', () => {
     const isLoggedIn = computed(() => !!user.value && !!authData.value);
     const isActivated = computed(() => user.value?.activated || user.value?.role === 'activated');
 
-    // Check if token is expired (with 5 minute buffer)
-    const isTokenExpired = computed(() => {
+    // Check if token is expired (with 5 minute buffer).
+    //
+    // A function, not a computed: what changes here is the time, and a computed only
+    // looks again when authData does. As one it kept its first answer for as long as
+    // the app stayed open, so an app open past the token's quarter of an hour went on
+    // sending the dead token instead of renewing it.
+    function isTokenExpired(): boolean {
         if (!authData.value) return true;
-        const expiresAt = authData.value.expiresAt;
-        const now = Date.now();
         const bufferMs = 5 * 60 * 1000; // 5 minutes
-        return now >= expiresAt - bufferMs;
-    });
+        return Date.now() >= authData.value.expiresAt - bufferMs;
+    }
 
     // Actions
     async function loadUserFromDB() {
@@ -139,6 +142,22 @@ export const useUserStore = defineStore('user', () => {
         });
     }
 
+    /**
+     * Take up tokens another tab of the app has renewed. The tabs share the database
+     * but not this store, and Directus takes a refresh token back the moment it is
+     * used, so a tab going by its own copy would present a dead one and be told the
+     * session is over.
+     *
+     * @returns whether there was a newer pair to take up
+     */
+    async function adoptStoredTokens(): Promise<boolean> {
+        const [stored] = await db.auth.toArray();
+        if (!stored || !authData.value) return false;
+        if (stored.refreshToken === authData.value.refreshToken) return false;
+        authData.value = stored;
+        return true;
+    }
+
     function setDevSkipAuth(skip: boolean) {
         devSkipAuth.value = skip;
     }
@@ -218,6 +237,7 @@ export const useUserStore = defineStore('user', () => {
         updateUserRole,
         patchUser,
         updateTokens,
+        adoptStoredTokens,
         setDevSkipAuth,
         endSession,
         acknowledgeSessionExpired,
