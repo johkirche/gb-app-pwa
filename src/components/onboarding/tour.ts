@@ -45,6 +45,6 @@ export const TOUR: readonly TourSlide[] = [
     {
         kind: 'bibel',
         title: 'Bibel lesen',
-        text: 'Auf Wunsch bekommt die App einen eigenen Reiter mit der Bibel. Sie können das später in den Einstellungen ändern.',
+        text: 'Auf Wunsch bekommt die Bibel einen eigenen Reiter. Sie können das später ändern.',
     },
 ];

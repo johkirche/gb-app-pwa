@@ -99,6 +99,8 @@ export interface BibelTranslation {
     label: string;
     /** For a column or a line beneath a verse, where the full name will not fit. */
     short: string;
+    /** What a reader choosing between them should know: the same words wherever they do. */
+    note: string;
     /** Where the books lie under public/: one `<slug>.json` each. */
     path: string;
 }
@@ -114,12 +116,14 @@ export const BIBEL_TRANSLATIONS: Record<BibelTranslationId, BibelTranslation> = 
         id: 'menge',
         label: BIBEL_TRANSLATION,
         short: 'Menge',
+        note: 'Vom Altphilologen, nah am Urtext und in klarem Deutsch. Alte Schreibweise, mit Überschriften und Anmerkungen.',
         path: '/bibeltext/menge',
     },
     luther1912: {
         id: 'luther1912',
         label: 'Lutherbibel (1912)',
         short: 'Luther',
+        note: 'Der vertraute Klang vieler Bibelworte, in der Fassung von 1912. Neue Schreibweise, ohne Überschriften.',
         path: '/bibeltext/luther1912',
     },
 };

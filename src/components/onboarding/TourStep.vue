@@ -3,29 +3,30 @@
         <p class="label-micro text-center text-flourish">Kurz erklärt</p>
 
         <Transition name="tour" mode="out-in">
-            <div :key="slide.kind" class="mt-4">
+            <div :key="slide.kind" class="mt-3">
                 <!-- The one slide that asks something: question first, then
                      what can be answered. The others show, then say. -->
                 <TourIllustration v-if="slide.kind !== 'bibel'" :kind="slide.kind" />
                 <h1
                     class="text-center font-display text-3xl font-semibold"
-                    :class="slide.kind === 'bibel' ? 'mt-2' : 'mt-8'"
+                    :class="slide.kind === 'bibel' ? 'mt-1' : 'mt-5'"
                 >
                     {{ slide.title }}
                 </h1>
-                <!-- Five lines' room whatever the slide says, so the buttons
-                     under it stay put from one slide to the next. -->
+                <!-- Room for the longest slide on a phone, so that on a screen too
+                     short for all of it the buttons under it stay put from one
+                     slide to the next. Any more would only make that screen scroll. -->
                 <p
                     class="mt-3 text-center text-[0.9375rem] leading-relaxed text-muted-foreground"
-                    :class="slide.kind === 'bibel' ? undefined : 'min-h-[5lh]'"
+                    :class="slide.kind === 'bibel' ? undefined : 'min-h-[4lh]'"
                 >
                     {{ slide.text }}
                 </p>
-                <TourBibelChoice v-if="slide.kind === 'bibel'" class="mt-6" />
+                <TourBibelChoice v-if="slide.kind === 'bibel'" class="mt-3" />
             </div>
         </Transition>
 
-        <div class="mt-auto flex flex-col gap-2 pt-8">
+        <div class="mt-auto flex flex-col gap-2 pt-4">
             <Button type="button" size="lg" class="w-full" @click="$emit('next')">
                 Weiter
                 <ArrowRight aria-hidden="true" />

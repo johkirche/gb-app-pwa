@@ -153,6 +153,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
+import { BIBEL_TRANSLATIONS } from '@/utils/bibel';
 import { bibelstellen, loadBibelstellen } from '@/utils/bibelstellen';
 
 const preferencesStore = usePreferencesStore();
@@ -166,11 +167,7 @@ function openFeatures() {
 
 loadBibelstellen().catch((err: unknown) => console.error('Error loading Bibelstellen:', err));
 
-const translationNote = computed(() =>
-    preferencesStore.bibelTranslation === 'menge'
-        ? 'Hermann Menge, 1939. Mit Zwischenüberschriften und Anmerkungen.'
-        : 'Martin Luther, Fassung von 1912, in neuer Rechtschreibung. Ohne Zwischenüberschriften.',
-);
+const translationNote = computed(() => BIBEL_TRANSLATIONS[preferencesStore.bibelTranslation].note);
 
 function onTranslation(value: AcceptableValue | AcceptableValue[]) {
     if (value === 'menge' || value === 'luther1912') {

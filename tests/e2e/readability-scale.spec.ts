@@ -384,6 +384,14 @@ test.describe('the onboarding at every size it offers', () => {
                 await page.getByRole('radio', { name: /Luther/ }).click();
             }
             await expectNoOverflow(page, title);
+            if (title === 'Bibel lesen') {
+                await page.getByRole('button', { name: 'Übersetzungen vergleichen' }).click();
+                const comparison = page.getByRole('dialog', { name: /im Vergleich/ });
+                await expect(comparison.getByText('Johannes 3,16')).toBeVisible();
+                await expectNoOverflow(page, 'Bibelvergleich');
+                await comparison.getByRole('button', { name: 'Zurück zur Auswahl' }).click();
+                await expect(comparison).toHaveCount(0);
+            }
             await page.getByRole('button', { name: 'Weiter' }).click();
         }
 
