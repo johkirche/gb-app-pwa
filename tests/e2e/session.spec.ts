@@ -14,9 +14,9 @@ import { expect, test } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
 
-// Up to two tabs loaded in full from the dev server, on a clock of their own: on a
-// busy machine, Firefox spends most of the default 30s just getting them up.
-test.describe.configure({ timeout: 60_000 });
+// Up to two tabs loaded in full from the dev server, on a clock of their own: in the
+// whole suite, Firefox can spend 30 to 40s on getting a single one up.
+test.describe.configure({ timeout: 120_000 });
 
 const backend = (process.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '');
 
