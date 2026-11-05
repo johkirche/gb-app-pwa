@@ -407,6 +407,37 @@ test.describe('the onboarding at every size it offers', () => {
         await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
     });
 
+    // The install step as a browser without an install prompt gets it: the notice,
+    // and under it the steps. The dev button brings up the other devices' steps.
+    test('keeps the install step inside the phone', async ({ page }) => {
+        await page.goto('/');
+        await page.getByRole('button', { name: /^Überspringen/ }).click({ timeout: 20_000 });
+        await expect(nav(page)).toBeVisible({ timeout: 20_000 });
+        // The skip lives in memory, so the way in is the router, not a reload.
+        await page.evaluate(() => {
+            localStorage.setItem('onboarding.currentStep', '1');
+            history.pushState({}, '', '/onboarding');
+            dispatchEvent(new PopStateEvent('popstate'));
+        });
+        await expect(page.getByText('Die App scheint bereits installiert')).toBeVisible({
+            timeout: 20_000,
+        });
+        await page.evaluate(() => document.fonts.ready);
+
+        for (const [device, step] of [
+            ['Auto', 'Installations-Symbol'],
+            ['iOS', 'Teilen-Symbol'],
+            ['Android', 'Menü-Symbol'],
+            ['Desktop', 'Installations-Symbol'],
+        ]) {
+            const preview = page.getByRole('button', { name: /^Vorschau:/ });
+            if (device !== 'Auto') await preview.click();
+            await expect(preview).toHaveText(`Vorschau: ${device}`);
+            await expect(page.getByText(step)).toBeVisible();
+            await expectNoOverflow(page, `Installation, ${device}`);
+        }
+    });
+
     // The Gemeinde: the map stays while the list goes by beneath it. Made-up rows,
     // the first few each at the width that tests something, a long name and a place
     // under it, and enough after them for the list to have somewhere to go.

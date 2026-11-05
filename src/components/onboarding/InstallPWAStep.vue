@@ -35,18 +35,21 @@
         </div>
 
         <template v-else>
-            <!-- Heuristic: we suspect the app might be installed -->
+            <!-- Heuristic: we suspect the app might be installed. Only a guess, since a
+                 browser that never offers the install prompt ends up here as well, so
+                 the box says what to do if it is wrong and the steps stay below it. -->
             <div
                 v-if="isSuspectedInstalled"
-                class="mt-8 flex flex-col items-center gap-2 rounded-lg border-l-4 border-flourish bg-flourish/10 px-6 py-6"
+                class="mt-8 flex items-start gap-3 rounded-lg border-l-4 border-flourish bg-flourish/10 px-4 py-3"
             >
-                <div class="flex items-center gap-2">
-                    <Info class="size-6 shrink-0 text-flourish" aria-hidden="true" />
-                    <span class="font-medium">Die App scheint bereits installiert zu sein</span>
+                <Info class="mt-0.5 size-5 shrink-0 text-flourish" aria-hidden="true" />
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium">Die App scheint bereits installiert zu sein</p>
+                    <p class="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        Sie finden sie bei den Apps auf Ihrem Gerät. Falls nicht, installieren Sie
+                        sie mit den Schritten unten.
+                    </p>
                 </div>
-                <p class="text-center text-sm leading-relaxed text-muted-foreground">
-                    Öffnen Sie die App vom Home-Bildschirm oder installieren Sie sie erneut:
-                </p>
             </div>
 
             <!-- Install Action (Android/Desktop only, if prompt is available) -->
@@ -57,7 +60,7 @@
                 </Button>
             </div>
 
-            <div :class="showInstallAction || isSuspectedInstalled ? 'mt-6' : 'mt-8'">
+            <div v-if="!isSuspectedInstalled" :class="showInstallAction ? 'mt-6' : 'mt-8'">
                 <div
                     v-if="showInstallAction"
                     class="mb-2 flex items-center gap-3 text-sm text-muted-foreground"
@@ -71,43 +74,41 @@
                 </p>
             </div>
 
+            <!-- The icons float: in a column of their own they left too little room at
+                 Größe 200 % for „Installations-“, and this way the lines below an icon
+                 take the whole width. Decorative, since each row names what it shows. -->
+
             <!-- iOS Instructions -->
             <div v-if="isIOSView" class="mt-4">
                 <div class="divide-y divide-border rounded-lg border border-border px-4">
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
-                        <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
-                                Tippen Sie auf das
-                                <strong>Teilen-Symbol</strong>
-                            </p>
+                        <p class="flow-root min-w-0 text-[0.9375rem] leading-relaxed">
                             <Share
-                                class="size-6 shrink-0 text-muted-foreground"
+                                class="float-right ml-4 size-6 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                        </div>
+                            Tippen Sie auf das
+                            <strong>Teilen-Symbol</strong>
+                        </p>
                     </div>
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
-                        <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
-                                Scrollen Sie nach unten und tippen Sie auf
-                                <strong>"Zum Home-Bildschirm"</strong>
-                            </p>
+                        <p class="flow-root min-w-0 text-[0.9375rem] leading-relaxed">
                             <Plus
-                                class="size-6 shrink-0 text-muted-foreground"
+                                class="float-right ml-4 size-6 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                        </div>
+                            Scrollen Sie nach unten und tippen Sie auf
+                            <strong>"Zum Home-Bildschirm"</strong>
+                        </p>
                     </div>
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">3</span>
-                        <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
-                                Tippen Sie auf
-                                <strong>"Hinzufügen"</strong>
-                            </p>
-                        </div>
+                        <p class="min-w-0 text-[0.9375rem] leading-relaxed">
+                            Tippen Sie auf
+                            <strong>"Hinzufügen"</strong>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -117,32 +118,28 @@
                 <div class="divide-y divide-border rounded-lg border border-border px-4">
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
-                        <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
-                                Tippen Sie auf das
-                                <strong>Menü-Symbol</strong>
-                                (drei Punkte)
-                            </p>
+                        <p class="flow-root min-w-0 text-[0.9375rem] leading-relaxed">
                             <EllipsisVertical
-                                class="size-6 shrink-0 text-muted-foreground"
+                                class="float-right ml-4 size-6 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                        </div>
+                            Tippen Sie auf das
+                            <strong>Menü-Symbol</strong>
+                            (drei Punkte)
+                        </p>
                     </div>
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
-                        <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
-                                Wählen Sie
-                                <strong>"App installieren"</strong>
-                                oder
-                                <strong>"Zum Startbildschirm hinzufügen"</strong>
-                            </p>
+                        <p class="flow-root min-w-0 text-[0.9375rem] leading-relaxed">
                             <Download
-                                class="size-6 shrink-0 text-muted-foreground"
+                                class="float-right ml-4 size-6 text-muted-foreground"
                                 aria-hidden="true"
                             />
-                        </div>
+                            Wählen Sie
+                            <strong>"App installieren"</strong>
+                            oder
+                            <strong>"Zum Startbildschirm hinzufügen"</strong>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -152,27 +149,23 @@
                 <div class="divide-y divide-border rounded-lg border border-border px-4">
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">1</span>
-                        <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
-                                Klicken Sie auf das
-                                <strong>Installations-Symbol</strong>
-                                in der Adressleiste
-                            </p>
+                        <p class="flow-root min-w-0 text-[0.9375rem] leading-relaxed">
                             <img
                                 :src="desktopInstallIcon"
-                                class="size-6 shrink-0 dark:invert-[.85]"
-                                alt="Installations-Symbol"
+                                class="float-right ml-4 size-6 dark:invert-[.85]"
+                                alt=""
                             />
-                        </div>
+                            Klicken Sie auf das
+                            <strong>Installations-Symbol</strong>
+                            in der Adressleiste
+                        </p>
                     </div>
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">2</span>
-                        <div class="flex min-w-0 items-start justify-between gap-4">
-                            <p class="min-w-0 flex-1 text-[0.9375rem] leading-relaxed">
-                                Bestätigen Sie mit
-                                <strong>"Installieren"</strong>
-                            </p>
-                        </div>
+                        <p class="min-w-0 text-[0.9375rem] leading-relaxed">
+                            Bestätigen Sie mit
+                            <strong>"Installieren"</strong>
+                        </p>
                     </div>
                 </div>
             </div>
