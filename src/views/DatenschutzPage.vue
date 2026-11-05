@@ -72,7 +72,8 @@
                                 <em>files</em>
                                 ), Anmelde- und Sitzungsdaten (
                                 <em>auth</em>
-                                ), Profildaten wie E-Mail-Adresse, Name und Rolle (
+                                ), Profildaten wie E-Mail-Adresse, Name, Symbol, Gemeinde und Rolle
+                                (
                                 <em>users</em>
                                 ), Playlists (
                                 <em>playlists</em>
@@ -170,8 +171,14 @@
                                 ohne Anmeldung
                             </li>
                             <li>
+                                <em>/items/gemeinde</em>
+                                &ndash; Abruf der Liste der Gemeinden, aus der Sie Ihre wählen
+                                können
+                            </li>
+                            <li>
                                 <em>/users/&hellip;</em>
-                                &ndash; Abruf der eigenen Profildaten, Kontolöschung und das
+                                &ndash; Abruf der eigenen Profildaten, Kontolöschung, das Speichern
+                                von Name, Symbol und Gemeinde, sofern Sie sie angeben, und das
                                 Speichern der gewählten Akzentfarbe im eigenen Profil (
                                 <em>app_settings</em>
                                 ), damit sie nach der Anmeldung auf einem anderen Gerät übernommen

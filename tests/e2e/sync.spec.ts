@@ -12,8 +12,8 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
  * rows in IndexedDB. That is what this walks.
  *
  * Onboarding is a wizard, not an automatic run: the Install step waits for
- * „Weiter", and only then does the download start on its own; the tour and
- * the profile come once the book is down. This spec sits
+ * „Weiter", and so does the Gemeinde after it, and only then does the download
+ * start on its own; the tour and the profile come once the book is down. This spec sits
  * the download out on its own step, where the progress and the failures are
  * worded in full. The recording run is measured in minutes and prints what it
  * is doing while it works.
@@ -106,6 +106,17 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 60_000 });
 
     // First the PWA install prompt, which only moves on when asked to.
+    await page.getByRole('button', { name: 'Weiter' }).click();
+
+    // Then the Gemeinde: the account has to be able to read the list, or there
+    // is only „Keine Angabe" to choose from. Nothing is chosen, so the run writes
+    // nothing to the account it records with.
+    await expect(
+        page.getByRole('heading', { name: 'Zu welcher Gemeinde gehören Sie?' }),
+    ).toBeVisible();
+    await expect(
+        page.getByRole('radiogroup', { name: 'Gemeinde' }).getByRole('radio').nth(1),
+    ).toBeVisible({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // Then the download, which starts by itself once the step is active. A phone

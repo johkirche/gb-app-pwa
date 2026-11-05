@@ -107,6 +107,10 @@ export interface UserData {
      * never inlined, so nothing in the file can run.
      */
     avatarSvg?: string | null;
+    /** The chosen Gemeinde's id in Directus, or none. */
+    gemeinde?: string | null;
+    /** Its name, kept with the user so the Einstellungen can say it offline. */
+    gemeindeName?: string | null;
     role: string;
     activated: boolean;
 }

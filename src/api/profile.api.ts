@@ -54,30 +54,40 @@ export async function readAppSettings(): Promise<AppSettings | null> {
 }
 
 /**
- * Who the reader says they are: the name and the symbol on their row.
- * `avatar` is Directus' own field, a file in the symbols folder
+ * Who the reader says they are: the name, the symbol and the Gemeinde on their
+ * row. `avatar` is Directus' own field, a file in the symbols folder
  * (config/symbols.ts) — so the Data Studio shows the same roundel beside the
- * account that the app does.
+ * account that the app does. `gemeinde` is ours, a many-to-one onto the
+ * collection of that name.
  */
 export interface Profile {
     firstName: string | null;
     lastName: string | null;
     avatar: string | null;
+    gemeinde: string | null;
+    gemeindeName: string | null;
 }
 
 /**
- * The profile's name and symbol, or null if they cannot be read.
+ * The profile as it stands on the account, or null if it cannot be read.
  *
  * Asked for apart from the login's readMe on purpose: Directus refuses a whole
  * request that names one field the policy does not grant, and the login must
- * not hinge on whether `avatar` has been opened to readers yet.
+ * not hinge on whether `avatar` or `gemeinde` has been opened to readers yet.
  */
 export async function readProfile(): Promise<Profile | null> {
     try {
         if (!(await authorize())) return null;
         const me = (await directusClient.request(
-            readMe({ fields: ['first_name', 'last_name', 'avatar'] }),
-        )) as { first_name?: string | null; last_name?: string | null; avatar?: unknown };
+            readMe({
+                fields: ['first_name', 'last_name', 'avatar', { gemeinde: ['id', 'name'] }],
+            }),
+        )) as {
+            first_name?: string | null;
+            last_name?: string | null;
+            avatar?: unknown;
+            gemeinde?: { id?: string; name?: string } | null;
+        };
         return {
             firstName: me.first_name ?? null,
             lastName: me.last_name ?? null,
@@ -86,6 +96,10 @@ export async function readProfile(): Promise<Profile | null> {
                 typeof me.avatar === 'string'
                     ? me.avatar
                     : ((me.avatar as { id?: string } | null)?.id ?? null),
+            // Null too for one the reader cannot see any more, such as an
+            // archived Gemeinde: the policy hides its row.
+            gemeinde: me.gemeinde?.id ?? null,
+            gemeindeName: me.gemeinde?.name ?? null,
         };
     } catch (err) {
         console.warn('Could not read the profile:', err);
@@ -94,10 +108,10 @@ export async function readProfile(): Promise<Profile | null> {
 }
 
 /**
- * Write the name and/or symbol, and say whether it took. Unlike the settings
- * above this is something the reader typed and is waiting to see, so the
- * caller gets to tell them when it did not reach the server — it still never
- * throws, and never ends a session.
+ * Write any of the name, symbol and Gemeinde, and say whether it took. Unlike
+ * the settings above this is something the reader chose and is waiting to see,
+ * so the caller gets to tell them when it did not reach the server — it still
+ * never throws, and never ends a session.
  */
 export async function updateProfile(patch: Partial<Profile>): Promise<boolean> {
     try {
@@ -106,6 +120,7 @@ export async function updateProfile(patch: Partial<Profile>): Promise<boolean> {
         if ('firstName' in patch) item.first_name = patch.firstName || null;
         if ('lastName' in patch) item.last_name = patch.lastName || null;
         if ('avatar' in patch) item.avatar = patch.avatar ?? null;
+        if ('gemeinde' in patch) item.gemeinde = patch.gemeinde ?? null;
         await directusClient.request(
             updateMe(item as Parameters<typeof updateMe>[0], { fields: ['id'] }),
         );

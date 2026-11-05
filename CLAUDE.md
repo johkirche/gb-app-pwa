@@ -131,11 +131,12 @@ never standing where it could press one. And scope text assertions to `main` —
 the desktop sidebar is in the document at phone widths too, hidden, and
 `getByText('Favoriten').first()` will happily find its link instead of the page.
 
-**The backend is recorded, not faked.** The app talks to exactly four things —
+**The backend is recorded, not faked.** The app talks to a handful of things —
 a GraphQL endpoint, Directus' auth routes, `/files` to find the notation archive
-and the Bibelstellen by name, and `/assets/<id>` for those and for the two
-notation files a song carries. A hand-built fake of that would drift from the
-real schema the moment someone adds a field and would go on passing while it
+and the Bibelstellen by name, `/assets/<id>` for those and for the two
+notation files a song carries, `/users/me` for the reader's own profile, and
+`/items/gemeinde` for the list onboarding offers. A hand-built fake of that
+would drift from the real schema the moment someone adds a field and would go on passing while it
 did. So the suite records the real traffic into a HAR and replays it: what the
 tests run against is not an imitation of the backend but a photograph of it.
 
@@ -151,13 +152,13 @@ Only the recording uses them; a replay stubs the login, so no password and no
 real token is ever written into a fixture.
 
 Onboarding is a wizard, so the recording walks it: „Weiter" past the install
-prompt, then the download starts on its own and the run sits out the whole
-book, printing each phase as it goes. (A phone would first wait for
-„Herunterladen", with the transfer size beside it; the projects are desktops
-with a mouse, so that never comes up.) Then through the tour, a step per slide,
-to the profile step and its „Fertig". The profile is left empty on purpose: an
-empty one is saved without a request, so the recording never writes to the
-account it runs as. `walkOnboarding()` in `support/library.ts` is the same walk
+prompt and past the Gemeinde, then the download starts on its own and the run
+sits out the whole book, printing each phase as it goes. (A phone would first
+wait for „Herunterladen", with the transfer size beside it; the projects are
+desktops with a mouse, so that never comes up.) Then through the tour, a step per
+slide, to the profile step and its „Fertig". The Gemeinde and the profile are left
+empty on purpose: empty ones are saved without a request, so the recording never
+writes to the account it runs as. `walkOnboarding()` in `support/library.ts` is the same walk
 without the watching, for the specs that just need the book.
 
 The recorder is our own (`tests/e2e/support/recorder.ts`), not Playwright's

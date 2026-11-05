@@ -1,8 +1,10 @@
 <template>
-    <div class="flex h-full flex-col bg-background">
+    <!-- The status bar's inset out here, not on the content: what scrolls should stop
+         below it, and the Gemeinde step's map stays at the top of what scrolls. -->
+    <div class="flex h-full flex-col bg-background pt-[env(safe-area-inset-top)]">
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div
-                class="mx-auto flex min-h-full w-full max-w-md flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))]"
+                class="mx-auto flex min-h-full w-full max-w-md flex-col px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0rem,calc(1rem_-_env(safe-area-inset-top)))]"
             >
                 <!-- Step Indicator Dots -->
                 <StepIndicator
@@ -14,9 +16,14 @@
                 <!-- Step 1: Install PWA -->
                 <InstallPWAStep v-if="currentStep === 1" @next="nextStep" @skip="skipOnboarding" />
 
-                <!-- Step 2: Download Content -->
+                <!-- Step 2: Gemeinde. Before the download, because a download that
+                     fails can be left for later, and that leaves the onboarding:
+                     everything after it would go unasked. -->
+                <GemeindeStep v-if="currentStep === GEMEINDE_STEP" @next="nextStep" />
+
+                <!-- Step 3: Download Content -->
                 <DownloadContentStep
-                    v-if="currentStep === 2"
+                    v-if="currentStep === DOWNLOAD_STEP"
                     :is-syncing="isSyncing"
                     :download-started="downloadStarted"
                     :sync-error="syncError"
@@ -56,6 +63,7 @@ import { useRouter } from 'vue-router';
 import { useSongsStore } from '@/stores/songs';
 
 import DownloadContentStep from '@/components/onboarding/DownloadContentStep.vue';
+import GemeindeStep from '@/components/onboarding/GemeindeStep.vue';
 import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
 import ProfileStep from '@/components/onboarding/ProfileStep.vue';
 import TourStep from '@/components/onboarding/TourStep.vue';
@@ -73,8 +81,10 @@ const ONBOARDING_IN_PROGRESS_KEY = 'onboarding.inProgress';
 const ONBOARDING_STEP_KEY = 'onboarding.currentStep';
 
 // Step management
-// Install, download, a step per slide of the tour, then the profile.
-const FIRST_TOUR_STEP = 3;
+// Install, Gemeinde, download, a step per slide of the tour, then the profile.
+const GEMEINDE_STEP = 2;
+const DOWNLOAD_STEP = 3;
+const FIRST_TOUR_STEP = 4;
 const lastTourStep = FIRST_TOUR_STEP + TOUR.length - 1;
 const totalSteps = lastTourStep + 1;
 
@@ -187,7 +197,7 @@ watch(
     currentStep,
     (step) => {
         localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
-        if (step === 2) {
+        if (step === DOWNLOAD_STEP) {
             enterDownloadStep();
         }
     },

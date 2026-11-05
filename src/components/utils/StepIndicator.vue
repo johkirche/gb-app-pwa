@@ -1,5 +1,5 @@
 <template>
-    <div class="mb-8 flex items-center justify-between">
+    <div class="mb-4 flex items-center justify-between">
         <Button
             v-if="currentStep > 1"
             variant="ghost"

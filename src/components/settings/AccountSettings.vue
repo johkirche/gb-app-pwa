@@ -59,6 +59,21 @@
             v-if="isLoggedIn"
             type="button"
             class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
+            @click="openGemeindeDialog"
+        >
+            <Church class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <div class="min-w-0">
+                <p class="text-[0.9375rem]">Gemeinde</p>
+                <p class="truncate text-sm text-muted-foreground">
+                    {{ gemeinde?.name ?? 'Nicht angegeben' }}
+                </p>
+            </div>
+        </button>
+
+        <button
+            v-if="isLoggedIn"
+            type="button"
+            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
             @click="handleLogout"
         >
             <LogOut class="size-5 shrink-0 text-destructive" aria-hidden="true" />
@@ -152,12 +167,35 @@
             </DialogFooter>
         </DialogContent>
     </Dialog>
+
+    <!-- Gemeinde wählen -->
+    <Dialog v-model:open="gemeindeOpen">
+        <!-- Flex, because a sticky grid item cannot leave its own row; and without
+             padding above and below, or the rows would show through it around the
+             map and the buttons, which stay while the rows go by. -->
+        <DialogContent class="flex max-h-[90dvh] flex-col overflow-y-auto py-0">
+            <DialogHeader class="pt-6">
+                <DialogTitle>Gemeinde</DialogTitle>
+                <DialogDescription>
+                    Damit kann die App Ihnen später die Lieder Ihrer Gottesdienste zeigen. Die
+                    Angabe ist freiwillig.
+                </DialogDescription>
+            </DialogHeader>
+            <GemeindePicker v-if="gemeindeOpen" v-model="editGemeinde" surface="bg-popover" />
+            <DialogFooter class="sticky bottom-0 z-10 bg-popover pb-6 pt-2">
+                <DialogClose as-child>
+                    <Button type="button" variant="outline">Abbrechen</Button>
+                </DialogClose>
+                <Button type="button" :disabled="saving" @click="saveGemeinde">Speichern</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 
-import { LoaderCircle, LogOut, SquarePen, Trash2, User } from 'lucide-vue-next';
+import { Church, LoaderCircle, LogOut, SquarePen, Trash2, User } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
@@ -165,6 +203,7 @@ import { useAuth } from '@/composables/useAuth';
 import { useConfirm } from '@/composables/useConfirm';
 import { useProfile } from '@/composables/useProfile';
 
+import GemeindePicker from '@/components/profile/GemeindePicker.vue';
 import SymbolPicker from '@/components/profile/SymbolPicker.vue';
 import UserAvatar from '@/components/profile/UserAvatar.vue';
 import SettingsList from '@/components/settings/SettingsList.vue';
@@ -183,12 +222,13 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 
 import { SUPPORT_EMAIL } from '@/config/support';
+import type { GemeindeRef } from '@/utils/gemeinden';
 
 const router = useRouter();
 const { user, logout, deleteAccount, isLoggedIn } = useAuth();
 const { confirm } = useConfirm();
 
-const { fullName, initials, avatarUrl, saveProfile } = useProfile();
+const { fullName, initials, avatarUrl, gemeinde, saveProfile } = useProfile();
 
 // One write at a time: a second „Speichern" on a slow line would race the first.
 const saving = ref(false);
@@ -239,6 +279,21 @@ function openSymbolDialog() {
 function saveSymbol() {
     void save({ avatar: editAvatar.value }, () => {
         symbolOpen.value = false;
+    });
+}
+
+// Gemeinde dialog
+const gemeindeOpen = ref(false);
+const editGemeinde = ref<GemeindeRef | null>(null);
+
+function openGemeindeDialog() {
+    editGemeinde.value = gemeinde.value;
+    gemeindeOpen.value = true;
+}
+
+function saveGemeinde() {
+    void save({ gemeinde: editGemeinde.value }, () => {
+        gemeindeOpen.value = false;
     });
 }
 

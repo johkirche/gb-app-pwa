@@ -121,11 +121,12 @@ export interface DirectusFileInfo {
  * not survive the question throws SESSION_ENDED_ERROR, as in fetchFile.
  */
 export async function findFileByName(filename: string): Promise<DirectusFileInfo | null> {
-    const files = await queryFiles<{
+    const files = await queryDirectus<{
         id: string;
         modified_on?: string | null;
         uploaded_on?: string | null;
     }>(
+        '/files',
         {
             'filter[filename_download][_eq]': filename,
             fields: 'id,modified_on,uploaded_on',
@@ -145,7 +146,8 @@ export async function findFileByName(filename: string): Promise<DirectusFileInfo
  * answer, a failed request is not.
  */
 export async function listFolderFiles<T>(folderId: string, fields: string[]): Promise<T[]> {
-    return queryFiles<T>(
+    return queryDirectus<T>(
+        '/files',
         {
             'filter[folder][_eq]': folderId,
             fields: fields.join(','),
@@ -156,9 +158,13 @@ export async function listFolderFiles<T>(folderId: string, fields: string[]): Pr
     );
 }
 
-/** GET /files with the session, refreshed once if it turns out to have expired. */
-async function queryFiles<T>(query: Record<string, string>, what: string): Promise<T[]> {
-    const url = `${directusConfig.url}/files?${new URLSearchParams(query)}`;
+/** GET a list from Directus with the session, refreshed once if it turns out to have expired. */
+export async function queryDirectus<T>(
+    path: string,
+    query: Record<string, string>,
+    what: string,
+): Promise<T[]> {
+    const url = `${directusConfig.url}${path}?${new URLSearchParams(query)}`;
 
     const request = async () => {
         const token = await getCurrentToken();

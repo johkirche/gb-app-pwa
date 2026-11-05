@@ -118,12 +118,17 @@ export async function syncLibrary(page: Page) {
 }
 
 /**
- * Through the onboarding: install, the download step — which offers „Weiter"
- * once the book is down — then past the tour to the profile and its „Fertig".
- * Nothing is typed into the profile: an empty one is saved without a request,
- * so the recording never learns of a write and a replay never needs one.
+ * Through the onboarding: install, the Gemeinde, the download step — which offers
+ * „Weiter" once the book is down — then past the tour to the profile and its
+ * „Fertig". No Gemeinde is chosen and nothing is typed into the profile: both
+ * are saved without a request when left empty, so the recording never learns of
+ * a write and a replay never needs one.
  */
 export async function walkOnboarding(page: Page, downloadBudgetMs: number) {
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    await expect(
+        page.getByRole('heading', { name: 'Zu welcher Gemeinde gehören Sie?' }),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Weiter' }).click();
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
 

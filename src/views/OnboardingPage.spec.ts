@@ -89,12 +89,14 @@ async function reloadOntoDownloadStep() {
     const wrapper = mount(OnboardingPage, {
         global: {
             plugins: [pinia],
-            stubs: { InstallPWAStep: true, StepIndicator: true },
+            stubs: { InstallPWAStep: true, GemeindeStep: true, StepIndicator: true },
         },
     });
     await flushPromises();
 
     wrapper.findComponent({ name: 'InstallPWAStep' }).vm.$emit('next');
+    await flushPromises();
+    wrapper.findComponent({ name: 'GemeindeStep' }).vm.$emit('next');
     await flushPromises();
     return wrapper;
 }

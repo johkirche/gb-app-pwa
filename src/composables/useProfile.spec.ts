@@ -77,9 +77,63 @@ describe('saveProfile', () => {
         expect(await useProfile().saveProfile({ avatar: 'taube' })).toBe(false);
         expect(updateProfile).not.toHaveBeenCalled();
     });
+
+    it('writes the Gemeinde by its id, and keeps its name with the user', async () => {
+        updateProfile.mockResolvedValue(true);
+        const ok = await useProfile().saveProfile({ gemeinde: { id: 'g1', name: 'Bremen' } });
+        expect(ok).toBe(true);
+        expect(updateProfile).toHaveBeenCalledWith({ gemeinde: 'g1', gemeindeName: 'Bremen' });
+        expect(patchUser).toHaveBeenCalledWith({ gemeinde: 'g1', gemeindeName: 'Bremen' });
+        expect(fetchSymbolSvg).not.toHaveBeenCalled();
+    });
+
+    it('clears a Gemeinde taken back', async () => {
+        store.user = user({ gemeinde: 'g1', gemeindeName: 'Bremen' });
+        updateProfile.mockResolvedValue(true);
+        expect(await useProfile().saveProfile({ gemeinde: null })).toBe(true);
+        expect(updateProfile).toHaveBeenCalledWith({ gemeinde: null, gemeindeName: null });
+        expect(patchUser).toHaveBeenCalledWith({ gemeinde: null, gemeindeName: null });
+    });
+
+    it('sends nothing for the Gemeinde it already has', async () => {
+        store.user = user({ gemeinde: 'g1', gemeindeName: 'Bremen' });
+        const ok = await useProfile().saveProfile({ gemeinde: { id: 'g1', name: 'Bremen' } });
+        expect(ok).toBe(true);
+        expect(updateProfile).not.toHaveBeenCalled();
+    });
+
+    it('sends nothing for no Gemeinde on an account without one', async () => {
+        expect(await useProfile().saveProfile({ gemeinde: null })).toBe(true);
+        expect(updateProfile).not.toHaveBeenCalled();
+    });
+});
+
+describe('gemeinde', () => {
+    it('reads the id and the name off the user', () => {
+        store.user = user({ gemeinde: 'g1', gemeindeName: 'Bremen' });
+        expect(useProfile().gemeinde.value).toEqual({ id: 'g1', name: 'Bremen' });
+    });
+
+    it('is null without one', () => {
+        expect(useProfile().gemeinde.value).toBeNull();
+    });
 });
 
 describe('pullProfile', () => {
+    it('brings down a Gemeinde chosen on another device', async () => {
+        readProfile.mockResolvedValue({
+            firstName: 'Erika',
+            lastName: 'Muster',
+            avatar: null,
+            gemeinde: 'g1',
+            gemeindeName: 'Bremen',
+        });
+        await useProfile().pullProfile();
+        expect(patchUser).toHaveBeenCalledWith(
+            expect.objectContaining({ gemeinde: 'g1', gemeindeName: 'Bremen' }),
+        );
+    });
+
     it('fetches the picture of a symbol chosen on another device', async () => {
         readProfile.mockResolvedValue({ firstName: 'Erika', lastName: 'Muster', avatar: 'anker' });
         fetchSymbolSvg.mockResolvedValue('<svg id="anker"/>');

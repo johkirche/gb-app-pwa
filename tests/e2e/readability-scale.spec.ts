@@ -87,6 +87,9 @@ async function overflowingAt(page: Page, where: string, scale: string) {
                 const rect = el.getBoundingClientRect();
                 if (rect.width === 0 || rect.height === 0) continue;
                 if (cutShort(el.parentElement)) continue;
+                // A shape inside an <svg> ends at the svg's edge, however far it
+                // reaches: a map closed in on one place runs past it on purpose.
+                if ((el as unknown as SVGElement).ownerSVGElement) continue;
                 if (rect.right > limit || rect.left < -1) {
                     const cls = (el.className || '').toString().slice(0, 60);
                     out.push(`${where} @${scale}: <${el.tagName.toLowerCase()} class="${cls}">`);
@@ -355,7 +358,7 @@ test.describe('the onboarding at every size it offers', () => {
         await expect(nav(page)).toBeVisible({ timeout: 20_000 });
         // The skip lives in memory, so the way in is the router, not a reload.
         await page.evaluate(() => {
-            localStorage.setItem('onboarding.currentStep', '3');
+            localStorage.setItem('onboarding.currentStep', '4');
             history.pushState({}, '', '/onboarding');
             dispatchEvent(new PopStateEvent('popstate'));
         });
@@ -394,6 +397,113 @@ test.describe('the onboarding at every size it offers', () => {
 
         await expectNoOverflow(page, heading);
         await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
+    });
+
+    // The Gemeinde: the map stays while the list goes by beneath it. Made-up rows,
+    // the first few each at the width that tests something, a long name and a place
+    // under it, and enough after them for the list to have somewhere to go.
+    test('keeps the Gemeinde step inside the phone', async ({ page }) => {
+        test.slow();
+        const backend = (process.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '');
+        const rows = [
+            ['Musterstadt St.-Michaels-Heim-Nord', 'Musterstadt', 13.28, 52.49],
+            ['Urgemeinde Beispielsfriedensstadt', 'Trebbin an der Nuthe', 13.13, 52.24],
+            ['Beispielheim', 'Beispielheim', 13.09, 52.38],
+            ['Ohnekarte', 'Nirgendwo', null, null],
+            ...Array.from({ length: 20 }, (_, i) => [
+                `Gemeinde ${i + 1}`,
+                null,
+                7 + i / 3,
+                48 + i / 4,
+            ]),
+        ].map(([name, city, longitude, latitude], i) => ({
+            id: `gemeinde-${i + 1}`,
+            name,
+            city,
+            coordinates: longitude === null ? null : { coordinates: [longitude, latitude] },
+        }));
+        await page.route(`${backend}/**`, (route) =>
+            new URL(route.request().url()).pathname === '/items/gemeinde'
+                ? route.fulfill({ json: { data: rows } })
+                : route.abort(),
+        );
+
+        await page.goto('/');
+        await page.getByRole('button', { name: /^Überspringen/ }).click({ timeout: 20_000 });
+        await expect(nav(page)).toBeVisible({ timeout: 20_000 });
+        await page.evaluate(() => {
+            localStorage.setItem('onboarding.currentStep', '2');
+            history.pushState({}, '', '/onboarding');
+            dispatchEvent(new PopStateEvent('popstate'));
+        });
+        const heading = 'Zu welcher Gemeinde gehören Sie?';
+        await expect(page.getByRole('heading', { name: heading })).toBeVisible({
+            timeout: 20_000,
+        });
+        const first = page.getByRole('radio', { name: /^Musterstadt/ });
+        await expect(first).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        await expectNoOverflow(page, heading);
+
+        const map = page.locator('.gemeinde-map');
+        const label = page.locator('.gemeinde-map + p');
+        const none = page.getByRole('radio', { name: 'Keine Angabe' });
+        const wholeCountry = await map.getAttribute('viewBox');
+        await expect(none).toBeChecked();
+
+        // A scroll no hand made chooses nothing: it is what a screen reader causes
+        // on its way down the rows.
+        const main = page.locator('main');
+        await main.evaluate((element) => element.scrollTo(0, 600));
+        await page.waitForTimeout(200);
+        await expect(none).toBeChecked();
+        await expect(map).toHaveAttribute('viewBox', wholeCountry!);
+        await main.evaluate((element) => element.scrollTo(0, 0));
+
+        // Scrolled by hand to the end: the last row is chosen, on the screen, and
+        // the map stands where it stood and has gone to it.
+        const last = page.getByRole('radio', { name: 'Gemeinde 20' });
+        await page.mouse.move(195, 500);
+        // Repeated, because Firefox takes even a long wheel as a page at a time.
+        await expect(async () => {
+            await page.mouse.wheel(0, 1500);
+            await expect(last).toBeChecked({ timeout: 300 });
+        }).toPass();
+        await expect(last).toBeInViewport();
+        await expect(map).toBeInViewport({ ratio: 1 });
+        await expect(label).toHaveText('Gemeinde 20');
+        await expect.poll(() => map.getAttribute('viewBox')).not.toBe(wholeCountry);
+        await expectNoOverflow(page, `${heading} (ans Ende gescrollt)`);
+
+        // And all the way back up, to no answer and the whole country.
+        await expect(async () => {
+            await page.mouse.wheel(0, -1500);
+            await expect(none).toBeChecked({ timeout: 300 });
+        }).toPass();
+        await expect.poll(() => map.getAttribute('viewBox')).toBe(wholeCountry);
+
+        // A tapped row is chosen and stays chosen while the list brings it into
+        // place, so that a nudge of the wheel afterwards goes on from that row.
+        await first.click();
+        await expect(first).toBeChecked();
+        await expect(label).toHaveText(/^Musterstadt/);
+        await page.waitForTimeout(800);
+        await expect(first).toBeChecked();
+        await expect(first).toBeInViewport();
+        await page.mouse.wheel(0, 3);
+        await page.waitForTimeout(200);
+        await expect(first).toBeChecked();
+
+        // The arrow keys choose too, and the scroll they cause does not undo it.
+        const second = page.getByRole('radio', { name: /^Urgemeinde/ });
+        // Held for a moment as a finger would: the radio group only takes a focus
+        // for a choice while it sees the key still down.
+        await first.focus();
+        await page.keyboard.press('ArrowDown', { delay: 100 });
+        await expect(second).toBeChecked();
+        await page.waitForTimeout(800);
+        await expect(second).toBeChecked();
+        await expect(second).toBeInViewport();
     });
 });
 
