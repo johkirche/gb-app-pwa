@@ -8,10 +8,10 @@ import type { ManifestFile } from '@/utils/syncDiff';
  * The notation archive in Directus, which turns a first download from 1140
  * requests into two.
  *
- * Its name is the contract with gb-scripts, which builds and uploads it, and it
- * is only ever an accelerator: whatever it does not supply, the per-file path
- * fetches as before. So a missing, stale, broken or unreadable archive can make
- * a sync slower, never wrong, and never fail it.
+ * Its name is the contract with directus-notation-bundle-extension, which builds
+ * it, and it is only ever an accelerator: whatever it does not supply, the
+ * per-file path fetches as before. So a missing, stale, broken or unreadable
+ * archive can make a sync slower, never wrong, and never fail it.
  */
 export const NOTATION_BUNDLE_FILENAME = 'gesangbuch-noten.tar.gz';
 

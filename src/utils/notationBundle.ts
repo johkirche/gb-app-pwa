@@ -1,11 +1,11 @@
 /**
  * The notation archive: every notation file of the book in one gzip stream.
  *
- * gb-scripts builds it and uploads it to the Directus file library, and the
- * bytes are the contract between the two repositories: a single-member gzip
- * stream of a USTAR tar whose first entry is `index.json`, followed by one
- * regular file per notation file, named by its Directus file id and holding
- * exactly what GET /assets/<id> would have answered.
+ * directus-notation-bundle-extension builds it inside Directus and keeps it in
+ * the file library, and the bytes are the contract between the two repositories:
+ * a single-member gzip stream of a USTAR tar whose first entry is `index.json`,
+ * followed by one regular file per notation file, named by its Directus file id
+ * and holding exactly what GET /assets/<id> would have answered.
  *
  * Anything else throws. The archive is only an accelerator, so a reader that
  * guessed at a damaged one would trade a slower sync for wrong notes; the
@@ -282,11 +282,11 @@ export async function readNotationBundle(
 /**
  * Whether two `modified_on` stamps name the same moment.
  *
- * Never a string comparison: the index was asked for by gb-scripts at build time
- * and the manifest by this app at sync time, and a server in between may serialise
- * one instant differently. Both null counts as agreeing, which is the case where
- * the server keeps no stamp at all. A stamp that does not parse agrees with
- * nothing, itself included, because a mismatch only costs a download.
+ * Never a string comparison: the index was read by the extension at build time
+ * and the manifest by this app at sync time, and Directus may serialise one
+ * instant differently on those two paths. Both null counts as agreeing, which is
+ * the case where the server keeps no stamp at all. A stamp that does not parse
+ * agrees with nothing, itself included, because a mismatch only costs a download.
  */
 export function sameFileStamp(a: string | null, b: string | null): boolean {
     if (a === null || b === null) return a === b;

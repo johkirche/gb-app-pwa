@@ -21,7 +21,7 @@ import type { SongManifestEntry } from '@/utils/syncDiff';
  *
  * The notation archive is not. It holds the set as of its last build, so a song
  * taken off this list goes on being handed out with every first download until
- * the archive is rebuilt or deleted (see gb-scripts' app/36).
+ * the next build, tonight or by hand (see directus-notation-bundle-extension).
  */
 const REIN_FILTER = { bewertungKleinerKreis: { bezeichner: { _eq: 'Rein' } } };
 

@@ -1,9 +1,10 @@
 import { gzipSync } from 'node:zlib';
 
 /*
- * A notation archive built by hand, the way gb-scripts' tarfile writes one:
- * USTAR headers, gzip around the lot. Shared by the unit spec, which takes it
- * apart on purpose, and the e2e spec, which hands it to real browser engines.
+ * A notation archive built by hand, the way directus-notation-bundle-extension
+ * writes one: USTAR headers, gzip around the lot. Shared by the unit spec, which
+ * takes it apart on purpose, and the e2e spec, which hands it to real browser
+ * engines.
  *
  * Every file in here is synthetic. The book's own engravings are not ours to
  * redistribute and do not belong in a fixture.

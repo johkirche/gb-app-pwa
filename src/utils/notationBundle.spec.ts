@@ -364,62 +364,64 @@ describe('what the archive refuses', () => {
 });
 
 /*
- * What gb-scripts really writes. Everything above reads archives from this repo's
- * own helper, which shows the reader agrees with the helper and nothing about the
- * writer. This one came out of build_archive() in gb-scripts'
- * app/36-build-notation-bundle.py, from the invented files in the recipe below.
+ * What directus-notation-bundle-extension really writes. Everything above reads
+ * archives from this repo's own helper, which shows the reader agrees with the
+ * helper and nothing about the writer. This one came out of buildArchive() in
+ * the extension's src/archive.js, from the invented files in the recipe below.
  *
  * It is a snapshot, so it holds the reader to the writer as of the last time it
- * was made. When build_archive changes, run this from gb-scripts' root and paste
- * what it prints over BUILDER_ARCHIVE:
+ * was made. When buildArchive changes, run this from the extension's root and
+ * paste what it prints over BUILDER_ARCHIVE:
  *
- *     PYTHONPATH=. .venv/Scripts/python.exe - <<'EOF'
- *     import base64, importlib.util, sys
- *     spec = importlib.util.spec_from_file_location("b", "app/36-build-notation-bundle.py")
- *     b = importlib.util.module_from_spec(spec)
- *     sys.modules["b"] = b
- *     spec.loader.exec_module(b)
- *     F, SVG, MXL = b.NotationFile, "image/svg+xml", "application/vnd.recordare.musicxml"
- *     STAMP, ID = "2026-08-18T13:00:00.000Z", "00000000-0000-4000-8000-00000000000"
- *     TEXT = '<svg xmlns="http://www.w3.org/2000/svg"><title>Größe</title></svg>'
- *     print(base64.b64encode(b.build_archive({
- *         ID + "1": F(STAMP, SVG, TEXT.encode()),
- *         ID + "2": F(None, MXL, bytes(i % 256 for i in range(1300))),
- *         ID + "3": F(STAMP, SVG, b"x" * 512),
- *         ID + "4": F(STAMP, SVG, b""),
- *     }, "2026-11-03T12:00:00+00:00")).decode())
+ *     node --input-type=module <<'EOF'
+ *     import { buildArchive } from './src/archive.js';
+ *     const SVG = 'image/svg+xml', MXL = 'application/vnd.recordare.musicxml';
+ *     const STAMP = '2026-08-18T13:00:00.000Z', ID = '00000000-0000-4000-8000-00000000000';
+ *     const TEXT = '<svg xmlns="http://www.w3.org/2000/svg"><title>Größe</title></svg>';
+ *     const files = {
+ *         [ID + '1']: [STAMP, SVG, Buffer.from(TEXT)],
+ *         [ID + '2']: [null, MXL, Buffer.from(Array.from({ length: 1300 }, (_, i) => i % 256))],
+ *         [ID + '3']: [STAMP, SVG, Buffer.alloc(512, 'x')],
+ *         [ID + '4']: [STAMP, SVG, Buffer.alloc(0)],
+ *     };
+ *     const listed = new Map(
+ *         Object.entries(files).map(([id, [modifiedOn, type]]) => [id, { modifiedOn, type }]),
+ *     );
+ *     const read = async (id) => files[id][2];
+ *     const { archive } = await buildArchive(listed, '2026-11-04T12:00:00.000Z', read);
+ *     console.log(archive.toString('base64'));
  *     EOF
  */
-describe('the archive gb-scripts writes', () => {
+describe('the archive the extension writes', () => {
     const BUILDER_ARCHIVE = [
-        'H4sIAAAAAAACCsvMS0mt0Msqzs9joBkwAAIzExMwDQTotIG5sRmcDRE3Nzc1ZVAwYKADKC0uSSwCWskwMkG1',
-        'UllqUXFmfp6SlaGOUnpqXmpRYklqipKVkpGBkZmuoaGugXGIoZGVgQEQaYNJJR2ltMyc1GIlq2olWJzpggkT',
-        'EGEB40KBIUhdbn5KZlpmaop/HsxkAwtdQ4sQQ2OIyXpAhVFAg0sqC1KBKjJzE9NT9YvL0rUrcnOUanWIsccI',
-        '3Z680pwcuImJBQU5mcmJJUCf6pflpegVpSbnF6UkFqXq5ZYWZyYTb40xnbxjQrk9tbXE5U1CEUjr/G9oYIKa',
-        '/w0NjUyMR/M/PYANMLUoAFNLXrGtUkZJSYGVvn55ebleubFeflG6vhEwOkDpScnOpiSzJCfVzr3o8LbD81Nt',
-        '9CFcG5CkHcMoGLKAmIKVxvnfyMQIM/+bjuZ/+gBGJmYWVjZ2Dk4ubh5ePn4BQSFhEVExcQlJKWkZWTl5BUUl',
-        'ZRVVNXUNTS1tHV09fQNDI2MTUzNzC0sraxtbO3sHRydnF1c3dw9PL28fXz//gMCg4JDQsPCIyKjomNi4+ITE',
-        'pOSU1LT0jMys7JzcvPyCwqLiktKy8orKquqa2rr6hsam5pbWtvaOzq7unt6+/gkTJ02eMnXa9BkzZ82eM3fe',
-        '/AULFy1esnTZ8hUrV61es3bd+g0bN23esnXb9h07d+3es3ff/gMHDx0+cvTY8RMnT50+c/bc+QsXL12+cvXa',
-        '9Rs3b92+c/fe/QcPHz1+8vTZ8xcvX71+8/bd+w8fP33+8vXb9x8/f/3+8/ff/1H/j/p/1P+j/kf2/2j9j9rj',
-        'oXH9b4jcF4C3/w1H6396gIpRMKIBMSMRtO7/j+b/UTAKRsEoGAWjYBSMglEwCkbBKBgFo2AUjIJRMApoAwAh',
-        'eKEQACgAAA==',
+        'H4sIAAAAAAACCu3YdXDTUBgA8OLu7uPhrPJekm0ldMUZPmTY0NJmXUaaliSVMYq7u8Nwdxmuw93d3d39Orsx7rje',
+        'QXsHe78/XvKS3H3vu5cv711Y3sA4lBGimZd5DIQQ+lNU3BFCmPIIA0i/pPO46wgRiJL5QJkXWEVJJ8gg/BtJJk/u',
+        'HxEFbIwgsmYe0EgOjAzPCDqJMQAaEJDwVyCkgFQIImgIaQiVEMJQIAdhLMeIgI4CiVOmiGsoV6NO7CYgXM+ZzAY2',
+        'jGUMwTygeSvHyYEUaWEADXQWC8fqdRJr5lU23qAUGL1ZMOgERmmyiqzeYeKAU+5OGJQyTPz4oVqB1CGI/Hn8CcFZ',
+        'k87IqESb0df9OKSX4lB/HsfpdP+1/e0Merj+CYqgUtQ/4YdIXP9ekSZtuvQZMmbKnCVrtuw5cubKnSdvvvwFChYq',
+        'XKRoseIlSpbyKQ3KlC1XvkLFSpV95QqlCiKCpPz8A9RV6KqaQG216jVq1qpdp25QvfoNGjZq3CS4abPmLUJatmrd',
+        'pm1ou/YdOnbqrOuiNzBhxnA2oitn4s2WboIoWW12R2T3qB7Onr169+nbr/+AgYMGDxk6bPiIkaNGjxk7bvyEiZMm',
+        'T5k6bfqMmdGzZs+ZO2/+goWLFi9Zumz5ipWrVq9Zu259zIaNmzZv2bpt+46du3bH7tm7b/+Bg4cOHzl67PiJk6dO',
+        'nzl77vyFi5cuX7l67fqNm7du37l77/6Dh48eP3n67PmLl69ev3n77v2Hj58+f/n67TvOH+eP88f5J89floq4s7Xy',
+        '9P4fwV/Xf4jXf6/QiDajj8PE8WIgCJckC61S2e12pZ1UmgWjioAQujaUQKuRWIljtEFCbExsNKNRxXc1rptaGfY/',
+        '1z/p4fpHyb8FSfWPcP17gwNL1dz5FeHp9R/XP4ZhGIZhGIZhGIZhGIZ5xg+BGO23ACgAAA==',
     ].join('');
 
     const ID = '00000000-0000-4000-8000-00000000000';
+    // In the writer's order: by type, then by id.
     const WRITTEN: ArchiveFile[] = [
-        {
-            id: `${ID}1`,
-            type: SVG_TYPE,
-            modifiedOn: STAMP,
-            content: '<svg xmlns="http://www.w3.org/2000/svg"><title>Größe</title></svg>',
-        },
         // Runs across a block boundary and holds every byte value.
         {
             id: `${ID}2`,
             type: MXML_TYPE,
             modifiedOn: null,
             content: Uint8Array.from({ length: 1300 }, (_, i) => i % 256),
+        },
+        {
+            id: `${ID}1`,
+            type: SVG_TYPE,
+            modifiedOn: STAMP,
+            content: '<svg xmlns="http://www.w3.org/2000/svg"><title>Größe</title></svg>',
         },
         // Exactly a block, so no padding follows it.
         { id: `${ID}3`, type: SVG_TYPE, modifiedOn: STAMP, content: 'x'.repeat(512) },
@@ -431,7 +433,7 @@ describe('the archive gb-scripts writes', () => {
         const { index, files } = await readNotationBundle(blobOf(archive));
 
         expect(index.version).toBe(1);
-        expect(index.generated).toBe('2026-11-03T12:00:00+00:00');
+        expect(index.generated).toBe('2026-11-04T12:00:00.000Z');
         expect(Object.keys(index.files)).toEqual(WRITTEN.map((file) => file.id));
         await expectRoundTrip(files, WRITTEN);
     });
