@@ -371,9 +371,11 @@ test.describe('the onboarding at every size it offers', () => {
         // grow with the type, and none of them may grow past the phone. The
         // row of dots above them has one for every slide and has to survive
         // that too. The Bible's slide is measured with the longest note showing.
+        // „Rechtsklick" because the projects have a mouse; it is the longer text
+        // of the two a slide can have, so „Gedrückt halten" fits where it fits.
         for (const title of [
             'Lieder finden',
-            'Gedrückt halten',
+            'Rechtsklick',
             'Größer lesen',
             'Melodie anhören',
             'Für den Gottesdienst',

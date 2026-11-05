@@ -67,7 +67,7 @@ import GemeindeStep from '@/components/onboarding/GemeindeStep.vue';
 import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
 import ProfileStep from '@/components/onboarding/ProfileStep.vue';
 import TourStep from '@/components/onboarding/TourStep.vue';
-import { TOUR } from '@/components/onboarding/tour';
+import { tourSlides } from '@/components/onboarding/tour';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
 import { type StorageSpace, getStorageEstimate } from '@/services/storage';
@@ -85,6 +85,7 @@ const ONBOARDING_STEP_KEY = 'onboarding.currentStep';
 const GEMEINDE_STEP = 2;
 const DOWNLOAD_STEP = 3;
 const FIRST_TOUR_STEP = 4;
+const TOUR = tourSlides();
 const lastTourStep = FIRST_TOUR_STEP + TOUR.length - 1;
 const totalSteps = lastTourStep + 1;
 

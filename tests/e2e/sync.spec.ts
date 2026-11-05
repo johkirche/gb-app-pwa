@@ -53,9 +53,9 @@ test.beforeAll(() => {
  * coming.
  */
 async function waitForDownload(page: Page, budgetMs: number) {
-    const done = page.getByText('Alle Inhalte wurden erfolgreich heruntergeladen!');
+    const done = page.getByText('Das Gesangbuch ist jetzt auf diesem Gerät.');
     const progress = page.getByText(/von \d+ Dateien|Lieder werden geladen|Daten werden geladen/);
-    const failed = page.getByText(/konnten nicht heruntergeladen werden/);
+    const failed = page.getByText(/nicht heruntergeladen werden/);
     const retry = page.getByRole('button', { name: 'Erneut versuchen' });
 
     const deadline = Date.now() + budgetMs;
@@ -126,10 +126,11 @@ test('logs in and downloads the Gesangbuch', async ({ page }) => {
     await waitForDownload(page, DOWNLOAD_BUDGET);
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // The tour, every slide of it. The Bible stays as it is offered: off.
+    // The tour, every slide of it, as a mouse sees it (a finger gets „Gedrückt
+    // halten" in place of „Rechtsklick"). The Bible stays as it is offered: off.
     for (const title of [
         'Lieder finden',
-        'Gedrückt halten',
+        'Rechtsklick',
         'Größer lesen',
         'Melodie anhören',
         'Für den Gottesdienst',

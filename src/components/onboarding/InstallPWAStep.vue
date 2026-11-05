@@ -8,8 +8,7 @@
 
         <h1 class="text-center font-display text-3xl font-semibold">App installieren</h1>
         <p class="mt-3 text-center text-[0.9375rem] leading-relaxed text-muted-foreground">
-            Installieren Sie das Gesangbuch als App auf Ihrem Gerät für schnellen Zugriff und
-            Offline-Nutzung.
+            Als App haben Sie das Gesangbuch schnell zur Hand, auch ohne Internet.
         </p>
 
         <!-- Definitely installed: running in standalone/PWA mode -->
@@ -30,7 +29,7 @@
         >
             <Spinner size="sm" />
             <span class="font-medium text-muted-foreground">
-                Installationsstatus wird geprüft...
+                Wir prüfen, ob die App schon installiert ist...
             </span>
         </div>
 
@@ -70,7 +69,7 @@
                     <Separator class="flex-1" />
                 </div>
                 <p class="text-center text-sm text-muted-foreground">
-                    Manuelle Installation über den Browser:
+                    So installieren Sie die App über den Browser:
                 </p>
             </div>
 
@@ -100,14 +99,14 @@
                                 aria-hidden="true"
                             />
                             Scrollen Sie nach unten und tippen Sie auf
-                            <strong>"Zum Home-Bildschirm"</strong>
+                            <strong>„Zum Home-Bildschirm“</strong>
                         </p>
                     </div>
                     <div class="grid grid-cols-[1.75rem_1fr] items-start gap-x-4 py-4">
                         <span class="instruction-number">3</span>
                         <p class="min-w-0 text-[0.9375rem] leading-relaxed">
                             Tippen Sie auf
-                            <strong>"Hinzufügen"</strong>
+                            <strong>„Hinzufügen“</strong>
                         </p>
                     </div>
                 </div>
@@ -136,9 +135,9 @@
                                 aria-hidden="true"
                             />
                             Wählen Sie
-                            <strong>"App installieren"</strong>
+                            <strong>„App installieren“</strong>
                             oder
-                            <strong>"Zum Startbildschirm hinzufügen"</strong>
+                            <strong>„Zum Startbildschirm hinzufügen“</strong>
                         </p>
                     </div>
                 </div>
@@ -164,7 +163,7 @@
                         <span class="instruction-number">2</span>
                         <p class="min-w-0 text-[0.9375rem] leading-relaxed">
                             Bestätigen Sie mit
-                            <strong>"Installieren"</strong>
+                            <strong>„Installieren“</strong>
                         </p>
                     </div>
                 </div>

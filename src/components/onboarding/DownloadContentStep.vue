@@ -8,8 +8,8 @@
 
         <h1 class="text-center font-display text-3xl font-semibold">Inhalte herunterladen</h1>
         <p class="mt-3 text-center text-[0.9375rem] leading-relaxed text-muted-foreground">
-            Das Gesangbuch wird einmalig auf dieses Gerät geladen, damit alle Lieder und Noten auch
-            ohne Internetverbindung verfügbar sind.
+            Das Gesangbuch wird einmal auf dieses Gerät geladen. Danach funktioniert es auch ohne
+            Internet.
         </p>
 
         <ul class="mt-8 divide-y divide-border rounded-lg border border-border px-4">
@@ -19,19 +19,15 @@
             </li>
             <li class="flex items-center gap-4 py-3">
                 <Image class="size-5 shrink-0 text-primary" aria-hidden="true" />
-                <span class="text-[0.9375rem]">Notendateien zum Offline-Lesen</span>
+                <span class="text-[0.9375rem]">Alle Noten</span>
             </li>
             <li class="flex items-center gap-4 py-3">
                 <Server class="size-5 shrink-0 text-primary" aria-hidden="true" />
                 <span class="min-w-0 text-[0.9375rem]">
                     Belegt ca. {{ formatBytes(ESTIMATED_SYNC_BYTES) }} auf dem Gerät
-                    <template v-if="storageEstimate">
-                        &ndash;
-                        <span class="whitespace-nowrap">
-                            frei:
-                            {{ formatBytes(storageEstimate.quota - storageEstimate.usage) }}
-                        </span>
-                    </template>
+                    <span v-if="storageEstimate" class="whitespace-nowrap">
+                        (frei: {{ formatBytes(storageEstimate.quota - storageEstimate.usage) }})
+                    </span>
                 </span>
             </li>
         </ul>
@@ -80,7 +76,7 @@
             class="mt-6 flex flex-col items-center gap-2 rounded-lg border border-border bg-card px-6 py-6"
         >
             <CircleCheck class="size-10 text-primary" aria-hidden="true" />
-            <p class="text-center font-medium">Alle Inhalte wurden erfolgreich heruntergeladen!</p>
+            <p class="text-center font-medium">Das Gesangbuch ist jetzt auf diesem Gerät.</p>
         </div>
 
         <!-- Partial Failure -->
@@ -90,8 +86,8 @@
         >
             <CircleAlert class="size-8 text-destructive" aria-hidden="true" />
             <p class="text-center text-sm leading-relaxed text-destructive">
-                {{ failedCount }} Dateien konnten nicht heruntergeladen werden. Sie können den
-                Download der fehlenden Dateien erneut versuchen.
+                {{ failedCount === 1 ? '1 Datei konnte' : `${failedCount} Dateien konnten` }}
+                nicht heruntergeladen werden.
             </p>
             <Button type="button" variant="ghost" @click="$emit('retry')">Erneut versuchen</Button>
         </div>

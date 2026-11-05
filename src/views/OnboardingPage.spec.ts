@@ -69,7 +69,7 @@ const { default: OnboardingPage } = await import('./OnboardingPage.vue');
 const { useSongsStore } = await import('@/stores/songs');
 
 const STAMP = '2026-08-18T13:00:00.000Z';
-const FINISHED = 'Alle Inhalte wurden erfolgreich heruntergeladen!';
+const FINISHED = 'Das Gesangbuch ist jetzt auf diesem Gerät.';
 
 function song(id: string) {
     return {
