@@ -4,6 +4,7 @@
         :position="position"
         :offset="offset"
         :mobile-offset="mobileOffset"
+        :swipe-directions="swipeDirections"
         :toast-options="{
             classes: {
                 toast: 'gb-toast',
@@ -13,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { Toaster } from 'vue-sonner';
+import { Toaster, type ToasterProps } from 'vue-sonner';
 
 interface Props {
     theme?: 'light' | 'dark' | 'system';
@@ -46,6 +47,13 @@ const offset = { bottom: 'calc(var(--app-bottom-inset, 0px) + 24px)' };
 const mobileOffset = {
     bottom: 'calc(var(--app-bottom-inset, 0px) + 16px - max(env(safe-area-inset-bottom), 0px))',
 };
+
+/**
+ * Left alone, sonner reads the directions out of the position, and for
+ * `bottom-center` that comes to `['bottom', 'center']`. `center` is no direction,
+ * so the toast would not move sideways at all, which is the way a thumb goes.
+ */
+const swipeDirections: ToasterProps['swipeDirections'] = ['left', 'right', 'bottom'];
 </script>
 
 <style>
@@ -56,6 +64,14 @@ const mobileOffset = {
     border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     font-family: var(--font-sans) !important;
+}
+
+/* sonner gives up on a swipe as soon as any text is selected, and a mouse dragged
+   across the message selects it before the toast has moved: in WebKit it stopped
+   dead after 2px. */
+.gb-toast {
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* sonner draws the icon of a warning, error or success toast at a fixed 20px,
