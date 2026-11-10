@@ -138,8 +138,10 @@ the desktop sidebar is in the document at phone widths too, hidden, and
 **The backend is recorded, not faked.** The app talks to a handful of things —
 a GraphQL endpoint, Directus' auth routes, `/files` to find the notation archive
 and the Bibelstellen by name, `/assets/<id>` for those and for the two
-notation files a song carries, `/users/me` for the reader's own profile, and
-`/items/gemeinde` for the list onboarding offers. A hand-built fake of that
+notation files a song carries, `/users/me` for the reader's own profile,
+`/items/gemeinde` for the list onboarding offers, and `/items/app_liste`,
+`/items/app_liste_eintrag` and `/items/app_markierung` for the reader's lists and
+marks (`src/services/userData`). A hand-built fake of that
 would drift from the real schema the moment someone adds a field and would go on passing while it
 did. So the suite records the real traffic into a HAR and replays it: what the
 tests run against is not an imitation of the backend but a photograph of it.
@@ -162,8 +164,12 @@ wait for „Herunterladen", with the transfer size beside it; the projects are
 desktops with a mouse, so that never comes up.) Then through the tour, a step per
 slide, to the profile step and its „Fertig". The Gemeinde and the profile are left
 empty on purpose: empty ones are saved without a request, so the recording never
-writes to the account it runs as. `walkOnboarding()` in `support/library.ts` is the same walk
-without the watching, for the specs that just need the book.
+writes to the account it runs as. The user-data sync reads the account's lists, marks
+and settings after the login, and writes only what was changed on the device — which
+in a recording is nothing. `walkOnboarding()` in `support/library.ts` is the same walk
+without the watching, for the specs that just need the book. In a replay recorded before
+the sync existed, its reads are not in the recording and are aborted: the app treats
+that as being offline, and the specs do not notice. Re-record to have them answered.
 
 The recorder is our own (`tests/e2e/support/recorder.ts`), not Playwright's
 `routeFromHAR`. The HAR tracer reads response bodies back out of Chromium after
