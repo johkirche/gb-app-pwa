@@ -275,15 +275,19 @@ export async function clearSessionData(): Promise<void> {
  * Clear everything that belongs to the signed-in account, for an explicit logout.
  *
  * Songs and files are deliberately kept — they are shared hymnal content, identical for
- * every account and expensive to re-download. Playlists, favorites, preferences, the
- * Bible's Lesezeichen and the Gottesdienst selection are personal data that exist only on this device; they must not
- * leak to the next account that signs in on a shared device, so they go together with the
- * session.
+ * every account and expensive to re-download. The reader's lists, marks and settings are
+ * personal; they must not leak to the next account that signs in on a shared device, so
+ * they go together with the session. What the sync had uploaded comes back with the next
+ * login; the caller warns before anything that had not.
  */
 export async function clearUserScopedData(): Promise<void> {
     const tables = [
         db.auth,
         db.users,
+        db.lists,
+        db.listEntries,
+        db.marks,
+        // The tables before version 11, still holding their copy of the data.
         db.playlists,
         db.preferences,
         db.favorites,
@@ -317,12 +321,10 @@ export async function clearUserScopedData(): Promise<void> {
 /**
  * Clear all local user data from IndexedDB.
  *
- * This removes songs, files, playlists, favorites, preferences, the Gottesdienst
- * selection, sync metadata, auth and user data, and is destructive and irreversible —
- * playlists, favorites and preferences exist only on this device and cannot be restored
- * from the server. Only call this when
- * the account is genuinely known to be gone; for an ordinary expired session use
- * {@link clearSessionData} instead.
+ * This removes songs, files, lists, marks, preferences, sync metadata, auth and user data,
+ * and is destructive and irreversible — whatever had not been synced is gone, and with a
+ * deleted account so is what had. Only call this when the account is genuinely known to be
+ * gone; for an ordinary expired session use {@link clearSessionData} instead.
  */
 export async function clearAllLocalData(): Promise<void> {
     const tables = [
@@ -330,6 +332,9 @@ export async function clearAllLocalData(): Promise<void> {
         db.users,
         db.songs,
         db.files,
+        db.lists,
+        db.listEntries,
+        db.marks,
         db.playlists,
         db.preferences,
         db.favorites,

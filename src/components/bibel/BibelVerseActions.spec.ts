@@ -7,32 +7,10 @@ import { useMarkierungenStore } from '@/stores/markierungen';
 
 import { useVerseSelection } from '@/composables/useVerseSelection';
 
+import { resetDb } from '@/db/testing';
 import { layoutChapter } from '@/utils/bibelLayout';
 
 import BibelVerseActions from './BibelVerseActions.vue';
-
-vi.mock('@/db', () => {
-    const table = () => {
-        const rows = new Map<string, { id: string }>();
-        return {
-            toArray: async () => [...rows.values()],
-            put: async (row: { id: string }) => void rows.set(row.id, row),
-            bulkPut: async (list: { id: string }[]) => list.forEach((r) => rows.set(r.id, r)),
-            bulkDelete: async (ids: string[]) => ids.forEach((id) => rows.delete(id)),
-            delete: async (id: string) => void rows.delete(id),
-            clear: async () => rows.clear(),
-        };
-    };
-    return {
-        db: {
-            lesezeichen: table(),
-            markierungen: table(),
-            meta: table(),
-            playlists: table(),
-            services: table(),
-        },
-    };
-});
 
 const laid = layoutChapter([
     { p: [{ s: [{ v: 1 }, 'Der HERR ist mein Hirt.'] }, { s: [{ v: 2 }, 'Er weidet mich.'] }] },
@@ -56,9 +34,9 @@ describe('BibelVerseActions', () => {
     let wrapper: ReturnType<typeof mount> | null = null;
 
     beforeEach(async () => {
+        // The database outlives a test; a colour left on would add its "entfernen" row.
+        await resetDb();
         setActivePinia(createPinia());
-        // The mock tables outlive a test; a colour left on would add its "entfernen" row.
-        await useMarkierungenStore().clearAll();
         selection.attach({ slug: 'psalm', chapter: 23 }, laid);
         selection.clear();
     });
@@ -104,10 +82,10 @@ describe('BibelVerseActions', () => {
         await open();
 
         sheet()!.querySelector<HTMLButtonElement>('[aria-label="Blau"]')!.click();
-        await flushPromises();
 
+        // Written to IndexedDB, which answers a few turns of the event loop later.
         const store = useMarkierungenStore();
-        expect(store.colorOf('psalm', 23, 1)).toBe('blau');
+        await vi.waitFor(() => expect(store.colorOf('psalm', 23, 1)).toBe('blau'));
         expect(store.colorOf('psalm', 23, 2)).toBe('blau');
     });
 
@@ -136,9 +114,10 @@ describe('BibelVerseActions', () => {
         await open();
 
         button('Markierung entfernen').click();
-        await flushPromises();
 
-        expect(useMarkierungenStore().colorOf('psalm', 23, 2)).toBeUndefined();
+        await vi.waitFor(() =>
+            expect(useMarkierungenStore().colorOf('psalm', 23, 2)).toBeUndefined(),
+        );
     });
 
     it('on a desktop, stands beside the text as a panel, and lets go on Escape', async () => {

@@ -2,7 +2,16 @@ import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type BibelPassage, type ServicePlan, type ServicePlanOrigin, db } from '@/db';
+import {
+    type BibelPassage,
+    type ServiceEntry,
+    type ServicePlan,
+    type ServicePlanOrigin,
+    type UserList,
+    type UserListEntry,
+    db,
+} from '@/db';
+import { META_KEYS } from '@/db/metaKeys';
 import {
     DEFAULT_SERVICE_TITLE,
     type ServiceItem,
@@ -22,7 +31,71 @@ import {
     toPlainPlan,
     todayIsoDate,
 } from '@/services/servicePlans';
-import { withPassage, withoutPassage } from '@/utils/bibelPassage';
+import { entryId } from '@/services/userData/ids';
+import { assignPositions } from '@/services/userData/positions';
+import {
+    type Fresh,
+    deleteEntries,
+    deleteLists,
+    entriesOf,
+    fresh,
+    getList,
+    listsOfKind,
+    newEntry,
+    newList,
+    onUserDataApplied,
+    putEntries,
+    putLists,
+} from '@/services/userData/repo';
+import { passageKey, toPassage, withPassage, withoutPassage } from '@/utils/bibelPassage';
+import { passageToRef, refItemKey, refToPassage, songItemKeyOf } from '@/utils/textRef';
+
+/** An Ablauf's day is over: past its date, and nobody kept it. */
+function isPast(list: UserList, now = Date.now()): boolean {
+    return !list.keep && now > endOfDay(list.date ?? todayIsoDate());
+}
+
+function passageOf(entry: UserListEntry): BibelPassage | null {
+    if (entry.kind !== 'passage' || !entry.work || !entry.ref) return null;
+    return toPassage(refToPassage({ work: entry.work, ref: entry.ref, refEnd: entry.refEnd }));
+}
+
+/** The plan a list of kind `service` and its entries make. */
+function planOf(list: UserList, entries: UserListEntry[]): ServicePlan {
+    const date = list.date ?? todayIsoDate();
+    const songs: ServiceEntry[] = [];
+    const lesungen: BibelPassage[] = [];
+    const order: string[] = [];
+    for (const entry of entries) {
+        if (entry.kind === 'song' && entry.songId) {
+            songs.push({
+                songId: entry.songId,
+                verses: entry.verses ? [...entry.verses] : null,
+                ...(entry.note ? { note: entry.note } : {}),
+            });
+            order.push(songItemKey(entry.songId));
+            continue;
+        }
+        const passage = passageOf(entry);
+        if (passage) {
+            lesungen.push(passage);
+            order.push(lesungItemKey(passageKey(passage)));
+        }
+    }
+    const touched = [list.updatedAt, ...entries.map((e) => e.updatedAt)].sort().at(-1)!;
+    return {
+        id: list.id,
+        title: list.name || DEFAULT_SERVICE_TITLE,
+        date,
+        entries: songs,
+        expiresAt: endOfDay(date),
+        origin: list.origin ?? null,
+        ...(lesungen.length ? { lesungen } : {}),
+        order,
+        createdAt: new Date(list.createdAt),
+        updatedAt: new Date(touched),
+    };
+}
 
 /**
  * Which stored plan is the one in use. The `services` table is keyed by id
@@ -30,7 +103,7 @@ import { withPassage, withoutPassage } from '@/utils/bibelPassage';
  * be cached alongside the active one; this key says which of them the
  * Gottesdienst tab shows.
  */
-const ACTIVE_PLAN_KEY = 'service.activeId';
+const ACTIVE_PLAN_KEY = META_KEYS.activeService;
 
 /**
  * The Gottesdienst selection: the two or three songs of one service, one tap
@@ -75,14 +148,99 @@ export const useServiceStore = defineStore('service', () => {
         return entries.value.find((entry) => entry.songId === songId)?.verses ?? null;
     }
 
+    /**
+     * Store a plan as its list and entries. Only what changed is written: an
+     * entry that kept its song, verses, note and place is left alone, so a
+     * second device editing the same Ablauf only meets this one where both
+     * touched the same entry.
+     */
     async function write(next: ServicePlan): Promise<ServicePlan> {
         const record = toPlainPlan(next);
-        await db.transaction('rw', db.services, db.meta, async () => {
-            await db.services.put(record);
-            await db.meta.put({ key: ACTIVE_PLAN_KEY, value: record.id });
+        const list = await getList(record.id);
+        const current = list ? await entriesOf(record.id) : [];
+
+        const songEntry = new Map(
+            current.filter((e) => e.kind === 'song' && e.songId).map((e) => [e.songId!, e]),
+        );
+        const passageEntry = new Map(
+            current.flatMap((e) => {
+                const p = passageOf(e);
+                return p ? [[passageKey(p), e] as const] : [];
+            }),
+        );
+
+        const wanted: Fresh<UserListEntry>[] = serviceItems(record).map((item) => {
+            if (item.kind === 'song') {
+                const { songId, verses, note } = item.entry;
+                const existing = songEntry.get(songId);
+                return {
+                    ...(existing
+                        ? fresh(existing)
+                        : newEntry({
+                              id: entryId(record.id, songItemKeyOf(songId)),
+                              listId: record.id,
+                              kind: 'song',
+                              position: '',
+                              songId,
+                          })),
+                    verses: verses ? [...verses] : null,
+                    note: note ?? null,
+                };
+            }
+            const ref = passageToRef(item.passage);
+            const existing = passageEntry.get(passageKey(item.passage));
+            return existing
+                ? fresh(existing)
+                : newEntry({
+                      id: entryId(record.id, refItemKey(ref)),
+                      listId: record.id,
+                      kind: 'passage',
+                      position: '',
+                      ...ref,
+                  });
         });
-        plan.value = record;
-        return record;
+
+        const positions = assignPositions(
+            wanted.map((e) => e.id),
+            new Map(current.map((e) => [e.id, e.position])),
+        );
+        const before = new Map(current.map((e) => [e.id, e]));
+        const writes = wanted
+            .map((e) => ({ ...e, position: positions.get(e.id)! }))
+            .filter((e) => {
+                const was = before.get(e.id);
+                return (
+                    !was ||
+                    was.position !== e.position ||
+                    JSON.stringify(was.verses ?? null) !== JSON.stringify(e.verses ?? null) ||
+                    (was.note ?? null) !== (e.note ?? null)
+                );
+            });
+        const keep = new Set(wanted.map((e) => e.id));
+
+        const listRow = newList({
+            ...(list ? fresh(list) : {}),
+            id: record.id,
+            kind: 'service',
+            name: record.title,
+            date: record.date,
+            origin: record.origin ?? null,
+            createdAt: list?.createdAt ?? new Date(record.createdAt).toISOString(),
+        });
+        if (
+            !list ||
+            list.name !== listRow.name ||
+            list.date !== listRow.date ||
+            JSON.stringify(list.origin ?? null) !== JSON.stringify(listRow.origin ?? null)
+        ) {
+            await putLists([listRow]);
+        }
+        await deleteEntries(current.filter((e) => !keep.has(e.id)).map((e) => e.id));
+        await putEntries(writes);
+        await db.meta.put({ key: ACTIVE_PLAN_KEY, value: record.id });
+
+        plan.value = planOf((await getList(record.id))!, await entriesOf(record.id));
+        return plan.value;
     }
 
     /** Persist a change to the current plan, stamping it as touched. */
@@ -101,10 +259,8 @@ export const useServiceStore = defineStore('service', () => {
     async function forget(): Promise<void> {
         const id = plan.value?.id;
         plan.value = null;
-        await db.transaction('rw', db.services, db.meta, async () => {
-            if (id) await db.services.delete(id);
-            await db.meta.delete(ACTIVE_PLAN_KEY);
-        });
+        if (id) await deleteLists([id]);
+        await db.meta.delete(ACTIVE_PLAN_KEY);
     }
 
     /** Drop the plan once its day is over. Returns true when it was dropped. */
@@ -119,14 +275,22 @@ export const useServiceStore = defineStore('service', () => {
             error.value = null;
             isLoading.value = true;
 
-            const active = await db.meta.get(ACTIVE_PLAN_KEY);
-            const stored = active?.value ? await db.services.get(active.value) : undefined;
-            plan.value = stored ?? null;
+            // Yesterday's Abläufe are cleared out on the way in, so the tab
+            // never comes back with last Sunday's songs still on it. Kept ones
+            // stay: the reader saved them on purpose.
+            const services = (await listsOfKind('service')).filter((l) => l.status === 'private');
+            const past = services.filter((l) => isPast(l));
+            if (past.length) await deleteLists(past.map((l) => l.id));
+            const current = services.filter((l) => !isPast(l) && !l.keep);
 
-            // Yesterday's plans are cleared out on the way in, so the tab never
-            // comes back with last Sunday's songs still on it.
-            await pruneIfExpired();
-            await db.services.where('expiresAt').below(Date.now()).delete();
+            // The one this device last had open; failing that, the newest one
+            // — which is how an Ablauf put together on another device turns up
+            // here, ready on the Sunday.
+            const active = (await db.meta.get(ACTIVE_PLAN_KEY))?.value;
+            const list =
+                current.find((l) => l.id === active) ??
+                [...current].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+            plan.value = list ? planOf(list, await entriesOf(list.id)) : null;
 
             return plan.value;
         } catch (err) {
@@ -155,8 +319,15 @@ export const useServiceStore = defineStore('service', () => {
     async function addSong(songId: string, verses: VerseSelection = null): Promise<void> {
         const current = await ensurePlan();
         if (current.entries.some((entry) => entry.songId === songId)) return;
+        // A new song goes after the last song, not after the last reading: a
+        // plan whose order nobody touched lists its songs first and its
+        // readings after them, as the page always did.
+        const order = serviceItems(current).map((item) => item.key);
+        const lastSong = order.findLastIndex((key) => key.startsWith('song:'));
+        order.splice(lastSong + 1, 0, songItemKey(songId));
         await update({
             entries: [...current.entries, { songId, verses: normalizeVerseSelection(verses) }],
+            order,
         });
     }
 
@@ -250,11 +421,11 @@ export const useServiceStore = defineStore('service', () => {
     ): Promise<ServicePlan> {
         const previousId = plan.value?.id;
         const next = createPlan(draft, { origin });
-        await write(next);
+        const written = await write(next);
         if (previousId && previousId !== next.id) {
-            await db.services.delete(previousId);
+            await deleteLists([previousId]);
         }
-        return next;
+        return written;
     }
 
     /**
@@ -292,11 +463,10 @@ export const useServiceStore = defineStore('service', () => {
         await forget();
     }
 
-    // Wipe both memory and Dexie — used on logout, where the plan is user data
-    // that must not carry over to the next account on a shared device.
+    // On logout: clearUserScopedData empties the tables, this the memory and
+    // which plan was open.
     async function clearAll(): Promise<void> {
         plan.value = null;
-        await db.services.clear();
         await db.meta.delete(ACTIVE_PLAN_KEY);
     }
 
@@ -308,6 +478,7 @@ export const useServiceStore = defineStore('service', () => {
         });
     }
 
+    onUserDataApplied(load);
     const initPromise = load();
 
     return {

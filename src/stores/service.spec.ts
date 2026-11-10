@@ -1,40 +1,24 @@
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-// An in-memory stand-in for the two tables the store touches.
-const services = new Map<string, unknown>();
-const meta = new Map<string, unknown>();
+import { type Synced, db } from '@/db';
+import { resetDb } from '@/db/testing';
+import { todayIsoDate } from '@/services/servicePlans';
+import { passageKey } from '@/utils/bibelPassage';
 
-vi.mock('@/db', () => ({
-    db: {
-        transaction: async (...args: unknown[]) => (args.at(-1) as () => Promise<void>)(),
-        services: {
-            get: async (id: string) => services.get(id),
-            put: async (row: { id: string }) => void services.set(row.id, row),
-            delete: async (id: string) => void services.delete(id),
-            clear: async () => services.clear(),
-            where: () => ({ below: () => ({ delete: async () => 0 }) }),
-        },
-        meta: {
-            get: async (key: string) => meta.get(key),
-            put: async (row: { key: string }) => void meta.set(row.key, row),
-            delete: async (key: string) => void meta.delete(key),
-        },
-        playlists: { count: async () => 0, toArray: async () => [], get: async () => undefined },
-    },
-}));
-
-const { useServiceStore } = await import('./service');
-const { createPlan, endOfDay, todayIsoDate } = await import('@/services/servicePlans');
-const { passageKey } = await import('@/utils/bibelPassage');
+import { useServiceStore } from './service';
 
 const ROEMER = { slug: 'roemer', chapter: 8, verse: 28, endVerse: 30 };
 const PSALM = { slug: 'psalm', chapter: 23 };
 
+/** As a row arrives from the account: uploaded, nothing waiting. */
+function settled(at: string): Synced {
+    return { dirty: 0, deleted: 0, synced: 1, createdAt: at, updatedAt: at };
+}
+
 describe('useServiceStore — Lesungen', () => {
-    beforeEach(() => {
-        services.clear();
-        meta.clear();
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
     });
 
@@ -49,7 +33,21 @@ describe('useServiceStore — Lesungen', () => {
         // A reading alone is something to show: the tab appears for it.
         expect(store.hasSelection).toBe(true);
         expect(store.selectionLabel).toBe('1 Lesung · Heute');
-        expect((services.get(store.plan!.id) as { lesungen: unknown }).lesungen).toEqual([ROEMER]);
+
+        // Stored as an Ablauf with the reading as a passage entry.
+        expect(await db.lists.get(store.plan!.id)).toMatchObject({
+            kind: 'service',
+            status: 'private',
+        });
+        const entries = await db.listEntries.where('listId').equals(store.plan!.id).toArray();
+        expect(entries).toEqual([
+            expect.objectContaining({
+                kind: 'passage',
+                work: 'bibel',
+                ref: 'roemer/8/28',
+                refEnd: 'roemer/8/30',
+            }),
+        ]);
     });
 
     it('keeps a passage once, and reorders and removes by key', async () => {
@@ -78,31 +76,73 @@ describe('useServiceStore — Lesungen', () => {
         expect(store.selectionLabel).toBe('1 Lied · 1 Lesung · Heute');
     });
 
-    it('loads a plan stored before the Lesungen existed', async () => {
-        const stored = createPlan({ title: 'Gottesdienst', entries: [{ songId: 'a' }] });
-        // As an older version wrote it: no lesungen field at all.
-        expect('lesungen' in stored).toBe(false);
-        stored.expiresAt = endOfDay(stored.date);
-        services.set(stored.id, stored);
-        meta.set('service.activeId', { key: 'service.activeId', value: stored.id });
+    it('picks up an Ablauf another device put on the account', async () => {
+        const at = new Date().toISOString();
+        await db.lists.put({
+            id: 'from-the-laptop',
+            kind: 'service',
+            status: 'private',
+            name: 'Gottesdienst',
+            emoji: null,
+            gemeinde: null,
+            serviceType: null,
+            date: todayIsoDate(),
+            time: null,
+            keep: false,
+            ...settled(at),
+        });
+        await db.listEntries.put({
+            id: 'e1',
+            listId: 'from-the-laptop',
+            position: 'a0',
+            kind: 'song',
+            songId: '211',
+            work: null,
+            ref: null,
+            refEnd: null,
+            linkedListId: null,
+            verses: [1, 3],
+            note: 'Eingangslied',
+            official: false,
+            ...settled(at),
+        });
 
         const store = useServiceStore();
         await store.initPromise;
 
-        expect(store.songIds).toEqual(['a']);
-        expect(store.lesungen).toEqual([]);
-        expect(store.selectionLabel).toBe('1 Lied · Heute');
+        expect(store.plan?.title).toBe('Gottesdienst');
+        expect(store.entries).toEqual([{ songId: '211', verses: [1, 3], note: 'Eingangslied' }]);
+    });
 
-        await store.addLesung(PSALM);
-        expect(store.songIds).toEqual(['a']);
-        expect(store.lesungen).toEqual([PSALM]);
+    it('drops an Ablauf whose day is over, unless it was kept', async () => {
+        const at = new Date().toISOString();
+        const list = (id: string, keep: boolean) => ({
+            id,
+            kind: 'service' as const,
+            status: 'private' as const,
+            name: id,
+            emoji: null,
+            gemeinde: null,
+            serviceType: null,
+            date: '2026-01-04',
+            time: null,
+            keep,
+            ...settled(at),
+        });
+        await db.lists.bulkPut([list('last-sunday', false), list('kept', true)]);
+
+        const store = useServiceStore();
+        await store.initPromise;
+
+        expect(store.plan).toBeNull();
+        expect(await db.lists.get('last-sunday')).toMatchObject({ deleted: 1, dirty: 1 });
+        expect(await db.lists.get('kept')).toMatchObject({ deleted: 0 });
     });
 });
 
 describe('useServiceStore — one order for songs and readings', () => {
-    beforeEach(() => {
-        services.clear();
-        meta.clear();
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
     });
 
@@ -142,6 +182,20 @@ describe('useServiceStore — one order for songs and readings', () => {
         expect(keys(reloaded)).toEqual(['song:b', ROEMER_KEY, 'song:a', PSALM_KEY]);
     });
 
+    it('moves only the entries that moved', async () => {
+        const store = useServiceStore();
+        await store.initPromise;
+        await store.addSong('a');
+        await store.addSong('b');
+        await store.addSong('c');
+        await db.listEntries.toCollection().modify({ dirty: 0 });
+
+        await store.reorder(['song:a', 'song:c', 'song:b']);
+
+        const changed = await db.listEntries.where('dirty').equals(1).toArray();
+        expect(changed.map((e) => e.songId).sort()).toEqual(['b', 'c']);
+    });
+
     it('adds at the end and forgets what was removed', async () => {
         const store = useServiceStore();
         await store.initPromise;
@@ -155,8 +209,7 @@ describe('useServiceStore — one order for songs and readings', () => {
 
         await store.removeSong('a');
         await store.removeLesung(passageKey(PSALM));
-        // 'b' came after the reorder, so it never had a key of its own.
-        expect(store.plan?.order).toEqual([]);
+        expect(keys(store)).toEqual(['song:b']);
 
         // Marked again, a song comes back at the end, not where it once stood.
         await store.addSong('a');

@@ -1,27 +1,15 @@
 import { flushPromises, mount } from '@vue/test-utils';
 
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useNotizenStore } from '@/stores/notizen';
 
 import { useVerseSelection } from '@/composables/useVerseSelection';
 
-import BibelMarginNotes from './BibelMarginNotes.vue';
+import { resetDb } from '@/db/testing';
 
-vi.mock('@/db', () => {
-    const rows = new Map<string, { id: string }>();
-    return {
-        db: {
-            notizen: {
-                toArray: async () => [...rows.values()],
-                put: async (row: { id: string }) => void rows.set(row.id, row),
-                delete: async (id: string) => void rows.delete(id),
-                clear: async () => rows.clear(),
-            },
-        },
-    };
-});
+import BibelMarginNotes from './BibelMarginNotes.vue';
 
 /** A column with three verses, as the chapter text lays them out. */
 function column(): HTMLElement {
@@ -32,8 +20,8 @@ function column(): HTMLElement {
 
 describe('BibelMarginNotes', () => {
     beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
-        await useNotizenStore().clearAll();
         useVerseSelection().closeNote();
     });
 

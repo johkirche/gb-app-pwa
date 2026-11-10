@@ -2,8 +2,32 @@ import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type Markierung, type MarkierungsFarbe, db } from '@/db';
+import type { MarkColor, Markierung, MarkierungsFarbe, TextMark } from '@/db';
+import { MARK_COLORS } from '@/db/legacyUserData';
+import { liveMarks, onUserDataApplied, updateMarks } from '@/services/userData/repo';
 import { registerUserStateReset } from '@/services/userStateReset';
+import { BIBEL_WORK, verseMarkId } from '@/utils/textRef';
+
+const FARBEN = Object.fromEntries(
+    Object.entries(MARK_COLORS).map(([farbe, color]) => [color, farbe]),
+) as Record<MarkColor, MarkierungsFarbe>;
+
+/** A verse's place, from a mark's ref: null for a chapter or another work. */
+export function verseOfMark(
+    mark: TextMark,
+): { slug: string; chapter: number; verse: number } | null {
+    if (mark.work !== BIBEL_WORK) return null;
+    const [slug, chapter, verse, ...rest] = mark.ref.split('/');
+    if (!slug || rest.length || !/^\d+$/.test(chapter ?? '') || !/^\d+$/.test(verse ?? '')) {
+        return null;
+    }
+    return { slug, chapter: Number(chapter), verse: Number(verse) };
+}
+
+/** Whether a mark has nothing left on it and can go. */
+export function isEmptyMark(mark: Pick<TextMark, 'color' | 'note' | 'readAt'>): boolean {
+    return !mark.color && !mark.note && !mark.readAt;
+}
 
 /** Highlighted verses in the Bible, one colour per verse. */
 export const useMarkierungenStore = defineStore('markierungen', () => {
@@ -18,7 +42,19 @@ export const useMarkierungenStore = defineStore('markierungen', () => {
 
     async function load() {
         try {
-            markierungen.value = await db.markierungen.toArray();
+            const marks = await liveMarks(BIBEL_WORK);
+            markierungen.value = marks.flatMap((mark) => {
+                const place = verseOfMark(mark);
+                if (!place || !mark.color || !FARBEN[mark.color]) return [];
+                return [
+                    {
+                        id: idOf(place.slug, place.chapter, place.verse),
+                        ...place,
+                        color: FARBEN[mark.color],
+                        createdAt: new Date(mark.createdAt),
+                    },
+                ];
+            });
         } catch (err) {
             console.error('Error loading Markierungen:', err);
         }
@@ -34,7 +70,8 @@ export const useMarkierungenStore = defineStore('markierungen', () => {
 
     /**
      * Give verses a colour, or take it off with null. Several verses go in one
-     * write, since the reader marks a passage, not a verse at a time.
+     * write, since the reader marks a passage, not a verse at a time. A note on
+     * the same verse stays where it is.
      */
     async function setColor(
         slug: string,
@@ -42,38 +79,36 @@ export const useMarkierungenStore = defineStore('markierungen', () => {
         verses: readonly number[],
         color: MarkierungsFarbe | null,
     ) {
-        const ids = verses.map((verse) => idOf(slug, chapter, verse));
-        if (color === null) {
-            await db.markierungen.bulkDelete(ids);
-            markierungen.value = markierungen.value.filter((m) => !ids.includes(m.id));
-            return;
-        }
-        const createdAt = new Date();
-        const entries: Markierung[] = verses.map((verse) => ({
-            id: idOf(slug, chapter, verse),
-            slug,
-            chapter,
-            verse,
-            color,
-            createdAt,
-        }));
-        await db.markierungen.bulkPut(entries);
-        markierungen.value = [...markierungen.value.filter((m) => !ids.includes(m.id)), ...entries];
+        const ids = verses.map((verse) => verseMarkId(slug, chapter, verse));
+        await updateMarks(ids, (current, id) => {
+            const next = {
+                id,
+                work: BIBEL_WORK,
+                ref: id.slice(BIBEL_WORK.length + 1),
+                note: current?.note ?? null,
+                readAt: current?.readAt ?? null,
+                color: color ? MARK_COLORS[color] : null,
+                // A new colour on a marked verse counts from now, as it always did.
+                ...(color && !current?.color ? { createdAt: new Date().toISOString() } : {}),
+            };
+            return isEmptyMark(next) ? null : next;
+        });
+        await load();
     }
 
+    /** By the Markierung's id, `slug/chapter/verse`. */
     async function remove(id: string) {
-        await db.markierungen.delete(id);
-        markierungen.value = markierungen.value.filter((m) => m.id !== id);
+        const [slug, chapter, verse] = id.split('/');
+        await setColor(slug, Number(chapter), [Number(verse)], null);
     }
 
-    // On logout: clearUserScopedData empties the table, this the memory.
-    async function clearAll() {
-        await db.markierungen.clear();
+    function clearAll() {
         markierungen.value = [];
     }
 
     registerUserStateReset(clearAll);
+    onUserDataApplied(load);
     load();
 
-    return { markierungen, sorted, colorOf, setColor, remove, clearAll };
+    return { markierungen, sorted, colorOf, setColor, remove, clearAll, load };
 });

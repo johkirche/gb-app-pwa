@@ -36,6 +36,9 @@ vi.mock('@/db', () => {
             markierungen: table(vi.fn(async () => undefined)),
             notizen: table(vi.fn(async () => undefined)),
             leseplaene: table(vi.fn(async () => undefined)),
+            lists: table(vi.fn(async () => undefined)),
+            listEntries: table(vi.fn(async () => undefined)),
+            marks: table(vi.fn(async () => undefined)),
             transaction: (
                 _mode: string,
                 _tables: unknown,

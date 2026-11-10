@@ -32,9 +32,11 @@ import { useNotizenStore } from '@/stores/notizen';
 
 import { Button } from '@/components/ui/button';
 
-import { type MarkierungsFarbe, db } from '@/db';
-import { loadBook, setLastRead } from '@/utils/bibel';
+import type { MarkierungsFarbe } from '@/db';
+import { liveMarks, updateMarks } from '@/services/userData/repo';
+import { clearLastRead, loadBook, setLastRead } from '@/utils/bibel';
 import { layoutChapter, snippet, verseText } from '@/utils/bibelLayout';
+import { BIBEL_WORK } from '@/utils/textRef';
 
 const lesezeichen = useLesezeichenStore();
 const markierungen = useMarkierungenStore();
@@ -123,12 +125,16 @@ async function seed() {
 async function clear() {
     busy.value = true;
     try {
-        await lesezeichen.clearAll(); // also forgets "Weiterlesen"
-        await markierungen.clearAll();
-        await notizen.clearAll();
+        // Through the stores and the repository, so the account forgets them too.
+        for (const mark of [...lesezeichen.lesezeichen]) await lesezeichen.remove(mark.id);
+        const marks = await liveMarks(BIBEL_WORK);
+        await updateMarks(
+            marks.map((m) => m.id),
+            () => null,
+        );
         await leseplan.stop();
-        await db.gelesen.clear();
-        await fortschritt.load();
+        await clearLastRead();
+        await Promise.all([markierungen.load(), notizen.load(), fortschritt.load()]);
         status.value = 'Geleert.';
     } catch (err) {
         console.error('Clearing the demo data failed:', err);

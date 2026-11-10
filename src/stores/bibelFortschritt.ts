@@ -2,9 +2,19 @@ import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type GelesenesKapitel, db } from '@/db';
+import type { GelesenesKapitel, TextMark } from '@/db';
+import { liveMarks, onUserDataApplied, updateMarks } from '@/services/userData/repo';
 import { registerUserStateReset } from '@/services/userStateReset';
 import { BIBEL_BOOKS, type ChapterRef, findBook } from '@/utils/bibel';
+import { BIBEL_WORK, chapterMarkId } from '@/utils/textRef';
+
+/** A chapter's place, from a mark's ref: null for a verse or another work. */
+function chapterOfMark(mark: TextMark): { slug: string; chapter: number } | null {
+    if (mark.work !== BIBEL_WORK) return null;
+    const [slug, chapter, ...rest] = mark.ref.split('/');
+    if (!slug || rest.length || !/^\d+$/.test(chapter ?? '')) return null;
+    return { slug, chapter: Number(chapter) };
+}
 
 export interface Fortschritt {
     read: number;
@@ -39,18 +49,45 @@ export const useBibelFortschrittStore = defineStore('bibelFortschritt', () => {
         return !!book && entry.chapter >= 1 && entry.chapter <= book.chapters;
     }
 
+    // Set by a mark or unmark, so a load still reading the table does not put
+    // back what was changed while it read.
+    let changedDuringLoad = false;
+
     async function load() {
+        changedDuringLoad = false;
         try {
-            const rows = await db.gelesen.toArray();
-            // Merged under what is in memory: a chapter marked while the table
-            // was still being read must not be lost to the older snapshot.
-            gelesen.value = new Map([
-                ...rows.map((row) => [row.id, row] as const),
-                ...gelesen.value,
-            ]);
+            const rows = (await liveMarks(BIBEL_WORK)).flatMap((mark): GelesenesKapitel[] => {
+                const place = chapterOfMark(mark);
+                if (!place || !mark.readAt) return [];
+                return [
+                    {
+                        id: idOf(place.slug, place.chapter),
+                        ...place,
+                        readAt: new Date(mark.readAt),
+                    },
+                ];
+            });
+            if (changedDuringLoad) return;
+            gelesen.value = new Map(rows.map((row) => [row.id, row] as const));
         } catch (err) {
             console.error('Error loading the chapters read:', err);
         }
+    }
+
+    async function writeReadAt(slug: string, chapter: number, readAt: Date | null) {
+        changedDuringLoad = true;
+        const id = chapterMarkId(slug, chapter);
+        await updateMarks([id], (current) => {
+            const next = {
+                id,
+                work: BIBEL_WORK,
+                ref: `${slug}/${chapter}`,
+                color: current?.color ?? null,
+                note: current?.note ?? null,
+                readAt: readAt ? readAt.toISOString() : null,
+            };
+            return next.color || next.note || next.readAt ? next : null;
+        });
     }
 
     function isRead(slug: string, chapter: number): boolean {
@@ -73,7 +110,7 @@ export const useBibelFortschrittStore = defineStore('bibelFortschritt', () => {
             chapter,
             readAt: new Date(),
         };
-        await db.gelesen.put(entry);
+        await writeReadAt(slug, chapter, entry.readAt);
         const next = new Map(gelesen.value);
         next.set(entry.id, entry);
         gelesen.value = next;
@@ -88,7 +125,7 @@ export const useBibelFortschrittStore = defineStore('bibelFortschritt', () => {
 
     async function unmarkRead(slug: string, chapter: number) {
         const id = idOf(slug, chapter);
-        await db.gelesen.delete(id);
+        await writeReadAt(slug, chapter, null);
         const next = new Map(gelesen.value);
         next.delete(id);
         gelesen.value = next;
@@ -142,6 +179,7 @@ export const useBibelFortschrittStore = defineStore('bibelFortschritt', () => {
     }
 
     registerUserStateReset(reset);
+    onUserDataApplied(load);
     load();
 
     return {

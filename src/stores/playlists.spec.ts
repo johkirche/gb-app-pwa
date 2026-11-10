@@ -1,41 +1,14 @@
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { Playlist } from '@/db';
+import { db } from '@/db';
+import { resetDb } from '@/db/testing';
+import { passageKey } from '@/utils/bibelPassage';
 
-// An in-memory stand-in for the playlists table. put() structured-clones, as
-// IndexedDB does, so a reactive proxy reaching it fails the test the way it
-// fails the app (DataCloneError).
-const rows = new Map<string, Playlist>();
-
-vi.mock('@/db', () => ({
-    db: {
-        playlists: {
-            toArray: async () => [...rows.values()].map((row) => structuredClone(row)),
-            add: async (row: Playlist) => void rows.set(row.id, structuredClone(row)),
-            put: async (row: Playlist) => void rows.set(row.id, structuredClone(row)),
-            delete: async (id: string) => void rows.delete(id),
-            clear: async () => rows.clear(),
-        },
-    },
-}));
-
-const { usePlaylistsStore } = await import('./playlists');
-const { passageKey } = await import('@/utils/bibelPassage');
+import { usePlaylistsStore } from './playlists';
 
 const ROEMER = { slug: 'roemer', chapter: 8, verse: 28 };
 const PSALM = { slug: 'psalm', chapter: 23 };
-const CREATED = new Date(2026, 0, 1);
-
-// A playlist as versions before the Bibel tab stored it.
-const OLD: Playlist = {
-    id: 'p',
-    name: 'Erntedank',
-    emoji: '🌾',
-    songIds: ['a', 'b'],
-    createdAt: CREATED,
-    updatedAt: CREATED,
-};
 
 async function loadedStore() {
     const store = usePlaylistsStore();
@@ -43,53 +16,114 @@ async function loadedStore() {
     return store;
 }
 
-describe('usePlaylistsStore — Bibelstellen', () => {
-    beforeEach(() => {
-        rows.clear();
-        rows.set(OLD.id, structuredClone(OLD));
+async function withSongs(...songIds: string[]) {
+    const store = await loadedStore();
+    const playlist = await store.createPlaylist('Erntedank', '🌾');
+    await store.addSongsToPlaylist(playlist.id, songIds);
+    return { store, id: playlist.id };
+}
+
+describe('usePlaylistsStore', () => {
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
     });
 
-    it('loads an old playlist and keeps writing it without passages', async () => {
-        const store = await loadedStore();
-        expect(store.getPlaylistById('p')?.passagen).toBeUndefined();
+    it('keeps a playlist as a list with an entry per song', async () => {
+        const { store, id } = await withSongs('a', 'b');
 
-        await store.addSongToPlaylist('p', 'c');
-        expect(rows.get('p')?.songIds).toEqual(['a', 'b', 'c']);
-        expect('passagen' in rows.get('p')!).toBe(false);
+        expect(store.getPlaylistById(id)).toMatchObject({
+            name: 'Erntedank',
+            emoji: '🌾',
+            songIds: ['a', 'b'],
+        });
+        expect(store.getPlaylistById(id)?.passagen).toBeUndefined();
+        expect(await db.lists.get(id)).toMatchObject({ kind: 'collection', dirty: 1 });
+        expect(await db.listEntries.where('listId').equals(id).count()).toBe(2);
+    });
+
+    it('adds a song once', async () => {
+        const { store, id } = await withSongs('a', 'b');
+        await store.addSongToPlaylist(id, 'a');
+        await store.addSongToPlaylist(id, 'c');
+        expect(store.getPlaylistById(id)?.songIds).toEqual(['a', 'b', 'c']);
     });
 
     it('adds a passage once, beside the songs', async () => {
-        const store = await loadedStore();
+        const { store, id } = await withSongs('a', 'b');
 
-        await store.addPassageToPlaylist('p', ROEMER);
-        await store.addPassageToPlaylist('p', { ...ROEMER });
-        await store.addPassagesToPlaylist('p', [PSALM, ROEMER]);
+        await store.addPassageToPlaylist(id, ROEMER);
+        await store.addPassageToPlaylist(id, { ...ROEMER });
+        await store.addPassagesToPlaylist(id, [PSALM, ROEMER]);
 
-        expect(rows.get('p')?.passagen).toEqual([ROEMER, PSALM]);
-        expect(rows.get('p')?.songIds).toEqual(['a', 'b']);
+        expect(store.getPlaylistById(id)?.passagen).toEqual([ROEMER, PSALM]);
+        expect(store.getPlaylistById(id)?.songIds).toEqual(['a', 'b']);
     });
 
     it('keeps its passages through every other write', async () => {
-        const store = await loadedStore();
-        await store.addPassageToPlaylist('p', PSALM);
+        const { store, id } = await withSongs('a', 'b');
+        await store.addPassageToPlaylist(id, PSALM);
 
-        // Each of these writes a copy of the reactive record back.
-        await store.updatePlaylist('p', { name: 'Ernte' });
-        await store.removeSongFromPlaylist('p', 'a');
-        await store.reorderSongs('p', ['b']);
+        await store.updatePlaylist(id, { name: 'Ernte' });
+        await store.removeSongFromPlaylist(id, 'a');
+        await store.reorderSongs(id, ['b']);
 
-        expect(rows.get('p')).toMatchObject({ name: 'Ernte', songIds: ['b'], passagen: [PSALM] });
+        expect(store.getPlaylistById(id)).toMatchObject({
+            name: 'Ernte',
+            songIds: ['b'],
+            passagen: [PSALM],
+        });
     });
 
-    it('reorders and removes by key', async () => {
+    it('reorders songs, writing only the ones that moved', async () => {
+        const { store, id } = await withSongs('a', 'b', 'c');
+        await db.listEntries.toCollection().modify({ dirty: 0 });
+
+        await store.reorderSongs(id, ['a', 'c', 'b']);
+
+        expect(store.getPlaylistById(id)?.songIds).toEqual(['a', 'c', 'b']);
+        const changed = await db.listEntries.where('dirty').equals(1).toArray();
+        expect(changed.map((e) => e.songId).sort()).toEqual(['b', 'c']);
+    });
+
+    it('reorders and removes passages by key', async () => {
+        const { store, id } = await withSongs('a');
+        await store.addPassagesToPlaylist(id, [ROEMER, PSALM]);
+
+        await store.reorderPlaylistPassages(id, [passageKey(PSALM), passageKey(ROEMER)]);
+        expect(store.getPlaylistById(id)?.passagen).toEqual([PSALM, ROEMER]);
+
+        await store.removePassageFromPlaylist(id, passageKey(PSALM));
+        expect(store.getPlaylistById(id)?.passagen).toEqual([ROEMER]);
+    });
+
+    it('imports a backup twice without doubling anything', async () => {
         const store = await loadedStore();
-        await store.addPassagesToPlaylist('p', [ROEMER, PSALM]);
+        const backup = {
+            id: '0d0f5a52-4f0e-4c4e-9d35-2b6cbb0b4b5e',
+            name: 'Advent',
+            emoji: '🕯️',
+            songIds: ['x', 'y'],
+            passagen: [PSALM],
+            createdAt: new Date('2025-12-01'),
+            updatedAt: new Date('2025-12-01'),
+        };
 
-        await store.reorderPlaylistPassages('p', [passageKey(PSALM), passageKey(ROEMER)]);
-        expect(rows.get('p')?.passagen).toEqual([PSALM, ROEMER]);
+        await store.importPlaylists([backup]);
+        await store.importPlaylists([backup]);
 
-        await store.removePassageFromPlaylist('p', passageKey(PSALM));
-        expect(store.getPlaylistById('p')?.passagen).toEqual([ROEMER]);
+        expect(store.playlists).toHaveLength(1);
+        expect(store.getPlaylistById(backup.id)).toMatchObject({
+            songIds: ['x', 'y'],
+            passagen: [PSALM],
+        });
+        expect(await db.listEntries.count()).toBe(3);
+    });
+
+    it('deletes a playlist with its entries', async () => {
+        const { store, id } = await withSongs('a', 'b');
+        await store.deletePlaylist(id);
+        expect(store.playlists).toEqual([]);
+        expect(await db.listEntries.count()).toBe(0);
     });
 });

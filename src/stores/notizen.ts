@@ -2,8 +2,12 @@ import { computed, ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { type Notiz, db } from '@/db';
+import type { Notiz } from '@/db';
+import { liveMarks, onUserDataApplied, updateMarks } from '@/services/userData/repo';
 import { registerUserStateReset } from '@/services/userStateReset';
+import { BIBEL_WORK, verseMarkId } from '@/utils/textRef';
+
+import { isEmptyMark, verseOfMark } from './markierungen';
 
 /** The reader's own notes on verses of the Bible, one per verse. */
 export const useNotizenStore = defineStore('notizen', () => {
@@ -19,7 +23,19 @@ export const useNotizenStore = defineStore('notizen', () => {
 
     async function load() {
         try {
-            notizen.value = await db.notizen.toArray();
+            const marks = await liveMarks(BIBEL_WORK);
+            notizen.value = marks.flatMap((mark) => {
+                const place = verseOfMark(mark);
+                if (!place || !mark.note) return [];
+                return [
+                    {
+                        id: idOf(place.slug, place.chapter, place.verse),
+                        ...place,
+                        text: mark.note,
+                        updatedAt: new Date(mark.updatedAt),
+                    },
+                ];
+            });
         } catch (err) {
             console.error('Error loading Notizen:', err);
         }
@@ -37,32 +53,40 @@ export const useNotizenStore = defineStore('notizen', () => {
         return byId.value.has(idOf(slug, chapter, verse));
     }
 
+    async function write(slug: string, chapter: number, verse: number, text: string | null) {
+        const id = verseMarkId(slug, chapter, verse);
+        await updateMarks([id], (current) => {
+            const next = {
+                id,
+                work: BIBEL_WORK,
+                ref: `${slug}/${chapter}/${verse}`,
+                color: current?.color ?? null,
+                readAt: current?.readAt ?? null,
+                note: text,
+            };
+            return isEmptyMark(next) ? null : next;
+        });
+        await load();
+    }
+
+    /** By the Notiz's id, `slug/chapter/verse`. A colour on the verse stays. */
     async function remove(id: string) {
-        await db.notizen.delete(id);
-        notizen.value = notizen.value.filter((n) => n.id !== id);
+        const [slug, chapter, verse] = id.split('/');
+        await write(slug, Number(chapter), Number(verse), null);
     }
 
     /** Keep a note on a verse. A note emptied of text is a note deleted. */
     async function save(slug: string, chapter: number, verse: number, text: string) {
-        const id = idOf(slug, chapter, verse);
-        const trimmed = text.trim();
-        if (!trimmed) {
-            await remove(id);
-            return;
-        }
-        const entry: Notiz = { id, slug, chapter, verse, text: trimmed, updatedAt: new Date() };
-        await db.notizen.put(entry);
-        notizen.value = [...notizen.value.filter((n) => n.id !== id), entry];
+        await write(slug, chapter, verse, text.trim() || null);
     }
 
-    // On logout: clearUserScopedData empties the table, this the memory.
-    async function clearAll() {
-        await db.notizen.clear();
+    function clearAll() {
         notizen.value = [];
     }
 
     registerUserStateReset(clearAll);
+    onUserDataApplied(load);
     load();
 
-    return { notizen, sorted, get, has, save, remove, clearAll };
+    return { notizen, sorted, get, has, save, remove, clearAll, load };
 });

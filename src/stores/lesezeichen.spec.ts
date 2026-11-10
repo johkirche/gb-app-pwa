@@ -1,32 +1,14 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// An in-memory stand-in for the two tables the store touches.
-const rows = new Map<string, unknown>();
-const meta = new Map<string, unknown>();
+import { db } from '@/db';
+import { resetDb } from '@/db/testing';
 
-vi.mock('@/db', () => ({
-    db: {
-        lesezeichen: {
-            toArray: async () => [...rows.values()],
-            put: async (row: { id: string }) => void rows.set(row.id, row),
-            delete: async (id: string) => void rows.delete(id),
-            clear: async () => rows.clear(),
-        },
-        meta: {
-            get: async (key: string) => meta.get(key),
-            put: async (row: { key: string }) => void meta.set(row.key, row),
-            delete: async (key: string) => void meta.delete(key),
-        },
-    },
-}));
-
-const { useLesezeichenStore } = await import('./lesezeichen');
+import { useLesezeichenStore } from './lesezeichen';
 
 describe('useLesezeichenStore', () => {
-    beforeEach(() => {
-        rows.clear();
-        meta.clear();
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
     });
 
@@ -35,16 +17,36 @@ describe('useLesezeichenStore', () => {
 
         expect(await store.toggle('psalm', 23, 4, 'Müßt’ ich auch wandern …')).toBe(true);
         expect(store.has('psalm', 23, 4)).toBe(true);
-        expect(rows.has('psalm/23/4')).toBe(true);
+        expect(store.sorted[0]).toMatchObject({
+            id: 'psalm/23/4',
+            snippet: 'Müßt’ ich auch wandern …',
+        });
 
         expect(await store.toggle('psalm', 23, 4, '')).toBe(false);
         expect(store.has('psalm', 23, 4)).toBe(false);
-        expect(rows.size).toBe(0);
+        expect(await db.listEntries.count()).toBe(0);
+    });
+
+    it('keeps them in one list of kind bookmarks, a passage per entry', async () => {
+        const store = useLesezeichenStore();
+        await store.add('johannes', 3, 16, 'Denn so sehr …');
+        await store.add('psalm', 23, 1, 'Ein Psalm von David.');
+
+        const lists = await db.lists.toArray();
+        expect(lists).toHaveLength(1);
+        expect(lists[0].kind).toBe('bookmarks');
+        const entries = await db.listEntries.where('listId').equals(lists[0].id).toArray();
+        expect(entries.map((e) => [e.kind, e.work, e.ref])).toEqual(
+            expect.arrayContaining([
+                ['passage', 'bibel', 'johannes/3/16'],
+                ['passage', 'bibel', 'psalm/23/1'],
+            ]),
+        );
     });
 
     it('lists the newest mark first', async () => {
         const store = useLesezeichenStore();
-        vi.useFakeTimers();
+        vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(new Date('2026-10-01'));
         await store.add('johannes', 3, 16, 'Denn so sehr …');
         vi.setSystemTime(new Date('2026-10-02'));
@@ -57,12 +59,11 @@ describe('useLesezeichenStore', () => {
     it('forgets the marks and the reading position on logout', async () => {
         const store = useLesezeichenStore();
         await store.add('psalm', 23, 1, '');
-        meta.set('bibel.lastRead', { key: 'bibel.lastRead', value: 'psalm/23' });
+        await db.meta.put({ key: 'bibel.lastRead', value: 'psalm/23' });
 
         await store.clearAll();
 
         expect(store.sorted).toEqual([]);
-        expect(rows.size).toBe(0);
-        expect(meta.has('bibel.lastRead')).toBe(false);
+        expect(await db.meta.get('bibel.lastRead')).toBeUndefined();
     });
 });

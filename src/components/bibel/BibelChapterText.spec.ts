@@ -9,32 +9,10 @@ import { useNotizenStore } from '@/stores/notizen';
 
 import { useVerseSelection } from '@/composables/useVerseSelection';
 
+import { resetDb } from '@/db/testing';
 import type { Block } from '@/utils/bibel';
 
 import BibelChapterText from './BibelChapterText.vue';
-
-// Empty in-memory tables: the stores load nothing and write nowhere.
-vi.mock('@/db', () => {
-    const table = () => {
-        const rows = new Map<string, { id: string }>();
-        return {
-            toArray: async () => [...rows.values()],
-            put: async (row: { id: string }) => void rows.set(row.id, row),
-            bulkPut: async (list: { id: string }[]) => list.forEach((r) => rows.set(r.id, r)),
-            bulkDelete: async (ids: string[]) => ids.forEach((id) => rows.delete(id)),
-            delete: async (id: string) => void rows.delete(id),
-            clear: async () => rows.clear(),
-        };
-    };
-    return {
-        db: {
-            lesezeichen: table(),
-            markierungen: table(),
-            notizen: table(),
-            meta: table(),
-        },
-    };
-});
 
 // Verse 1 runs over two poetry lines; verse 2 has a footnote citing a passage.
 const blocks: Block[] = [
@@ -69,7 +47,10 @@ function touch(el: Element, type: string, y = 10) {
 }
 
 describe('BibelChapterText', () => {
-    beforeEach(() => setActivePinia(createPinia()));
+    beforeEach(async () => {
+        await resetDb();
+        setActivePinia(createPinia());
+    });
 
     it('picks a verse out by its words with a mouse, across its lines, and puts it back', async () => {
         const wrapper = render();

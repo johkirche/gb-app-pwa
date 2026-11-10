@@ -100,9 +100,10 @@ import { useSongsStore } from '@/stores/songs';
 
 import SettingsList from '@/components/settings/SettingsList.vue';
 
-import { type Favorite, type Playlist, db } from '@/db';
+import type { Favorite, Playlist } from '@/db';
 import { downloadJsonFile } from '@/services/storage';
 import { toPassages } from '@/utils/bibelPassage';
+import { toPlainPlaylist } from '@/utils/playlistEntries';
 
 // Both counts and the persistence state are volatile enough to need refreshing
 // on every entry, which the settings shell already does for its overview — so
@@ -143,10 +144,12 @@ function showToast(message: string, color: 'success' | 'danger') {
 
 async function handleExport() {
     try {
-        const [playlists, favorites] = await Promise.all([
-            db.playlists.toArray(),
-            db.favorites.toArray(),
-        ]);
+        // The file keeps the shape it has always had (schemaVersion 1), so a
+        // backup taken now still imports into an older build, and one taken
+        // before into this one.
+        await Promise.all([playlistsStore.loadPlaylists(), favoritesStore.loadFavorites()]);
+        const playlists = playlistsStore.playlists.map((p) => toPlainPlaylist(p));
+        const favorites = favoritesStore.favorites.map((f) => ({ ...f }));
         downloadJsonFile(`gesangbuch-daten-${new Date().toISOString().slice(0, 10)}.json`, {
             app: 'gesangbuch',
             schemaVersion: 1,
@@ -208,16 +211,14 @@ async function onImportFileChange(e: Event) {
                 createdAt: reviveDate(f.createdAt),
             }));
 
-        // bulkPut matches on the primary keys (playlist id = UUID, favorite id
-        // = song id), so re-importing the same backup is idempotent — existing
-        // rows are overwritten, never duplicated.
-        await db.transaction('rw', db.playlists, db.favorites, async () => {
-            await db.playlists.bulkPut(playlists);
-            await db.favorites.bulkPut(favorites);
-        });
-
-        // Both stores hydrate their refs only once at creation — reload them
-        await Promise.all([playlistsStore.loadPlaylists(), favoritesStore.loadFavorites()]);
+        // Matched on ids (a playlist's UUID, a favourite's song), so importing
+        // the same backup twice changes nothing the second time. Both go to the
+        // account with the next sync, like any other change.
+        await playlistsStore.importPlaylists(playlists);
+        await favoritesStore.addFavorites(
+            favorites.map((f) => f.id),
+            new Map(favorites.map((f) => [f.id, f.createdAt.toISOString()])),
+        );
 
         showToast(
             `${playlists.length} Playlists und ${favorites.length} Favoriten importiert.`,

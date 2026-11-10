@@ -1,28 +1,16 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { db } from '@/db';
+import { resetDb } from '@/db/testing';
 import { resetRegisteredUserState } from '@/services/userStateReset';
 
-// An in-memory stand-in for the table the store touches.
-const rows = new Map<string, unknown>();
-
-vi.mock('@/db', () => ({
-    db: {
-        markierungen: {
-            toArray: async () => [...rows.values()],
-            bulkPut: async (list: { id: string }[]) => list.forEach((row) => rows.set(row.id, row)),
-            bulkDelete: async (ids: string[]) => ids.forEach((id) => rows.delete(id)),
-            delete: async (id: string) => void rows.delete(id),
-            clear: async () => rows.clear(),
-        },
-    },
-}));
-
-const { useMarkierungenStore } = await import('./markierungen');
+import { useMarkierungenStore } from './markierungen';
+import { useNotizenStore } from './notizen';
 
 describe('useMarkierungenStore', () => {
-    beforeEach(() => {
-        rows.clear();
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
     });
 
@@ -32,7 +20,7 @@ describe('useMarkierungenStore', () => {
         await store.setColor('psalm', 23, [1, 2], 'gelb');
         expect(store.colorOf('psalm', 23, 1)).toBe('gelb');
         expect(store.colorOf('psalm', 23, 2)).toBe('gelb');
-        expect(rows.size).toBe(2);
+        expect(await db.marks.count()).toBe(2);
 
         await store.setColor('psalm', 23, [2], 'blau');
         expect(store.colorOf('psalm', 23, 2)).toBe('blau');
@@ -40,12 +28,40 @@ describe('useMarkierungenStore', () => {
 
         await store.setColor('psalm', 23, [1, 2], null);
         expect(store.colorOf('psalm', 23, 1)).toBeUndefined();
-        expect(rows.size).toBe(0);
+        // Never uploaded, so nothing is left to delete on the server either.
+        expect(await db.marks.count()).toBe(0);
+    });
+
+    it('keeps the colour as the account keeps it, and marks it for the sync', async () => {
+        const store = useMarkierungenStore();
+        await store.setColor('johannes', 3, [16], 'rosa');
+
+        expect(await db.marks.get('bibel/johannes/3/16')).toMatchObject({
+            work: 'bibel',
+            ref: 'johannes/3/16',
+            color: 'pink',
+            dirty: 1,
+            synced: 0,
+        });
+    });
+
+    it('leaves a note on the verse where it is', async () => {
+        const store = useMarkierungenStore();
+        const notizen = useNotizenStore();
+        await notizen.save('psalm', 23, 4, 'Trost.');
+
+        await store.setColor('psalm', 23, [4], 'gruen');
+        await store.setColor('psalm', 23, [4], null);
+
+        expect(await db.marks.get('bibel/psalm/23/4')).toMatchObject({
+            color: null,
+            note: 'Trost.',
+        });
     });
 
     it('lists the newest first', async () => {
         const store = useMarkierungenStore();
-        vi.useFakeTimers();
+        vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(new Date('2026-10-01'));
         await store.setColor('johannes', 3, [16], 'rosa');
         vi.setSystemTime(new Date('2026-10-02'));
@@ -55,13 +71,12 @@ describe('useMarkierungenStore', () => {
         expect(store.sorted.map((m) => m.id)).toEqual(['psalm/23/1', 'johannes/3/16']);
     });
 
-    it('forgets everything on logout', async () => {
+    it('forgets what it holds in memory on logout', async () => {
         const store = useMarkierungenStore();
         await store.setColor('psalm', 23, [1], 'gelb');
 
         await resetRegisteredUserState();
 
         expect(store.markierungen).toEqual([]);
-        expect(rows.size).toBe(0);
     });
 });

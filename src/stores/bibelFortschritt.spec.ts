@@ -1,27 +1,32 @@
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
+import { type TextMark, db } from '@/db';
+import { resetDb } from '@/db/testing';
 import { resetRegisteredUserState } from '@/services/userStateReset';
 
-// An in-memory stand-in for the table the store touches.
-const rows = new Map<string, { id: string; slug: string; chapter: number }>();
+import { useBibelFortschrittStore } from './bibelFortschritt';
 
-vi.mock('@/db', () => ({
-    db: {
-        gelesen: {
-            toArray: async () => [...rows.values()],
-            put: async (row: { id: string; slug: string; chapter: number }) =>
-                void rows.set(row.id, row),
-            delete: async (id: string) => void rows.delete(id),
-        },
-    },
-}));
-
-const { useBibelFortschrittStore } = await import('./bibelFortschritt');
+function chapterRow(slug: string, chapter: number): TextMark {
+    const at = new Date('2026-10-01').toISOString();
+    return {
+        id: `bibel/${slug}/${chapter}`,
+        work: 'bibel',
+        ref: `${slug}/${chapter}`,
+        color: null,
+        note: null,
+        readAt: at,
+        dirty: 0,
+        deleted: 0,
+        synced: 1,
+        createdAt: at,
+        updatedAt: at,
+    };
+}
 
 describe('useBibelFortschrittStore', () => {
-    beforeEach(() => {
-        rows.clear();
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
     });
 
@@ -31,11 +36,22 @@ describe('useBibelFortschrittStore', () => {
         expect(await store.toggle('johannes', 3)).toBe(true);
         expect(store.isRead('johannes', 3)).toBe(true);
         expect(store.readAt('johannes', 3)).toBeInstanceOf(Date);
-        expect(rows.has('johannes/3')).toBe(true);
+        expect(await db.marks.get('bibel/johannes/3')).toMatchObject({ dirty: 1 });
 
         expect(await store.toggle('johannes', 3)).toBe(false);
         expect(store.isRead('johannes', 3)).toBe(false);
-        expect(rows.size).toBe(0);
+        expect(await db.marks.count()).toBe(0);
+    });
+
+    it('leaves a deletion for the sync where the account already has the chapter', async () => {
+        await db.marks.put(chapterRow('rut', 1));
+        const store = useBibelFortschrittStore();
+        await store.load();
+
+        await store.unmarkRead('rut', 1);
+
+        expect(store.isRead('rut', 1)).toBe(false);
+        expect(await db.marks.get('bibel/rut/1')).toMatchObject({ deleted: 1, dirty: 1 });
     });
 
     it('counts per book, per Testament and in all', async () => {
@@ -59,9 +75,11 @@ describe('useBibelFortschrittStore', () => {
     });
 
     it('reads what is already on the device, and skips chapters the Bible lacks', async () => {
-        rows.set('rut/1', { id: 'rut/1', slug: 'rut', chapter: 1 });
-        rows.set('rut/9', { id: 'rut/9', slug: 'rut', chapter: 9 });
-        rows.set('tobit/1', { id: 'tobit/1', slug: 'tobit', chapter: 1 });
+        await db.marks.bulkPut([
+            chapterRow('rut', 1),
+            chapterRow('rut', 9),
+            chapterRow('tobit', 1),
+        ]);
         const store = useBibelFortschrittStore();
         await store.load();
 

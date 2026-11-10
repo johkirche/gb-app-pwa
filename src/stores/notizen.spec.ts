@@ -1,27 +1,16 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { db } from '@/db';
+import { resetDb } from '@/db/testing';
 import { resetRegisteredUserState } from '@/services/userStateReset';
 
-// An in-memory stand-in for the table the store touches.
-const rows = new Map<string, unknown>();
-
-vi.mock('@/db', () => ({
-    db: {
-        notizen: {
-            toArray: async () => [...rows.values()],
-            put: async (row: { id: string }) => void rows.set(row.id, row),
-            delete: async (id: string) => void rows.delete(id),
-            clear: async () => rows.clear(),
-        },
-    },
-}));
-
-const { useNotizenStore } = await import('./notizen');
+import { useMarkierungenStore } from './markierungen';
+import { useNotizenStore } from './notizen';
 
 describe('useNotizenStore', () => {
-    beforeEach(() => {
-        rows.clear();
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
     });
 
@@ -44,12 +33,25 @@ describe('useNotizenStore', () => {
         await store.save('psalm', 23, 4, '   ');
 
         expect(store.has('psalm', 23, 4)).toBe(false);
-        expect(rows.size).toBe(0);
+        expect(await db.marks.count()).toBe(0);
+    });
+
+    it('keeps the colour on the verse when the note goes', async () => {
+        const store = useNotizenStore();
+        await useMarkierungenStore().setColor('psalm', 23, [4], 'gelb');
+        await store.save('psalm', 23, 4, 'Taufspruch');
+
+        await store.remove('psalm/23/4');
+
+        expect(await db.marks.get('bibel/psalm/23/4')).toMatchObject({
+            color: 'yellow',
+            note: null,
+        });
     });
 
     it('lists the last edited first', async () => {
         const store = useNotizenStore();
-        vi.useFakeTimers();
+        vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(new Date('2026-10-01'));
         await store.save('psalm', 23, 1, 'a');
         vi.setSystemTime(new Date('2026-10-02'));
@@ -61,13 +63,12 @@ describe('useNotizenStore', () => {
         expect(store.sorted.map((n) => n.id)).toEqual(['psalm/23/1', 'johannes/3/16']);
     });
 
-    it('forgets everything on logout', async () => {
+    it('forgets what it holds in memory on logout', async () => {
         const store = useNotizenStore();
         await store.save('psalm', 23, 1, 'a');
 
         await resetRegisteredUserState();
 
         expect(store.notizen).toEqual([]);
-        expect(rows.size).toBe(0);
     });
 });
