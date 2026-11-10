@@ -4,8 +4,8 @@
          the app keeps working; this is where signing back in lives. -->
     <LoginRequiredNotice v-if="!isLoggedIn" title="Nicht angemeldet" class="mb-6">
         Sie lesen Ihr heruntergeladenes Gesangbuch ohne Anmeldung. Ihre Playlists, Favoriten und
-        Einstellungen bleiben auf diesem Gerät erhalten. Für Kontoeinstellungen und zum
-        Synchronisieren melden Sie sich bitte erneut an, sobald Sie online sind.
+        Einstellungen bleiben auf diesem Gerät erhalten.{{ waitingLabel }} Für Kontoeinstellungen
+        und zum Synchronisieren melden Sie sich bitte erneut an, sobald Sie online sind.
     </LoginRequiredNotice>
 
     <SettingsList>
@@ -67,6 +67,26 @@
                 <p class="truncate text-sm text-muted-foreground">
                     {{ gemeinde?.name ?? 'Nicht angegeben' }}
                 </p>
+            </div>
+        </button>
+
+        <!-- Tapping it syncs at once; otherwise it runs by itself after every
+             change and whenever the app comes back to the foreground. -->
+        <button
+            v-if="isLoggedIn"
+            type="button"
+            class="flex w-full items-center gap-4 rounded-sm px-2 py-3 text-left transition-colors hover:bg-muted active:bg-muted"
+            :aria-busy="userDataSync.status === 'syncing'"
+            @click="syncUserData()"
+        >
+            <RefreshCw
+                class="size-5 shrink-0 text-muted-foreground"
+                :class="{ 'animate-spin': userDataSync.status === 'syncing' }"
+                aria-hidden="true"
+            />
+            <div class="min-w-0">
+                <p class="text-[0.9375rem]">Playlists und Markierungen</p>
+                <p class="text-sm text-muted-foreground">{{ syncLabel }}</p>
             </div>
         </button>
 
@@ -193,9 +213,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
-import { Church, LoaderCircle, LogOut, SquarePen, Trash2, User } from 'lucide-vue-next';
+import { Church, LoaderCircle, LogOut, RefreshCw, SquarePen, Trash2, User } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
@@ -222,6 +242,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 
 import { SUPPORT_EMAIL } from '@/config/support';
+import { countPending, syncUserData, userDataSync } from '@/services/userData/sync';
 import type { GemeindeRef } from '@/utils/gemeinden';
 
 const router = useRouter();
@@ -229,6 +250,29 @@ const { user, logout, deleteAccount, isLoggedIn } = useAuth();
 const { confirm } = useConfirm();
 
 const { fullName, initials, avatarUrl, gemeinde, saveProfile } = useProfile();
+
+function changes(n: number): string {
+    return n === 1 ? 'Eine Änderung' : `${n} Änderungen`;
+}
+
+/** Where the reader's lists stand with the account, in one line. */
+const syncLabel = computed(() => {
+    const { status, pending, lastSyncedAt } = userDataSync;
+    if (status === 'syncing') return 'Wird gesichert …';
+    if (pending > 0 && status === 'offline')
+        return `${changes(pending)} warten auf eine Verbindung`;
+    if (pending > 0) return `${changes(pending)} noch nicht gesichert`;
+    if (status === 'error') return 'Zuletzt fehlgeschlagen, wird wieder versucht';
+    if (lastSyncedAt) return 'Alles in Ihrem Konto gesichert';
+    return 'Noch nicht abgeglichen';
+});
+
+/** Said without a session: what waits on this device for the next login. */
+const waitingLabel = computed(() =>
+    userDataSync.pending > 0
+        ? ` ${changes(userDataSync.pending)} ${userDataSync.pending === 1 ? 'wird' : 'werden'} nach der Anmeldung in Ihrem Konto gesichert.`
+        : '',
+);
 
 // One write at a time: a second „Speichern" on a slow line would race the first.
 const saving = ref(false);
@@ -298,11 +342,18 @@ function saveGemeinde() {
 }
 
 async function handleLogout() {
+    // One last upload, so what was just changed goes with the account rather
+    // than with the device.
+    await syncUserData();
+    const pending = await countPending();
     const proceed = await confirm({
         title: 'Abmelden',
         message:
-            'Möchten Sie sich wirklich abmelden? Ihre Playlists, Favoriten und Einstellungen werden dabei von diesem Gerät gelöscht.',
+            pending > 0
+                ? `${pending === 1 ? 'Eine Änderung ist' : `${pending} Änderungen sind`} noch nicht in Ihrem Konto gesichert, weil der Server gerade nicht erreichbar ist. Wenn Sie sich jetzt abmelden, ${pending === 1 ? 'geht sie' : 'gehen sie'} verloren.`
+                : 'Ihre Playlists, Favoriten, Markierungen und Einstellungen sind in Ihrem Konto gesichert und nach der nächsten Anmeldung wieder da. Von diesem Gerät werden sie beim Abmelden entfernt.',
         confirmText: 'Abmelden',
+        destructive: pending > 0,
     });
     if (!proceed) return;
 

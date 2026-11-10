@@ -75,32 +75,44 @@
                                 ), Profildaten wie E-Mail-Adresse, Name, Symbol, Gemeinde und Rolle
                                 (
                                 <em>users</em>
-                                ), Playlists (
-                                <em>playlists</em>
                                 ), Darstellungs-Einstellungen (
                                 <em>preferences</em>
-                                ), Favoriten (
-                                <em>favorites</em>
-                                ), der Gottesdienst-Plan (
-                                <em>services</em>
                                 ) sowie Synchronisierungs-Metadaten, darunter die Bibelstellen zu
                                 den Liedern und die Angaben dieses Impressums (
                                 <em>meta</em>
                                 ).
                             </li>
                             <li>
-                                <strong>Ihre Bibel-Einträge</strong>
-                                , ebenfalls in der App-Datenbank: Lesezeichen (
-                                <em>lesezeichen</em>
-                                ), Markierungen (
-                                <em>markierungen</em>
-                                ), Notizen zu Versen (
-                                <em>notizen</em>
-                                ), gelesene Kapitel (
-                                <em>gelesen</em>
-                                ) und der gewählte Leseplan (
+                                <strong>Ihre persönlichen Einträge</strong>
+                                , ebenfalls in der App-Datenbank: Ihre Listen &ndash; Playlists,
+                                Favoriten, Lesezeichen und Abläufe für den Gottesdienst &ndash; mit
+                                ihren Einträgen (
+                                <em>lists</em>
+                                ,
+                                <em>listEntries</em>
+                                ), Ihre Markierungen und Notizen zu Bibelversen und die als gelesen
+                                markierten Kapitel (
+                                <em>marks</em>
+                                ) sowie der gewählte Leseplan (
                                 <em>leseplaene</em>
-                                ). Sie werden nicht an den Server übertragen.
+                                ). Die App legt sie zuerst auf dem Gerät ab und gleicht sie dann mit
+                                Ihrem Konto ab (siehe &bdquo;Server-Anfragen&ldquo;). Aus früheren
+                                Versionen der App kann die Datenbank noch eine Kopie derselben
+                                Angaben in ihren älteren Tabellen enthalten (
+                                <em>playlists</em>
+                                ,
+                                <em>favorites</em>
+                                ,
+                                <em>services</em>
+                                ,
+                                <em>lesezeichen</em>
+                                ,
+                                <em>markierungen</em>
+                                ,
+                                <em>notizen</em>
+                                ,
+                                <em>gelesen</em>
+                                ); sie wird beim Abmelden mit entfernt.
                             </li>
                             <li>
                                 <strong>Browser-Speicher</strong>
@@ -128,11 +140,12 @@
                             </li>
                         </ul>
                         <p>
-                            Diese Daten verbleiben auf Ihrem Gerät und werden nicht an Dritte
-                            übermittelt. Beim Abmelden werden Sitzungsdaten sowie Ihre persönlichen
-                            Daten (Playlists, Favoriten, Einstellungen, Gottesdienst-Plan und Ihre
-                            Bibel-Einträge) von diesem Gerät entfernt; bei einer Kontolöschung
-                            werden sämtliche lokal gespeicherten Daten gelöscht.
+                            Diese Daten werden nicht an Dritte übermittelt. Beim Abmelden werden
+                            Sitzungsdaten sowie Ihre persönlichen Einträge und Einstellungen von
+                            diesem Gerät entfernt; in Ihrem Konto bleiben sie erhalten und sind nach
+                            der nächsten Anmeldung wieder da. Bei einer Kontolöschung werden
+                            sämtliche lokal gespeicherten Daten gelöscht, und mit dem Konto auch
+                            alles, was dort zu ihm gespeichert ist.
                         </p>
                     </div>
                 </section>
@@ -179,10 +192,27 @@
                                 <em>/users/&hellip;</em>
                                 &ndash; Abruf der eigenen Profildaten, Kontolöschung, das Speichern
                                 von Name, Symbol und Gemeinde, sofern Sie sie angeben, und das
-                                Speichern der gewählten Akzentfarbe im eigenen Profil (
+                                Speichern Ihrer Einstellungen im eigenen Profil (
                                 <em>app_settings</em>
-                                ), damit sie nach der Anmeldung auf einem anderen Gerät übernommen
-                                wird
+                                ): Farbschema, Akzentfarbe, die Einstellungen für Lieder und Bibel,
+                                der Leseplan und das zuletzt gelesene Kapitel, damit sie nach der
+                                Anmeldung auf einem anderen Gerät übernommen werden. Die Größe der
+                                Darstellung und ein angeschlossenes MIDI-Gerät bleiben auf dem
+                                jeweiligen Gerät
+                            </li>
+                            <li>
+                                <em>/items/app_liste</em>
+                                ,
+                                <em>/items/app_liste_eintrag</em>
+                                ,
+                                <em>/items/app_markierung</em>
+                                &ndash; Speichern und Abgleichen Ihrer persönlichen Einträge (siehe
+                                oben) in Ihrem Konto, damit sie auf allen Geräten gleich sind, auf
+                                denen Sie angemeldet sind. Sie sind nur für Ihr eigenes Konto
+                                lesbar. Abläufe, die die Gottesdienstleitung Ihrer Gemeinde
+                                veröffentlicht, sind für die Mitglieder dieser Gemeinde lesbar; Ihre
+                                eigenen Abläufe nicht. Eigene Abläufe, die Sie nicht ausdrücklich
+                                behalten, werden in der Nacht nach ihrem Datum gelöscht
                             </li>
                             <li>
                                 <em>/directus-user-register-extension/&hellip;</em>
