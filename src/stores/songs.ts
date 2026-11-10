@@ -11,6 +11,7 @@ import {
     fetchSongsWithFiles,
 } from '@/api/songs.api';
 import { type Song, db } from '@/db';
+import { READER_META_KEYS } from '@/db/metaKeys';
 import { syncBibelstellen } from '@/services/bibelstellenSync';
 import { setDemoKey } from '@/services/demoAccess';
 import { isSessionEndedError } from '@/services/errorHandler';
@@ -677,7 +678,9 @@ export const useSongsStore = defineStore('songs', () => {
             await db.transaction('rw', db.songs, db.files, db.meta, async () => {
                 await db.songs.clear();
                 await db.files.clear();
-                await db.meta.clear();
+                // The library's bookkeeping goes with it; the reader's own
+                // rows stay (see db/metaKeys.ts).
+                await db.meta.where('key').noneOf(READER_META_KEYS).delete();
             });
             songs.value = [];
             lastSyncTime.value = null;
