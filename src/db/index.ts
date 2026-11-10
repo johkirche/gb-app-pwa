@@ -1,5 +1,7 @@
 import Dexie, { Table } from 'dexie';
 
+import { convertLegacyUserData } from './legacyUserData';
+
 // Type definitions based on GraphQL schema
 export interface Autor {
     vorname: string;
@@ -425,6 +427,92 @@ export interface ServicePlan {
     updatedAt: Date;
 }
 
+// --- The reader's own data, shaped as the server keeps it -------------------
+//
+// Lists, their entries and the marks on texts: the rows of the Directus
+// collections app_liste, app_liste_eintrag and app_markierung, plus what the
+// sync needs to know about each (src/services/userData/sync.ts). The older
+// tables above (playlists, favorites, …) are what these were before version 11;
+// the stores read and write only these now.
+
+/** What a list is: see app_liste.kind. */
+export type ListKind = 'favorites' | 'bookmarks' | 'saved' | 'collection' | 'service';
+/** Only the Gottesdienstleitung sets anything but private. */
+export type ListStatus = 'private' | 'draft' | 'published';
+export type ServiceType = 'main' | 'kids' | 'devotion';
+export type EntryKind = 'song' | 'passage' | 'list';
+export type MarkColor = 'yellow' | 'green' | 'blue' | 'pink';
+
+/** What the sync keeps on every row it carries to the server. */
+export interface Synced {
+    /**
+     * 1 while the row holds a change the server has not taken yet. A number,
+     * not a boolean: IndexedDB cannot index booleans, and the sync looks the
+     * changed rows up by this.
+     */
+    dirty: 0 | 1;
+    /** 1 for a row deleted here, kept until the server has deleted it too. */
+    deleted: 0 | 1;
+    /**
+     * 1 once the server has had the row. A row it never had is new; one it had
+     * and no longer has was deleted on another device.
+     */
+    synced: 0 | 1;
+    /** Last change, here or — once synced — on the server (ISO). The newer side wins. */
+    updatedAt: string;
+    createdAt: string;
+}
+
+export interface UserList extends Synced {
+    id: string;
+    kind: ListKind;
+    status: ListStatus;
+    name: string | null;
+    emoji: string | null;
+    /** The Gemeinde an Ablauf is held in. */
+    gemeinde: string | null;
+    serviceType: ServiceType | null;
+    /** yyyy-mm-dd, for an Ablauf. */
+    date: string | null;
+    time: string | null;
+    /** A private Ablauf the reader kept; without it, it goes after its day. */
+    keep: boolean;
+    /** Device only: where an Ablauf was adopted from. */
+    origin?: ServicePlanOrigin | null;
+}
+
+export interface UserListEntry extends Synced {
+    id: string;
+    listId: string;
+    /** Sort key (fractional index), see services/userData/positions.ts. */
+    position: string;
+    kind: EntryKind;
+    songId: string | null;
+    /** A passage: the work and where in it (utils/textRef.ts). */
+    work: string | null;
+    ref: string | null;
+    refEnd: string | null;
+    /** A saved list, such as an official Ablauf. */
+    linkedListId: string | null;
+    /** The verses sung, 1-based; null for the whole hymn. */
+    verses: number[] | null;
+    note: string | null;
+    official: boolean;
+    /** Device only: a Lesezeichen's opening words, so the list says what was marked. */
+    snippet?: string;
+}
+
+/** What hangs on one place in a text. The id is `work/ref` (utils/textRef.ts). */
+export interface TextMark extends Synced {
+    id: string;
+    work: string;
+    ref: string;
+    color: MarkColor | null;
+    note: string | null;
+    /** For a chapter: when it was marked read. */
+    readAt: string | null;
+}
+
 // Dexie database class
 export class GesangbuchDatabase extends Dexie {
     songs!: Table<Song, string>;
@@ -441,6 +529,9 @@ export class GesangbuchDatabase extends Dexie {
     markierungen!: Table<Markierung, string>;
     notizen!: Table<Notiz, string>;
     leseplaene!: Table<Leseplan, string>;
+    lists!: Table<UserList, string>;
+    listEntries!: Table<UserListEntry, string>;
+    marks!: Table<TextMark, string>;
 
     constructor() {
         super('GesangbuchDB');
@@ -572,6 +663,51 @@ export class GesangbuchDatabase extends Dexie {
             notizen: 'id, slug, updatedAt',
             leseplaene: 'id',
         });
+
+        // Version 11: the reader's own data in the shape the server keeps it,
+        // so it can be synced to the account (src/services/userData). The
+        // older tables are copied over and left as they were — read by nothing
+        // from here on, cleared with the rest on logout, and a way back should
+        // the copy ever have to be made again.
+        this.version(11)
+            .stores({
+                songs: 'id, titel',
+                files: 'id, filename',
+                auth: 'id',
+                users: 'id, email, role',
+                playlists: 'id, name, createdAt',
+                preferences: 'id',
+                favorites: 'id, createdAt',
+                meta: 'key',
+                services: 'id, date, expiresAt',
+                lesezeichen: 'id, createdAt',
+                gelesen: 'id, slug, readAt',
+                markierungen: 'id, slug, createdAt',
+                notizen: 'id, slug, updatedAt',
+                leseplaene: 'id',
+                lists: 'id, kind, dirty',
+                listEntries: 'id, listId, dirty',
+                marks: 'id, work, dirty',
+            })
+            .upgrade(async (tx) => {
+                const [owner] = await tx.table('users').toArray();
+                const rows = convertLegacyUserData(
+                    {
+                        playlists: await tx.table('playlists').toArray(),
+                        favorites: await tx.table('favorites').toArray(),
+                        lesezeichen: await tx.table('lesezeichen').toArray(),
+                        services: await tx.table('services').toArray(),
+                        markierungen: await tx.table('markierungen').toArray(),
+                        notizen: await tx.table('notizen').toArray(),
+                        gelesen: await tx.table('gelesen').toArray(),
+                    },
+                    owner?.id ?? null,
+                    new Date().toISOString(),
+                );
+                await tx.table('lists').bulkPut(rows.lists);
+                await tx.table('listEntries').bulkPut(rows.entries);
+                await tx.table('marks').bulkPut(rows.marks);
+            });
     }
 }
 
