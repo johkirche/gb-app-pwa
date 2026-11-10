@@ -259,5 +259,10 @@ export default defineConfig({
         // `test.use` it has no browser for. (Cypress's .cy.ts names kept the
         // two apart by accident; nothing was ever declared.)
         exclude: [...configDefaults.exclude, 'tests/e2e/**'],
+        // An IndexedDB in memory for every spec, so the stores are tested
+        // against the real database rather than hand-built stand-ins of it —
+        // which is what let them drift apart from the tables they imitated.
+        // A spec that wants something else still mocks '@/db' itself.
+        setupFiles: ['fake-indexeddb/auto'],
     },
 });
