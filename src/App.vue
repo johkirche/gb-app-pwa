@@ -37,6 +37,8 @@ import { useTheme } from '@/composables/useTheme';
 import { ConfirmHost } from '@/components/ui/confirm';
 import { Toaster } from '@/components/ui/sonner';
 
+import { startUserDataSync } from '@/services/userData/sync';
+
 // Mobile-viewport preview. Always available in dev; a production build ships
 // it only when VITE_SHOW_VIEWPORT_PREVIEW is 'true'. Both values are statically
 // replaced by Vite, so an unflagged build folds the ternary to null and the
@@ -83,10 +85,14 @@ watch(
     (expired) => {
         if (!expired) return;
         userStore.acknowledgeSessionExpired();
+        // It stays until it is answered or swiped away: on a phone a session
+        // most often ends while the app is in the background, and a notice
+        // that times out is gone before anyone looks. Without a session the
+        // reader's changes no longer reach the account, so it matters now.
         toast.info('Ihre Sitzung ist abgelaufen.', {
             description:
-                'Ihr heruntergeladenes Gesangbuch bleibt nutzbar. Zum Synchronisieren melden Sie sich bitte wieder an.',
-            duration: 8000,
+                'Ihr heruntergeladenes Gesangbuch bleibt nutzbar. Was Sie jetzt ändern, bleibt auf diesem Gerät, bis Sie sich wieder anmelden.',
+            duration: Infinity,
             action: { label: 'Anmelden', onClick: () => router.push('/login') },
         });
     },
@@ -124,6 +130,8 @@ watch(
 onMounted(async () => {
     initTheme();
     initAkzent();
+    // The reader's lists, marks and settings, kept on the account.
+    startUserDataSync();
 
     await Promise.all([songsStore.initPromise, router.isReady()]);
     refreshDemo();

@@ -1,6 +1,8 @@
 import index from '@/assets/bibel/index.json';
 
 import { type BibelTranslationId, db } from '@/db';
+import { META_KEYS } from '@/db/metaKeys';
+import { markSettingChanged, registerSyncedSetting } from '@/services/userData/settingsSync';
 
 /**
  * Die Bibel: the Menge-Bibel (1939), public domain, built by
@@ -161,7 +163,7 @@ export function loadBook(
 
 // --- Where the reader left off -------------------------------------------
 
-const LAST_READ_KEY = 'bibel.lastRead';
+const LAST_READ_KEY = META_KEYS.bibleLastRead;
 
 export async function getLastRead(): Promise<ChapterRef | null> {
     const entry = await db.meta.get(LAST_READ_KEY);
@@ -173,8 +175,22 @@ export async function getLastRead(): Promise<ChapterRef | null> {
 }
 
 export async function setLastRead(ref: ChapterRef): Promise<void> {
-    await db.meta.put({ key: LAST_READ_KEY, value: `${ref.slug}/${ref.chapter}` });
+    const value = `${ref.slug}/${ref.chapter}`;
+    if ((await db.meta.get(LAST_READ_KEY))?.value === value) return;
+    await db.meta.put({ key: LAST_READ_KEY, value });
+    void markSettingChanged('bibleLastRead');
 }
+
+// „Weiterlesen" picks up on the reader's other devices too.
+registerSyncedSetting('bibleLastRead', {
+    read: async () => (await db.meta.get(LAST_READ_KEY))?.value ?? null,
+    apply: async (value) => {
+        if (value === null) await db.meta.delete(LAST_READ_KEY);
+        else if (typeof value === 'string' && /^[^/]+\/\d+$/.test(value)) {
+            await db.meta.put({ key: LAST_READ_KEY, value });
+        }
+    },
+});
 
 /** Personal like the Lesezeichen, so it goes with them on logout. */
 export async function clearLastRead(): Promise<void> {

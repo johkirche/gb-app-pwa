@@ -12,6 +12,7 @@ import {
     type XmlDisplaySettings,
     db,
 } from '@/db';
+import { markSettingChanged, registerSyncedSetting } from '@/services/userData/settingsSync';
 
 const DEFAULT_XML_SETTINGS: XmlDisplaySettings = {
     showMeasureNumbers: false,
@@ -201,11 +202,113 @@ export const usePreferencesStore = defineStore('preferences', () => {
         } catch (err) {
             console.error('Error loading preferences:', err);
         } finally {
+            snapshot();
             isLoading.value = false;
         }
     }
 
+    // --- On the account ---
+    // What the reader sets about reading follows them to their other devices,
+    // one setting at a time (services/userData/settingsSync). What is about the
+    // device stays on it: the page size and the Bible's own size (a phone and a
+    // tablet are read at different sizes) and the MIDI output (it names
+    // hardware plugged into this device).
+
+    const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
+    const SYNCED: Record<string, { read: () => unknown; apply: (v: unknown) => void }> = {
+        'pref.xmlSettings': {
+            read: () => ({ ...xmlSettings.value }),
+            apply: (v) => {
+                const stored = v && typeof v === 'object' ? (v as Partial<XmlDisplaySettings>) : {};
+                const next = { ...DEFAULT_XML_SETTINGS };
+                for (const key of Object.keys(next) as (keyof XmlDisplaySettings)[]) {
+                    if (isBool(stored[key])) next[key] = stored[key];
+                }
+                xmlSettings.value = next;
+            },
+        },
+        'pref.serviceTab': {
+            read: () => serviceTab.value,
+            apply: (v) => {
+                if (v === 'auto' || v === 'always') serviceTab.value = v;
+            },
+        },
+        'pref.songPaging': {
+            read: () => songPaging.value,
+            apply: (v) => {
+                if (v === 'lists' || v === 'always' || v === 'never') songPaging.value = v;
+            },
+        },
+        'pref.keepScreenAwake': {
+            read: () => keepScreenAwake.value,
+            apply: (v) => isBool(v) && (keepScreenAwake.value = v),
+        },
+        'pref.exactTempo': {
+            read: () => exactTempo.value,
+            apply: (v) => isBool(v) && (exactTempo.value = v),
+        },
+        'pref.pitchControl': {
+            read: () => pitchControl.value,
+            apply: (v) => isBool(v) && (pitchControl.value = v),
+        },
+        'pref.showBibelstellen': {
+            read: () => showBibelstellen.value,
+            apply: (v) => isBool(v) && (showBibelstellen.value = v),
+        },
+        'pref.showBibel': {
+            read: () => showBibel.value,
+            apply: (v) => isBool(v) && (showBibel.value = v),
+        },
+        'pref.bibelDisplay': {
+            read: () => ({ ...bibelDisplay.value }),
+            apply: (v) =>
+                (bibelDisplay.value = readBibelDisplay(v as PreferencesData['bibelDisplay'])),
+        },
+        'pref.bibelTranslation': {
+            read: () => bibelTranslation.value,
+            apply: (v) =>
+                (bibelTranslation.value = readBibelTranslation(
+                    v as PreferencesData['bibelTranslation'],
+                )),
+        },
+        'pref.bibelFeatures': {
+            read: () => ({ ...chosenBibelFeatures.value }),
+            apply: (v) =>
+                (chosenBibelFeatures.value = readChosenBibelFeatures(
+                    v as PreferencesData['bibelFeatures'],
+                )),
+        },
+    };
+
+    // What each synced setting was when last loaded, saved or taken from the
+    // account: a save marks only the settings that actually moved.
+    const known = new Map<string, string>();
+    function snapshot() {
+        for (const [key, setting] of Object.entries(SYNCED)) {
+            known.set(key, JSON.stringify(setting.read()));
+        }
+    }
+
+    for (const [key, setting] of Object.entries(SYNCED)) {
+        registerSyncedSetting(key, {
+            read: setting.read,
+            apply: async (value) => {
+                await initPromise;
+                setting.apply(value);
+                known.set(key, JSON.stringify(setting.read()));
+                await persist();
+            },
+        });
+    }
+
     async function persist() {
+        for (const [key, setting] of Object.entries(SYNCED)) {
+            const now = JSON.stringify(setting.read());
+            if (known.get(key) !== now) {
+                known.set(key, now);
+                void markSettingChanged(key);
+            }
+        }
         await db.preferences.put({
             id: 'default',
             pageScale: pageScale.value,
@@ -404,6 +507,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
         bibelDisplay.value = { ...DEFAULT_BIBEL_DISPLAY };
         bibelTranslation.value = 'menge';
         chosenBibelFeatures.value = {};
+        snapshot();
     }
 
     // Initialize store on creation

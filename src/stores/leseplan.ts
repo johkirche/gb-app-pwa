@@ -5,6 +5,8 @@ import { defineStore } from 'pinia';
 import { useBibelFortschrittStore } from '@/stores/bibelFortschritt';
 
 import { type Leseplan, db } from '@/db';
+import { onUserDataApplied } from '@/services/userData/repo';
+import { markSettingChanged } from '@/services/userData/settingsSync';
 import { registerUserStateReset } from '@/services/userStateReset';
 import type { ChapterRef } from '@/utils/bibel';
 import {
@@ -50,6 +52,7 @@ export const useLeseplanStore = defineStore('leseplan', () => {
         const row: Leseplan = { ...plan, doneDays: [...plan.doneDays] };
         await db.leseplaene.put(row);
         active.value = row;
+        void markSettingChanged('readingPlan');
     }
 
     /** Begin a plan today, ending whichever one ran before. */
@@ -63,6 +66,7 @@ export const useLeseplanStore = defineStore('leseplan', () => {
         changed = true;
         await db.leseplaene.clear();
         active.value = null;
+        void markSettingChanged('readingPlan');
     }
 
     async function setDayDone(day: number, done: boolean) {
@@ -122,6 +126,7 @@ export const useLeseplanStore = defineStore('leseplan', () => {
         changed = true;
         active.value = null;
     });
+    onUserDataApplied(load);
     load();
 
     return {

@@ -135,16 +135,20 @@ export async function updateProfile(patch: Partial<Profile>): Promise<boolean> {
  * Set some of the profile's settings and keep the rest. Directus replaces a
  * JSON field whole, so the stored object is read first and written back with
  * the change in it; anything another version of the app put there survives.
+ *
+ * @returns whether it reached the profile
  */
-export async function updateAppSettings(patch: AppSettings): Promise<void> {
+export async function updateAppSettings(patch: AppSettings): Promise<boolean> {
     try {
-        if (!(await authorize())) return;
+        if (!(await authorize())) return false;
         const app_settings = { ...(await fetchAppSettings()), ...patch };
         // The client carries no schema, so the SDK knows only Directus' own
         // user fields; `app_settings` is ours.
         const item = { app_settings } as Parameters<typeof updateMe>[0];
         await directusClient.request(updateMe(item, { fields: ['id'] }));
+        return true;
     } catch (err) {
         console.warn('Could not save the app settings to the profile:', err);
+        return false;
     }
 }

@@ -1,39 +1,24 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { db } from '@/db';
+import { resetDb } from '@/db/testing';
 import { resetRegisteredUserState } from '@/services/userStateReset';
 
-// In-memory stand-ins for the two tables the stores touch.
-const gelesen = new Map<string, { id: string }>();
-const plaene = new Map<string, { id: string; startedOn: string; doneDays: number[] }>();
+import { useBibelFortschrittStore } from './bibelFortschritt';
+import { useLeseplanStore } from './leseplan';
 
-vi.mock('@/db', () => ({
-    db: {
-        gelesen: {
-            toArray: async () => [...gelesen.values()],
-            put: async (row: { id: string }) => void gelesen.set(row.id, row),
-            delete: async (id: string) => void gelesen.delete(id),
-        },
-        leseplaene: {
-            toArray: async () => [...plaene.values()],
-            put: async (row: { id: string; startedOn: string; doneDays: number[] }) =>
-                void plaene.set(row.id, structuredClone(row)),
-            clear: async () => plaene.clear(),
-        },
-    },
-}));
-
-const { useLeseplanStore } = await import('./leseplan');
-const { useBibelFortschrittStore } = await import('./bibelFortschritt');
+async function planIds() {
+    return (await db.leseplaene.toArray()).map((row) => row.id);
+}
 
 async function flush() {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    for (let i = 0; i < 20; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe('useLeseplanStore', () => {
-    beforeEach(() => {
-        gelesen.clear();
-        plaene.clear();
+    beforeEach(async () => {
+        await resetDb();
         setActivePinia(createPinia());
         vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(new Date(2026, 9, 5, 9));
@@ -49,7 +34,7 @@ describe('useLeseplanStore', () => {
         await store.start('psalmen-30');
 
         expect(store.active).toEqual({ id: 'psalmen-30', startedOn: '2026-10-05', doneDays: [] });
-        expect([...plaene.keys()]).toEqual(['psalmen-30']);
+        expect(await planIds()).toEqual(['psalmen-30']);
         expect(store.status(new Date())?.day).toBe(1);
     });
 
@@ -64,7 +49,7 @@ describe('useLeseplanStore', () => {
         await store.start('psalmen-30');
         await store.stop();
         expect(store.active).toBeNull();
-        expect(plaene.size).toBe(0);
+        expect(await planIds()).toEqual([]);
     });
 
     it('ticks off today once all its chapters are read', async () => {
@@ -79,7 +64,7 @@ describe('useLeseplanStore', () => {
         await fortschritt.markRead('psalm', 5);
         await flush();
         expect(store.isDayDone(1)).toBe(true);
-        expect(plaene.get('psalmen-30')?.doneDays).toEqual([1]);
+        expect((await db.leseplaene.get('psalmen-30'))?.doneDays).toEqual([1]);
     });
 
     it('does not count a chapter read before the plan began', async () => {
@@ -125,7 +110,7 @@ describe('useLeseplanStore', () => {
     });
 
     it('picks the plan back up from the device', async () => {
-        plaene.set('nt-90', { id: 'nt-90', startedOn: '2026-10-01', doneDays: [1, 2] });
+        await db.leseplaene.put({ id: 'nt-90', startedOn: '2026-10-01', doneDays: [1, 2] });
         const store = useLeseplanStore();
         await store.load();
         expect(store.definition?.name).toBe('Das Neue Testament in 90 Tagen');

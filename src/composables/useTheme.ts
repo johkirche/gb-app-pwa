@@ -1,6 +1,12 @@
 import { readonly, ref } from 'vue';
 
+import { markSettingChanged, registerSyncedSetting } from '@/services/userData/settingsSync';
+
 export type ThemePreference = 'system' | 'light' | 'dark';
+
+function isThemePreference(value: unknown): value is ThemePreference {
+    return value === 'system' || value === 'light' || value === 'dark';
+}
 
 // Frozen contract: this key is named verbatim on the Datenschutz page and
 // removed by errorHandler.clearAllLocalData() — do not rename.
@@ -14,7 +20,7 @@ let initialized = false;
 function readStoredTheme(): ThemePreference {
     try {
         const saved = localStorage.getItem(THEME_STORAGE_KEY);
-        if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+        if (isThemePreference(saved)) return saved;
     } catch {
         // ignore storage errors
     }
@@ -27,6 +33,25 @@ function applyTheme(preference: ThemePreference) {
     isDark.value = dark;
     document.documentElement.classList.toggle('dark', dark);
 }
+
+function storeTheme(preference: ThemePreference) {
+    theme.value = preference;
+    try {
+        localStorage.setItem(THEME_STORAGE_KEY, preference);
+    } catch {
+        // ignore storage errors
+    }
+    applyTheme(preference);
+}
+
+// The device keeps the theme so the first frame is drawn in it; the account
+// carries it to the reader's other devices (services/userData/settingsSync).
+registerSyncedSetting('theme', {
+    read: () => theme.value,
+    apply: (value) => {
+        if (isThemePreference(value) && value !== theme.value) storeTheme(value);
+    },
+});
 
 /**
  * Single owner of the theme preference (`settings.theme`: system|light|dark).
@@ -44,13 +69,8 @@ export function useTheme() {
     }
 
     function setTheme(preference: ThemePreference) {
-        theme.value = preference;
-        try {
-            localStorage.setItem(THEME_STORAGE_KEY, preference);
-        } catch {
-            // ignore storage errors
-        }
-        applyTheme(preference);
+        storeTheme(preference);
+        void markSettingChanged('theme');
     }
 
     return { theme: readonly(theme), isDark: readonly(isDark), initTheme, setTheme };

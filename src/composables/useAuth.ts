@@ -32,6 +32,7 @@ import {
     translateLoginError,
     translateRegistrationError,
 } from '@/services/errorHandler';
+import { releaseUserData } from '@/services/userData/sync';
 import { resetRegisteredUserState } from '@/services/userStateReset';
 
 /**
@@ -367,11 +368,12 @@ export function useAuth() {
             }
 
             // Clear everything user-scoped from this device: session, cached user,
-            // playlists, favorites, preferences and the Gottesdienst selection. Songs
-            // and files stay — they are shared hymnal content. The store resets below
-            // are idempotent (db + memory), so overlapping with clearUserScopedData is
-            // harmless.
+            // lists, marks and preferences. They are on the account and come back
+            // with the next login; the settings page warns before a logout that
+            // would drop changes not yet uploaded. Songs and files stay — they are
+            // shared hymnal content. The store resets below only drop memory.
             await clearUserScopedData();
+            await releaseUserData();
             await userStore.logout();
             await useFavoritesStore().clearAll();
             await useLesezeichenStore().clearAll();
@@ -405,7 +407,7 @@ export function useAuth() {
     // Delete the account on the Directus server, then wipe this device.
     //
     // The local wipe is deliberately gated on the server's success response:
-    // playlists and favorites exist only on this device, so nothing may be
+    // changes not yet synced exist only on this device, so nothing may be
     // destroyed while the account might still exist. Until the Directus role has
     // a delete-own permission on directus_users the server answers 403 FORBIDDEN
     // — that case returns honest instructions to request the deletion via the
