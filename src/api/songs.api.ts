@@ -70,6 +70,10 @@ async function getCurrentToken(): Promise<string | null> {
     return token;
 }
 
+function responseStatus(error: unknown): number | undefined {
+    return (error as { response?: { status?: number } } | null)?.response?.status;
+}
+
 /**
  * Run a query against Directus with the session token, refreshing it once on a
  * 401 and retrying. Shared by every query in this module so the token dance
@@ -87,22 +91,28 @@ async function queryDirectus<T extends object>(
     try {
         return await directusClient.query<T>(query, variables);
     } catch (error) {
-        // Check for invalid credentials first (user account may be deleted)
+        // A 401 here is first of all an access token the server no longer
+        // takes — run out (TOKEN_EXPIRED), or renewed meanwhile by another tab.
+        // That is no reason to end the session: renew it and ask once more.
+        // Only a refresh the server turns down ends it, and refreshAuthToken
+        // sees to that. This used to end the session on the first 401 instead,
+        // before the retry below it could ever run.
+        if (responseStatus(error) === 401) {
+            if (await refreshAuthToken()) {
+                const newToken = useUserStore().authData?.accessToken;
+                if (newToken) await directusClient.setToken(newToken);
+                return await directusClient.query<T>(query, variables);
+            }
+            if (!useUserStore().authData) {
+                throw new Error(SESSION_ENDED_ERROR, { cause: error });
+            }
+            throw error;
+        }
+
+        // Invalid credentials outside a 401 envelope (user account may be deleted)
         const handled = await handleApiError(error);
         if (handled) {
             throw new Error(SESSION_ENDED_ERROR, { cause: error });
-        }
-
-        // If unauthorized, try to refresh token and retry
-        if (error instanceof Error && error.message.includes('401')) {
-            const refreshed = await refreshAuthToken();
-            if (refreshed) {
-                const newToken = await getCurrentToken();
-                if (newToken) {
-                    await directusClient.setToken(newToken);
-                }
-                return await directusClient.query<T>(query, variables);
-            }
         }
 
         throw error;
