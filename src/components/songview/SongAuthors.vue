@@ -95,7 +95,8 @@ const lineIcons: Partial<Record<FooterLineKind, Component>> = {
 };
 
 // Canonical footer grammar shared with the dashboard (utils/authorFormat):
-//   Text: … / Melodie: … / "Text und Melodie: …" when identical, then "© …".
+//   Text: … / Melodie: … / "Text und Melodie: …" when identical, then
+//   "Musik © …" when only the melody carries a copyright, then "© …".
 // Taken as segments rather than as text so each author keeps its own piece of
 // the line — that piece is what becomes tappable.
 const footerLines = computed(() => {
@@ -108,7 +109,8 @@ const footerLines = computed(() => {
     }).map((line) => ({
         kind: line.kind,
         icon: lineIcons[line.kind] ?? null,
-        isCopyright: line.kind === 'copyright',
+        // "Musik © …" is a copyright like the song's own and reads the same.
+        isCopyright: line.kind === 'copyright' || line.kind === 'musikCopyright',
         segments: line.segments.map((segment) => ({
             text: segment.text,
             // Authors without a name (a bare "unbekannt" suffix, say) have
@@ -119,9 +121,11 @@ const footerLines = computed(() => {
     }));
 
     // Die Weise gehört an die Melodie-Zeile — dort steht ohnehin schon alles
-    // über sie. Nur wenn es keine gibt (weder Melodie-Autor noch
-    // Melodie-Copyright, dann lässt buildFooterLines die Zeile weg), bekommt die
-    // Nummer eine eigene Zeile, statt stillschweigend zu fehlen.
+    // über sie. Nur wenn es keine gibt (kein Melodie-Autor und kein Copyright
+    // dahinter, dann lässt buildFooterLines die Zeile weg), bekommt die Nummer
+    // eine eigene Zeile, statt stillschweigend zu fehlen. Die steht dort, wo die
+    // Melodie-Zeile stünde: vor den Copyright-Zeilen, also auch vor einem
+    // „Musik © …", das zu ihr gehört.
     const { melodieId, choralbuchNummer } = props.song;
     if (melodieId && choralbuchNummer != null) {
         const weise = { id: melodieId, label: `Choralbuch ${choralbuchNummer}` };
@@ -131,7 +135,8 @@ const footerLines = computed(() => {
         if (melodyLine) {
             melodyLine.weise = weise;
         } else {
-            lines.push({
+            const firstCopyright = lines.findIndex((line) => line.isCopyright);
+            lines.splice(firstCopyright === -1 ? lines.length : firstCopyright, 0, {
                 kind: 'melodie',
                 icon: lineIcons.melodie ?? null,
                 isCopyright: false,

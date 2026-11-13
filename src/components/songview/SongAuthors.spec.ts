@@ -81,6 +81,27 @@ describe('SongAuthors – Choralbuchnummer', () => {
         expect(wrapper.text()).not.toContain('Choralbuch');
     });
 
+    it('steht vor der „Musik ©"-Zeile, wenn die Melodie nur ein Copyright hat', () => {
+        const wrapper = mount(SongAuthors, {
+            props: {
+                song: song({
+                    melodieAutoren: [],
+                    melodieCopyright: 'Melodieverlag',
+                    copyright: 'Liedverlag',
+                }),
+            },
+            global,
+        });
+
+        const zeilen = wrapper.findAll('.flex.items-start');
+        expect(zeilen.map((z) => z.text().trim())).toEqual([
+            'Text: Joseph Weber',
+            'Choralbuch 162',
+            'Musik © Melodieverlag',
+            '© Liedverlag',
+        ]);
+    });
+
     it('bekommt eine eigene Zeile, wenn es zur Melodie sonst nichts zu sagen gibt', () => {
         const wrapper = mount(SongAuthors, {
             props: { song: song({ melodieAutoren: [], melodieCopyright: null }) },
@@ -92,5 +113,21 @@ describe('SongAuthors – Choralbuchnummer', () => {
             'Text: Joseph Weber',
             'Choralbuch 162',
         ]);
+    });
+});
+
+describe('SongAuthors – Melodie-Copyright (Issue #123)', () => {
+    it('hat allein die Melodie ein Copyright, steht es als „Musik ©" gedämpft darunter', () => {
+        const wrapper = mount(SongAuthors, {
+            props: { song: song({ melodieCopyright: 'Bärenreiter-Verlag, Kassel' }) },
+            global,
+        });
+
+        const zeilen = wrapper.findAll('.flex.items-start');
+        expect(zeilen).toHaveLength(3);
+        expect(zeilen[1].text()).toContain('Melodie: Angela Schäfer');
+        expect(zeilen[1].text()).not.toContain('©');
+        expect(zeilen[2].text().trim()).toBe('Musik © Bärenreiter-Verlag, Kassel');
+        expect(zeilen[2].find('span').classes()).toContain('text-muted-foreground');
     });
 });
