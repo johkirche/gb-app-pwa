@@ -397,8 +397,14 @@ export const useSongsStore = defineStore('songs', () => {
      * `full: true` skips that comparison and pulls everything. That is the hook
      * for invalidating the set as a whole (a content version bump), where no
      * per-item timestamp can be trusted to say what is stale.
+     *
+     * `quiet: true` is for a sync the reader did not start (libraryUpdates). It
+     * still throws, but leaves no `error` behind: the song list shows that in
+     * place of the songs, and a connection that dropped on the way back into the
+     * app is no reason to hide the book. Files it could not fetch are kept in
+     * `failedFiles` as after any sync.
      */
-    async function syncAll(options: { full?: boolean } = {}) {
+    async function syncAll(options: { full?: boolean; quiet?: boolean } = {}) {
         const full = options.full === true;
 
         // Fire-and-forget: ask the browser to protect local content from eviction
@@ -464,9 +470,11 @@ export const useSongsStore = defineStore('songs', () => {
             syncProgress.value.phase = '';
         } catch (err) {
             console.error('Error during sync:', err);
-            // Keep a message already set inside the sync (e.g. the quota message)
-            if (!error.value) {
-                // A sync that died with the session used to be invisible — the
+            if (options.quiet) {
+                error.value = null;
+            } else if (!error.value) {
+                // A message already set inside the sync (e.g. the quota message)
+                // is kept. A sync that died with the session used to be invisible — the
                 // page was already navigating to the login form. It stays put
                 // now, so it has to say why in German rather than leave the
                 // internal sentinel on screen.
@@ -515,29 +523,37 @@ export const useSongsStore = defineStore('songs', () => {
     }
 
     /**
-     * Whether the server holds something the device does not.
+     * How many songs the server holds that the device does not hold as they
+     * are — roughly what a sync would bring, so a caller can weigh it.
      *
      * Two counts, ~100 bytes: how large the set is, and how much of it moved
      * after the newest timestamp stored here (server clock against server
      * clock — never against client time). A different size means a song was
-     * added or withdrawn; a change count means content moved.
+     * added or withdrawn; a change count means content moved. An added song
+     * shows in both, so the larger of the two is taken, not their sum.
      *
      * Returns null when no statement is possible — offline, or the timestamps
      * are not readable. That is not the same as "nothing changed".
      */
-    async function checkForUpdates(): Promise<boolean | null> {
+    async function countPendingUpdates(): Promise<number | null> {
         try {
             const local = songs.value.length > 0 ? songs.value : await db.songs.toArray();
             const { total, changed } = await fetchChangeCounts(latestLocalStamp(local));
 
-            if (total !== local.length) return true;
-            if (changed === null) return null;
+            const resized = Math.abs(total - local.length);
+            if (changed === null) return resized > 0 ? resized : null;
 
-            return changed > 0;
+            return Math.max(changed, resized);
         } catch (err) {
             console.warn('Update check unavailable:', err);
             return null;
         }
+    }
+
+    /** Whether the server holds something the device does not (see countPendingUpdates). */
+    async function checkForUpdates(): Promise<boolean | null> {
+        const pending = await countPendingUpdates();
+        return pending === null ? null : pending > 0;
     }
 
     /**
@@ -726,6 +742,7 @@ export const useSongsStore = defineStore('songs', () => {
         loadSongsFromDB,
         syncAll,
         retryFailedFiles,
+        countPendingUpdates,
         checkForUpdates,
         getFileBlob,
         getOrFetchFileBlob,
