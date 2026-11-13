@@ -10,6 +10,7 @@
                 <StepIndicator
                     :current-step="currentStep"
                     :total-steps="totalSteps"
+                    :first-step="firstStep"
                     @back="prevStep"
                 />
 
@@ -62,6 +63,8 @@ import { useRouter } from 'vue-router';
 
 import { useSongsStore } from '@/stores/songs';
 
+import { usePWA } from '@/composables/usePWA';
+
 import DownloadContentStep from '@/components/onboarding/DownloadContentStep.vue';
 import GemeindeStep from '@/components/onboarding/GemeindeStep.vue';
 import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
@@ -104,7 +107,16 @@ function storedStep(): number {
     }
 }
 
-const currentStep = ref(storedStep());
+// Opened as the installed app, the onboarding has nothing left to install, so it
+// starts at the Gemeinde. Whether this page runs as the app is the one question
+// about installation a page can answer for certain — it is the display mode, not
+// a guess — and it covers both ways in: an Android tab handing over to the app,
+// which shares its storage and so brings the stored step 1 along, and an iPhone,
+// whose home-screen app starts empty and comes here after a second login.
+const { isStandalone } = usePWA();
+const firstStep = isStandalone.value ? GEMEINDE_STEP : 1;
+
+const currentStep = ref(Math.max(storedStep(), firstStep));
 
 const tourSlide = computed(() => TOUR[currentStep.value - FIRST_TOUR_STEP] ?? null);
 
@@ -120,7 +132,7 @@ function nextStep() {
 }
 
 function prevStep() {
-    if (currentStep.value > 1) {
+    if (currentStep.value > firstStep) {
         currentStep.value--;
     }
 }

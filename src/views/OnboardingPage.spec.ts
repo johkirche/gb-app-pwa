@@ -21,6 +21,8 @@ const fetchSongManifest = vi.fn();
 const fetchSongsByIds = vi.fn();
 const fetchFile = vi.fn();
 const syncNotationBundle = vi.fn();
+// Whether the page runs as the installed app. Read once, when the page is set up.
+const pwa = vi.hoisted(() => ({ standalone: false }));
 
 vi.mock('@/db', () => ({
     db: {
@@ -50,6 +52,9 @@ vi.mock('@/db', () => ({
     },
 }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/composables/usePWA', () => ({
+    usePWA: () => ({ isStandalone: { value: pwa.standalone } }),
+}));
 vi.mock('@/stores/user', () => ({ useUserStore: vi.fn() }));
 vi.mock('@/api/demo.api', () => ({ DemoUnavailableError: class {}, fetchDemoSongs: vi.fn() }));
 vi.mock('@/api/files.api', () => ({ fetchFile }));
@@ -80,8 +85,7 @@ function song(id: string) {
     };
 }
 
-/** What the page does on a reload: read the db, then walk to the download step. */
-async function reloadOntoDownloadStep() {
+async function mountOnboarding() {
     const pinia = createPinia();
     setActivePinia(pinia);
     await useSongsStore().initPromise;
@@ -93,6 +97,12 @@ async function reloadOntoDownloadStep() {
         },
     });
     await flushPromises();
+    return wrapper;
+}
+
+/** What the page does on a reload: read the db, then walk to the download step. */
+async function reloadOntoDownloadStep() {
+    const wrapper = await mountOnboarding();
 
     wrapper.findComponent({ name: 'InstallPWAStep' }).vm.$emit('next');
     await flushPromises();
@@ -107,6 +117,7 @@ beforeEach(() => {
     meta.clear();
     localStorage.clear();
     vi.clearAllMocks();
+    pwa.standalone = false;
 
     songRows.set('1', song('1'));
     fetchSongManifest.mockResolvedValue([
@@ -168,5 +179,48 @@ describe('the download step on a library that is already there', () => {
         await reloadOntoDownloadStep();
 
         expect(fetchSongManifest).toHaveBeenCalledOnce();
+    });
+});
+
+describe('the install step, as the installed app', () => {
+    const installStep = (wrapper: Awaited<ReturnType<typeof mountOnboarding>>) =>
+        wrapper.findComponent({ name: 'InstallPWAStep' });
+    const gemeindeStep = (wrapper: Awaited<ReturnType<typeof mountOnboarding>>) =>
+        wrapper.findComponent({ name: 'GemeindeStep' });
+
+    it('is where a browser tab starts', async () => {
+        const wrapper = await mountOnboarding();
+
+        expect(installStep(wrapper).exists()).toBe(true);
+    });
+
+    it('is skipped by the app, which starts at the Gemeinde', async () => {
+        pwa.standalone = true;
+
+        const wrapper = await mountOnboarding();
+
+        expect(installStep(wrapper).exists()).toBe(false);
+        expect(gemeindeStep(wrapper).exists()).toBe(true);
+    });
+
+    // Android: the tab stored step 1 before handing over, and the app shares its storage.
+    it('is skipped by the app when the browser tab left off on it', async () => {
+        localStorage.setItem('onboarding.currentStep', '1');
+        pwa.standalone = true;
+
+        const wrapper = await mountOnboarding();
+
+        expect(gemeindeStep(wrapper).exists()).toBe(true);
+    });
+
+    it('is not where the app goes back to', async () => {
+        pwa.standalone = true;
+        const wrapper = await mountOnboarding();
+
+        wrapper.findComponent({ name: 'StepIndicator' }).vm.$emit('back');
+        await flushPromises();
+
+        expect(installStep(wrapper).exists()).toBe(false);
+        expect(gemeindeStep(wrapper).exists()).toBe(true);
     });
 });

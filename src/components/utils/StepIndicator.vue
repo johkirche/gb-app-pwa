@@ -1,7 +1,7 @@
 <template>
     <div class="mb-4 flex items-center justify-between">
         <Button
-            v-if="currentStep > 1"
+            v-if="currentStep > firstStep"
             variant="ghost"
             size="icon"
             aria-label="Zurück"
@@ -38,9 +38,11 @@ import { Button } from '@/components/ui/button';
 interface Props {
     currentStep: number;
     totalSteps: number;
+    /** The step there is no going back from. Later than 1 when a step was skipped. */
+    firstStep?: number;
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), { firstStep: 1 });
 defineEmits<{
     back: [];
 }>();
