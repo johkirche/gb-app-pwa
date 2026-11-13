@@ -37,6 +37,7 @@ import { useTheme } from '@/composables/useTheme';
 import { ConfirmHost } from '@/components/ui/confirm';
 import { Toaster } from '@/components/ui/sonner';
 
+import { startLibraryUpdates } from '@/services/libraryUpdates';
 import { startUserDataSync } from '@/services/userData/sync';
 
 // Mobile-viewport preview. Always available in dev; a production build ships
@@ -134,6 +135,8 @@ onMounted(async () => {
     startUserDataSync();
 
     await Promise.all([songsStore.initPromise, router.isReady()]);
+    // Whatever was corrected on the server since the last sync.
+    startLibraryUpdates();
     refreshDemo();
     // An installed app on a phone is rarely started cold: it comes back from
     // the background, days later, where the event left it. That return is when
