@@ -636,13 +636,17 @@ function openSongOfTheWeek() {
 
 // Not in a demo either: a handful of songs fits on a screen or two, and a rail
 // of jump targets over them is more chrome than list.
+//
+// A filter keeps it. „Alle Lieder von Luther" or a Kategorie is still a list
+// long enough to want jumping through, and the rail is built from the filtered
+// sections, so it only offers what is there — and steps aside on its own once
+// the filter leaves a single section.
 const isIndexScrollerVisible = computed(() => {
     return (
         !songsStore.isDemo &&
         showIndexScroll.value &&
         indexItems.value.length > 1 &&
-        !isSearchActive.value &&
-        !hasActiveFilters.value
+        !isSearchActive.value
     );
 });
 
