@@ -410,7 +410,8 @@ test.describe('the onboarding at every size it offers', () => {
     });
 
     // The install step as a browser without an install prompt gets it: the notice,
-    // and under it the steps. The dev button brings up the other devices' steps.
+    // and under it the steps. The dev button brings up the other devices' steps,
+    // and an installation turns it into the way across to the app.
     test('keeps the install step inside the phone', async ({ page }) => {
         await page.goto('/');
         await page.getByRole('button', { name: /^Überspringen/ }).click({ timeout: 20_000 });
@@ -438,6 +439,19 @@ test.describe('the onboarding at every size it offers', () => {
             await expect(page.getByText(step)).toBeVisible();
             await expectNoOverflow(page, `Installation, ${device}`);
         }
+
+        // And once it has been installed from the tab: the step that sends the
+        // reader across to the app. The event is what Chromium raises then. As
+        // Android, which is where it is met, and which says the most.
+        const preview = page.getByRole('button', { name: /^Vorschau:/ });
+        while ((await preview.textContent())?.trim() !== 'Vorschau: Android') {
+            await preview.click();
+        }
+        await page.evaluate(() => dispatchEvent(new Event('appinstalled')));
+        await expect(page.getByRole('heading', { name: 'Jetzt die App öffnen' })).toBeVisible();
+        await expect(page.getByText('Menü mit den drei Punkten')).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Im Browser weitermachen' })).toBeVisible();
+        await expectNoOverflow(page, 'Installation, installiert');
     });
 
     // The Gemeinde: the map stays while the list goes by beneath it. Made-up rows,
