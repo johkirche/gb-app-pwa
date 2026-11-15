@@ -21,6 +21,15 @@ export const pwaManifest = {
     // the app nothing — every page already lays out at any width.
     scope: '/',
     start_url: '/',
+    // The app naming itself, so a page in a browser tab can ask whether it is
+    // installed (usePWA, navigator.getInstalledRelatedApps). Chrome on Android
+    // answers yes when a WebAPK bound to this manifest's URL is on the phone;
+    // the url resolves against the manifest's own, which is what a relative
+    // path here means.
+    // Without an `id`: Chrome on the desktop wants the app's id as an absolute
+    // URL, which ties the manifest to one origin. The desktop keeps its guess,
+    // and the button into the app that Chrome puts in its address bar.
+    related_applications: [{ platform: 'webapp', url: 'manifest.webmanifest' }],
     icons: [
         {
             src: 'pwaicons/android/android-launchericon-192-192.png',

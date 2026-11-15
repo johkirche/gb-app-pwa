@@ -1,9 +1,9 @@
 <template>
     <div class="flex flex-1 flex-col animate-in duration-300 fade-in slide-in-from-bottom-2">
-        <!-- Installed from this tab. The app is on the device now, but this page is
-             still the browser, and nothing tells the reader so: Android leaves the
-             tab as it was. So the step turns into the way across, led by the icon
-             they are about to look for, drawn as a home screen draws it. -->
+        <!-- Installed, from this tab or earlier. The app is on the device, but this
+             page is still the browser, and nothing tells the reader so: Android
+             leaves the tab as it was. So the step turns into the way across, led by
+             the icon they are about to look for, drawn as a home screen draws it. -->
         <template v-if="isHandoff">
             <figure class="mx-auto mb-6 flex flex-col items-center gap-2">
                 <img
@@ -362,6 +362,7 @@ const {
     isSuspectedInstalled,
     isCheckingInstall,
     wasInstalled,
+    isKnownInstalled,
 } = usePWA();
 
 const isDev = import.meta.env.DEV;
@@ -384,10 +385,15 @@ const installButtonLabel = computed(() =>
 // icon's safe zone away, than the maskable icon itself.
 const appIcon = `${import.meta.env.BASE_URL}apple-touch-icon.png`;
 
-// Installed from this tab, and still in it. A desktop Chrome moves the tab
-// into the app's own window, the display mode changes and `isStandalone`
-// takes over; Android leaves it where it was, which is the case this is for.
-const isHandoff = computed(() => wasInstalled.value && !isStandalone.value);
+// The app is on the device and this page is a tab in the browser: installed
+// from here just now, or found when the browser was asked (Chrome on Android).
+// A desktop Chrome moves an installing tab into the app's own window, the
+// display mode changes and `isStandalone` takes over; Android leaves it where
+// it was, which is the case this is for. A guess (`isSuspectedInstalled`) is
+// not enough: it would send away someone who has nothing to open.
+const isHandoff = computed(
+    () => (wasInstalled.value || isKnownInstalled.value) && !isStandalone.value,
+);
 
 // Safari never fires `beforeinstallprompt` and tells a page in a tab nothing
 // about a home-screen icon, so on iOS the steps themselves end on the home
@@ -401,7 +407,11 @@ const whereTheIconIs = computed(() => {
 });
 
 const canProceed = computed(
-    () => isStandalone.value || isSuspectedInstalled.value || wasInstalled.value,
+    () =>
+        isStandalone.value ||
+        isSuspectedInstalled.value ||
+        wasInstalled.value ||
+        isKnownInstalled.value,
 );
 
 const previewDeviceLabel = computed(() => {

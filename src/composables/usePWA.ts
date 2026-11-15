@@ -12,6 +12,12 @@ const isCheckingInstallRef = ref(true);
 // else can tell us: the page carries on running in the browser, so the
 // display mode stays 'browser' until it is opened from the home screen.
 const wasInstalledRef = ref(false);
+// The browser confirmed, when asked, that the app is on this device: Chrome on
+// Android (84 and up) looks for the WebAPK bound to the manifest's
+// `related_applications` entry. Only a yes means anything. An empty answer
+// also comes from an app added as a plain shortcut, which is installed all the
+// same, and from every browser that implements the call without the check.
+const isKnownInstalledRef = ref(false);
 let isListening = false;
 let beforeInstallPromptFired = false;
 
@@ -22,6 +28,26 @@ function checkStandaloneMode(): boolean {
         (window.navigator as any).standalone === true ||
         document.referrer.includes('android-app://')
     );
+}
+
+// Not in lib.dom yet: Chromium only, and still marked experimental.
+type InstalledRelatedApp = { platform: string; url?: string; id?: string };
+type NavigatorWithRelatedApps = Navigator & {
+    getInstalledRelatedApps?: () => Promise<InstalledRelatedApp[]>;
+};
+
+async function askWhetherInstalled(): Promise<boolean> {
+    const nav = navigator as NavigatorWithRelatedApps;
+    if (typeof nav.getInstalledRelatedApps !== 'function') return false;
+    try {
+        const apps = await nav.getInstalledRelatedApps();
+        return apps.some((app) => app.platform === 'webapp');
+    } catch (error) {
+        // Refused outside a secure context or a top-level frame. Not knowing
+        // is the state we were already in.
+        console.warn('PWA: getInstalledRelatedApps failed:', error);
+        return false;
+    }
 }
 
 export function usePWA() {
@@ -89,11 +115,28 @@ export function usePWA() {
             beforeInstallPromptFired = false;
         });
 
+        // Ask the browser outright. Where it can say yes, that settles the check
+        // well before the timer below would have guessed.
+        if (!standalone) {
+            void askWhetherInstalled().then((installed) => {
+                if (!installed || isStandaloneRef.value) return;
+                console.log('PWA: getInstalledRelatedApps found the app');
+                isKnownInstalledRef.value = true;
+                isSuspectedInstalledRef.value = false;
+                isCheckingInstallRef.value = false;
+            });
+        }
+
         // After a delay, if beforeinstallprompt hasn't fired (and we're not on iOS),
         // we suspect the app might be installed
         setTimeout(() => {
             isCheckingInstallRef.value = false;
-            if (!beforeInstallPromptFired && !isStandaloneRef.value && !isIOS.value) {
+            if (
+                !beforeInstallPromptFired &&
+                !isStandaloneRef.value &&
+                !isKnownInstalledRef.value &&
+                !isIOS.value
+            ) {
                 console.log('PWA: No install prompt after delay, suspecting app is installed');
                 isSuspectedInstalledRef.value = true;
             }
@@ -133,6 +176,7 @@ export function usePWA() {
         showInstallButton,
         isSuspectedInstalled: isSuspectedInstalledRef,
         wasInstalled: wasInstalledRef,
+        isKnownInstalled: isKnownInstalledRef,
         isCheckingInstall: isCheckingInstallRef,
         initPWAListeners,
         installPWA,
