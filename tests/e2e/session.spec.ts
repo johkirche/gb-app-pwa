@@ -10,6 +10,11 @@ import { expect, test } from '@playwright/test';
  * run out, and two tabs sharing one refresh token. Neither needs the book behind
  * it, so this needs no recording: the backend here is a stand-in for those few
  * rules, with made-up tokens, and nothing else answers.
+ *
+ * One rule more, because leaving it out let every test here pass while the app
+ * ended sessions in the field: Directus checks a bearer on every route,
+ * /auth/refresh too, so a renewal that carries the dead access token is refused
+ * before its refresh token counts for anything.
  */
 
 test.use({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
@@ -68,6 +73,30 @@ async function serveBackend(context: BrowserContext): Promise<Session> {
             return route.fulfill({ status: 204, headers: CORS });
         }
 
+        if (pathname.startsWith('/auth/')) {
+            // Directus checks a bearer before it routes the request, these
+            // included: a renewal that brings along the access token it is meant to
+            // replace, after that has run out, is turned away before its refresh
+            // token is so much as looked at.
+            const bearer = request.headers().authorization?.replace('Bearer ', '');
+            if (bearer && bearer !== session.access) {
+                session.rejected += 1;
+                return json(401, {
+                    errors: [{ message: 'Token expired.', extensions: { code: 'TOKEN_EXPIRED' } }],
+                });
+            }
+        }
+
+        if (pathname === '/auth/login') {
+            return json(200, {
+                data: {
+                    access_token: session.access,
+                    refresh_token: session.refresh,
+                    expires: QUARTER_OF_AN_HOUR,
+                },
+            });
+        }
+
         if (pathname === '/auth/refresh') {
             const presented = (request.postDataJSON() as { refresh_token: string }).refresh_token;
             session.presented.push(presented);
@@ -122,6 +151,7 @@ async function serveBackend(context: BrowserContext): Promise<Session> {
                     avatar: null,
                     gemeinde: null,
                     app_settings: null,
+                    role: { name: 'activated' },
                 },
             });
         }
@@ -219,6 +249,28 @@ async function letTokenRunOut(context: BrowserContext, session: Session) {
     await context.clock.fastForward(20 * 60 * 1000);
     session.access = null;
 }
+
+test.describe('a session beginning', () => {
+    test('signs in, and asks who it is with the token just issued', async ({ context, page }) => {
+        await serveBackend(context);
+        await page.goto('/login');
+        await page
+            .getByLabel(/E-Mail/i)
+            .first()
+            .fill('erika@example.invalid');
+        await page
+            .getByLabel(/Passwort/i)
+            .first()
+            .fill('e2e-password');
+        await page.getByRole('button', { name: 'Anmelden' }).click();
+
+        // Stored only once /users/me has answered, and it answers only to the
+        // token the login handed out.
+        await expect
+            .poll(() => storedTokens(page), { timeout: 20_000 })
+            .toEqual({ refreshTokens: ['e2e-refresh-1'], users: 1 });
+    });
+});
 
 test.describe('a session outliving its token', () => {
     test('saves after the app has stood open past the token', async ({ context, page }) => {

@@ -1,13 +1,14 @@
 import { computed } from 'vue';
 
-// The SDK's `logout` is aliased because this module defines its own logout().
+// The SDK's `login` and `logout` are aliased because this module defines its own.
 import {
     deleteUser,
+    login as directusLogin,
     logout as directusLogout,
     passwordRequest,
     passwordReset,
     readMe,
-    refresh,
+    withToken,
 } from '@directus/sdk';
 
 import { useFavoritesStore } from '@/stores/favorites';
@@ -25,13 +26,13 @@ import {
     REGISTRATION_LOGIN_FAILED,
     clearUserScopedData,
     extractDirectusErrorCode,
-    handleApiError,
     handleInvalidCredentials,
     isInvalidCredentialsError,
     isNetworkError,
     translateLoginError,
     translateRegistrationError,
 } from '@/services/errorHandler';
+import { refreshAuthToken } from '@/services/session';
 import { releaseUserData } from '@/services/userData/sync';
 import { resetRegisteredUserState } from '@/services/userStateReset';
 
@@ -70,96 +71,6 @@ export type DeleteAccountResult =
     | { success: true }
     | { success: false; error: string; code?: string };
 
-/**
- * The single in-flight refresh, or null when none is running.
- *
- * Directus rotates refresh tokens: the first `/auth/refresh` invalidates the token it
- * was called with. The download loop fetches files in batches of 5 concurrently, and
- * every one of them would otherwise call `refreshAuthToken()` with the *same* stored
- * refresh token — one wins and the other four get INVALID_CREDENTIALS, which used to
- * take the whole offline library down with it. Sharing one promise makes the refresh
- * happen exactly once no matter how many callers race for it.
- */
-let inFlightRefresh: Promise<boolean> | null = null;
-
-/**
- * The same race across tabs, where that promise is no help: each tab has its own, and
- * all of them share one refresh token through the database. So a renewal also holds a
- * lock the browser keeps for the whole origin, and a tab that waited for it finds the
- * new tokens in the database, with nothing left to ask the server.
- */
-const REFRESH_LOCK = 'gesangbuch.token-refresh';
-
-function whileHoldingRefreshLock(renew: () => Promise<boolean>): Promise<boolean> {
-    // There is no lock to take on an insecure origin, such as a phone testing against
-    // a dev machine's address. That leaves the race, not the app, without it.
-    return navigator.locks ? navigator.locks.request(REFRESH_LOCK, renew) : renew();
-}
-
-async function renewTokens(): Promise<boolean> {
-    const userStore = useUserStore();
-
-    if ((await userStore.adoptStoredTokens()) && !userStore.isTokenExpired()) {
-        return true;
-    }
-
-    const refreshToken = userStore.authData?.refreshToken;
-
-    if (!refreshToken) {
-        return false;
-    }
-
-    const result = await directusClient.request(
-        refresh({
-            refresh_token: refreshToken,
-            mode: 'json',
-        }),
-    );
-
-    if (result.access_token && result.refresh_token) {
-        const expiresAt = Date.now() + (result.expires || 900000);
-        await userStore.updateTokens(result.access_token, result.refresh_token, expiresAt);
-        return true;
-    }
-
-    return false;
-}
-
-async function performRefresh(): Promise<boolean> {
-    try {
-        return await whileHoldingRefreshLock(renewTokens);
-    } catch (error) {
-        console.error('Error refreshing token:', error);
-
-        // A failed refresh means this session is over — it does NOT mean the account was
-        // deleted, so this must not destroy the user's downloaded songs or playlists.
-        if (isInvalidCredentialsError(error)) {
-            await handleApiError(error);
-            return false;
-        }
-
-        return false;
-    }
-}
-
-/**
- * Refresh auth token - exported separately for use in API modules.
- *
- * Concurrent callers share a single network refresh; all of them resolve with the
- * result of that one request.
- */
-export async function refreshAuthToken(): Promise<boolean> {
-    if (inFlightRefresh) {
-        return inFlightRefresh;
-    }
-
-    inFlightRefresh = performRefresh().finally(() => {
-        inFlightRefresh = null;
-    });
-
-    return inFlightRefresh;
-}
-
 export function useAuth() {
     const userStore = useUserStore();
 
@@ -176,8 +87,9 @@ export function useAuth() {
             userStore.isLoading = true;
             userStore.error = null;
 
-            // Login with Directus SDK
-            const result = await directusClient.login({ email, password });
+            const result = await directusClient.request(
+                directusLogin({ email, password }, { mode: 'json' }),
+            );
 
             if (!result.access_token || !result.refresh_token) {
                 throw new Error('Invalid response from server');
@@ -186,13 +98,17 @@ export function useAuth() {
             // Calculate token expiration (default 15 minutes)
             const expiresAt = Date.now() + (result.expires || 900000);
 
-            // Fetch user data. A bare 'role' would return the role's UUID; the
-            // nested selection asks for the role's *name*, which the activation
+            // Fetch user data, with the token just issued: there is no session to sign
+            // with until setUser below. A bare 'role' would return the role's UUID;
+            // the nested selection asks for the role's *name*, which the activation
             // check below relies on.
             const userData = await directusClient.request(
-                readMe({
-                    fields: ['id', 'email', 'first_name', 'last_name', { role: ['name'] }],
-                }),
+                withToken(
+                    result.access_token,
+                    readMe({
+                        fields: ['id', 'email', 'first_name', 'last_name', { role: ['name'] }],
+                    }),
+                ),
             );
 
             // Map user data to our format. The client has no Schema generic, so the
@@ -350,10 +266,7 @@ export function useAuth() {
             userStore.isLoading = true;
 
             // Read the refresh token from the persisted session BEFORE clearing
-            // anything. The SDK's own in-memory auth storage is empty after every
-            // page reload, so `directusClient.logout()` would post no token and the
-            // server session would never be revoked — the REST command sends the
-            // Dexie-persisted token explicitly.
+            // anything: the revoke names the session by it, in its body.
             const refreshToken = userStore.authData?.refreshToken;
             if (refreshToken) {
                 try {
@@ -433,14 +346,10 @@ export function useAuth() {
                 };
             }
 
-            // The SDK's in-memory auth storage is empty after every page reload,
-            // so the Dexie-persisted session token must be handed to the client
-            // explicitly (same pattern as the API modules).
-            const token = userStore.authData?.accessToken;
-            if (!token) {
+            // Without a session the request would go out unsigned (sessionFetch).
+            if (!userStore.authData) {
                 return { success: false, error: 'Sie sind nicht angemeldet.' };
             }
-            await directusClient.setToken(token);
 
             try {
                 // Preferred path: the register extension's self-deletion endpoint.

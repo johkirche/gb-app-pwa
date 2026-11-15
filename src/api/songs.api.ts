@@ -1,11 +1,7 @@
-import { useUserStore } from '@/stores/user';
-
-import { refreshAuthToken } from '@/composables/useAuth';
-
 import { type DirectusResponse, SONGS_QUERY, transformSong } from '@/api/songsQuery';
 import type { Song } from '@/db';
 import { directusClient } from '@/services/directus';
-import { SESSION_ENDED_ERROR, handleApiError, isSessionEndedError } from '@/services/errorHandler';
+import { isSessionEndedError } from '@/services/errorHandler';
 import type { SongManifestEntry } from '@/utils/syncDiff';
 
 /**
@@ -47,76 +43,16 @@ const CHANGE_COUNT_QUERY = `
     query Counts($all: gesangbuchlied_filter, $changed: gesangbuchlied_filter) { total: gesangbuchlied_aggregated( filter: $all ) { count { id } } changed: gesangbuchlied_aggregated( filter: $changed ) { count { id } } }
 `;
 
-// Get current token from the user store.
-//
-// There is deliberately no static fallback token: the logged-in Directus session
-// is the only source of authority. In dev-bypass mode there is no session, so this
-// returns null and the request goes out unauthenticated (only already-downloaded
-// songs remain browsable, which is the honest behaviour).
-async function getCurrentToken(): Promise<string | null> {
-    const userStore = useUserStore();
-
-    const token = userStore.authData?.accessToken || null;
-    if (!token) return null;
-
-    // Refresh if access token is expired/near-expiry (store includes a buffer)
-    if (userStore.isTokenExpired() && userStore.authData?.refreshToken) {
-        const refreshed = await refreshAuthToken();
-        if (refreshed) {
-            return userStore.authData?.accessToken || null;
-        }
-    }
-
-    return token;
-}
-
-function responseStatus(error: unknown): number | undefined {
-    return (error as { response?: { status?: number } } | null)?.response?.status;
-}
-
 /**
- * Run a query against Directus with the session token, refreshing it once on a
- * 401 and retrying. Shared by every query in this module so the token dance
- * lives in one place.
+ * Run a query against Directus. The session's token, its renewal and the retry
+ * on a 401 are sessionFetch's (services/session.ts), so a session that ended
+ * under the query rejects with SESSION_ENDED_ERROR and anything else as it came.
  */
-async function queryDirectus<T extends object>(
+function queryDirectus<T extends object>(
     query: string,
     variables?: Record<string, unknown>,
 ): Promise<T> {
-    const token = await getCurrentToken();
-    if (token) {
-        await directusClient.setToken(token);
-    }
-
-    try {
-        return await directusClient.query<T>(query, variables);
-    } catch (error) {
-        // A 401 here is first of all an access token the server no longer
-        // takes — run out (TOKEN_EXPIRED), or renewed meanwhile by another tab.
-        // That is no reason to end the session: renew it and ask once more.
-        // Only a refresh the server turns down ends it, and refreshAuthToken
-        // sees to that. This used to end the session on the first 401 instead,
-        // before the retry below it could ever run.
-        if (responseStatus(error) === 401) {
-            if (await refreshAuthToken()) {
-                const newToken = useUserStore().authData?.accessToken;
-                if (newToken) await directusClient.setToken(newToken);
-                return await directusClient.query<T>(query, variables);
-            }
-            if (!useUserStore().authData) {
-                throw new Error(SESSION_ENDED_ERROR, { cause: error });
-            }
-            throw error;
-        }
-
-        // Invalid credentials outside a 401 envelope (user account may be deleted)
-        const handled = await handleApiError(error);
-        if (handled) {
-            throw new Error(SESSION_ENDED_ERROR, { cause: error });
-        }
-
-        throw error;
-    }
+    return directusClient.query<T>(query, variables);
 }
 
 // Fetch songs from Directus

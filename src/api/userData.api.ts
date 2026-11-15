@@ -2,8 +2,6 @@ import { createItems, deleteItems, readItems, updateItem } from '@directus/sdk';
 
 import { useUserStore } from '@/stores/user';
 
-import { refreshAuthToken } from '@/composables/useAuth';
-
 import { directusClient } from '@/services/directus';
 import { SESSION_ENDED_ERROR, extractDirectusErrorCode } from '@/services/errorHandler';
 
@@ -118,36 +116,14 @@ function status(error: unknown): number | undefined {
 }
 
 /**
- * Run a request with the session's token, renewing it once if the server says
- * it has run out. A session that cannot be renewed throws SESSION_ENDED_ERROR;
- * anything else (offline, a server error) is thrown as it came.
+ * Run a request on the account, which needs a session to be about. Signing it and
+ * keeping it signed are sessionFetch's (services/session.ts): a session that ends
+ * under the request throws SESSION_ENDED_ERROR, anything else (offline, a server
+ * error) is thrown as it came.
  */
-async function withSession<T>(request: () => Promise<T>): Promise<T> {
-    const userStore = useUserStore();
-    const ended = () => new Error(SESSION_ENDED_ERROR);
-
-    if (!userStore.isLoggedIn) throw ended();
-    if (userStore.isTokenExpired() && !(await refreshAuthToken()) && !userStore.authData) {
-        throw ended();
-    }
-    const token = userStore.authData?.accessToken;
-    if (!token) throw ended();
-    await directusClient.setToken(token);
-
-    try {
-        return await request();
-    } catch (error) {
-        if (status(error) !== 401) throw error;
-        // An access token the server no longer takes (TOKEN_EXPIRED, or one
-        // renewed by another tab): renew and ask once more. Only a refresh the
-        // server turns down ends the session, and refreshAuthToken sees to that.
-        if (await refreshAuthToken()) {
-            await directusClient.setToken(userStore.authData!.accessToken);
-            return await request();
-        }
-        if (!userStore.authData) throw new Error(SESSION_ENDED_ERROR, { cause: error });
-        throw error;
-    }
+function withSession<T>(request: () => Promise<T>): Promise<T> {
+    if (!useUserStore().isLoggedIn) return Promise.reject(new Error(SESSION_ENDED_ERROR));
+    return request();
 }
 
 export function errorCode(error: unknown): string | undefined {

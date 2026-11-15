@@ -439,16 +439,3 @@ export async function handleInvalidCredentials(
     // Use window.location to force a full page reload and clear any cached state
     window.location.href = `/login?reason=${reason}`;
 }
-
-/**
- * Global API error handler
- * Call this in catch blocks to handle authentication errors appropriately
- */
-export async function handleApiError(error: unknown): Promise<boolean> {
-    if (isInvalidCredentialsError(error)) {
-        // Ambiguous 401 -> treat as an expired session and keep the user's local content.
-        await handleInvalidCredentials('session_expired');
-        return true; // Error was handled
-    }
-    return false; // Error was not handled
-}

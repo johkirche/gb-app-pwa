@@ -3,12 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 /**
  * Tests for the auth composable.
  *
- * `refreshAuthToken` — regression tests for the refresh-token race. Directus rotates
- * refresh tokens, so a second `/auth/refresh` sent with an already-consumed token
- * fails. The download loop runs 5 file fetches at a time, and before the in-flight
- * promise was shared every one of them fired its own refresh — four failed, and the
- * resulting INVALID_CREDENTIALS wiped the user's whole offline library. These tests
- * pin the "exactly one request" behaviour in place.
+ * The renewal itself, and the signing of every request, live in services/session.ts
+ * and are tested in session.spec.ts.
  *
  * `login` — pins the nested role-name readMe query and the German error mapping.
  *
@@ -24,9 +20,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const request = vi.fn();
-const clientLogin = vi.fn();
-const setToken = vi.fn();
-const handleApiError = vi.fn();
+const refreshAuthToken = vi.fn();
 const handleInvalidCredentials = vi.fn();
 const extractDirectusErrorCode = vi.fn();
 const clearUserScopedData = vi.fn();
@@ -36,7 +30,6 @@ const translateRegistrationError = vi.fn();
 // opt in to the invalid-credentials / network branches via mockReturnValue(true).
 const isInvalidCredentialsError = vi.fn();
 const isNetworkError = vi.fn();
-const updateTokens = vi.fn();
 const setUser = vi.fn();
 const storeLogout = vi.fn();
 const favoritesClearAll = vi.fn();
@@ -56,10 +49,8 @@ function freshUserStore() {
         isLoggedIn: false,
         isActivated: false,
         isTokenExpired: (() => false) as () => boolean,
-        adoptStoredTokens: vi.fn<() => Promise<boolean>>(),
         isLoading: false,
         error: null as string | null,
-        updateTokens: (...args: unknown[]) => updateTokens(...args),
         setUser: (...args: unknown[]) => setUser(...args),
         logout: (...args: unknown[]) => storeLogout(...args),
         setDevSkipAuth: vi.fn(),
@@ -70,8 +61,6 @@ let userStore = freshUserStore();
 vi.mock('@/services/directus', () => ({
     directusClient: {
         request: (...args: unknown[]) => request(...args),
-        login: (...args: unknown[]) => clientLogin(...args),
-        setToken: (...args: unknown[]) => setToken(...args),
     },
     directusConfig: { url: 'https://example.invalid' },
 }));
@@ -79,16 +68,20 @@ vi.mock('@/services/directus', () => ({
 vi.mock('@directus/sdk', () => ({
     // The command builders pass their input through so tests can assert exactly
     // what the composable asked the SDK to send.
-    refresh: (payload: unknown) => payload,
-    readMe: (query: unknown) => query,
+    login: (payload: unknown, options: unknown) => ({ login: payload, options }),
     logout: (options: unknown) => options,
+    readMe: (query: unknown) => query,
+    withToken: (token: unknown, command: unknown) => ({ token, command }),
     deleteUser: (id: unknown) => id,
     passwordRequest: vi.fn(),
     passwordReset: vi.fn(),
 }));
 
+vi.mock('@/services/session', () => ({
+    refreshAuthToken: (...args: unknown[]) => refreshAuthToken(...args),
+}));
+
 vi.mock('@/services/errorHandler', () => ({
-    handleApiError: (...args: unknown[]) => handleApiError(...args),
     handleInvalidCredentials: (...args: unknown[]) => handleInvalidCredentials(...args),
     isInvalidCredentialsError: (...args: unknown[]) => isInvalidCredentialsError(...args),
     isNetworkError: (...args: unknown[]) => isNetworkError(...args),
@@ -131,123 +124,21 @@ vi.mock('@/stores/preferences', () => ({
 }));
 
 // Imported after the mocks so the module picks them up.
-const { refreshAuthToken, useAuth } = await import('./useAuth');
+const { useAuth } = await import('./useAuth');
 
 beforeEach(() => {
     vi.resetAllMocks();
     userStore = freshUserStore();
 });
 
-describe('refreshAuthToken', () => {
-    it('sends exactly one network refresh for concurrent callers', async () => {
-        let release: (value: unknown) => void = () => {};
-        request.mockImplementation(
-            () =>
-                new Promise((resolve) => {
-                    release = resolve;
-                }),
-        );
-
-        // Five parallel callers, mirroring the download loop's batch size.
-        const calls = Promise.all(Array.from({ length: 5 }, () => refreshAuthToken()));
-
-        await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
-
-        release({ access_token: 'new-access', refresh_token: 'new-refresh', expires: 900000 });
-        const results = await calls;
-
-        expect(request).toHaveBeenCalledTimes(1);
-        expect(results).toEqual([true, true, true, true, true]);
-        expect(updateTokens).toHaveBeenCalledTimes(1);
-        expect(updateTokens).toHaveBeenCalledWith('new-access', 'new-refresh', expect.any(Number));
-    });
-
-    it('starts a fresh request once the previous one has settled', async () => {
-        request.mockResolvedValue({
-            access_token: 'a',
-            refresh_token: 'b',
-            expires: 900000,
-        });
-
-        await refreshAuthToken();
-        await refreshAuthToken();
-
-        expect(request).toHaveBeenCalledTimes(2);
-    });
-
-    it('resolves every concurrent caller with false when the refresh fails', async () => {
-        request.mockRejectedValue(new Error('rotated away'));
-
-        const results = await Promise.all(Array.from({ length: 5 }, () => refreshAuthToken()));
-
-        expect(request).toHaveBeenCalledTimes(1);
-        expect(results).toEqual([false, false, false, false, false]);
-        // A failed refresh must not trigger the destructive account-deleted path.
-        expect(handleApiError).not.toHaveBeenCalled();
-    });
-
-    // Across tabs: each has its own copy of the store, and a refresh token one of
-    // them has used is dead for all. The whole round through a real browser's lock
-    // and database is in tests/e2e/session.spec.ts.
-    it('asks the server nothing when another tab has already renewed', async () => {
-        userStore.adoptStoredTokens.mockResolvedValue(true);
-
-        expect(await refreshAuthToken()).toBe(true);
-        expect(request).not.toHaveBeenCalled();
-        expect(updateTokens).not.toHaveBeenCalled();
-    });
-
-    it('renews with the newer token when that one has run out as well', async () => {
-        userStore.isTokenExpired = () => true;
-        userStore.adoptStoredTokens.mockImplementation(async () => {
-            userStore.authData = {
-                accessToken: 'newer-access',
-                refreshToken: 'newer-refresh',
-                expiresAt: 0,
-            };
-            return true;
-        });
-        request.mockResolvedValue({ access_token: 'a', refresh_token: 'b', expires: 900000 });
-
-        await refreshAuthToken();
-
-        expect(request).toHaveBeenCalledWith({ refresh_token: 'newer-refresh', mode: 'json' });
-    });
-
-    it('waits behind another tab, and only then looks at the tokens', async () => {
-        let letGo: (value?: unknown) => void = () => {};
-        const held = new Promise((resolve) => {
-            letGo = resolve;
-        });
-        vi.stubGlobal('navigator', {
-            locks: { request: (_name: string, work: () => unknown) => held.then(work) },
-        });
-        request.mockResolvedValue({ access_token: 'a', refresh_token: 'b', expires: 900000 });
-
-        try {
-            const renewal = refreshAuthToken();
-            await Promise.resolve();
-            expect(userStore.adoptStoredTokens).not.toHaveBeenCalled();
-            expect(request).not.toHaveBeenCalled();
-
-            letGo();
-            expect(await renewal).toBe(true);
-            expect(userStore.adoptStoredTokens).toHaveBeenCalledOnce();
-            expect(request).toHaveBeenCalledOnce();
-        } finally {
-            vi.unstubAllGlobals();
-        }
-    });
-});
-
 describe('login', () => {
     it('requests the nested role name and maps it onto the stored user', async () => {
-        clientLogin.mockResolvedValue({
+        request.mockResolvedValueOnce({
             access_token: 'new-access',
             refresh_token: 'new-refresh',
             expires: 900000,
         });
-        request.mockResolvedValue({
+        request.mockResolvedValueOnce({
             id: 'user-1',
             email: 'user@example.org',
             first_name: 'Erika',
@@ -259,13 +150,19 @@ describe('login', () => {
         const result = await login('user@example.org', 'Passwort1');
 
         expect(result.success).toBe(true);
-        // A bare 'role' field would return the role UUID; the nested selection is
-        // what makes the activation check below possible.
-        expect(request).toHaveBeenCalledWith(
-            expect.objectContaining({
+        expect(request).toHaveBeenNthCalledWith(1, {
+            login: { email: 'user@example.org', password: 'Passwort1' },
+            options: { mode: 'json' },
+        });
+        // There is no session yet to sign with, so the user is asked for with the
+        // token just issued. A bare 'role' field would return the role UUID; the
+        // nested selection is what makes the activation check below possible.
+        expect(request).toHaveBeenNthCalledWith(2, {
+            token: 'new-access',
+            command: expect.objectContaining({
                 fields: expect.arrayContaining([{ role: ['name'] }]),
             }),
-        );
+        });
         expect(setUser).toHaveBeenCalledWith(
             expect.objectContaining({
                 id: 'user-1',
@@ -288,7 +185,7 @@ describe('login', () => {
                 },
             ],
         };
-        clientLogin.mockRejectedValue(sdkError);
+        request.mockRejectedValue(sdkError);
         translateLoginError.mockReturnValue('E-Mail-Adresse oder Passwort ist falsch.');
 
         const { login } = useAuth();
@@ -307,9 +204,9 @@ describe('register', () => {
     it('reports REGISTRATION_LOGIN_FAILED when the account exists but auto-login fails', async () => {
         // The extension call succeeds — the account is created and the one-time
         // activation code is consumed …
-        request.mockResolvedValue({});
+        request.mockResolvedValueOnce({});
         // … but the follow-up login fails.
-        clientLogin.mockRejectedValue({
+        request.mockRejectedValueOnce({
             errors: [{ message: 'Invalid user credentials' }],
         });
         translateLoginError.mockReturnValue('E-Mail-Adresse oder Passwort ist falsch.');
@@ -413,8 +310,7 @@ describe('logout', () => {
         const result = await logout();
 
         expect(result).toEqual({ success: true });
-        // The SDK's in-memory storage is empty after a reload, so the revoke must
-        // carry the token the app persisted in Dexie.
+        // The revoke names the session by the refresh token the app persisted.
         expect(request).toHaveBeenCalledWith({ refresh_token: 'old-refresh', mode: 'json' });
         expect(clearUserScopedData).toHaveBeenCalledTimes(1);
         expect(storeLogout).toHaveBeenCalledTimes(1);
@@ -470,11 +366,8 @@ describe('deleteAccount', () => {
         const result = await deleteAccount();
 
         expect(result).toEqual({ success: true });
-        // The delete must carry the Dexie-persisted session token — the SDK's
-        // in-memory auth storage is empty after a page reload …
-        expect(setToken).toHaveBeenCalledWith('old-access');
-        // … and go through the extension's self-deletion endpoint (which also
-        // releases the claimed activation code server-side).
+        // The delete goes through the extension's self-deletion endpoint (which
+        // also releases the claimed activation code server-side).
         expect(request).toHaveBeenCalledTimes(1);
         const command = request.mock.calls[0][0] as () => {
             path: string;
@@ -558,7 +451,7 @@ describe('deleteAccount', () => {
         userStore.user = signedInUser;
         userStore.isTokenExpired = () => true;
         // The expired token forces a refresh, and that refresh fails.
-        request.mockRejectedValue(new Error('refresh token rotated away'));
+        refreshAuthToken.mockResolvedValue(false);
 
         const { deleteAccount } = useAuth();
         const result = await deleteAccount();
@@ -567,10 +460,9 @@ describe('deleteAccount', () => {
             success: false,
             error: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
         });
-        // Only the refresh went out — the DELETE must never ride a stale token.
-        expect(request).toHaveBeenCalledTimes(1);
-        expect(request).toHaveBeenCalledWith({ refresh_token: 'old-refresh', mode: 'json' });
-        expect(setToken).not.toHaveBeenCalled();
+        // The DELETE must never ride a stale token.
+        expect(refreshAuthToken).toHaveBeenCalledOnce();
+        expect(request).not.toHaveBeenCalled();
         // Nothing local may be destroyed either.
         expect(handleInvalidCredentials).not.toHaveBeenCalled();
         expect(clearUserScopedData).not.toHaveBeenCalled();

@@ -2,8 +2,6 @@ import { readMe, updateMe } from '@directus/sdk';
 
 import { useUserStore } from '@/stores/user';
 
-import { refreshAuthToken } from '@/composables/useAuth';
-
 import { directusClient } from '@/services/directus';
 
 /**
@@ -21,16 +19,12 @@ import { directusClient } from '@/services/directus';
 
 export type AppSettings = Record<string, unknown>;
 
-/** Hand the client the session token, refreshed if it is close to expiry. */
-async function authorize(): Promise<boolean> {
-    const userStore = useUserStore();
-    if (!userStore.isLoggedIn) return false;
-    if (userStore.isTokenExpired() && !(await refreshAuthToken())) return false;
-
-    const token = userStore.authData?.accessToken;
-    if (!token) return false;
-    await directusClient.setToken(token);
-    return true;
+/**
+ * Whether there is a session to ask with. Signing the request and keeping the
+ * session alive are sessionFetch's (services/session.ts).
+ */
+function authorize(): boolean {
+    return useUserStore().isLoggedIn;
 }
 
 async function fetchAppSettings(): Promise<AppSettings> {
@@ -45,7 +39,7 @@ async function fetchAppSettings(): Promise<AppSettings> {
 /** The profile's settings, or null if they cannot be read. */
 export async function readAppSettings(): Promise<AppSettings | null> {
     try {
-        if (!(await authorize())) return null;
+        if (!authorize()) return null;
         return await fetchAppSettings();
     } catch (err) {
         console.warn('Could not read the app settings from the profile:', err);
@@ -77,7 +71,7 @@ export interface Profile {
  */
 export async function readProfile(): Promise<Profile | null> {
     try {
-        if (!(await authorize())) return null;
+        if (!authorize()) return null;
         const me = (await directusClient.request(
             readMe({
                 fields: ['first_name', 'last_name', 'avatar', { gemeinde: ['id', 'name'] }],
@@ -115,7 +109,7 @@ export async function readProfile(): Promise<Profile | null> {
  */
 export async function updateProfile(patch: Partial<Profile>): Promise<boolean> {
     try {
-        if (!(await authorize())) return false;
+        if (!authorize()) return false;
         const item: Record<string, string | null> = {};
         if ('firstName' in patch) item.first_name = patch.firstName || null;
         if ('lastName' in patch) item.last_name = patch.lastName || null;
@@ -140,7 +134,7 @@ export async function updateProfile(patch: Partial<Profile>): Promise<boolean> {
  */
 export async function updateAppSettings(patch: AppSettings): Promise<boolean> {
     try {
-        if (!(await authorize())) return false;
+        if (!authorize()) return false;
         const app_settings = { ...(await fetchAppSettings()), ...patch };
         // The client carries no schema, so the SDK knows only Directus' own
         // user fields; `app_settings` is ours.
