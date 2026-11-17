@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 /**
  * The session's one way to the server: `sessionFetch`, and the renewal under it.
  *
- * `refreshAuthToken` — Directus rotates refresh tokens, so a second `/auth/refresh`
- * with an already-used token is refused. The download loop runs 5 file fetches at a
+ * `refreshAuthToken` — Directus rotates refresh tokens, so a second renewal
+ * with an already-used token is refused. Renewals go to the register extension's
+ * /sitzung, which keeps the device's place on the account in step, and to
+ * /auth/refresh only where the extension does not have the route. The download loop runs 5 file fetches at a
  * time, and before the in-flight promise was shared every one of them fired its own
  * refresh: four were refused, and that took the reader's offline library with it.
  * Across tabs the same race runs through a lock and the database.
@@ -17,6 +19,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const BACKEND = 'https://backend.test';
+const SITZUNG = '/directus-user-register-extension/sitzung';
+const DEVICE = { id: 'geraet-im-test', name: 'Testgerät · Chrome' };
 
 const handleInvalidCredentials = vi.fn();
 
@@ -30,7 +34,12 @@ function freshUserStore() {
         isTokenExpired: (() => false) as () => boolean,
         adoptStoredTokens: vi.fn(async () => false),
         updateTokens: vi.fn(
-            async (accessToken: string, refreshToken: string, expiresAt: number) => {
+            async (
+                accessToken: string,
+                refreshToken: string,
+                expiresAt: number,
+                _refreshExpiresAt?: number,
+            ) => {
                 store.authData = { accessToken, refreshToken, expiresAt };
             },
         ),
@@ -41,6 +50,7 @@ let userStore = freshUserStore();
 
 vi.mock('@/stores/user', () => ({ useUserStore: () => userStore }));
 vi.mock('@/config/directus', () => ({ directusConfig: { url: 'https://backend.test' } }));
+vi.mock('@/services/device', () => ({ thisDevice: () => DEVICE }));
 vi.mock('@/services/errorHandler', () => ({
     SESSION_ENDED_ERROR: 'Invalid credentials - user logged out',
     handleInvalidCredentials: (...args: unknown[]) => handleInvalidCredentials(...args),
@@ -54,7 +64,14 @@ function json(body: unknown, status = 200): Response {
 }
 
 const renewed = (n = 2) =>
-    json({ data: { access_token: `access-${n}`, refresh_token: `refresh-${n}`, expires: 900000 } });
+    json({
+        data: {
+            access_token: `access-${n}`,
+            refresh_token: `refresh-${n}`,
+            expires: 900000,
+            refresh_expires: 1_800_000_000_000,
+        },
+    });
 const refused = () =>
     json(
         {
@@ -70,14 +87,25 @@ const refused = () =>
 const tokenExpired = () =>
     json({ errors: [{ message: 'Token expired.', extensions: { code: 'TOKEN_EXPIRED' } }] }, 401);
 
+/** What an extension without the route answers. */
+const routeNotFound = () =>
+    json(
+        { errors: [{ message: "Route doesn't exist.", extensions: { code: 'ROUTE_NOT_FOUND' } }] },
+        404,
+    );
+
 /** One answer per route; anything else fails the test. */
 const answers = {
     refresh: (): Response | Promise<Response> => renewed(),
+    directus: (): Response | Promise<Response> => {
+        throw new Error('Directus itself is only asked where the extension has no /sitzung');
+    },
     items: (): Response | Promise<Response> => json({ data: [] }),
 };
 const network = vi.fn(async (input: string | URL, _init?: RequestInit) => {
     const url = String(input);
-    if (url === `${BACKEND}/auth/refresh`) return answers.refresh();
+    if (url === `${BACKEND}${SITZUNG}`) return answers.refresh();
+    if (url === `${BACKEND}/auth/refresh`) return answers.directus();
     if (url.startsWith(`${BACKEND}/items/`)) return answers.items();
     throw new Error(`Nothing should be asking for ${url}`);
 });
@@ -104,6 +132,9 @@ beforeEach(() => {
     });
     network.mockClear();
     answers.refresh = () => renewed();
+    answers.directus = () => {
+        throw new Error('Directus itself is only asked where the extension has no /sitzung');
+    };
     answers.items = () => json({ data: [] });
     vi.stubGlobal('fetch', network);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -121,11 +152,11 @@ describe('refreshAuthToken', () => {
 
         // Five parallel callers, mirroring the download loop's batch size.
         const calls = Promise.all(Array.from({ length: 5 }, () => refreshAuthToken()));
-        await vi.waitFor(() => expect(sent('/auth/refresh')).toHaveLength(1));
+        await vi.waitFor(() => expect(sent(SITZUNG)).toHaveLength(1));
         release(renewed());
 
         expect(await calls).toEqual([true, true, true, true, true]);
-        expect(sent('/auth/refresh')).toHaveLength(1);
+        expect(sent(SITZUNG)).toHaveLength(1);
         expect(userStore.updateTokens).toHaveBeenCalledOnce();
         expect(userStore.authData?.refreshToken).toBe('refresh-2');
     });
@@ -134,11 +165,37 @@ describe('refreshAuthToken', () => {
         await refreshAuthToken();
         await refreshAuthToken();
 
-        expect(sent('/auth/refresh')).toHaveLength(2);
+        expect(sent(SITZUNG)).toHaveLength(2);
     });
 
-    it('sends the refresh token in the body, and no access token', async () => {
+    it('sends the refresh token and the device in the body, and no access token', async () => {
         await refreshAuthToken();
+
+        expect(sent(SITZUNG)).toEqual([
+            {
+                authorization: null,
+                body: { refresh_token: 'old-refresh', geraet: DEVICE },
+                cache: undefined,
+            },
+        ]);
+    });
+
+    it('keeps the end of the session the server names', async () => {
+        await refreshAuthToken();
+
+        expect(userStore.updateTokens).toHaveBeenCalledWith(
+            'access-2',
+            'refresh-2',
+            expect.any(Number),
+            1_800_000_000_000,
+        );
+    });
+
+    it('renews at Directus where the extension has no /sitzung yet', async () => {
+        answers.refresh = routeNotFound;
+        answers.directus = () => renewed(3);
+
+        expect(await refreshAuthToken()).toBe(true);
 
         expect(sent('/auth/refresh')).toEqual([
             {
@@ -147,6 +204,7 @@ describe('refreshAuthToken', () => {
                 cache: undefined,
             },
         ]);
+        expect(userStore.authData?.refreshToken).toBe('refresh-3');
     });
 
     it('ends the session when the server turns the refresh token down', async () => {
@@ -167,7 +225,7 @@ describe('refreshAuthToken', () => {
         const results = await Promise.all(Array.from({ length: 5 }, () => refreshAuthToken()));
 
         expect(results).toEqual([false, false, false, false, false]);
-        expect(sent('/auth/refresh')).toHaveLength(1);
+        expect(sent(SITZUNG)).toHaveLength(1);
         expect(handleInvalidCredentials).not.toHaveBeenCalled();
         expect(userStore.authData).not.toBeNull();
     });
@@ -195,9 +253,9 @@ describe('refreshAuthToken', () => {
 
         await refreshAuthToken();
 
-        expect(sent('/auth/refresh')[0].body).toEqual({
+        expect(sent(SITZUNG)[0].body).toEqual({
             refresh_token: 'newer-refresh',
-            mode: 'json',
+            geraet: DEVICE,
         });
     });
 
@@ -216,7 +274,7 @@ describe('refreshAuthToken', () => {
         letGo();
         expect(await renewal).toBe(true);
         expect(userStore.adoptStoredTokens).toHaveBeenCalledOnce();
-        expect(sent('/auth/refresh')).toHaveLength(1);
+        expect(sent(SITZUNG)).toHaveLength(1);
     });
 });
 
@@ -229,7 +287,7 @@ describe('sessionFetch', () => {
         expect(sent('/items/')).toEqual([
             { authorization: 'Bearer old-access', body: undefined, cache: undefined },
         ]);
-        expect(sent('/auth/refresh')).toEqual([]);
+        expect(sent(SITZUNG)).toEqual([]);
     });
 
     it('renews first when the token is about to run out', async () => {
@@ -237,7 +295,7 @@ describe('sessionFetch', () => {
 
         await sessionFetch(ITEMS);
 
-        expect(sent('/auth/refresh')).toHaveLength(1);
+        expect(sent(SITZUNG)).toHaveLength(1);
         expect(sent('/items/').map((call) => call.authorization)).toEqual(['Bearer access-2']);
     });
 
@@ -284,7 +342,7 @@ describe('sessionFetch', () => {
     });
 
     it('sends /auth requests as they were made: unsigned, and never renewed', async () => {
-        answers.refresh = refused;
+        answers.directus = refused;
 
         const response = await sessionFetch(`${BACKEND}/auth/refresh`, {
             method: 'POST',

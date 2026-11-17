@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Tests for what an expired session costs the reader.
+ * Tests for what a session the server ended costs the reader.
  *
- * The rule under test: a device that holds a downloaded Gesangbuch is never sent
- * to the login form over a token. Sessions lapse offline, where signing back in
- * is not even possible — taking the book away there would leave a hymnal that
- * locks itself. Only a device with nothing to read has anywhere else to go.
+ * The rule under test: the renewal is the licence check, so a refused one closes
+ * the book until a code opens it again — but nothing is taken away. The songs,
+ * lists and marks stay on the device for the reader's return; the shell takes
+ * them to the sign-in when the session goes (App.vue). Only a device with
+ * nothing on it is reloaded into the sign-in from here.
+ * Being offline never gets here: only an answer from the server does.
  *
  * Its own file rather than a block in errorHandler.spec.ts: these need a Dexie
  * stub with real tables, and that file deliberately stubs the db away entirely.
@@ -68,7 +70,7 @@ describe('handleInvalidCredentials', () => {
         vi.clearAllMocks();
     });
 
-    it('keeps a reader with a downloaded Gesangbuch in the app', async () => {
+    it('ends the session over a downloaded Gesangbuch without a reload', async () => {
         songCount.mockResolvedValue(438);
         const location = stubLocation();
 
@@ -89,13 +91,13 @@ describe('handleInvalidCredentials', () => {
         expect(clearSongs).not.toHaveBeenCalled();
     });
 
-    it('sends a device with nothing downloaded to the login page', async () => {
+    it('sends a device with nothing downloaded to the sign-in', async () => {
         songCount.mockResolvedValue(0);
         const location = stubLocation();
 
         await handleInvalidCredentials('session_expired');
 
-        expect(location.href).toBe('/login?reason=session_expired');
+        expect(location.href).toBe('/anmelden?reason=session_expired');
         expect(endSession).not.toHaveBeenCalled();
     });
 
@@ -106,7 +108,7 @@ describe('handleInvalidCredentials', () => {
         await handleInvalidCredentials('account_deleted');
 
         expect(clearSongs).toHaveBeenCalled();
-        expect(location.href).toBe('/login?reason=account_deleted');
+        expect(location.href).toBe('/anmelden?reason=account_deleted');
     });
 
     it('treats an unreadable library as nothing to stay for', async () => {
@@ -120,6 +122,6 @@ describe('handleInvalidCredentials', () => {
             consoleError.mockRestore();
         }
 
-        expect(location.href).toBe('/login?reason=session_expired');
+        expect(location.href).toBe('/anmelden?reason=session_expired');
     });
 });

@@ -30,6 +30,18 @@ function checkStandaloneMode(): boolean {
     );
 }
 
+/**
+ * Whether this page runs as the installed app, for code outside a component
+ * (the router's guard), and before or without `initPWAListeners`.
+ */
+export function isRunningStandalone(): boolean {
+    try {
+        return isStandaloneRef.value || checkStandaloneMode();
+    } catch {
+        return false;
+    }
+}
+
 // Not in lib.dom yet: Chromium only, and still marked experimental.
 type InstalledRelatedApp = { platform: string; url?: string; id?: string };
 type NavigatorWithRelatedApps = Navigator & {

@@ -151,7 +151,7 @@ async function expectNoOverflow(page: Page, where: string) {
 
 test.describe('the app at every size it offers', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/anmelden');
         // The app has no content until it is synced; the dev skip is what gets
         // the shell on screen, which is what this spec is about.
         await page.getByRole('button', { name: /^Überspringen/ }).click({ timeout: 20_000 });
@@ -353,12 +353,12 @@ test.describe('the onboarding at every size it offers', () => {
             return route.abort();
         });
 
-        await page.goto('/');
+        await page.goto('/anmelden');
         await page.getByRole('button', { name: /^Überspringen/ }).click({ timeout: 20_000 });
         await expect(nav(page)).toBeVisible({ timeout: 20_000 });
         // The skip lives in memory, so the way in is the router, not a reload.
         await page.evaluate(() => {
-            localStorage.setItem('onboarding.currentStep', '4');
+            localStorage.setItem('onboarding.schritt', '3');
             history.pushState({}, '', '/onboarding');
             dispatchEvent(new PopStateEvent('popstate'));
         });
@@ -409,50 +409,8 @@ test.describe('the onboarding at every size it offers', () => {
         await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
     });
 
-    // The install step as a browser without an install prompt gets it: the notice,
-    // and under it the steps. The dev button brings up the other devices' steps,
-    // and an installation turns it into the way across to the app.
-    test('keeps the install step inside the phone', async ({ page }) => {
-        await page.goto('/');
-        await page.getByRole('button', { name: /^Überspringen/ }).click({ timeout: 20_000 });
-        await expect(nav(page)).toBeVisible({ timeout: 20_000 });
-        // The skip lives in memory, so the way in is the router, not a reload.
-        await page.evaluate(() => {
-            localStorage.setItem('onboarding.currentStep', '1');
-            history.pushState({}, '', '/onboarding');
-            dispatchEvent(new PopStateEvent('popstate'));
-        });
-        await expect(page.getByText('Die App scheint bereits installiert')).toBeVisible({
-            timeout: 20_000,
-        });
-        await page.evaluate(() => document.fonts.ready);
-
-        for (const [device, step] of [
-            ['Auto', 'Installations-Symbol'],
-            ['iOS', 'Teilen-Symbol'],
-            ['Android', 'Menü-Symbol'],
-            ['Desktop', 'Installations-Symbol'],
-        ]) {
-            const preview = page.getByRole('button', { name: /^Vorschau:/ });
-            if (device !== 'Auto') await preview.click();
-            await expect(preview).toHaveText(`Vorschau: ${device}`);
-            await expect(page.getByText(step)).toBeVisible();
-            await expectNoOverflow(page, `Installation, ${device}`);
-        }
-
-        // And once it has been installed from the tab: the step that sends the
-        // reader across to the app. The event is what Chromium raises then. As
-        // Android, which is where it is met, and which says the most.
-        const preview = page.getByRole('button', { name: /^Vorschau:/ });
-        while ((await preview.textContent())?.trim() !== 'Vorschau: Android') {
-            await preview.click();
-        }
-        await page.evaluate(() => dispatchEvent(new Event('appinstalled')));
-        await expect(page.getByRole('heading', { name: 'Jetzt die App öffnen' })).toBeVisible();
-        await expect(page.getByText('Menü mit den drei Punkten')).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Im Browser weitermachen' })).toBeVisible();
-        await expectNoOverflow(page, 'Installation, installiert');
-    });
+    // Installing is no step of the onboarding any more: it comes before the
+    // account, on the way in (see „the way in" below).
 
     // The Gemeinde: the map stays while the list goes by beneath it. Made-up rows,
     // the first few each at the width that tests something, a long name and a place
@@ -483,11 +441,11 @@ test.describe('the onboarding at every size it offers', () => {
                 : route.abort(),
         );
 
-        await page.goto('/');
+        await page.goto('/anmelden');
         await page.getByRole('button', { name: /^Überspringen/ }).click({ timeout: 20_000 });
         await expect(nav(page)).toBeVisible({ timeout: 20_000 });
         await page.evaluate(() => {
-            localStorage.setItem('onboarding.currentStep', '2');
+            localStorage.setItem('onboarding.schritt', '1');
             history.pushState({}, '', '/onboarding');
             dispatchEvent(new PopStateEvent('popstate'));
         });
@@ -566,6 +524,145 @@ test.describe('the onboarding at every size it offers', () => {
 // one a closed link goes on to. No library and no session behind it, which is
 // the point: nobody arriving there has either. The endpoint is our own Worker,
 // not the recorded backend, so it is answered here.
+test.describe('the way in at every size it offers', () => {
+    test('keeps the start page inside the phone', async ({ page }) => {
+        await page.goto('/willkommen');
+        await expect(page.getByRole('heading', { name: 'Gesangbuch', exact: true })).toBeVisible({
+            timeout: 20_000,
+        });
+        await page.evaluate(() => document.fonts.ready);
+        await expectNoOverflow(page, 'Startseite');
+
+        // The verse at the largest the page offers, on top of the app's Größe.
+        const larger = page.getByRole('button', { name: 'Schrift größer' });
+        while (await larger.isEnabled()) await larger.click();
+        await expectNoOverflow(page, 'Startseite, Vers am größten');
+    });
+
+    // The install page as a browser without an install prompt gets it: the notice,
+    // and under it the steps. The dev button brings up the other devices' steps,
+    // and an installation turns it into the way across to the app.
+    test('keeps the install page inside the phone', async ({ page }) => {
+        await page.goto('/installieren');
+        await expect(page.getByText('Die App scheint bereits installiert')).toBeVisible({
+            timeout: 20_000,
+        });
+        await page.evaluate(() => document.fonts.ready);
+
+        for (const [device, step] of [
+            ['Auto', 'Installations-Symbol'],
+            ['iOS', 'Teilen-Symbol'],
+            ['Android', 'Menü-Symbol'],
+            ['Desktop', 'Installations-Symbol'],
+        ]) {
+            const preview = page.getByRole('button', { name: /^Vorschau:/ });
+            if (device !== 'Auto') await preview.click();
+            await expect(preview).toHaveText(`Vorschau: ${device}`);
+            await expect(page.getByText(step)).toBeVisible();
+            await expect(page.getByRole('button', { name: /im Browser weiter/i })).toBeVisible();
+            await expectNoOverflow(page, `Installation, ${device}`);
+        }
+
+        // And once it has been installed from the tab: the page that sends the
+        // reader across to the app. The event is what Chromium raises then. As
+        // Android, which is where it is met, and which says the most.
+        const preview = page.getByRole('button', { name: /^Vorschau:/ });
+        while ((await preview.textContent())?.trim() !== 'Vorschau: Android') {
+            await preview.click();
+        }
+        await page.evaluate(() => dispatchEvent(new Event('appinstalled')));
+        await expect(page.getByRole('heading', { name: 'Jetzt die App öffnen' })).toBeVisible();
+        await expect(page.getByText('Menü mit den drei Punkten')).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Im Browser weiter' })).toBeVisible();
+        await expectNoOverflow(page, 'Installation, installiert');
+    });
+
+    // Every step of the sign-in, with the register extension's answers made up:
+    // a wrong code, an account on four devices, then an address without one.
+    // The address and the device names are long on purpose.
+    test('keeps every step of the sign-in inside the phone', async ({ page }) => {
+        test.slow();
+        const backend = (process.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '');
+        const extension = '/directus-user-register-extension';
+        const refusal = (status: number, extensions: Record<string, unknown>) => ({
+            status,
+            json: { errors: [{ message: String(extensions.code), extensions }] },
+        });
+        const now = new Date().toISOString();
+        const answers = [
+            refusal(400, { code: 'CODE_INVALID', attempts_left: 4 }),
+            refusal(409, {
+                code: 'DEVICE_LIMIT',
+                limit: 4,
+                ticket: 'ticket',
+                devices: [
+                    'Android-Tablet · Samsung Internet',
+                    'iPhone · Gesangbuch-App',
+                    'Windows-PC · Edge',
+                    'Linux-Rechner · Firefox',
+                ].map((name, i) => ({
+                    id: i + 1,
+                    name,
+                    last_seen: now,
+                    signed_in: now,
+                    current: false,
+                })),
+            }),
+            {
+                status: 200,
+                json: { data: { result: 'needs_registration', ticket: 't', expires_in: 1800 } },
+            },
+        ];
+        await page.route(`${backend}/**`, (route) => {
+            const { pathname } = new URL(route.request().url());
+            if (pathname === `${extension}/code`) {
+                return route.fulfill({ json: { data: { expires_in: 900, resend_in: 30 } } });
+            }
+            if (pathname === `${extension}/code/pruefen`) {
+                return route.fulfill(answers.shift() ?? answers[answers.length - 1]);
+            }
+            return route.abort();
+        });
+
+        await page.goto('/anmelden');
+        await expect(page.getByRole('heading', { name: 'Anmelden', exact: true })).toBeVisible({
+            timeout: 20_000,
+        });
+        await page.evaluate(() => document.fonts.ready);
+        await page
+            .getByLabel('E-Mail-Adresse')
+            .fill(
+                'maximiliane-theodora.hohenzollern-sigmaringen@beispielgemeinde-musterstadt.example',
+            );
+        await expectNoOverflow(page, 'Anmelden');
+
+        await page.getByRole('button', { name: 'Code senden' }).click();
+        await expect(page.getByRole('heading', { name: 'Code eingeben' })).toBeVisible();
+        await expectNoOverflow(page, 'Code eingeben');
+
+        const code = page.getByLabel('Sechsstelliger Code');
+        await code.fill('123456');
+        await expect(page.getByText('Noch 4 Versuche')).toBeVisible();
+        await expectNoOverflow(page, 'Code falsch');
+
+        await code.fill('123456');
+        await expect(page.getByRole('heading', { name: /Schon auf vier Geräten/ })).toBeVisible();
+        await expectNoOverflow(page, 'Geräte');
+
+        await page.getByRole('button', { name: 'Abbrechen' }).click();
+        await page.getByRole('button', { name: 'Code senden' }).click();
+        await code.fill('123456');
+        await expect(page.getByRole('heading', { name: 'Willkommen!' })).toBeVisible();
+        await page.getByLabel('Aktivierungscode').fill('levitikus-zacharias-barmherzigkeit');
+        await expectNoOverflow(page, 'Aktivierungscode');
+
+        await page.getByRole('button', { name: 'Zurück' }).click();
+        await page.getByRole('button', { name: 'Mit Passwort anmelden' }).click();
+        await expect(page.getByRole('heading', { name: 'Mit Passwort anmelden' })).toBeVisible();
+        await expectNoOverflow(page, 'Mit Passwort');
+    });
+});
+
 test.describe('the demo link at every size it offers', () => {
     test('keeps the welcome inside the phone while the songs load', async ({ page }) => {
         // Never answered: the welcome is what is on screen until they arrive.

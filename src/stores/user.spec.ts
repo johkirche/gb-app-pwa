@@ -75,6 +75,32 @@ describe('isTokenExpired', () => {
     });
 });
 
+describe('isPastGrace', () => {
+    const DAY = 24 * 60 * MINUTE;
+
+    // Offline past the session's thirty days the book still opens for the
+    // grace (services/offlineFrist): the reader may be in a service without a
+    // network, where no code can be had.
+    it('keeps the book open offline for a while after the session ran out', () => {
+        const store = useUserStore();
+        store.authData = { ...tokens('first'), refreshExpiresAt: Date.now() + DAY };
+        expect(store.isPastGrace()).toBe(false);
+
+        vi.advanceTimersByTime(2 * DAY);
+        expect(store.isPastGrace()).toBe(false);
+
+        vi.advanceTimersByTime(14 * DAY);
+        expect(store.isPastGrace()).toBe(true);
+    });
+
+    it('never closes a session whose end is not known', () => {
+        const store = useUserStore();
+        store.authData = tokens('first');
+        vi.advanceTimersByTime(365 * DAY);
+        expect(store.isPastGrace()).toBe(false);
+    });
+});
+
 describe('adoptStoredTokens', () => {
     it('takes up a pair another tab has renewed', async () => {
         const store = useUserStore();

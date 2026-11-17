@@ -1,6 +1,7 @@
 import { useUserStore } from '@/stores/user';
 
 import { directusConfig } from '@/config/directus';
+import { thisDevice } from '@/services/device';
 import { SESSION_ENDED_ERROR, handleInvalidCredentials } from '@/services/errorHandler';
 
 /**
@@ -19,10 +20,11 @@ import { SESSION_ENDED_ERROR, handleInvalidCredentials } from '@/services/errorH
  *    from "the request failed" (`isSessionEndedError`). A renewal that fails on
  *    the network ends nothing; the request fails as requests do offline.
  *  - /auth requests go out exactly as they were made. Directus checks a bearer
- *    before it routes a request, /auth/refresh included, so a dead access token
- *    sent along with a renewal has it refused before its refresh token is looked
- *    at. That ended every session a quarter of an hour into a pause, and is why
- *    the client carries no `authentication()` of its own to put one on.
+ *    before it routes a request, a renewal included, so a dead access token
+ *    sent along with one has it refused before its refresh token is looked at.
+ *    That ended every session a quarter of an hour into a pause, and is why
+ *    the client carries no `authentication()` of its own to put one on. The
+ *    renewal itself is sent with plain fetch for the same reason.
  *
  * A request that brings its own Authorization is left alone too: the login asks
  * for the user with the token it has just been given, before any session exists.
@@ -104,6 +106,30 @@ function whileHoldingRefreshLock(renew: () => Promise<boolean>): Promise<boolean
 /** What a refresh the server turned down rejects with, to end the session over. */
 class RefreshRefused extends Error {}
 
+function postJson(path: string, body: Record<string, unknown>): Promise<Response> {
+    return fetch(`${directusConfig.url}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+}
+
+/**
+ * Renewal goes through the register extension's /sitzung, which renews at
+ * Directus and keeps this device's place on the account in step with the new
+ * token: Directus swaps the refresh token every time, and a device signed out
+ * from elsewhere is found by it. An extension too old to have the route
+ * answers 404, and the renewal goes to Directus as it used to.
+ */
+async function renew(refreshToken: string): Promise<Response> {
+    const response = await postJson('/directus-user-register-extension/sitzung', {
+        refresh_token: refreshToken,
+        geraet: thisDevice(),
+    });
+    if (response.status !== 404) return response;
+    return postJson('/auth/refresh', { refresh_token: refreshToken, mode: 'json' });
+}
+
 async function renewTokens(): Promise<boolean> {
     const user = useUserStore();
 
@@ -114,19 +140,21 @@ async function renewTokens(): Promise<boolean> {
     const refreshToken = user.authData?.refreshToken;
     if (!refreshToken) return false;
 
-    const response = await fetch(`${directusConfig.url}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken, mode: 'json' }),
-    });
+    const response = await renew(refreshToken);
 
-    // Directus answers a refresh token it does not know, or no longer knows, with
-    // 401 INVALID_CREDENTIALS. Anything else says nothing about the session.
+    // A refresh token the server does not know, or no longer knows, is answered
+    // 401 INVALID_CREDENTIALS: run out, signed out from another device, or the
+    // account suspended. Anything else says nothing about the session.
     if (response.status === 401) throw new RefreshRefused();
     if (!response.ok) return false;
 
     const { data } = (await response.json()) as {
-        data?: { access_token?: string; refresh_token?: string; expires?: number };
+        data?: {
+            access_token?: string;
+            refresh_token?: string;
+            expires?: number;
+            refresh_expires?: number | null;
+        };
     };
     if (!data?.access_token || !data.refresh_token) return false;
 
@@ -134,6 +162,7 @@ async function renewTokens(): Promise<boolean> {
         data.access_token,
         data.refresh_token,
         Date.now() + (data.expires || 900000),
+        data.refresh_expires ?? undefined,
     );
     return true;
 }

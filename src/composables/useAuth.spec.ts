@@ -6,10 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * The renewal itself, and the signing of every request, live in services/session.ts
  * and are tested in session.spec.ts.
  *
- * `login` — pins the nested role-name readMe query and the German error mapping.
+ * `login` — pins the nested role-name readMe query, the German error mapping, and
+ * that an account without room for this device is reported, not failed.
  *
- * `register` — pins that a failed auto-login after a successful registration is NOT
- * reported as a registration failure (the one-time activation code is already used).
+ * `startSession` — pins that somebody else signing in on a device whose session
+ * ended clears the previous reader's lists first, and that the same reader keeps them.
  *
  * `logout` — pins that the server revoke carries the Dexie-persisted refresh token
  * and that a failed revoke (e.g. offline) still logs out locally.
@@ -25,7 +26,10 @@ const handleInvalidCredentials = vi.fn();
 const extractDirectusErrorCode = vi.fn();
 const clearUserScopedData = vi.fn();
 const translateLoginError = vi.fn();
-const translateRegistrationError = vi.fn();
+const loginWithPassword = vi.fn();
+const lastAccount = vi.hoisted(() => ({ value: null as { id: string; email: string } | null }));
+const rememberLastAccount = vi.fn();
+const forgetLastAccount = vi.fn();
 // Both default to a falsy return (vi.fn() yields undefined) — individual tests
 // opt in to the invalid-credentials / network branches via mockReturnValue(true).
 const isInvalidCredentialsError = vi.fn();
@@ -81,16 +85,41 @@ vi.mock('@/services/session', () => ({
     refreshAuthToken: (...args: unknown[]) => refreshAuthToken(...args),
 }));
 
+vi.mock('@/api/einstieg.api', () => {
+    class EinstiegError extends Error {
+        constructor(
+            readonly code: string,
+            readonly status: number,
+            readonly extensions: Record<string, unknown> = {},
+        ) {
+            super(code);
+        }
+    }
+    return {
+        EinstiegError,
+        loginWithPassword: (...args: unknown[]) => loginWithPassword(...args),
+        deviceLimitOf: (error: unknown) =>
+            error instanceof EinstiegError && error.code === 'DEVICE_LIMIT'
+                ? error.extensions
+                : null,
+        describeEinstiegError: (error: { code: string }) => `German for ${error.code}`,
+    };
+});
+
+vi.mock('@/services/lastAccount', () => ({
+    readLastAccount: () => lastAccount.value,
+    rememberLastAccount: (...args: unknown[]) => rememberLastAccount(...args),
+    forgetLastAccount: (...args: unknown[]) => forgetLastAccount(...args),
+}));
+
 vi.mock('@/services/errorHandler', () => ({
     handleInvalidCredentials: (...args: unknown[]) => handleInvalidCredentials(...args),
     isInvalidCredentialsError: (...args: unknown[]) => isInvalidCredentialsError(...args),
     isNetworkError: (...args: unknown[]) => isNetworkError(...args),
     clearUserScopedData: (...args: unknown[]) => clearUserScopedData(...args),
     translateLoginError: (...args: unknown[]) => translateLoginError(...args),
-    translateRegistrationError: (...args: unknown[]) => translateRegistrationError(...args),
     extractDirectusErrorCode: (...args: unknown[]) => extractDirectusErrorCode(...args),
     NETWORK_ERROR_MESSAGE: 'Keine Verbindung zum Server. Bitte prüfen Sie Ihre Internetverbindung.',
-    REGISTRATION_LOGIN_FAILED: 'REGISTRATION_LOGIN_FAILED',
 }));
 
 vi.mock('@/stores/user', () => ({
@@ -125,67 +154,76 @@ vi.mock('@/stores/preferences', () => ({
 
 // Imported after the mocks so the module picks them up.
 const { useAuth } = await import('./useAuth');
+const { EinstiegError } = await import('@/api/einstieg.api');
 
 beforeEach(() => {
     vi.resetAllMocks();
     userStore = freshUserStore();
+    lastAccount.value = null;
 });
+
+const SESSION = {
+    access_token: 'new-access',
+    refresh_token: 'new-refresh',
+    expires: 900000,
+    refresh_expires: 1_800_000_000_000,
+};
+const ME = {
+    id: 'user-1',
+    email: 'user@example.org',
+    first_name: 'Erika',
+    last_name: 'Muster',
+    role: { name: 'activated' },
+};
 
 describe('login', () => {
     it('requests the nested role name and maps it onto the stored user', async () => {
-        request.mockResolvedValueOnce({
-            access_token: 'new-access',
-            refresh_token: 'new-refresh',
-            expires: 900000,
-        });
-        request.mockResolvedValueOnce({
-            id: 'user-1',
-            email: 'user@example.org',
-            first_name: 'Erika',
-            last_name: 'Muster',
-            role: { name: 'activated' },
-        });
+        loginWithPassword.mockResolvedValue(SESSION);
+        request.mockResolvedValueOnce(ME);
 
         const { login } = useAuth();
         const result = await login('user@example.org', 'Passwort1');
 
         expect(result.success).toBe(true);
-        expect(request).toHaveBeenNthCalledWith(1, {
-            login: { email: 'user@example.org', password: 'Passwort1' },
-            options: { mode: 'json' },
-        });
+        expect(loginWithPassword).toHaveBeenCalledWith('user@example.org', 'Passwort1');
         // There is no session yet to sign with, so the user is asked for with the
         // token just issued. A bare 'role' field would return the role UUID; the
         // nested selection is what makes the activation check below possible.
-        expect(request).toHaveBeenNthCalledWith(2, {
+        expect(request).toHaveBeenCalledWith({
             token: 'new-access',
             command: expect.objectContaining({
                 fields: expect.arrayContaining([{ role: ['name'] }]),
             }),
         });
         expect(setUser).toHaveBeenCalledWith(
-            expect.objectContaining({
-                id: 'user-1',
-                role: 'activated',
-                activated: true,
-            }),
+            expect.objectContaining({ id: 'user-1', role: 'activated', activated: true }),
             expect.objectContaining({
                 accessToken: 'new-access',
                 refreshToken: 'new-refresh',
+                refreshExpiresAt: 1_800_000_000_000,
             }),
         );
+        expect(rememberLastAccount).toHaveBeenCalledWith({
+            id: 'user-1',
+            email: 'user@example.org',
+            firstName: 'Erika',
+        });
     });
 
-    it('returns the German error mapping when Directus rejects the credentials', async () => {
-        const sdkError = {
-            errors: [
-                {
-                    message: 'Invalid user credentials',
-                    extensions: { code: 'INVALID_CREDENTIALS' },
-                },
-            ],
-        };
-        request.mockRejectedValue(sdkError);
+    it('returns the German message when the extension refuses', async () => {
+        loginWithPassword.mockRejectedValue(new EinstiegError('INVALID_CREDENTIALS', 401));
+
+        const { login } = useAuth();
+        const result = await login('user@example.org', 'falsch');
+
+        expect(result).toEqual({ success: false, error: 'German for INVALID_CREDENTIALS' });
+        expect(userStore.error).toBe('German for INVALID_CREDENTIALS');
+        expect(setUser).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the Directus mapping for anything else', async () => {
+        const sdkError = { errors: [{ message: 'Invalid user credentials' }] };
+        loginWithPassword.mockRejectedValue(sdkError);
         translateLoginError.mockReturnValue('E-Mail-Adresse oder Passwort ist falsch.');
 
         const { login } = useAuth();
@@ -196,32 +234,43 @@ describe('login', () => {
             success: false,
             error: 'E-Mail-Adresse oder Passwort ist falsch.',
         });
-        expect(userStore.error).toBe('E-Mail-Adresse oder Passwort ist falsch.');
+    });
+
+    it('reports an account without room for this device, with what to offer', async () => {
+        const limit = { limit: 4, devices: [{ id: 1, name: 'iPhone · Safari' }], ticket: 't' };
+        loginWithPassword.mockRejectedValue(new EinstiegError('DEVICE_LIMIT', 409, limit));
+
+        const { login } = useAuth();
+        const result = await login('user@example.org', 'Passwort1');
+
+        expect(result).toEqual({ success: false, error: '', deviceLimit: limit });
+        expect(userStore.error).toBeNull();
     });
 });
 
-describe('register', () => {
-    it('reports REGISTRATION_LOGIN_FAILED when the account exists but auto-login fails', async () => {
-        // The extension call succeeds — the account is created and the one-time
-        // activation code is consumed …
-        request.mockResolvedValueOnce({});
-        // … but the follow-up login fails.
-        request.mockRejectedValueOnce({
-            errors: [{ message: 'Invalid user credentials' }],
-        });
-        translateLoginError.mockReturnValue('E-Mail-Adresse oder Passwort ist falsch.');
+describe('startSession', () => {
+    it('keeps the lists of the reader who comes back', async () => {
+        lastAccount.value = { id: 'user-1', email: 'user@example.org' };
+        request.mockResolvedValueOnce(ME);
 
-        const { register } = useAuth();
-        const result = await register('user@example.org', 'Passwort1', 'CODE-1234');
+        await useAuth().startSession(SESSION);
 
-        expect(result).toEqual({
-            success: false,
-            error: '',
-            code: 'REGISTRATION_LOGIN_FAILED',
-        });
-        // login() wrote its failure into the shared store error that LoginPage
-        // renders; register must clear it so only the reason banner is shown.
-        expect(userStore.error).toBeNull();
+        expect(clearUserScopedData).not.toHaveBeenCalled();
+        expect(setUser).toHaveBeenCalledOnce();
+    });
+
+    it("clears the previous reader's lists before somebody else signs in", async () => {
+        lastAccount.value = { id: 'someone-else', email: 'other@example.org' };
+        request.mockResolvedValueOnce(ME);
+        const order: string[] = [];
+        clearUserScopedData.mockImplementation(async () => void order.push('cleared'));
+        setUser.mockImplementation(async () => void order.push('signed in'));
+
+        await useAuth().startSession(SESSION);
+
+        expect(order).toEqual(['cleared', 'signed in']);
+        expect(playlistsClearAll).toHaveBeenCalled();
+        expect(preferencesResetToDefaults).toHaveBeenCalled();
     });
 });
 
@@ -319,6 +368,8 @@ describe('logout', () => {
         expect(playlistsClearAll).toHaveBeenCalledTimes(1);
         expect(serviceClearAll).toHaveBeenCalledTimes(1);
         expect(preferencesResetToDefaults).toHaveBeenCalledTimes(1);
+        // Leaving on purpose: the next sign-in on this device is nobody's return.
+        expect(forgetLastAccount).toHaveBeenCalledTimes(1);
     });
 
     it('still logs out locally when the server revoke fails (e.g. offline)', async () => {

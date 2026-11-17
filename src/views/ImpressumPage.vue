@@ -2,7 +2,7 @@
     <div class="flex h-full flex-col bg-background">
         <AppPageHeader title="Impressum">
             <template #leading>
-                <BackButton default-href="/login" />
+                <BackButton default-href="/anmelden" />
             </template>
         </AppPageHeader>
 

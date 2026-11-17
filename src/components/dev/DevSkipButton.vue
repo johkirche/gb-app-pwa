@@ -3,7 +3,7 @@
         type="button"
         variant="ghost"
         size="sm"
-        class="mt-4 w-full text-muted-foreground"
+        class="mt-4 h-auto min-h-9 w-full whitespace-normal text-muted-foreground"
         :disabled="disabled"
         @click="handleSkip"
     >

@@ -3,6 +3,10 @@ import { RouteRecordRaw, createRouter, createWebHistory } from 'vue-router';
 import { useSongsStore } from '@/stores/songs';
 import { useUserStore } from '@/stores/user';
 
+import { isRunningStandalone } from '@/composables/usePWA';
+
+import { clearSessionData } from '@/services/errorHandler';
+
 import AddSongsToPlaylistPage from '../views/AddSongsToPlaylistPage.vue';
 import BibelChapterPage from '../views/BibelChapterPage.vue';
 import BibelLeseplaenePage from '../views/BibelLeseplaenePage.vue';
@@ -17,15 +21,16 @@ import DownloadPage from '../views/DownloadPage.vue';
 import FavoritesPage from '../views/FavoritesPage.vue';
 import ImpressumPage from '../views/ImpressumPage.vue';
 import InstallPWAPage from '../views/InstallPWAPage.vue';
-import LoginPage from '../views/LoginPage.vue';
+import InstallPage from '../views/InstallPage.vue';
+import LandingPage from '../views/LandingPage.vue';
 import NotFoundPage from '../views/NotFoundPage.vue';
 import OnboardingPage from '../views/OnboardingPage.vue';
 import PasswordResetPage from '../views/PasswordResetPage.vue';
 import PlaylistDetailPage from '../views/PlaylistDetailPage.vue';
 import PlaylistsListPage from '../views/PlaylistsListPage.vue';
-import RegisterPage from '../views/RegisterPage.vue';
 import ServicePage from '../views/ServicePage.vue';
 import SettingsPage from '../views/SettingsPage.vue';
+import SignInPage from '../views/SignInPage.vue';
 import SongPage from '../views/SongPage.vue';
 import SongsListPage from '../views/SongsListPage.vue';
 import TabsPage from '../views/TabsPage.vue';
@@ -40,14 +45,17 @@ import TabsPage from '../views/TabsPage.vue';
  * hymnal that locks itself in a pew is no use — so:
  *
  *  - `'public'`  – needs nothing. The way in and the pages that must stay
- *                  readable from outside the app (login, registration,
- *                  Impressum, Datenschutz).
- *  - `'library'` – needs a session *or* a downloaded Gesangbuch. The whole
- *                  reading app: songs, playlists, Gottesdienst, settings. A
- *                  reader whose session died keeps every one of these; the few
- *                  features inside them that do talk to the server say so
- *                  themselves (see `LoginRequiredNotice`) instead of the view
- *                  as a whole being taken away.
+ *                  readable from outside the app (the start page, the
+ *                  sign-in, Impressum, Datenschutz).
+ *  - `'library'` – needs a session, which may be offline for thirty days, or
+ *                  a demo's songs. The whole reading app: songs, playlists,
+ *                  Gottesdienst, settings. The session's renewal is the licence
+ *                  check, so a book whose session the server ended, or that
+ *                  went thirty days without reaching it, stays on the device
+ *                  but opens only after a code (see `handleInvalidCredentials`).
+ *                  Offline within the thirty days nothing changes; the few
+ *                  features that need the server say so themselves (see
+ *                  `LoginRequiredNotice`).
  *  - `'session'` – genuinely useless without a live account, because the view's
  *                  entire purpose is to talk to the server (the onboarding
  *                  download). These are the only views that still bounce to the
@@ -152,17 +160,38 @@ const routes: Array<RouteRecordRaw> = [
             },
         ],
     },
+    // The way in. The start page is for the browser; the installed app starts
+    // at the sign-in (see the guard below).
     {
-        path: '/login',
-        name: 'Login',
-        component: LoginPage,
+        path: '/willkommen',
+        name: 'Willkommen',
+        component: LandingPage,
         meta: { access: 'public' },
     },
     {
-        path: '/register',
-        name: 'Register',
-        component: RegisterPage,
+        path: '/installieren',
+        name: 'Installieren',
+        component: InstallPage,
         meta: { access: 'public' },
+    },
+    // One page for every way in: a code by mail, a new account with the
+    // Aktivierungscode, the password, a device to swap out, and the return
+    // after the session ended.
+    {
+        path: '/anmelden',
+        name: 'Anmelden',
+        component: SignInPage,
+        meta: { access: 'public' },
+    },
+    // Where the way in used to be. Old links, installed apps and the reset
+    // page still point here; the query (a logout reason) comes along.
+    {
+        path: '/login',
+        redirect: (to) => ({ path: '/anmelden', query: to.query }),
+    },
+    {
+        path: '/register',
+        redirect: '/anmelden',
     },
     // The onboarding *is* the download, so it is one of the two views that a
     // session is genuinely required for. A reader who already has the book
@@ -353,28 +382,45 @@ router.beforeEach(async (to) => {
     // An undeclared view is treated as the most restrictive kind (see RouteMeta).
     const access = to.meta.access ?? 'session';
 
+    // Thirty days without a renewal: the session is over, whatever the device
+    // knows. The book stays and opens again after a code.
+    if (userStore.authData && userStore.isPastGrace()) {
+        await clearSessionData();
+        userStore.endSession();
+    }
+
     if (access !== 'public') {
-        // A downloaded Gesangbuch is worth as much as a session to a view that
-        // only reads it, so the guard has to wait for that read before it can
-        // decide — mid-flight the library still looks empty.
+        // Whether the songs are a demo's, which open without an account, has
+        // to wait for that read before it can be decided.
         const songsStore = useSongsStore();
         await songsStore.initPromise;
 
         // `hasSongs`, not `songs.length`: the exposed `songs` is the sorted
         // computed, and re-sorting the whole book on every navigation to ask
         // whether it is empty would be a strange way to spend the frame.
-        const mayEnter = userStore.isLoggedIn || (access === 'library' && songsStore.hasSongs);
+        const mayEnter =
+            userStore.isLoggedIn ||
+            (access === 'library' && songsStore.hasSongs && songsStore.isDemo);
 
         if (!mayEnter) {
-            // Nothing to read and no session: the login form is the only place
-            // this visit can go.
-            return { name: 'Login' };
+            // A book on the device waits for its reader's code; a device with
+            // nothing on it starts at the beginning. The installed app has no
+            // use for the start page, which is about getting it installed.
+            if (songsStore.hasSongs || isRunningStandalone()) return { name: 'Anmelden' };
+            return { name: 'Willkommen' };
         }
     }
 
-    // If user is logged in and trying to access login/register, redirect into the app
-    if (userStore.isLoggedIn && (to.name === 'Login' || to.name === 'Register')) {
+    // The way in, for someone who is already in.
+    if (
+        userStore.isLoggedIn &&
+        (to.name === 'Willkommen' || to.name === 'Installieren' || to.name === 'Anmelden')
+    ) {
         return { path: '/tabs/lieder' };
+    }
+
+    if (to.name === 'Willkommen' && isRunningStandalone()) {
+        return { name: 'Anmelden' };
     }
 
     // If onboarding is in progress, keep the user on onboarding instead of landing on the tabs

@@ -7,7 +7,7 @@ import { db } from '@/db';
  *
  * Global error handling for API errors, especially authentication errors.
  * When invalid credentials are detected (e.g., user account deleted),
- * this clears all local data and redirects to login.
+ * this clears all local data and redirects to the sign-in.
  */
 
 // Logout reasons that can be passed to the login page
@@ -372,7 +372,11 @@ export async function clearAllLocalData(): Promise<void> {
     // onboarding.
     try {
         localStorage.removeItem('onboarding.inProgress');
+        localStorage.removeItem('onboarding.schritt');
         localStorage.removeItem('onboarding.currentStep');
+        localStorage.removeItem('gesangbuch.letztesKonto');
+        localStorage.removeItem('gesangbuch.geraet');
+        localStorage.removeItem('gesangbuch.fristHinweis');
         localStorage.removeItem('settings.theme');
         localStorage.removeItem('settings.akzent');
         localStorage.removeItem('settings.akzentSichtbar');
@@ -409,12 +413,12 @@ async function hasDownloadedLibrary(): Promise<boolean> {
  * client — so the non-destructive reading is the only safe one. Pass `account_deleted`
  * explicitly, and only where the deletion is actually known.
  *
- * A device that holds a downloaded Gesangbuch is NOT sent to the login form. Doing that
- * is what used to happen, and it took the whole book away over a token — typically
- * offline, where signing back in is not even possible. The session ends quietly instead:
- * the app stays where it is on the local content, and asks for a sign-in only on the
- * features that actually need the server (see `LoginRequiredNotice`). Only a device with
- * nothing to read has anywhere else to go, and only that one is redirected.
+ * Only the server ends a session here: it turned the renewal down, because the device
+ * was signed out from another one, the account was suspended, or thirty days passed
+ * without a renewal. The renewal is the licence check, so the book closes until a code
+ * opens it again. It is not taken away: songs, lists and marks stay on the device, and
+ * the sign-in greets the reader by name (see services/lastAccount). Being offline ends
+ * nothing; the session.ts renewal only comes here on an answer from the server.
  */
 export async function handleInvalidCredentials(
     reason: LogoutReason = 'session_expired',
@@ -422,7 +426,7 @@ export async function handleInvalidCredentials(
     if (reason === 'account_deleted') {
         await clearAllLocalData();
         // Force a full page reload so no cached state survives the deletion.
-        window.location.href = `/login?reason=${reason}`;
+        window.location.href = `/anmelden?reason=${reason}`;
         return;
     }
 
@@ -431,11 +435,14 @@ export async function handleInvalidCredentials(
     if (await hasDownloadedLibrary()) {
         // The tokens are gone from IndexedDB; the store still holds them in memory,
         // and a stale `isLoggedIn` would keep the UI offering what can no longer work.
+        // The shell sees the session go and takes the reader to the sign-in
+        // (App.vue), within the app rather than by a reload: the songs stay
+        // loaded for the moment the code is entered.
         useUserStore().endSession();
         return;
     }
 
-    // Redirect to login page with reason query parameter
-    // Use window.location to force a full page reload and clear any cached state
-    window.location.href = `/login?reason=${reason}`;
+    // Redirect to the sign-in with the reason. A full page reload, so that no
+    // cached state survives.
+    window.location.href = `/anmelden?reason=${reason}`;
 }

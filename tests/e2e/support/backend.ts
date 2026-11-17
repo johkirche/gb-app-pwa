@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { stubAuth } from './library';
 import { hasRecording as fixtureExists, serveRecording, startRecording } from './recorder';
 
 /**
@@ -128,19 +129,7 @@ export const test = base.extend<{ missingFromRecording: () => string[] }>({
             // replay goes down first so the narrow /auth/* stubs, registered
             // after it, are the ones that win.
             const missing = await serveRecording(context, BACKEND_GLOB);
-
-            for (const path of ['login', 'refresh'] as const) {
-                await context.route(`${backendUrl}/auth/${path}`, (route) =>
-                    route.fulfill({
-                        status: 200,
-                        contentType: 'application/json',
-                        body: JSON.stringify(session),
-                    }),
-                );
-            }
-            await context.route(`${backendUrl}/auth/logout`, (route) =>
-                route.fulfill({ status: 204, body: '' }),
-            );
+            await stubAuth(context, session);
 
             await use(missing);
         },

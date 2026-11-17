@@ -73,7 +73,10 @@ async function serveBackend(context: BrowserContext): Promise<Session> {
             return route.fulfill({ status: 204, headers: CORS });
         }
 
-        if (pathname.startsWith('/auth/')) {
+        // The register extension's routes stand in for /auth/login and
+        // /auth/refresh now (/login, /sitzung), and are checked alike.
+        const extension = '/directus-user-register-extension';
+        if (pathname.startsWith('/auth/') || pathname.startsWith(`${extension}/`)) {
             // Directus checks a bearer before it routes the request, these
             // included: a renewal that brings along the access token it is meant to
             // replace, after that has run out, is turned away before its refresh
@@ -87,7 +90,7 @@ async function serveBackend(context: BrowserContext): Promise<Session> {
             }
         }
 
-        if (pathname === '/auth/login') {
+        if (pathname === '/auth/login' || pathname === `${extension}/login`) {
             return json(200, {
                 data: {
                     access_token: session.access,
@@ -97,7 +100,7 @@ async function serveBackend(context: BrowserContext): Promise<Session> {
             });
         }
 
-        if (pathname === '/auth/refresh') {
+        if (pathname === '/auth/refresh' || pathname === `${extension}/sitzung`) {
             const presented = (request.postDataJSON() as { refresh_token: string }).refresh_token;
             session.presented.push(presented);
             // Checked and rotated on arrival, as the server would: a second request
@@ -164,9 +167,9 @@ async function serveBackend(context: BrowserContext): Promise<Session> {
 
 /** The session on the device, as a login leaves it, with the token just issued. */
 async function signIn(page: Page) {
-    await page.goto('/');
-    // The login page is up, so the database has been opened and its tables exist.
-    await expect(page.getByRole('button', { name: /^Überspringen/ })).toBeVisible({
+    await page.goto('/anmelden');
+    // The sign-in is up, so the database has been opened and its tables exist.
+    await expect(page.getByRole('heading', { name: 'Anmelden', exact: true })).toBeVisible({
         timeout: 20_000,
     });
     await page.evaluate(async (lifetime) => {
@@ -253,7 +256,8 @@ async function letTokenRunOut(context: BrowserContext, session: Session) {
 test.describe('a session beginning', () => {
     test('signs in, and asks who it is with the token just issued', async ({ context, page }) => {
         await serveBackend(context);
-        await page.goto('/login');
+        await page.goto('/anmelden');
+        await page.getByRole('button', { name: 'Mit Passwort anmelden' }).click();
         await page
             .getByLabel(/E-Mail/i)
             .first()
@@ -262,7 +266,7 @@ test.describe('a session beginning', () => {
             .getByLabel(/Passwort/i)
             .first()
             .fill('e2e-password');
-        await page.getByRole('button', { name: 'Anmelden' }).click();
+        await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
 
         // Stored only once /users/me has answered, and it answers only to the
         // token the login handed out.

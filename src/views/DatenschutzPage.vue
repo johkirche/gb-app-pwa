@@ -2,7 +2,7 @@
     <div class="flex h-full flex-col bg-background">
         <AppPageHeader title="Datenschutzerklärung">
             <template #leading>
-                <BackButton default-href="/login" />
+                <BackButton default-href="/anmelden" />
             </template>
         </AppPageHeader>
 
@@ -122,10 +122,22 @@
                                 <em>settings.akzent</em>
                                 ,
                                 <em>settings.akzentSichtbar</em>
-                                ) und der Fortschritt der Ersteinrichtung (
+                                ), der Fortschritt der Ersteinrichtung (
                                 <em>onboarding.inProgress</em>
                                 ,
-                                <em>onboarding.currentStep</em>
+                                <em>onboarding.schritt</em>
+                                ), eine zufällige Kennung dieses Geräts, unter der es in der Liste
+                                Ihrer Geräte steht (
+                                <em>gesangbuch.geraet</em>
+                                ), sowie E-Mail-Adresse und Vorname des zuletzt angemeldeten Kontos
+                                (
+                                <em>gesangbuch.letztesKonto</em>
+                                ), damit die App Sie nach dem Ende einer Sitzung wiedererkennt und
+                                den Code an die bekannte Adresse schicken kann. Beim Abmelden werden
+                                E-Mail-Adresse und Vorname entfernt. Außerdem der Tag, an dem die
+                                App zuletzt daran erinnert hat, dass sie wieder einmal Internet
+                                braucht (
+                                <em>gesangbuch.fristHinweis</em>
                                 ).
                             </li>
                             <li>
@@ -216,7 +228,19 @@
                             </li>
                             <li>
                                 <em>/directus-user-register-extension/&hellip;</em>
-                                &ndash; Registrierung mit Aktivierungscode
+                                &ndash; Anmeldung mit einem Code per E-Mail oder mit Passwort,
+                                Registrierung mit Aktivierungscode, Sitzungsverlängerung, die Liste
+                                Ihrer Geräte, das Festlegen eines Passworts und die Kontolöschung.
+                                Für den Code werden Ihre E-Mail-Adresse und der Code (nur als
+                                Prüfwert, nicht im Klartext) einen Tag lang gespeichert und eine
+                                E-Mail an Sie verschickt. Falsch eingegebene Aktivierungscodes
+                                werden mit der IP-Adresse, von der sie kamen, einen Tag lang
+                                gezählt, um das Durchprobieren zu verhindern. Ein Konto kann auf
+                                höchstens vier Geräten zugleich angemeldet sein; dafür werden je
+                                Gerät die zufällige Gerätekennung, eine Bezeichnung wie „iPhone ·
+                                Gesangbuch-App“ sowie der Zeitpunkt der Anmeldung und der letzten
+                                Verlängerung gespeichert. Sie stehen in den Einstellungen unter
+                                „Konto“ und werden gelöscht, wenn die Sitzung des Geräts endet
                             </li>
                         </ul>
                         <p>

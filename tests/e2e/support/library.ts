@@ -72,18 +72,7 @@ export async function openLibrary(
     }
 
     await serveRecording(context, BACKEND_GLOB);
-    for (const path of ['login', 'refresh'] as const) {
-        await context.route(`${backendUrl}/auth/${path}`, (route) =>
-            route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify(STUB_SESSION),
-            }),
-        );
-    }
-    await context.route(`${backendUrl}/auth/logout`, (route) =>
-        route.fulfill({ status: 204, body: '' }),
-    );
+    await stubAuth(context);
 
     const page = await context.newPage();
     await syncLibrary(page);
@@ -99,33 +88,88 @@ export async function openLibrary(
     };
 }
 
-/** Log in and let onboarding pull the book down from the recording. */
-export async function syncLibrary(page: Page) {
-    await page.goto('/login');
+/**
+ * Sign-in and renewal answered with made-up tokens, as support/backend.ts
+ * explains: at Directus' own routes and at the register extension's, which the
+ * app uses first. The device list answers with this device alone, so the
+ * account settings have something to show and nothing reaches the backend.
+ */
+export async function stubAuth(context: BrowserContext, session: unknown = STUB_SESSION) {
+    const base = backendUrl.replace(/\/$/, '');
+    const extension = `${base}/directus-user-register-extension`;
+    for (const url of [
+        `${base}/auth/login`,
+        `${base}/auth/refresh`,
+        `${extension}/login`,
+        `${extension}/sitzung`,
+    ]) {
+        await context.route(url, (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(session),
+            }),
+        );
+    }
+    await context.route(`${extension}/geraete**`, (route) => {
+        const now = new Date().toISOString();
+        return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                data: {
+                    limit: 4,
+                    devices: [
+                        {
+                            id: 1,
+                            name: 'Testgerät · Browser',
+                            last_seen: now,
+                            signed_in: now,
+                            current: true,
+                        },
+                    ],
+                },
+            }),
+        });
+    });
+    await context.route(`${base}/auth/logout`, (route) => route.fulfill({ status: 204, body: '' }));
+}
+
+/**
+ * The password way in, as the sign-in offers it beside the code, to the page
+ * that says the book comes next, and on into the onboarding.
+ */
+export async function signInWithPassword(page: Page, email: string, password: string) {
+    await page.goto('/anmelden');
+    await page.getByRole('button', { name: 'Mit Passwort anmelden' }).click();
     await page
         .getByLabel(/E-Mail/i)
         .first()
-        .fill('e2e@example.invalid');
+        .fill(email);
     await page
         .getByLabel(/Passwort/i)
         .first()
-        .fill('e2e-password');
-    await page.getByRole('button', { name: 'Anmelden' }).click();
-
+        .fill(password);
+    await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+    await page.getByRole('button', { name: 'Lieder laden' }).click({ timeout: 60_000 });
     await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
+}
+
+/** Sign in and let onboarding pull the book down from the recording. */
+export async function syncLibrary(page: Page) {
+    await signInWithPassword(page, 'e2e@example.invalid', 'e2e-password');
     await walkOnboarding(page, 180_000);
     await page.locator('nav[aria-label="Hauptnavigation"]:visible').waitFor({ timeout: 30_000 });
 }
 
 /**
- * Through the onboarding: install, the Gemeinde, the download step — which offers
+ * Through the onboarding: the Gemeinde, the download step — which offers
  * „Weiter" once the book is down — then past the tour to the profile and its
  * „Fertig". No Gemeinde is chosen and nothing is typed into the profile: both
  * are saved without a request when left empty, so the recording never learns of
  * a write and a replay never needs one.
  */
 export async function walkOnboarding(page: Page, downloadBudgetMs: number) {
-    await page.getByRole('button', { name: 'Weiter' }).click();
     await expect(
         page.getByRole('heading', { name: 'Zu welcher Gemeinde gehören Sie?' }),
     ).toBeVisible();

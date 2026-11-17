@@ -478,7 +478,7 @@ async function syncSongs() {
     if (!isLoggedIn.value) {
         toast.info('Zum Synchronisieren ist eine Anmeldung erforderlich.', {
             description: 'Ihr heruntergeladenes Gesangbuch bleibt vollständig nutzbar.',
-            action: { label: 'Anmelden', onClick: () => router.push('/login') },
+            action: { label: 'Anmelden', onClick: () => router.push('/anmelden') },
         });
         return;
     }
