@@ -113,6 +113,16 @@ export const test = base.extend<{ missingFromRecording: () => string[] }>({
     missingFromRecording: [
         async ({ context }, use) => {
             if (RECORDING) {
+                // One device for every recording, so the account's four places
+                // do not fill up with a new one per run: signing in again on a
+                // known device replaces its session (register extension).
+                await context.addInitScript(() => {
+                    try {
+                        localStorage.setItem('gesangbuch.geraet', 'e2e-aufnahme');
+                    } catch {
+                        // A fresh device then, as before.
+                    }
+                });
                 const finish = await startRecording(context, BACKEND_GLOB);
                 await use(() => []);
                 const stats = finish();

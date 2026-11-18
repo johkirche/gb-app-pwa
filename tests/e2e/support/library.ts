@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext, Page, Route } from '@playwright/test';
 import { chromium, expect, firefox, webkit } from '@playwright/test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -97,42 +97,63 @@ export async function openLibrary(
 export async function stubAuth(context: BrowserContext, session: unknown = STUB_SESSION) {
     const base = backendUrl.replace(/\/$/, '');
     const extension = `${base}/directus-user-register-extension`;
+
+    // The backend is another origin, and these are JSON posts: the browser
+    // asks first (OPTIONS) and reads the answer only if it may. Registered
+    // after the replay, these handlers are the ones the preflight reaches, so
+    // they answer it as the replay would, and send the same headers along.
+    const answer = (route: Route, status: number, body?: unknown) => {
+        const request = route.request();
+        const cors = { 'access-control-allow-origin': request.headers()['origin'] || '*' };
+        if (request.method() === 'OPTIONS') {
+            return route.fulfill({
+                status: 204,
+                headers: {
+                    ...cors,
+                    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+                    'access-control-allow-headers':
+                        request.headers()['access-control-request-headers'] ||
+                        'authorization, content-type',
+                },
+                body: '',
+            });
+        }
+        return body === undefined
+            ? route.fulfill({ status, headers: cors, body: '' })
+            : route.fulfill({
+                  status,
+                  headers: cors,
+                  contentType: 'application/json',
+                  body: JSON.stringify(body),
+              });
+    };
+
     for (const url of [
         `${base}/auth/login`,
         `${base}/auth/refresh`,
         `${extension}/login`,
         `${extension}/sitzung`,
     ]) {
-        await context.route(url, (route) =>
-            route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify(session),
-            }),
-        );
+        await context.route(url, (route) => answer(route, 200, session));
     }
     await context.route(`${extension}/geraete**`, (route) => {
         const now = new Date().toISOString();
-        return route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-                data: {
-                    limit: 4,
-                    devices: [
-                        {
-                            id: 1,
-                            name: 'Testgerät · Browser',
-                            last_seen: now,
-                            signed_in: now,
-                            current: true,
-                        },
-                    ],
-                },
-            }),
+        return answer(route, 200, {
+            data: {
+                limit: 4,
+                devices: [
+                    {
+                        id: 1,
+                        name: 'Testgerät · Browser',
+                        last_seen: now,
+                        signed_in: now,
+                        current: true,
+                    },
+                ],
+            },
         });
     });
-    await context.route(`${base}/auth/logout`, (route) => route.fulfill({ status: 204, body: '' }));
+    await context.route(`${base}/auth/logout`, (route) => answer(route, 204));
 }
 
 /**
@@ -170,19 +191,26 @@ export async function syncLibrary(page: Page) {
  * a write and a replay never needs one.
  */
 export async function walkOnboarding(page: Page, downloadBudgetMs: number) {
+    // Pressed from the keyboard, not clicked. Where the service worker runs
+    // (offline.spec.ts) its „Das Gesangbuch ist jetzt offline verfügbar" comes
+    // up at the bottom, over these buttons, and a pointer moved there to click
+    // keeps a toast from going: the click would wait for ever.
+    const press = (name: string) => page.getByRole('button', { name }).press('Enter');
+
     await expect(
         page.getByRole('heading', { name: 'Zu welcher Gemeinde gehören Sie?' }),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Weiter' }).click();
+    await press('Weiter');
     await expect(page.getByRole('heading', { name: 'Inhalte herunterladen' })).toBeVisible();
 
-    const next = page.getByRole('button', { name: 'Weiter' });
-    await expect(next).toBeVisible({ timeout: downloadBudgetMs });
-    await next.click();
+    await expect(page.getByRole('button', { name: 'Weiter' })).toBeVisible({
+        timeout: downloadBudgetMs,
+    });
+    await press('Weiter');
 
-    await page.getByRole('button', { name: 'Überspringen' }).click();
+    await press('Überspringen');
     await expect(page.getByRole('heading', { name: 'Wie dürfen wir Sie nennen?' })).toBeVisible();
-    await page.getByRole('button', { name: 'Fertig' }).click();
+    await press('Fertig');
 }
 
 /** The tab bar that is on screen — a second, hidden one exists for ≥ lg. */

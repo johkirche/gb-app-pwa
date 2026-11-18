@@ -136,7 +136,8 @@ the desktop sidebar is in the document at phone widths too, hidden, and
 `getByText('Favoriten').first()` will happily find its link instead of the page.
 
 **The backend is recorded, not faked.** The app talks to a handful of things —
-a GraphQL endpoint, Directus' auth routes, `/files` to find the notation archive
+a GraphQL endpoint, the way in (the register extension's `/login`, `/sitzung`,
+`/code` … and Directus' own auth routes), `/files` to find the notation archive
 and the Bibelstellen by name, `/assets/<id>` for those and for the two
 notation files a song carries, `/users/me` for the reader's own profile,
 `/items/gemeinde` for the list onboarding offers, and `/items/app_liste`,
@@ -154,11 +155,15 @@ Recording needs a real Directus account in `.env` — `E2E_DIRECTUS_EMAIL` and
 `E2E_DIRECTUS_PASSWORD`, **without** a `VITE_` prefix, because anything carrying
 that prefix is inlined verbatim into the built JS and shipped to every visitor.
 They are read by `playwright.config.ts` in Node and never reach the bundle.
-Only the recording uses them; a replay stubs the login, so no password and no
-real token is ever written into a fixture.
+Only the recording uses them, and it leaves the way in out of what it writes
+down (`isRecordable` in `support/recorder.ts`): a replay stubs the login and the
+renewal, so no password and no real token is ever written into a fixture. The
+recording browser always calls itself the same device, so repeated recordings
+take one of the account's four places, not a new one each.
 
-Onboarding is a wizard, so the recording walks it: „Weiter" past the install
-prompt and past the Gemeinde, then the download starts on its own and the run
+The recording signs in with the password, past the page that says the book
+comes next. Onboarding is a wizard, so the recording walks it: „Weiter" past
+the Gemeinde, then the download starts on its own and the run
 sits out the whole book, printing each phase as it goes. (A phone would first
 wait for „Herunterladen", with the transfer size beside it; the projects are
 desktops with a mouse, so that never comes up.) Then through the tour, a step per
