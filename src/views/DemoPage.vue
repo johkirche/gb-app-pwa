@@ -11,7 +11,7 @@
             v-if="state !== 'unreachable'"
             class="page-col flex min-h-full max-w-md flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(3rem,env(safe-area-inset-top))]"
         >
-            <img src="/logo.svg" alt="" class="h-20 w-auto self-start" />
+            <GesangbuchLogo class="h-20 shrink-0 self-start" />
             <p class="label-micro mt-8 text-flourish">Vorschau · Johannische Kirche</p>
             <h1 class="mt-2 text-balance font-display text-4xl font-semibold leading-tight">
                 Willkommen beim neuen Gesangbuch
@@ -95,6 +95,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useSongsStore } from '@/stores/songs';
 import { useUserStore } from '@/stores/user';
 
+import GesangbuchLogo from '@/components/shell/GesangbuchLogo.vue';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 

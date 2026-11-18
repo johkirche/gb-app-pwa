@@ -6,7 +6,7 @@
             aria-label="Hauptnavigation"
         >
             <RouterLink :to="songsListPath" class="mb-8 flex items-center gap-3 px-2">
-                <img src="/logo.svg" alt="" class="h-10 w-10" />
+                <GesangbuchLogo class="h-10" />
                 <span class="font-display text-2xl font-semibold text-foreground">Gesangbuch</span>
             </RouterLink>
 
@@ -169,6 +169,7 @@ import { useProfile } from '@/composables/useProfile';
 import { songsListPath } from '@/composables/useSongFilterHistory';
 
 import UserAvatar from '@/components/profile/UserAvatar.vue';
+import GesangbuchLogo from '@/components/shell/GesangbuchLogo.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,

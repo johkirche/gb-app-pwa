@@ -1,15 +1,16 @@
 // Regenerate all PWA / favicon / app-icon assets from the source logo.
 //
-//   Logo:    assets/logo/logo.svg       (the Kreuz-Taube, copied as is)
+//   Logo:    assets/logo/logo.svg       (Kreuz, Taube und Buch, copied as is)
 //   Icons:   assets/logo/logo-alt.svg   (the Buch-Taube, gradient line-art, viewBox 0 0 686 677)
 //   Run:     pnpm generate:icons
 //
-// The app's logo is the Kreuz-Taube; the icons on the home screen are still
-// drawn from the Buch-Taube it replaced, until the Kreuz-Taube has an icon
-// that holds up at 16 px. Re-run whenever either source changes. Everything
+// The app's logo is Kreuz, Taube und Buch; inside the app it is drawn by
+// components/shell/GesangbuchLogo.vue, made from the same file. The icons on
+// the home screen are still drawn from the Buch-Taube, until the logo has an
+// icon that holds up at 16 px. Re-run whenever either source changes. Everything
 // below is derived, so the generated files should never be hand-edited.
 import { Buffer } from 'node:buffer';
-import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pngToIco from 'png-to-ico';

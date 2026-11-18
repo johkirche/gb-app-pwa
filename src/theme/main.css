@@ -110,6 +110,9 @@
        Woche). Silver unless the reader chose gold (Akzent, see useAkzent).
        Contrast on the ground: 3.8:1 here, 9.5:1 dark. */
     --flourish: #7a808c;
+    /* The logo's grey (GesangbuchLogo): the drawing's own here, lifted on the
+       dark ground, where the drawing's would all but vanish. */
+    --logo: #58595b;
     --radius: 0.375rem;
     /* The reader's Groesse, as a plain factor. Written onto the root element
        from the preferences store (see usePageScale) and read back here by the
@@ -186,6 +189,7 @@
     --input: #333b55;
     --ring: #9db0e0;
     --flourish: #b8bec9;
+    --logo: #c3c8d2;
 }
 
 /* The Akzent the reader chose, on the root (useAkzent) or on any element that
@@ -242,6 +246,7 @@
     --color-input: var(--input);
     --color-ring: var(--ring);
     --color-flourish: var(--flourish);
+    --color-logo: var(--logo);
 
     --font-sans: var(--font-sans);
     --font-display: var(--font-display);

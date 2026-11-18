@@ -9,7 +9,7 @@
             class="page-col flex min-h-full max-w-md flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(3rem,env(safe-area-inset-top))]"
         >
             <header>
-                <img src="/logo.svg" alt="" class="h-20 w-auto" />
+                <GesangbuchLogo class="h-20" />
                 <p class="label-micro mt-8 text-flourish">Vorschau beendet</p>
                 <h1 class="mt-2 text-balance font-display text-4xl font-semibold leading-tight">
                     Danke fürs Ausprobieren
@@ -55,6 +55,8 @@
 
 <script setup lang="ts">
 import { ALargeSmall, BookOpen, ClipboardList, Music, Play, WifiOff } from 'lucide-vue-next';
+
+import GesangbuchLogo from '@/components/shell/GesangbuchLogo.vue';
 
 // What a demo leaves out (see the songs store's isDemo), said as what it is
 // for rather than what it is called in the app.
