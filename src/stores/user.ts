@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import { type AuthData, type UserData, db } from '@/db';
+import { offlineFrist } from '@/services/offlineFrist';
 
 export const useUserStore = defineStore('user', () => {
     // State
@@ -43,6 +44,15 @@ export const useUserStore = defineStore('user', () => {
         if (!authData.value) return true;
         const bufferMs = 5 * 60 * 1000; // 5 minutes
         return Date.now() >= authData.value.expiresAt - bufferMs;
+    }
+
+    /**
+     * Whether the book has gone too long without reaching the server: past the
+     * session's thirty days and the grace after them (services/offlineFrist).
+     * A function for the same reason as isTokenExpired.
+     */
+    function isPastGrace(): boolean {
+        return offlineFrist(authData.value?.refreshExpiresAt).state === 'vorbei';
     }
 
     // Actions
@@ -96,7 +106,12 @@ export const useUserStore = defineStore('user', () => {
 
     async function setUser(
         userData: UserData,
-        tokens: { accessToken: string; refreshToken: string; expiresAt: number },
+        tokens: {
+            accessToken: string;
+            refreshToken: string;
+            expiresAt: number;
+            refreshExpiresAt?: number;
+        },
     ) {
         try {
             await saveUserData(userData);
@@ -105,6 +120,7 @@ export const useUserStore = defineStore('user', () => {
                 accessToken: tokens.accessToken,
                 refreshToken: tokens.refreshToken,
                 expiresAt: tokens.expiresAt,
+                ...(tokens.refreshExpiresAt ? { refreshExpiresAt: tokens.refreshExpiresAt } : {}),
             });
             sessionExpired.value = false;
         } catch (err) {
@@ -131,14 +147,23 @@ export const useUserStore = defineStore('user', () => {
         await saveUserData({ ...user.value, ...patch });
     }
 
-    async function updateTokens(accessToken: string, refreshToken: string, expiresAt: number) {
+    async function updateTokens(
+        accessToken: string,
+        refreshToken: string,
+        expiresAt: number,
+        refreshExpiresAt?: number,
+    ) {
         if (!authData.value) return;
 
+        // A renewal at Directus' own route says nothing about the session's end;
+        // the one known so far is then a lower bound and stays.
+        const end = refreshExpiresAt ?? authData.value.refreshExpiresAt;
         await saveAuthData({
             id: 'current',
             accessToken,
             refreshToken,
             expiresAt,
+            ...(end ? { refreshExpiresAt: end } : {}),
         });
     }
 
@@ -227,6 +252,7 @@ export const useUserStore = defineStore('user', () => {
         isLoggedIn,
         isActivated,
         isTokenExpired,
+        isPastGrace,
 
         // Dev-only, in-memory
         devSkipAuth,

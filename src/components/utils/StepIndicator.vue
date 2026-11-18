@@ -9,7 +9,9 @@
         >
             <ArrowLeft class="!size-5" aria-hidden="true" />
         </Button>
-        <div v-else class="w-10" aria-hidden="true"></div>
+        <!-- As tall as the button it stands in for, so the step below does not
+             move up by its height where there is no going back. -->
+        <div v-else class="size-10 shrink-0" aria-hidden="true"></div>
         <!-- Wraps rather than runs off: the onboarding has a dot for every
              slide of its tour, and at Größe 200 % they no longer fit one row. -->
         <div class="flex min-w-0 flex-wrap items-center justify-center gap-2">

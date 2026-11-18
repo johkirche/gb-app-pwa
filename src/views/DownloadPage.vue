@@ -239,7 +239,7 @@
                         type="button"
                         variant="outline"
                         class="mt-3 w-full lg:w-auto"
-                        @click="router.push('/login')"
+                        @click="router.push('/anmelden')"
                     >
                         <LogIn aria-hidden="true" />
                         Jetzt anmelden
@@ -470,7 +470,7 @@ async function handleDelete() {
             // so the login form is where this now belongs — going there directly
             // beats leaving the reader on an empty page until they navigate.
             if (!isLoggedIn.value) {
-                router.push('/login');
+                router.push('/anmelden');
             }
         } catch (err) {
             console.error('Delete failed:', err);

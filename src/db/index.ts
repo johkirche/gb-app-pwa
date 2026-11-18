@@ -94,6 +94,13 @@ export interface AuthData {
     accessToken: string;
     refreshToken: string;
     expiresAt: number;
+    /**
+     * When the session runs out unless it is renewed (ms since 1970): the end of
+     * the offline grace, after which the app asks for a code again. The server
+     * gives it with every session; sessions from before it did have none, and
+     * keep going until their next renewal brings one.
+     */
+    refreshExpiresAt?: number;
 }
 
 export interface UserData {

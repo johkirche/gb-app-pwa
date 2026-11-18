@@ -47,6 +47,22 @@ function keyFor(method: string, url: string, postData: string | null): string {
     return h.digest('hex');
 }
 
+/**
+ * What is never written down: the way in. Its requests carry the password and
+ * its answers the session's tokens, and a replay answers them with made-up
+ * ones of its own anyway (support/library.ts, stubAuth). They go through to
+ * the backend during a recording, untouched and unrecorded.
+ */
+const NOT_RECORDED = [
+    /\/auth\//,
+    /\/directus-user-register-extension\/(login|sitzung|register|code|geraete|passwort)\b/,
+];
+
+export function isRecordable(url: string): boolean {
+    const { pathname } = new URL(url);
+    return !NOT_RECORDED.some((pattern) => pattern.test(pathname));
+}
+
 /** Response headers worth keeping: enough to be a faithful reply, no more. */
 const KEEP_HEADERS = new Set(['content-type', 'cache-control', 'etag', 'last-modified']);
 
@@ -92,10 +108,23 @@ export async function startRecording(context: BrowserContext, urlGlob: string) {
 
     await context.route(urlGlob, async (route: Route) => {
         const request = route.request();
+        if (!isRecordable(request.url())) {
+            await route.continue();
+            return;
+        }
         // Playwright performs the request and hands us the bytes. Nothing is
         // read back out of the browser afterwards, which is the whole point.
-        const response = await route.fetch();
-        const body = await response.body();
+        let response: Awaited<ReturnType<Route['fetch']>>;
+        let body: Buffer;
+        try {
+            response = await route.fetch();
+            body = await response.body();
+        } catch {
+            // The test is over and its browser closing, with this request still
+            // under way (the app syncs on its own). Nothing to keep, nobody to
+            // answer.
+            return;
+        }
 
         const key = keyFor(request.method(), request.url(), request.postData());
         if (!seen.has(key)) {
@@ -124,7 +153,9 @@ export async function startRecording(context: BrowserContext, urlGlob: string) {
             });
         }
 
-        await route.fulfill({ response, body });
+        await route.fulfill({ response, body }).catch(() => {
+            // Closed in the meantime; the bytes are kept all the same.
+        });
     });
 
     return function finish() {

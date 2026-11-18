@@ -53,6 +53,6 @@ withDefaults(
 const router = useRouter();
 
 function goToLogin() {
-    router.push('/login');
+    router.push('/anmelden');
 }
 </script>

@@ -37,7 +37,10 @@ import { useTheme } from '@/composables/useTheme';
 import { ConfirmHost } from '@/components/ui/confirm';
 import { Toaster } from '@/components/ui/sonner';
 
+import { clearSessionData } from '@/services/errorHandler';
 import { startLibraryUpdates } from '@/services/libraryUpdates';
+import { fristHinweis, offlineFrist } from '@/services/offlineFrist';
+import { refreshAuthToken } from '@/services/session';
 import { startUserDataSync } from '@/services/userData/sync';
 
 // Mobile-viewport preview. Always available in dev; a production build ships
@@ -73,31 +76,8 @@ watch(
     { immediate: true },
 );
 
-// A session that lapses no longer interrupts anything: the reader stays on the
-// page they were on, with the whole downloaded Gesangbuch intact (see
-// `handleInvalidCredentials`). But it must not lapse *silently* either, or the
-// next sync would fail for no visible reason — so the shell says it once, here,
-// where every route can be reached from.
 const router = useRouter();
 const userStore = useUserStore();
-
-watch(
-    () => userStore.sessionExpired,
-    (expired) => {
-        if (!expired) return;
-        userStore.acknowledgeSessionExpired();
-        // It stays until it is answered or swiped away: on a phone a session
-        // most often ends while the app is in the background, and a notice
-        // that times out is gone before anyone looks. Without a session the
-        // reader's changes no longer reach the account, so it matters now.
-        toast.info('Ihre Sitzung ist abgelaufen.', {
-            description:
-                'Ihr heruntergeladenes Gesangbuch bleibt nutzbar. Was Sie jetzt ändern, bleibt auf diesem Gerät, bis Sie sich wieder anmelden.',
-            duration: Infinity,
-            action: { label: 'Anmelden', onClick: () => router.push('/login') },
-        });
-    },
-);
 
 // A demo library (see worker/demo.ts) is brought up to date on every cold
 // start and every return to the app — and taken back once its link has
@@ -113,6 +93,57 @@ watch(
         void router.replace({ name: 'DemoEnd' });
     },
 );
+
+// The book closes when its session ends: the server refused the renewal (the
+// device was signed out from another one, the account suspended), or thirty
+// days passed without one. The songs, lists and marks stay; the sign-in greets
+// the reader back and asks for a code. The guard keeps the book closed on the
+// next navigation; this takes the reader there from the page they were on.
+// A logout leads there by itself, and a demo has no session to lose.
+watch(
+    () => userStore.isLoggedIn,
+    (loggedIn, was) => {
+        if (loggedIn || !was) return;
+        const route = router.currentRoute.value;
+        if (route.meta.access === 'public' || songsStore.isDemo) return;
+        void router.replace({ name: 'Anmelden' });
+    },
+);
+
+/** Too long without the server, noticed while the app stayed open. */
+async function closeIfPastGrace() {
+    if (!userStore.authData || !userStore.isPastGrace()) return;
+    await clearSessionData();
+    userStore.endSession();
+}
+
+const FRIST_HINWEIS_KEY = 'gesangbuch.fristHinweis';
+
+/**
+ * The time the book may go without the server running out (services/
+ * offlineFrist). The server is asked first: with a connection the session
+ * renews, or the server ends it and the reader is taken to the code, and
+ * either way there is nothing to remind of. Without one the reader hears when
+ * the book needs a connection, once a day, and the notice stays until it is
+ * swiped away: a reminder that times out is gone before anyone looks.
+ */
+async function remindOfflineFrist() {
+    const state = offlineFrist(userStore.authData?.refreshExpiresAt).state;
+    if (state !== 'bald' && state !== 'nachfrist') return;
+    await refreshAuthToken();
+    if (!userStore.authData) return;
+
+    const hint = fristHinweis(offlineFrist(userStore.authData.refreshExpiresAt));
+    if (!hint) return;
+    const today = new Date().toDateString();
+    try {
+        if (localStorage.getItem(FRIST_HINWEIS_KEY) === today) return;
+        localStorage.setItem(FRIST_HINWEIS_KEY, today);
+    } catch {
+        // Without storage it may say so more than once a day.
+    }
+    toast.info(hint.title, { description: hint.description, duration: Infinity });
+}
 
 // The profile's Akzent comes down on every login and every cold start with a
 // session, so a color chosen on one device follows the reader to the next.
@@ -137,13 +168,16 @@ onMounted(async () => {
     await Promise.all([songsStore.initPromise, router.isReady()]);
     // Whatever was corrected on the server since the last sync.
     startLibraryUpdates();
+    void remindOfflineFrist();
     refreshDemo();
     // An installed app on a phone is rarely started cold: it comes back from
     // the background, days later, where the event left it. That return is when
     // a closed demo has to notice. The shell lives as long as the page does, so
     // the listener is never taken down.
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') refreshDemo();
+        if (document.visibilityState !== 'visible') return;
+        refreshDemo();
+        void closeIfPastGrace().then(remindOfflineFrist);
     });
 });
 

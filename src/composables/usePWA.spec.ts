@@ -45,11 +45,68 @@ beforeEach(() => {
     runningAsApp(false);
 });
 
+function onDevice(userAgent: string, maxTouchPoints = 0) {
+    Object.defineProperty(navigator, 'userAgent', { value: userAgent, configurable: true });
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+        value: maxTouchPoints,
+        configurable: true,
+    });
+}
+
+const USER_AGENT = {
+    iPhone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1',
+    // What Safari sends from a Mac, and from an iPad asking for the desktop
+    // site, which since iPadOS 13 is every iPad unless told otherwise.
+    macSafari:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
+    android:
+        'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+};
+
 afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     Reflect.deleteProperty(navigator, 'getInstalledRelatedApps');
+    Reflect.deleteProperty(navigator, 'userAgent');
+    Reflect.deleteProperty(navigator, 'maxTouchPoints');
     getInstalledRelatedApps = undefined;
+});
+
+describe('telling the devices apart', () => {
+    async function platform() {
+        ({ usePWA } = await import('@/composables/usePWA'));
+        const { isIOS, isAndroid } = usePWA();
+        return { isIOS: isIOS.value, isAndroid: isAndroid.value };
+    }
+
+    it('knows an iPhone', async () => {
+        onDevice(USER_AGENT.iPhone, 5);
+        expect(await platform()).toEqual({ isIOS: true, isAndroid: false });
+    });
+
+    it('knows an iPad that asks for the desktop site', async () => {
+        onDevice(USER_AGENT.macSafari, 5);
+        expect(await platform()).toEqual({ isIOS: true, isAndroid: false });
+    });
+
+    it('does not take a Mac for an iPad', async () => {
+        onDevice(USER_AGENT.macSafari, 0);
+        expect(await platform()).toEqual({ isIOS: false, isAndroid: false });
+    });
+
+    it('knows an Android phone', async () => {
+        onDevice(USER_AGENT.android, 5);
+        expect(await platform()).toEqual({ isIOS: false, isAndroid: true });
+    });
+
+    it('does not suspect an iPad of having the app because Safari offered no install', async () => {
+        // Safari never fires beforeinstallprompt, so its silence says nothing.
+        onDevice(USER_AGENT.macSafari, 5);
+        const pwa = await start();
+
+        await vi.advanceTimersByTimeAsync(1500);
+        expect(pwa.isSuspectedInstalled.value).toBe(false);
+    });
 });
 
 describe('asking the browser whether the app is installed', () => {

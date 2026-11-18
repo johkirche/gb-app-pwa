@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
  *
  * These are the `access: 'public'` routes in router/index.ts, and the reason
  * they are public is that each has to be reachable by someone who cannot get
- * in: the way in (login, registration, password reset), the two the law
+ * in: the way in (start page, install page, sign-in, password reset), the two the law
  * requires to stay readable from outside (Impressum, Datenschutz), and the
  * catch-all that keeps a mistyped address from stranding a standalone PWA on a
  * blank page.
@@ -33,8 +33,9 @@ interface PublicPage {
 }
 
 const PAGES: PublicPage[] = [
-    { path: '/login', heading: /Gesangbuch/, contains: /Melden Sie sich an/i },
-    { path: '/register', heading: /Willkommen/, contains: /Konto/i },
+    { path: '/willkommen', heading: /Gesangbuch/, contains: /Gesangbuch nutzen/ },
+    { path: '/installieren', heading: /installieren/i, contains: /Browser/ },
+    { path: '/anmelden', heading: /Anmelden/, contains: /sechsstelligen Code/ },
     { path: '/password-reset', heading: /Passwort zurücksetzen/, contains: /E-Mail/i },
     {
         path: '/impressum',
@@ -65,7 +66,7 @@ for (const { path, heading, contains, asks } of PAGES) {
 
         await page.goto(path);
 
-        // It stayed: a public route must not bounce to the login form.
+        // It stayed: a public route must not bounce to the sign-in.
         expect(new URL(page.url()).pathname).toBe(path);
         await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
         await expect(page.getByText(contains).first()).toBeVisible();
@@ -93,21 +94,36 @@ test('an unknown address lands on the 404, not a blank page', async ({ page }) =
     // The page names the address it could not find, and offers the way back.
     await expect(page.getByText('/keine-solche-seite')).toBeVisible();
     await page.getByRole('button', { name: /Zu den Liedern/i }).click();
-    await expect(page).toHaveURL(/\/(login|tabs\/lieder)/);
+    await expect(page).toHaveURL(/\/(willkommen|tabs\/lieder)/);
 });
 
-test('the legal pages are reachable from the login form', async ({ page }) => {
-    // A reader who cannot get in must still be able to reach these; the login
-    // page is the only door they have.
-    await page.goto('/login');
-    for (const [name, path] of [
-        ['Impressum', '/impressum'],
-        ['Datenschutz', '/datenschutz'],
-    ] as const) {
-        await page.goto('/login');
-        await page.getByRole('link', { name }).first().click();
-        await expect(page).toHaveURL(new RegExp(path));
-    }
+for (const door of ['/willkommen', '/anmelden']) {
+    test(`the legal pages are reachable from ${door}`, async ({ page }) => {
+        // A reader who cannot get in must still be able to reach these; the
+        // way in is the only door they have.
+        for (const [name, path] of [
+            ['Impressum', '/impressum'],
+            ['Datenschutz', '/datenschutz'],
+        ] as const) {
+            await page.goto(door);
+            await page.getByRole('link', { name }).first().click();
+            await expect(page).toHaveURL(new RegExp(path));
+        }
+    });
+}
+
+test('the old addresses of the way in still lead there', async ({ page }) => {
+    await page.goto('/login?reason=account_deleted');
+    await expect(page).toHaveURL(/\/anmelden/);
+    await expect(page.getByText(/Ihr Konto wurde gelöscht/)).toBeVisible();
+
+    await page.goto('/register');
+    await expect(page).toHaveURL(/\/anmelden/);
+});
+
+test('a browser with nothing on it starts at the start page', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/willkommen/);
 });
 
 test('the hymn number is a typeable address', async ({ page }) => {
@@ -117,6 +133,7 @@ test('the hymn number is a typeable address', async ({ page }) => {
     // "not downloaded yet" and "no such page".
     await page.goto('/lied/122-grosser-gott');
     expect(new URL(page.url()).pathname).not.toBe('/keine-solche-seite');
-    // Unauthenticated and with no library, a 'library' route sends you to log in.
-    await expect(page).toHaveURL(/\/login/);
+    // Unauthenticated and with no library, a 'library' route sends you in at
+    // the start page.
+    await expect(page).toHaveURL(/\/willkommen/);
 });

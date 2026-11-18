@@ -2,7 +2,7 @@
     <div class="relative flex h-full flex-col bg-background">
         <!-- Back button integrated into content -->
         <div class="absolute left-2 top-[max(0.75rem,env(safe-area-inset-top))] z-10">
-            <BackButton default-href="/login" />
+            <BackButton default-href="/anmelden" />
         </div>
 
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -76,7 +76,7 @@
                     </div>
 
                     <Button size="lg" as-child class="mt-6 w-full">
-                        <RouterLink to="/login">Zurück zur Anmeldung</RouterLink>
+                        <RouterLink to="/anmelden">Zurück zur Anmeldung</RouterLink>
                     </Button>
                 </div>
 
@@ -208,13 +208,13 @@
                     </div>
 
                     <Button v-if="resetSuccess" size="lg" as-child class="mt-6 w-full">
-                        <RouterLink to="/login">Zur Anmeldung</RouterLink>
+                        <RouterLink to="/anmelden">Zur Anmeldung</RouterLink>
                     </Button>
                 </form>
 
                 <div class="mt-6 text-center">
                     <Button variant="ghost" size="sm" as-child>
-                        <RouterLink to="/login">Zurück zur Anmeldung</RouterLink>
+                        <RouterLink to="/anmelden">Zurück zur Anmeldung</RouterLink>
                     </Button>
                 </div>
             </div>

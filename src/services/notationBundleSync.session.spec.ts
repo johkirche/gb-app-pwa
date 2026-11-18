@@ -80,7 +80,8 @@ const answers = {
 };
 const network = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input);
-    if (url.includes('/auth/refresh')) return answers.refresh();
+    // The renewal, at the register extension (see services/session.ts).
+    if (url.includes('/sitzung')) return answers.refresh();
     if (url.includes('/files?')) return answers.files();
     const asset = url.match(/\/assets\/(.+)$/);
     if (asset) return answers.assets(asset[1]);
@@ -133,7 +134,7 @@ function assetRequests(): string[] {
 }
 
 function refreshRequests(): number {
-    return network.mock.calls.filter(([input]) => String(input).includes('/auth/refresh')).length;
+    return network.mock.calls.filter(([input]) => String(input).includes('/sitzung')).length;
 }
 
 /** A hundred songs, so two hundred files: enough for the archive to be asked. */

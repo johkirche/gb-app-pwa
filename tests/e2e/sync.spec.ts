@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/backend';
+import { signInWithPassword } from './support/library';
 
 /*
  * The sync, end to end — and the run that records the fixtures every other
@@ -11,9 +12,8 @@ import { NO_RECORDING, RECORDING, expect, hasRecording, test } from './support/b
  * delta, but nothing has watched a real manifest become a real download become
  * rows in IndexedDB. That is what this walks.
  *
- * Onboarding is a wizard, not an automatic run: the Install step waits for
- * „Weiter", and so does the Gemeinde after it, and only then does the download
- * start on its own; the tour and the profile come once the book is down. This spec sits
+ * Onboarding is a wizard, not an automatic run: the Gemeinde waits for
+ * „Weiter", and only then does the download start on its own; the tour and the profile come once the book is down. This spec sits
  * the download out on its own step, where the progress and the failures are
  * worded in full. The recording run is measured in minutes and prints what it
  * is doing while it works.
@@ -90,25 +90,12 @@ async function waitForDownload(page: Page, budgetMs: number) {
 test('logs in and downloads the Gesangbuch', async ({ page }) => {
     test.setTimeout(DOWNLOAD_BUDGET + 120_000);
 
-    await page.goto('/login');
-    await page
-        .getByLabel(/E-Mail/i)
-        .first()
-        .fill(CREDENTIALS.email);
-    await page
-        .getByLabel(/Passwort/i)
-        .first()
-        .fill(CREDENTIALS.password);
-    await page.getByRole('button', { name: 'Anmelden' }).click();
-
     // Onboarding *is* the download: the one view a session is genuinely
-    // required for.
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 60_000 });
+    // required for. Installing is no step of it any more; it comes before the
+    // account, on the way in.
+    await signInWithPassword(page, CREDENTIALS.email, CREDENTIALS.password);
 
-    // First the PWA install prompt, which only moves on when asked to.
-    await page.getByRole('button', { name: 'Weiter' }).click();
-
-    // Then the Gemeinde: the account has to be able to read the list, or there
+    // First the Gemeinde: the account has to be able to read the list, or there
     // is only „Keine Angabe" to choose from. Nothing is chosen, so the run writes
     // nothing to the account it records with.
     await expect(

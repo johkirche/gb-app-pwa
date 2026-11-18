@@ -88,7 +88,7 @@
                         </DropdownMenuItem>
                         <!-- Reading offline on a downloaded Gesangbuch: the way
                              back to a session belongs where the account lives. -->
-                        <DropdownMenuItem v-else @select="router.push('/login')">
+                        <DropdownMenuItem v-else @select="router.push('/anmelden')">
                             <LogIn class="h-4 w-4" aria-hidden="true" />
                             Anmelden
                         </DropdownMenuItem>
@@ -246,6 +246,6 @@ async function handleLogout() {
     if (!proceed) return;
 
     await logout();
-    router.push('/login');
+    router.push('/anmelden');
 }
 </script>

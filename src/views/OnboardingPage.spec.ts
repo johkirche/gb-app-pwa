@@ -21,8 +21,6 @@ const fetchSongManifest = vi.fn();
 const fetchSongsByIds = vi.fn();
 const fetchFile = vi.fn();
 const syncNotationBundle = vi.fn();
-// Whether the page runs as the installed app. Read once, when the page is set up.
-const pwa = vi.hoisted(() => ({ standalone: false }));
 
 vi.mock('@/db', () => ({
     db: {
@@ -52,9 +50,6 @@ vi.mock('@/db', () => ({
     },
 }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('@/composables/usePWA', () => ({
-    usePWA: () => ({ isStandalone: { value: pwa.standalone } }),
-}));
 vi.mock('@/stores/user', () => ({ useUserStore: vi.fn() }));
 vi.mock('@/api/demo.api', () => ({ DemoUnavailableError: class {}, fetchDemoSongs: vi.fn() }));
 vi.mock('@/api/files.api', () => ({ fetchFile }));
@@ -93,7 +88,7 @@ async function mountOnboarding() {
     const wrapper = mount(OnboardingPage, {
         global: {
             plugins: [pinia],
-            stubs: { InstallPWAStep: true, GemeindeStep: true, StepIndicator: true },
+            stubs: { GemeindeStep: true, StepIndicator: true },
         },
     });
     await flushPromises();
@@ -104,8 +99,6 @@ async function mountOnboarding() {
 async function reloadOntoDownloadStep() {
     const wrapper = await mountOnboarding();
 
-    wrapper.findComponent({ name: 'InstallPWAStep' }).vm.$emit('next');
-    await flushPromises();
     wrapper.findComponent({ name: 'GemeindeStep' }).vm.$emit('next');
     await flushPromises();
     return wrapper;
@@ -117,7 +110,6 @@ beforeEach(() => {
     meta.clear();
     localStorage.clear();
     vi.clearAllMocks();
-    pwa.standalone = false;
 
     songRows.set('1', song('1'));
     fetchSongManifest.mockResolvedValue([
@@ -182,45 +174,22 @@ describe('the download step on a library that is already there', () => {
     });
 });
 
-describe('the install step, as the installed app', () => {
-    const installStep = (wrapper: Awaited<ReturnType<typeof mountOnboarding>>) =>
-        wrapper.findComponent({ name: 'InstallPWAStep' });
-    const gemeindeStep = (wrapper: Awaited<ReturnType<typeof mountOnboarding>>) =>
-        wrapper.findComponent({ name: 'GemeindeStep' });
-
-    it('is where a browser tab starts', async () => {
+// Installing comes before the account now, on the way in (InstallPage), so
+// that the download happens where the reading will.
+describe('the first step', () => {
+    it('is the Gemeinde, in the browser as in the app', async () => {
         const wrapper = await mountOnboarding();
 
-        expect(installStep(wrapper).exists()).toBe(true);
+        expect(wrapper.findComponent({ name: 'InstallPWAStep' }).exists()).toBe(false);
+        expect(wrapper.findComponent({ name: 'GemeindeStep' }).exists()).toBe(true);
     });
 
-    it('is skipped by the app, which starts at the Gemeinde', async () => {
-        pwa.standalone = true;
+    // Stored when the install step still came first, so one step off now.
+    it('ignores a step stored under the old count', async () => {
+        localStorage.setItem('onboarding.currentStep', '2');
 
         const wrapper = await mountOnboarding();
 
-        expect(installStep(wrapper).exists()).toBe(false);
-        expect(gemeindeStep(wrapper).exists()).toBe(true);
-    });
-
-    // Android: the tab stored step 1 before handing over, and the app shares its storage.
-    it('is skipped by the app when the browser tab left off on it', async () => {
-        localStorage.setItem('onboarding.currentStep', '1');
-        pwa.standalone = true;
-
-        const wrapper = await mountOnboarding();
-
-        expect(gemeindeStep(wrapper).exists()).toBe(true);
-    });
-
-    it('is not where the app goes back to', async () => {
-        pwa.standalone = true;
-        const wrapper = await mountOnboarding();
-
-        wrapper.findComponent({ name: 'StepIndicator' }).vm.$emit('back');
-        await flushPromises();
-
-        expect(installStep(wrapper).exists()).toBe(false);
-        expect(gemeindeStep(wrapper).exists()).toBe(true);
+        expect(wrapper.findComponent({ name: 'GemeindeStep' }).exists()).toBe(true);
     });
 });

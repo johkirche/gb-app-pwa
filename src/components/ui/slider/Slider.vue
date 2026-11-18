@@ -16,16 +16,20 @@
                 class="absolute h-full bg-primary data-[orientation=vertical]:h-auto data-[orientation=vertical]:w-full"
             />
         </SliderTrack>
+        <!-- The thumb is what carries role="slider", so it is what needs the name;
+             an aria-label given to the slider would otherwise stay on the root,
+             where nothing reads it. -->
         <SliderThumb
             v-for="(_, index) in currentValue ?? []"
             :key="index"
+            :aria-label="thumbLabel"
             class="block size-4 rounded-full border border-primary bg-card shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50"
         />
     </SliderRoot>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, useAttrs } from 'vue';
 
 import {
     SliderRange,
@@ -55,4 +59,10 @@ const delegatedProps = computed(() => {
 });
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
+
+const attrs = useAttrs();
+const thumbLabel = computed(() => {
+    const label = attrs['aria-label'];
+    return typeof label === 'string' ? label : undefined;
+});
 </script>

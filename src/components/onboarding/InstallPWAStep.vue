@@ -27,6 +27,7 @@
                 <template v-if="props.mode === 'onboarding'">
                     In der App geht es an dieser Stelle weiter.
                 </template>
+                <template v-else-if="props.mode === 'einstieg'">Melden Sie sich dort an.</template>
             </p>
             <!-- Chrome's own way across, two taps deep. The menu entry keeps its
                  install wording once the app is there; the sheet it opens is what
@@ -183,7 +184,14 @@
                      login Safari copies across since 17.2 does not come with it.
                      Said here so it is no surprise, and so nobody downloads the
                      whole book into the browser first. -->
-                <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+                <p
+                    v-if="props.mode === 'einstieg'"
+                    class="mt-3 text-sm leading-relaxed text-muted-foreground"
+                >
+                    Melden Sie sich danach in der App an. Sie hat ihren eigenen Speicher, getrennt
+                    von Safari: Was Sie hier im Browser tun, käme dort nicht an.
+                </p>
+                <p v-else class="mt-3 text-sm leading-relaxed text-muted-foreground">
                     Die App teilt keine Daten mit dem Browser. Darum melden Sie sich in der App noch
                     einmal an, und das Gesangbuch wird dort neu geladen.
                 </p>
@@ -310,6 +318,19 @@
             >
                 Fertig
             </Button>
+            <!-- The way in, before any account. On an iPhone the browser is the
+                 lesser way, since the app would start over without what was done
+                 here, so it is offered quietly; elsewhere both are as good. -->
+            <Button
+                v-if="props.mode === 'einstieg' && !isStandalone"
+                type="button"
+                :variant="isIOSView ? 'ghost' : 'outline'"
+                size="lg"
+                class="h-auto min-h-12 w-full whitespace-normal py-3"
+                @click="$emit('next')"
+            >
+                {{ isIOSView ? 'Ohne Installation im Browser weiter' : 'Im Browser weiter' }}
+            </Button>
         </div>
     </div>
 </template>
@@ -338,7 +359,7 @@ import { Spinner } from '@/components/ui/spinner';
 // Props
 const props = withDefaults(
     defineProps<{
-        mode?: 'onboarding' | 'standalone';
+        mode?: 'onboarding' | 'standalone' | 'einstieg';
     }>(),
     {
         mode: 'onboarding',

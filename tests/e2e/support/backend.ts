@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { stubAuth } from './library';
 import { hasRecording as fixtureExists, serveRecording, startRecording } from './recorder';
 
 /**
@@ -112,6 +113,16 @@ export const test = base.extend<{ missingFromRecording: () => string[] }>({
     missingFromRecording: [
         async ({ context }, use) => {
             if (RECORDING) {
+                // One device for every recording, so the account's four places
+                // do not fill up with a new one per run: signing in again on a
+                // known device replaces its session (register extension).
+                await context.addInitScript(() => {
+                    try {
+                        localStorage.setItem('gesangbuch.geraet', 'e2e-aufnahme');
+                    } catch {
+                        // A fresh device then, as before.
+                    }
+                });
                 const finish = await startRecording(context, BACKEND_GLOB);
                 await use(() => []);
                 const stats = finish();
@@ -128,19 +139,7 @@ export const test = base.extend<{ missingFromRecording: () => string[] }>({
             // replay goes down first so the narrow /auth/* stubs, registered
             // after it, are the ones that win.
             const missing = await serveRecording(context, BACKEND_GLOB);
-
-            for (const path of ['login', 'refresh'] as const) {
-                await context.route(`${backendUrl}/auth/${path}`, (route) =>
-                    route.fulfill({
-                        status: 200,
-                        contentType: 'application/json',
-                        body: JSON.stringify(session),
-                    }),
-                );
-            }
-            await context.route(`${backendUrl}/auth/logout`, (route) =>
-                route.fulfill({ status: 204, body: '' }),
-            );
+            await stubAuth(context, session);
 
             await use(missing);
         },

@@ -30,6 +30,18 @@ function checkStandaloneMode(): boolean {
     );
 }
 
+/**
+ * Whether this page runs as the installed app, for code outside a component
+ * (the router's guard), and before or without `initPWAListeners`.
+ */
+export function isRunningStandalone(): boolean {
+    try {
+        return isStandaloneRef.value || checkStandaloneMode();
+    } catch {
+        return false;
+    }
+}
+
 // Not in lib.dom yet: Chromium only, and still marked experimental.
 type InstalledRelatedApp = { platform: string; url?: string; id?: string };
 type NavigatorWithRelatedApps = Navigator & {
@@ -50,12 +62,20 @@ async function askWhetherInstalled(): Promise<boolean> {
     }
 }
 
+/**
+ * An iPhone, iPod or iPad. Since iPadOS 13 an iPad asks for the desktop site by
+ * default, so Safari on it sends a Mac's user agent ("Macintosh") and the word
+ * "iPad" never appears. The touch screen gives it away: no Mac has one.
+ */
+function detectIOS(): boolean {
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (/iphone|ipad|ipod/.test(userAgent)) return true;
+    return /macintosh/.test(userAgent) && navigator.maxTouchPoints > 1;
+}
+
 export function usePWA() {
     // Platform detection
-    const isIOS = computed(() => {
-        const userAgent = navigator.userAgent.toLowerCase();
-        return /iphone|ipad|ipod/.test(userAgent);
-    });
+    const isIOS = computed(detectIOS);
 
     const isAndroid = computed(() => {
         const userAgent = navigator.userAgent.toLowerCase();

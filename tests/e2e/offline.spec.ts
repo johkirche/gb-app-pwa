@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { NO_RECORDING, hasRecording } from './support/backend';
-import { PHONE, walkOnboarding } from './support/library';
+import { PHONE, signInWithPassword, stubAuth, walkOnboarding } from './support/library';
 import { type Preview, servePreview } from './support/preview';
 import { serveRecording } from './support/recorder';
 
@@ -112,18 +112,7 @@ test.beforeAll(async ({ browserName }) => {
 
     // Note what is deliberately absent here: `serviceWorkers: 'block'`.
     await serveRecording(context, BACKEND_GLOB);
-    for (const path of ['login', 'refresh'] as const) {
-        await context.route(`${backendUrl}/auth/${path}`, (route) =>
-            route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify(STUB_SESSION),
-            }),
-        );
-    }
-    await context.route(`${backendUrl}/auth/logout`, (route) =>
-        route.fulfill({ status: 204, body: '' }),
-    );
+    await stubAuth(context, STUB_SESSION);
 
     page = context.pages()[0] ?? (await context.newPage());
 });
@@ -151,18 +140,7 @@ async function precachedCount(target: Page): Promise<number> {
 test('installs, and stores the whole shell', async () => {
     test.setTimeout(300_000);
 
-    await page.goto('/login');
-    await page
-        .getByLabel(/E-Mail/i)
-        .first()
-        .fill('e2e@example.invalid');
-    await page
-        .getByLabel(/Passwort/i)
-        .first()
-        .fill('e2e-password');
-    await page.getByRole('button', { name: 'Anmelden' }).click();
-
-    await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
+    await signInWithPassword(page, 'e2e@example.invalid', 'e2e-password');
     await walkOnboarding(page, 240_000);
     await page.locator('nav[aria-label="Hauptnavigation"]:visible').waitFor({ timeout: 30_000 });
 

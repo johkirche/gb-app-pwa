@@ -1,9 +1,8 @@
 import { computed } from 'vue';
 
-// The SDK's `login` and `logout` are aliased because this module defines its own.
+// The SDK's `logout` is aliased because this module defines its own.
 import {
     deleteUser,
-    login as directusLogin,
     logout as directusLogout,
     passwordRequest,
     passwordReset,
@@ -18,30 +17,30 @@ import { usePreferencesStore } from '@/stores/preferences';
 import { useServiceStore } from '@/stores/service';
 import { useUserStore } from '@/stores/user';
 
+import {
+    type DeviceLimit,
+    EinstiegError,
+    type Session,
+    describeEinstiegError,
+    deviceLimitOf,
+    loginWithPassword,
+} from '@/api/einstieg.api';
 import { SUPPORT_EMAIL } from '@/config/support';
 import type { UserData } from '@/db';
 import { directusClient } from '@/services/directus';
 import {
     NETWORK_ERROR_MESSAGE,
-    REGISTRATION_LOGIN_FAILED,
     clearUserScopedData,
     extractDirectusErrorCode,
     handleInvalidCredentials,
     isInvalidCredentialsError,
     isNetworkError,
     translateLoginError,
-    translateRegistrationError,
 } from '@/services/errorHandler';
+import { forgetLastAccount, readLastAccount, rememberLastAccount } from '@/services/lastAccount';
 import { refreshAuthToken } from '@/services/session';
 import { releaseUserData } from '@/services/userData/sync';
 import { resetRegisteredUserState } from '@/services/userStateReset';
-
-/**
- * Endpoint path of the directus-user-register-extension.
- * Directus mounts endpoint extensions under their name, so the route exposed by
- * `router.post('/register', ...)` lives at `/<extension-name>/register`.
- */
-const REGISTER_ENDPOINT = '/directus-user-register-extension/register';
 
 /**
  * Self-deletion endpoint of the same extension. Deletes the authenticated
@@ -51,16 +50,14 @@ const REGISTER_ENDPOINT = '/directus-user-register-extension/register';
  */
 const DELETE_ACCOUNT_ENDPOINT = '/directus-user-register-extension/account';
 
-/** Result of {@link useAuth().login}. */
-export type AuthResult = { success: true; user: UserData } | { success: false; error: string };
-
 /**
- * Result of {@link useAuth().register}. `error` is already translated for display;
- * `code` is the raw extension error code, for callers that branch on the cause.
+ * Result of {@link useAuth().login}. `deviceLimit` when the password was right
+ * but the account has no room for this device: the caller offers to sign one
+ * of the others out.
  */
-export type RegisterResult =
+export type AuthResult =
     | { success: true; user: UserData }
-    | { success: false; error: string; code?: string };
+    | { success: false; error: string; deviceLimit?: DeviceLimit };
 
 /**
  * Result of {@link useAuth().deleteAccount}. `error` is already translated for
@@ -70,6 +67,24 @@ export type RegisterResult =
 export type DeleteAccountResult =
     | { success: true }
     | { success: false; error: string; code?: string };
+
+/**
+ * Everything personal on this device, gone: lists, marks, preferences, and the
+ * copies the stores keep in memory. The songs stay; they are the same for
+ * every account.
+ */
+async function clearAccountFromDevice(): Promise<void> {
+    await clearUserScopedData();
+    await releaseUserData();
+    await useFavoritesStore().clearAll();
+    await useLesezeichenStore().clearAll();
+    // Whatever else keeps personal state in memory (the Bible's marks, notes,
+    // plans …) registered itself to be reset here.
+    await resetRegisteredUserState();
+    await usePlaylistsStore().clearAll();
+    await useServiceStore().clearAll();
+    await usePreferencesStore().resetToDefaults();
+}
 
 export function useAuth() {
     const userStore = useUserStore();
@@ -81,117 +96,84 @@ export function useAuth() {
     const isLoading = computed(() => userStore.isLoading);
     const error = computed(() => userStore.error);
 
-    // Login function
+    /**
+     * Takes up a session the server has given out, however it was had: a code,
+     * a password, a registration, a device swapped. Asks for the user with the
+     * token just issued, as there is no session to sign with until setUser.
+     *
+     * A device whose session ended keeps the reader's lists and marks for
+     * their return (see services/lastAccount). If somebody else signs in
+     * instead, those go first: they are not the newcomer's, and a sync would
+     * otherwise upload them into the wrong account.
+     *
+     * `knownEmail` is the address the reader just proved or typed, for a
+     * profile that does not hand out its own (a role without read rights).
+     */
+    async function startSession(session: Session, knownEmail?: string): Promise<UserData> {
+        // A bare 'role' would return the role's UUID; the nested selection asks
+        // for the role's *name*, which the activation check below relies on.
+        const userData = await directusClient.request(
+            withToken(
+                session.access_token,
+                readMe({
+                    fields: ['id', 'email', 'first_name', 'last_name', { role: ['name'] }],
+                }),
+            ),
+        );
+
+        // The client has no Schema generic, so the readMe output is loosely typed —
+        // the cast keeps the shape explicit. If the policy forbids reading
+        // directus_roles.name, role comes back null and we degrade to
+        // 'user'/not activated instead of crashing.
+        const roleName = (userData.role as { name?: string } | null)?.name ?? 'user';
+        const user: UserData = {
+            id: userData.id,
+            email: userData.email ?? knownEmail,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            role: roleName,
+            activated: roleName === 'activated',
+        };
+
+        const previous = readLastAccount();
+        if (previous && previous.id !== user.id) {
+            await clearAccountFromDevice();
+        }
+
+        await userStore.setUser(user, {
+            accessToken: session.access_token,
+            refreshToken: session.refresh_token,
+            expiresAt: Date.now() + (session.expires || 900000),
+            refreshExpiresAt: session.refresh_expires ?? undefined,
+        });
+        rememberLastAccount({
+            id: user.id,
+            email: user.email,
+            ...(user.firstName ? { firstName: user.firstName } : {}),
+        });
+        return user;
+    }
+
+    // The password way in. The usual one is a code (see SignInPage).
     async function login(email: string, password: string): Promise<AuthResult> {
         try {
             userStore.isLoading = true;
             userStore.error = null;
 
-            const result = await directusClient.request(
-                directusLogin({ email, password }, { mode: 'json' }),
-            );
-
-            if (!result.access_token || !result.refresh_token) {
-                throw new Error('Invalid response from server');
-            }
-
-            // Calculate token expiration (default 15 minutes)
-            const expiresAt = Date.now() + (result.expires || 900000);
-
-            // Fetch user data, with the token just issued: there is no session to sign
-            // with until setUser below. A bare 'role' would return the role's UUID;
-            // the nested selection asks for the role's *name*, which the activation
-            // check below relies on.
-            const userData = await directusClient.request(
-                withToken(
-                    result.access_token,
-                    readMe({
-                        fields: ['id', 'email', 'first_name', 'last_name', { role: ['name'] }],
-                    }),
-                ),
-            );
-
-            // Map user data to our format. The client has no Schema generic, so the
-            // readMe output is loosely typed — the cast keeps the shape explicit. If
-            // the policy forbids reading directus_roles.name, role comes back null
-            // and we degrade to 'user'/not activated instead of crashing.
-            const roleName = (userData.role as { name?: string } | null)?.name ?? 'user';
-            const user: UserData = {
-                id: userData.id,
-                email: userData.email,
-                firstName: userData.first_name,
-                lastName: userData.last_name,
-                role: roleName,
-                activated: roleName === 'activated',
-            };
-
-            // Save to store and IndexedDB
-            await userStore.setUser(user, {
-                accessToken: result.access_token,
-                refreshToken: result.refresh_token,
-                expiresAt,
-            });
-
+            const session = await loginWithPassword(email, password);
+            const user = await startSession(session, email);
             return { success: true, user };
         } catch (err) {
-            const errorMessage = translateLoginError(err);
+            const deviceLimit = deviceLimitOf(err);
+            if (deviceLimit) return { success: false, error: '', deviceLimit };
+
+            const errorMessage =
+                err instanceof EinstiegError
+                    ? describeEinstiegError(err)
+                    : translateLoginError(err);
             userStore.error = errorMessage;
             console.error('Login error:', err);
             return { success: false, error: errorMessage };
-        } finally {
-            userStore.isLoading = false;
-        }
-    }
-
-    // Register function - includes activation code validation.
-    // On failure `code` carries the extension's error code (see USER_ALREADY_REGISTERED)
-    // so the caller can react to *which* field was rejected, not just show the message.
-    async function register(
-        email: string,
-        password: string,
-        activationCode: string,
-    ): Promise<RegisterResult> {
-        try {
-            userStore.isLoading = true;
-            userStore.error = null;
-
-            // Register via the directus-user-register-extension. It validates the
-            // registration code, creates an activated user and marks the code as used.
-            // It would take first_name/last_name too; the app asks for those in
-            // the onboarding instead (ProfileStep), once the account exists.
-            // The Directus SDK expects a *command function* returning the request
-            // options; `method` must be set explicitly (it defaults to GET otherwise)
-            // and Content-Type defaults to application/json.
-            await directusClient.request(() => ({
-                path: REGISTER_ENDPOINT,
-                method: 'POST',
-                body: JSON.stringify({
-                    email,
-                    password,
-                    registration_code: activationCode,
-                }),
-            }));
-
-            // After successful registration with valid code, automatically log in.
-            // If that login fails, the registration itself still succeeded — the
-            // extension consumed the one-time activation code, so retrying the
-            // registration could only yield USER_ALREADY_REGISTERED. Report the
-            // synthetic code instead so the caller can route to the login page.
-            const loginResult = await login(email, password);
-            if (loginResult.success) {
-                return loginResult;
-            }
-
-            // login() wrote its failure into the shared store error that LoginPage
-            // renders; clear it so the "account created" notice on the login page is
-            // not accompanied by a stale login error.
-            userStore.error = null;
-            return { success: false, error: '', code: REGISTRATION_LOGIN_FAILED };
-        } catch (err) {
-            const errorMessage = translateRegistrationError(err);
-            userStore.error = errorMessage;
-            console.error('Registration error:', err);
-            return { success: false, error: errorMessage, code: extractDirectusErrorCode(err) };
         } finally {
             userStore.isLoading = false;
         }
@@ -202,9 +184,6 @@ export function useAuth() {
     function clearError() {
         userStore.error = null;
     }
-
-    // Note: Activation is handled during registration via the register extension endpoint
-    // (see REGISTER_ENDPOINT). No separate activation step is needed.
 
     // Request password reset
     async function requestPasswordReset(email: string) {
@@ -284,22 +263,16 @@ export function useAuth() {
             // lists, marks and preferences. They are on the account and come back
             // with the next login; the settings page warns before a logout that
             // would drop changes not yet uploaded. Songs and files stay — they are
-            // shared hymnal content. The store resets below only drop memory.
-            await clearUserScopedData();
-            await releaseUserData();
+            // shared hymnal content.
+            await clearAccountFromDevice();
             await userStore.logout();
-            await useFavoritesStore().clearAll();
-            await useLesezeichenStore().clearAll();
-            // Whatever else keeps personal state in memory (the Bible's marks,
-            // notes, plans …) registered itself to be reset here.
-            await resetRegisteredUserState();
-            await usePlaylistsStore().clearAll();
-            await useServiceStore().clearAll();
-            await usePreferencesStore().resetToDefaults();
+            // Leaving on purpose: the next sign-in is nobody's return.
+            forgetLastAccount();
 
             // A half-finished onboarding belongs to the account that just left.
             try {
                 localStorage.removeItem('onboarding.inProgress');
+                localStorage.removeItem('onboarding.schritt');
                 localStorage.removeItem('onboarding.currentStep');
             } catch {
                 // ignore storage errors
@@ -383,7 +356,7 @@ export function useAuth() {
 
             // Only now, after the server confirmed the deletion, is destroying
             // local data correct: clear everything (incl. songs and files) and
-            // hard-redirect to /login?reason=account_deleted, where the login
+            // hard-redirect to /anmelden?reason=account_deleted, where the sign-in
             // page shows the "Konto gelöscht" banner.
             await handleInvalidCredentials('account_deleted');
 
@@ -436,7 +409,7 @@ export function useAuth() {
 
         // Methods
         login,
-        register,
+        startSession,
         clearError,
         logout,
         deleteAccount,

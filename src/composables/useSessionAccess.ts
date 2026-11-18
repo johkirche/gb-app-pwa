@@ -32,9 +32,9 @@ export function useSessionAccess() {
     const hasLocalLibrary = computed(() => songsStore.hasSongs);
 
     /**
-     * Reading a downloaded Gesangbuch with no session behind it — after the token
-     * expired, or after "Ohne Anmeldung fortfahren" on the login page. A normal
-     * state, not an error: everything offline works, only the server does not.
+     * Reading songs with no session behind it: a demo's (see worker/demo.ts).
+     * A book whose session ended does not get this far; it waits for its
+     * reader's code (see the router's guard).
      */
     const isGuest = computed(() => !isLoggedIn.value && hasLocalLibrary.value);
 

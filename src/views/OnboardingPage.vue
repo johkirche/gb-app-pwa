@@ -14,15 +14,15 @@
                     @back="prevStep"
                 />
 
-                <!-- Step 1: Install PWA -->
-                <InstallPWAStep v-if="currentStep === 1" @next="nextStep" @skip="skipOnboarding" />
-
-                <!-- Step 2: Gemeinde. Before the download, because a download that
+                <!-- Step 1: Gemeinde. Before the download, because a download that
                      fails can be left for later, and that leaves the onboarding:
-                     everything after it would go unasked. -->
+                     everything after it would go unasked. Installing is no step
+                     here any more: it comes before the account, on the way in
+                     (see InstallPage), so that the download happens where the
+                     reading will. -->
                 <GemeindeStep v-if="currentStep === GEMEINDE_STEP" @next="nextStep" />
 
-                <!-- Step 3: Download Content -->
+                <!-- Step 2: Download Content -->
                 <DownloadContentStep
                     v-if="currentStep === DOWNLOAD_STEP"
                     :is-syncing="isSyncing"
@@ -63,11 +63,8 @@ import { useRouter } from 'vue-router';
 
 import { useSongsStore } from '@/stores/songs';
 
-import { usePWA } from '@/composables/usePWA';
-
 import DownloadContentStep from '@/components/onboarding/DownloadContentStep.vue';
 import GemeindeStep from '@/components/onboarding/GemeindeStep.vue';
-import InstallPWAStep from '@/components/onboarding/InstallPWAStep.vue';
 import ProfileStep from '@/components/onboarding/ProfileStep.vue';
 import TourStep from '@/components/onboarding/TourStep.vue';
 import { tourSlides } from '@/components/onboarding/tour';
@@ -81,13 +78,15 @@ const songsStore = useSongsStore();
 const { isSyncing, error: syncError, syncProgress, failedFiles } = storeToRefs(songsStore);
 
 const ONBOARDING_IN_PROGRESS_KEY = 'onboarding.inProgress';
-const ONBOARDING_STEP_KEY = 'onboarding.currentStep';
+// Not 'onboarding.currentStep', where the steps were counted with the install
+// step still first: a step stored under it would land one step off.
+const ONBOARDING_STEP_KEY = 'onboarding.schritt';
 
 // Step management
-// Install, Gemeinde, download, a step per slide of the tour, then the profile.
-const GEMEINDE_STEP = 2;
-const DOWNLOAD_STEP = 3;
-const FIRST_TOUR_STEP = 4;
+// Gemeinde, download, a step per slide of the tour, then the profile.
+const GEMEINDE_STEP = 1;
+const DOWNLOAD_STEP = 2;
+const FIRST_TOUR_STEP = 3;
 const TOUR = tourSlides();
 const lastTourStep = FIRST_TOUR_STEP + TOUR.length - 1;
 const totalSteps = lastTourStep + 1;
@@ -107,16 +106,9 @@ function storedStep(): number {
     }
 }
 
-// Opened as the installed app, the onboarding has nothing left to install, so it
-// starts at the Gemeinde. Whether this page runs as the app is the one question
-// about installation a page can answer for certain — it is the display mode, not
-// a guess — and it covers both ways in: an Android tab handing over to the app,
-// which shares its storage and so brings the stored step 1 along, and an iPhone,
-// whose home-screen app starts empty and comes here after a second login.
-const { isStandalone } = usePWA();
-const firstStep = isStandalone.value ? GEMEINDE_STEP : 1;
+const firstStep = GEMEINDE_STEP;
 
-const currentStep = ref(Math.max(storedStep(), firstStep));
+const currentStep = ref(storedStep());
 
 const tourSlide = computed(() => TOUR[currentStep.value - FIRST_TOUR_STEP] ?? null);
 
