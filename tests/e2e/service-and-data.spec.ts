@@ -169,3 +169,22 @@ test('the install page renders', async () => {
     await expect(page.getByRole('heading', { name: 'App installieren' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Weiter|Fertig/ }).first()).toBeVisible();
 });
+
+test('signed out, the browser starts at the start page, which leads back in', async () => {
+    // Last on purpose: it ends the session every test above shares.
+    await page.goto('/tabs/einstellungen?bereich=konto');
+    await page.locator('main').getByRole('button', { name: 'Abmelden' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Abmelden' }).click();
+    await expect(page).toHaveURL(/\/anmelden/);
+
+    // The book stays on the device. An address typed in still starts at the
+    // start page rather than at a sign-in form nobody asked for, and the page
+    // knows the book is there: its button goes straight to the sign-in.
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/willkommen/);
+    await expect(
+        page.getByText('Ihr Gesangbuch ist noch in diesem Browser gespeichert.'),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Anmelden', exact: true }).first().click();
+    await expect(page).toHaveURL(/\/anmelden/);
+});

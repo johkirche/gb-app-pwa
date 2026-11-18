@@ -403,10 +403,13 @@ router.beforeEach(async (to) => {
             (access === 'library' && songsStore.hasSongs && songsStore.isDemo);
 
         if (!mayEnter) {
-            // A book on the device waits for its reader's code; a device with
-            // nothing on it starts at the beginning. The installed app has no
-            // use for the start page, which is about getting it installed.
-            if (songsStore.hasSongs || isRunningStandalone()) return { name: 'Anmelden' };
+            // The installed app has no use for the start page, which is about
+            // getting it installed, and goes straight to the sign-in. A browser
+            // tab starts at the start page, a book on the device or not: an
+            // address typed in that lands on a sign-in form nobody asked for
+            // reads as a wall. The start page knows the book is there and
+            // leads to the sign-in in one press (LandingPage).
+            if (isRunningStandalone()) return { name: 'Anmelden' };
             return { name: 'Willkommen' };
         }
     }
