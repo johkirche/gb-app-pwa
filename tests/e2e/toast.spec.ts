@@ -11,7 +11,8 @@ import { type Locator, type Page, expect, test } from '@playwright/test';
 
 test.use({
     viewport: { width: 390, height: 844 },
-    // The worker's „offline verfügbar" toast would land on top of the one under test.
+    // The worker plays no part here, and a toast of its own would land on top of
+    // the one under test.
     serviceWorkers: 'block',
 });
 

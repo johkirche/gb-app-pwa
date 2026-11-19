@@ -191,10 +191,9 @@ export async function syncLibrary(page: Page) {
  * a write and a replay never needs one.
  */
 export async function walkOnboarding(page: Page, downloadBudgetMs: number) {
-    // Pressed from the keyboard, not clicked. Where the service worker runs
-    // (offline.spec.ts) its „Das Gesangbuch ist jetzt offline verfügbar" comes
-    // up at the bottom, over these buttons, and a pointer moved there to click
-    // keeps a toast from going: the click would wait for ever.
+    // Pressed from the keyboard, not clicked. A toast comes up at the bottom,
+    // over these buttons, and a pointer moved there to click keeps it from
+    // going: the click would wait for ever.
     const press = (name: string) => page.getByRole('button', { name }).press('Enter');
 
     await expect(

@@ -32,9 +32,11 @@ export function useAppUpdate() {
                     },
                 });
             },
-            onOfflineReady: () => {
-                toast('Das Gesangbuch ist jetzt offline verfügbar.', { duration: 3000 });
-            },
+            // No toast on onOfflineReady. It fires the first time a worker
+            // installs, which is the first visit to the start page, before any
+            // account or any song: „offline verfügbar" there was untrue. What is
+            // true then is only the app's shell; the book is offline once the
+            // download step says so („Das Gesangbuch ist jetzt auf diesem Gerät").
             onRegisteredSW: (_swUrl, registration) => {
                 if (registration) {
                     // Check for a new deployment every hour so long-running tabs

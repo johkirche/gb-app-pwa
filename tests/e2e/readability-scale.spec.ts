@@ -30,9 +30,9 @@ test.use({
     // to a fade (SettingsPage.vue honours it), which leaves nothing to race:
     // what this spec measures is settled layout, not animation.
     reducedMotion: 'reduce',
-    // The dev server registers the worker too, and its „offline verfügbar" toast
-    // comes up over whatever a test is about to press, then hangs around while
-    // the pointer rests on it. offline.spec.ts is where the worker is tested.
+    // The dev server registers the worker too, and anything it raises would come
+    // up over whatever a test is about to press, then hang around while the
+    // pointer rests on it. offline.spec.ts is where the worker is tested.
     serviceWorkers: 'block',
 });
 
