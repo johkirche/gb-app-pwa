@@ -173,7 +173,10 @@ wait for „Herunterladen", with the transfer size beside it; the projects are
 desktops with a mouse, so that never comes up.) Then through the tour, a step per
 slide, to the profile step and its „Fertig". The Gemeinde and the profile are left
 empty on purpose: empty ones are saved without a request, so the recording never
-writes to the account it runs as. The user-data sync reads the account's lists, marks
+writes to the account it runs as. The one write „Fertig" does make, the mark on the
+account that its onboarding is done (`markOnboarded`), the recorder holds back
+(`marksOnboarded` in `support/recorder.ts`): with it there, the next recording would
+log in to an account that skips straight to the download, and have no wizard to walk. The user-data sync reads the account's lists, marks
 and settings after the login, and writes only what was changed on the device — which
 in a recording is nothing. `walkOnboarding()` in `support/library.ts` is the same walk
 without the watching, for the specs that just need the book. In a replay recorded before

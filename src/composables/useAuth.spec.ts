@@ -106,6 +106,10 @@ vi.mock('@/api/einstieg.api', () => {
     };
 });
 
+vi.mock('@/api/profile.api', () => ({
+    readOnboarded: async () => false,
+}));
+
 vi.mock('@/services/lastAccount', () => ({
     readLastAccount: () => lastAccount.value,
     rememberLastAccount: (...args: unknown[]) => rememberLastAccount(...args),

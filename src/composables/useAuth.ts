@@ -25,6 +25,7 @@ import {
     deviceLimitOf,
     loginWithPassword,
 } from '@/api/einstieg.api';
+import { readOnboarded } from '@/api/profile.api';
 import { SUPPORT_EMAIL } from '@/config/support';
 import type { UserData } from '@/db';
 import { directusClient } from '@/services/directus';
@@ -151,6 +152,13 @@ export function useAuth() {
             email: user.email,
             ...(user.firstName ? { firstName: user.firstName } : {}),
         });
+
+        // Asked now, before the page that leads on to the onboarding: someone
+        // who has been through it on another device is only missing the book.
+        if (await readOnboarded()) {
+            user.onboarded = true;
+            await userStore.patchUser({ onboarded: true });
+        }
         return user;
     }
 

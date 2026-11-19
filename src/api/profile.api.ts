@@ -11,7 +11,7 @@ import { directusClient } from '@/services/directus';
  * fields, and the app's settings in one JSON field, `app_settings` — prefixed
  * because Directus' own `appearance` and `theme_*` fields beside it style the
  * Data Studio, not the app. Keys are English like the rest of the row:
- * `{ "accent": "gold" }`.
+ * `{ "accent": "gold", "onboarded": "2026-11-19T20:41:00.000Z" }`.
  *
  * Best effort throughout: nothing here throws, and nothing here may end a
  * session.
@@ -45,6 +45,45 @@ export async function readAppSettings(): Promise<AppSettings | null> {
         console.warn('Could not read the app settings from the profile:', err);
         return null;
     }
+}
+
+/**
+ * Whether this account has been through the onboarding before, on any device.
+ *
+ * Said by `onboarded` in the settings, the moment it was first finished
+ * (markOnboarded). Accounts that finished it before the mark existed have none,
+ * but they chose a symbol or a Gemeinde, which nothing on the way in does — only
+ * the onboarding's own steps and the Einstellungen. False when the profile cannot
+ * be read: the whole onboarding is the safe way round.
+ */
+export async function readOnboarded(): Promise<boolean> {
+    try {
+        if (!authorize()) return false;
+        const me = (await directusClient.request(
+            readMe({ fields: ['app_settings', 'avatar', 'gemeinde'] }),
+        )) as { app_settings?: unknown; avatar?: unknown; gemeinde?: unknown };
+        const settings = me.app_settings as AppSettings | null | undefined;
+        return (
+            (!!settings && typeof settings === 'object' && 'onboarded' in settings) ||
+            !!me.avatar ||
+            !!me.gemeinde
+        );
+    } catch (err) {
+        console.warn('Could not read whether the onboarding was done before:', err);
+        return false;
+    }
+}
+
+/**
+ * Note on the account that its onboarding is done, so another device asks for
+ * the download alone. The first time is kept: a mark already there stays as it
+ * is. Best effort like the rest; a mark that does not arrive only means the
+ * next new device shows the whole onboarding once more.
+ */
+export async function markOnboarded(): Promise<void> {
+    const settings = await readAppSettings();
+    if (!settings || 'onboarded' in settings) return;
+    await updateAppSettings({ onboarded: new Date().toISOString() });
 }
 
 /**

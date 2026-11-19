@@ -120,6 +120,12 @@ export interface UserData {
     gemeinde?: string | null;
     /** Its name, kept with the user so the Einstellungen can say it offline. */
     gemeindeName?: string | null;
+    /**
+     * Whether the account has been through the onboarding, on this device or
+     * any other (api/profile.api, readOnboarded). Read at the login; a device
+     * without the book then only downloads it.
+     */
+    onboarded?: boolean;
     role: string;
     activated: boolean;
 }

@@ -125,7 +125,7 @@
                 class="w-full"
                 @click="$emit('next')"
             >
-                Weiter
+                {{ nextLabel ?? 'Weiter' }}
                 <ArrowRight aria-hidden="true" />
             </Button>
             <!-- Escape hatch when the download failed (e.g. offline): never trap
@@ -179,6 +179,8 @@ const props = defineProps<{
     downloadComplete: boolean;
     failedCount: number;
     storageEstimate: { usage: number; quota: number } | null;
+    /** The way on once the book is down: „Zum Gesangbuch" where it is the last step. */
+    nextLabel?: string;
 }>();
 
 // Emits

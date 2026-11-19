@@ -7,7 +7,10 @@
                 class="mx-auto flex min-h-full w-full max-w-md flex-col px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0rem,calc(1rem_-_env(safe-area-inset-top)))]"
             >
                 <!-- Step Indicator Dots -->
+                <!-- No row of one dot: someone who only needs the book has no
+                     steps to count, and nothing to go back to. -->
                 <StepIndicator
+                    v-if="lastStep > firstStep"
                     :current-step="currentStep"
                     :total-steps="totalSteps"
                     :first-step="firstStep"
@@ -32,6 +35,7 @@
                     :download-complete="downloadComplete"
                     :failed-count="failedFiles.length"
                     :storage-estimate="storage"
+                    :next-label="onlyDownload ? 'Zum Gesangbuch' : 'Weiter'"
                     @download="handleDownload"
                     @retry="handleRetry"
                     @next="nextStep"
@@ -62,6 +66,7 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
 import { useSongsStore } from '@/stores/songs';
+import { useUserStore } from '@/stores/user';
 
 import DownloadContentStep from '@/components/onboarding/DownloadContentStep.vue';
 import GemeindeStep from '@/components/onboarding/GemeindeStep.vue';
@@ -70,11 +75,13 @@ import TourStep from '@/components/onboarding/TourStep.vue';
 import { tourSlides } from '@/components/onboarding/tour';
 import StepIndicator from '@/components/utils/StepIndicator.vue';
 
+import { markOnboarded } from '@/api/profile.api';
 import { type StorageSpace, getStorageEstimate } from '@/services/storage';
 import { mayUseMobileData } from '@/utils/mobileData';
 
 const router = useRouter();
 const songsStore = useSongsStore();
+const userStore = useUserStore();
 const { isSyncing, error: syncError, syncProgress, failedFiles } = storeToRefs(songsStore);
 
 const ONBOARDING_IN_PROGRESS_KEY = 'onboarding.inProgress';
@@ -91,6 +98,14 @@ const TOUR = tourSlides();
 const lastTourStep = FIRST_TOUR_STEP + TOUR.length - 1;
 const totalSteps = lastTourStep + 1;
 
+// Someone who has been through all of this before, on another device or on this
+// one before its data was cleared, is only missing the book: the Gemeinde and the
+// profile are on the account already, and the tour has been seen. Read once, at
+// the start, from what the login found out (useAuth, startSession).
+const onlyDownload = userStore.user?.onboarded === true;
+const firstStep = onlyDownload ? DOWNLOAD_STEP : GEMEINDE_STEP;
+const lastStep = onlyDownload ? DOWNLOAD_STEP : totalSteps;
+
 /**
  * Where an onboarding cut off by a reload (or an installed app launched
  * fresh) left off. Read here, in setup, and not in onMounted: the step watcher
@@ -100,13 +115,11 @@ const totalSteps = lastTourStep + 1;
 function storedStep(): number {
     try {
         const step = Number(localStorage.getItem(ONBOARDING_STEP_KEY));
-        return Number.isInteger(step) && step >= 1 && step <= totalSteps ? step : 1;
+        return Number.isInteger(step) && step >= firstStep && step <= lastStep ? step : firstStep;
     } catch {
-        return 1;
+        return firstStep;
     }
 }
-
-const firstStep = GEMEINDE_STEP;
 
 const currentStep = ref(storedStep());
 
@@ -118,8 +131,10 @@ const downloadComplete = ref(false);
 const storage = ref<StorageSpace | null>(null);
 
 function nextStep() {
-    if (currentStep.value < totalSteps) {
+    if (currentStep.value < lastStep) {
         currentStep.value++;
+    } else {
+        finishOnboarding();
     }
 }
 
@@ -184,6 +199,10 @@ async function handleRetry() {
 function finishOnboarding() {
     localStorage.removeItem(ONBOARDING_IN_PROGRESS_KEY);
     localStorage.removeItem(ONBOARDING_STEP_KEY);
+    // On the account, so the next device skips to the download. Not awaited:
+    // the reader is done and should not wait on a request that may not arrive.
+    void markOnboarded();
+    void userStore.patchUser({ onboarded: true });
     router.push('/tabs/lieder');
 }
 

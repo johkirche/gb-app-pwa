@@ -211,8 +211,10 @@
                                 <em>app_settings</em>
                                 ): Farbschema, Akzentfarbe, die Einstellungen für Lieder und Bibel,
                                 der Leseplan und das zuletzt gelesene Kapitel, damit sie nach der
-                                Anmeldung auf einem anderen Gerät übernommen werden. Die Größe der
-                                Darstellung und ein angeschlossenes MIDI-Gerät bleiben auf dem
+                                Anmeldung auf einem anderen Gerät übernommen werden, sowie der
+                                Zeitpunkt, zu dem Sie die Einrichtung zum ersten Mal abgeschlossen
+                                haben, damit ein weiteres Gerät nur noch die Lieder lädt. Die Größe
+                                der Darstellung und ein angeschlossenes MIDI-Gerät bleiben auf dem
                                 jeweiligen Gerät
                             </li>
                             <li>

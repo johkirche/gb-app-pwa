@@ -21,6 +21,10 @@ const fetchSongManifest = vi.fn();
 const fetchSongsByIds = vi.fn();
 const fetchFile = vi.fn();
 const syncNotationBundle = vi.fn();
+const markOnboarded = vi.fn();
+const push = vi.fn();
+const patchUser = vi.fn();
+let user: { onboarded?: boolean } | null = null;
 
 vi.mock('@/db', () => ({
     db: {
@@ -49,8 +53,16 @@ vi.mock('@/db', () => ({
         },
     },
 }));
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('@/stores/user', () => ({ useUserStore: vi.fn() }));
+vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }));
+vi.mock('@/stores/user', () => ({
+    useUserStore: () => ({
+        get user() {
+            return user;
+        },
+        patchUser,
+    }),
+}));
+vi.mock('@/api/profile.api', () => ({ markOnboarded }));
 vi.mock('@/api/demo.api', () => ({ DemoUnavailableError: class {}, fetchDemoSongs: vi.fn() }));
 vi.mock('@/api/files.api', () => ({ fetchFile }));
 vi.mock('@/api/songs.api', () => ({
@@ -88,7 +100,7 @@ async function mountOnboarding() {
     const wrapper = mount(OnboardingPage, {
         global: {
             plugins: [pinia],
-            stubs: { GemeindeStep: true, StepIndicator: true },
+            stubs: { GemeindeStep: true, StepIndicator: true, ProfileStep: true },
         },
     });
     await flushPromises();
@@ -110,6 +122,7 @@ beforeEach(() => {
     meta.clear();
     localStorage.clear();
     vi.clearAllMocks();
+    user = null;
 
     songRows.set('1', song('1'));
     fetchSongManifest.mockResolvedValue([
@@ -191,5 +204,66 @@ describe('the first step', () => {
         const wrapper = await mountOnboarding();
 
         expect(wrapper.findComponent({ name: 'GemeindeStep' }).exists()).toBe(true);
+    });
+});
+
+// The Gemeinde and the profile are on the account, and the tour has been seen:
+// a device that is new to an account that has done all of this needs the book.
+describe('for an account that has been through it before', () => {
+    beforeEach(() => {
+        user = { onboarded: true };
+        songRows.clear();
+    });
+
+    it('starts at the download, with no steps to count', async () => {
+        const wrapper = await mountOnboarding();
+
+        expect(wrapper.findComponent({ name: 'GemeindeStep' }).exists()).toBe(false);
+        expect(wrapper.findComponent({ name: 'StepIndicator' }).exists()).toBe(false);
+        expect(fetchSongManifest).toHaveBeenCalledOnce();
+        expect(wrapper.text()).toContain(FINISHED);
+    });
+
+    it('goes from the finished download to the book, not to the tour', async () => {
+        const wrapper = await mountOnboarding();
+
+        const button = wrapper.findAll('button').find((b) => b.text() === 'Zum Gesangbuch');
+        expect(button).toBeDefined();
+        await button!.trigger('click');
+
+        expect(push).toHaveBeenCalledWith('/tabs/lieder');
+        expect(wrapper.findComponent({ name: 'TourStep' }).exists()).toBe(false);
+        expect(localStorage.getItem('onboarding.inProgress')).toBeNull();
+    });
+
+    it('ignores a step stored by a whole onboarding begun before', async () => {
+        localStorage.setItem('onboarding.schritt', '1');
+
+        const wrapper = await mountOnboarding();
+
+        expect(wrapper.findComponent({ name: 'GemeindeStep' }).exists()).toBe(false);
+        expect(wrapper.text()).toContain(FINISHED);
+    });
+});
+
+describe('the end of a whole onboarding', () => {
+    it('marks the account, so the next device skips to the download', async () => {
+        const wrapper = await mountOnboarding();
+        while (!wrapper.findComponent({ name: 'ProfileStep' }).exists()) {
+            const step = wrapper.findComponent({ name: 'GemeindeStep' }).exists()
+                ? wrapper.findComponent({ name: 'GemeindeStep' })
+                : wrapper.findComponent({ name: 'TourStep' }).exists()
+                  ? wrapper.findComponent({ name: 'TourStep' })
+                  : wrapper.findComponent({ name: 'DownloadContentStep' });
+            step.vm.$emit('next');
+            await flushPromises();
+        }
+
+        wrapper.findComponent({ name: 'ProfileStep' }).vm.$emit('finish');
+        await flushPromises();
+
+        expect(markOnboarded).toHaveBeenCalledOnce();
+        expect(patchUser).toHaveBeenCalledWith({ onboarded: true });
+        expect(push).toHaveBeenCalledWith('/tabs/lieder');
     });
 });

@@ -1,4 +1,4 @@
-import type { BrowserContext, Route } from '@playwright/test';
+import type { BrowserContext, Request, Route } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -63,6 +63,21 @@ export function isRecordable(url: string): boolean {
     return !NOT_RECORDED.some((pattern) => pattern.test(pathname));
 }
 
+/**
+ * The one write a walk through the onboarding would make to the account it
+ * runs as: the mark that it is done (api/profile.api, markOnboarded). Held
+ * back, so the recording leaves the account as it found it — and the next
+ * recording is still shown the whole onboarding to walk. The app takes the
+ * failure as it takes any: the mark is best effort.
+ */
+function marksOnboarded(request: Request): boolean {
+    return (
+        request.method() === 'PATCH' &&
+        new URL(request.url()).pathname.endsWith('/users/me') &&
+        (request.postData() ?? '').includes('"onboarded"')
+    );
+}
+
 /** Response headers worth keeping: enough to be a faithful reply, no more. */
 const KEEP_HEADERS = new Set(['content-type', 'cache-control', 'etag', 'last-modified']);
 
@@ -108,6 +123,10 @@ export async function startRecording(context: BrowserContext, urlGlob: string) {
 
     await context.route(urlGlob, async (route: Route) => {
         const request = route.request();
+        if (marksOnboarded(request)) {
+            await route.abort('failed');
+            return;
+        }
         if (!isRecordable(request.url())) {
             await route.continue();
             return;
