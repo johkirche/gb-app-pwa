@@ -138,7 +138,10 @@
                                 App zuletzt daran erinnert hat, dass sie wieder einmal Internet
                                 braucht (
                                 <em>gesangbuch.fristHinweis</em>
-                                ).
+                                ). Nur für die Dauer eines Tabs (sessionStorage) ein Vermerk, dass
+                                die App sich nach einem missglückten Start einmal neu geladen hat (
+                                <em>gesangbuch.neuGeladen</em>
+                                ); er wird gelöscht, sobald die App läuft.
                             </li>
                             <li>
                                 <strong>Service-Worker-Caches</strong>

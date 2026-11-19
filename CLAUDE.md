@@ -120,7 +120,11 @@ Eleven specs, and they divide by what they need behind them:
   message, so "did the new worker take over?" is asked rather than inferred.
   All three engines — it never cuts the network, so WebKit is fine here. Needs
   `pnpm build` too, and no backend at all: the worker registers on mount and
-  the toast is in App.vue, so the login page is enough.
+  the toast is in App.vue, so the start page is enough. Last, it spoils the
+  page the worker cached so that it names a script the server does not have,
+  which is what a deploy still spreading did to a Pixel (2026-11-18): black,
+  for good. The guard in index.html has to bring the app back in one reload.
+  Chromium and Firefox only, for WebKit's worker cannot answer the navigation.
 
 A spec that needs the book calls `openLibrary()` once in `beforeAll` and shares
 it (`test.describe.configure({ mode: 'serial' })`), because syncing per test

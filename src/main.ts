@@ -23,6 +23,13 @@ app.directive('long-press', longPressDirective);
 
 router.isReady().then(() => {
     app.mount('#app');
+    // The app is up, so the guard in index.html may reload this tab again the
+    // next time its script cannot be found (see there).
+    try {
+        sessionStorage.removeItem('gesangbuch.neuGeladen');
+    } catch {
+        // Without storage the guard never reloads in the first place.
+    }
     // Register the service worker and show an update toast when a new version is
     // deployed. Runs after mount so the vue-sonner <Toaster /> in App.vue is
     // already listening when the (async) update/offline events fire.

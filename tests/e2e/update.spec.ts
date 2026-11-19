@@ -241,3 +241,82 @@ test('leaves the update parked when the reader says Später', async () => {
     // itself once every tab of the app has been closed.
     expect(await hasWaitingWorker(page), 'the update was discarded rather than parked').toBe(true);
 });
+
+/*
+ * What a Pixel was found holding on 2026-11-18: the worker's index.html from
+ * the build before, filed under the new build's revision, because the deploy
+ * was still spreading when the worker asked for it. That page names scripts the
+ * server no longer has, the server answers them with the app's own page as
+ * text/html, and no browser runs that as a module. Black, in the browser and
+ * the installed app alike, and the app could not look for an update either: the
+ * app is the script that did not load.
+ *
+ * Made here the way it happened. The cached page is rewritten in place to name
+ * a script that does not exist, and the next visit is answered from the cache.
+ * The guard in index.html has to bring the app up without anyone touching it.
+ */
+test('a cached page whose script is gone puts itself right in one reload', async ({
+    browserName,
+}) => {
+    test.skip(
+        browserName === 'webkit',
+        "Playwright's WebKit will not let a worker answer a navigation, so the cached page never comes back to break anything.",
+    );
+    test.setTimeout(120_000);
+
+    const poisoned = await page.evaluate(async () => {
+        let count = 0;
+        for (const name of await caches.keys()) {
+            if (!name.startsWith('workbox-precache')) continue;
+            const cache = await caches.open(name);
+            for (const request of await cache.keys()) {
+                if (!new URL(request.url).pathname.endsWith('/index.html')) continue;
+                const response = await cache.match(request);
+                if (!response) continue;
+                const html = (await response.text()).replace(
+                    /\/assets\/index-[\w-]+\.js/,
+                    '/assets/index-weg.js',
+                );
+                await cache.put(request, new Response(html, { headers: response.headers }));
+                count++;
+            }
+        }
+        return count;
+    });
+    expect(poisoned, 'the worker holds no index.html to spoil').toBe(1);
+
+    // Two loads: the spoiled page, and the one the guard reloads into.
+    let loads = 0;
+    const countLoad = () => loads++;
+    page.on('load', countLoad);
+    await page.reload();
+
+    await expect(page.getByRole('heading', { name: 'Gesangbuch', exact: true })).toBeVisible({
+        timeout: 30_000,
+    });
+    page.off('load', countLoad);
+    expect(loads, 'the cached page never broke, so nothing was put right').toBe(2);
+
+    // Up, so the mark is gone and a later spoiled page would be put right too.
+    expect(await page.evaluate(() => sessionStorage.getItem('gesangbuch.neuGeladen'))).toBeNull();
+
+    // And the worker the app registered afresh has cached the page that works.
+    await expect
+        .poll(
+            () =>
+                page.evaluate(async () => {
+                    for (const name of await caches.keys()) {
+                        if (!name.startsWith('workbox-precache')) continue;
+                        const cache = await caches.open(name);
+                        for (const request of await cache.keys()) {
+                            if (!new URL(request.url).pathname.endsWith('/index.html')) continue;
+                            const html = await (await cache.match(request))?.text();
+                            return html?.includes('/assets/index-weg.js') ? 'spoiled' : 'fresh';
+                        }
+                    }
+                    return 'none';
+                }),
+            { timeout: 60_000 },
+        )
+        .toBe('fresh');
+});

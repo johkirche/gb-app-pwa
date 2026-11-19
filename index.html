@@ -29,6 +29,65 @@
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Gesangbuch" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+        <!-- The way back from a page whose own script is gone.
+
+             The service worker answers every visit with the index.html it
+             cached, and it can cache the wrong one: during a deploy the new
+             sw.js may already be out while the old page is still served for a
+             moment, and the worker files that old page under the new version.
+             It names scripts the server no longer has, nothing ever renders,
+             and the app cannot so much as look for an update, because the app
+             is the script that did not load. Found on a Pixel on 2026-11-18,
+             black in the browser and the installed app alike.
+
+             So when the app's own script fails to load, empty the worker's
+             cache, let the worker go, and load once more: from the network,
+             where the page and its scripts belong together, and the app
+             registers a fresh worker. Once per tab; main.ts clears the mark
+             when the app is up, so a page that is broken on the server as well
+             is not reloaded for ever. Plain script, not a module, so that it is
+             listening before the module is even asked for. -->
+        <script>
+            window.addEventListener(
+                'error',
+                (event) => {
+                    const script = event.target;
+                    if (!(script instanceof HTMLScriptElement)) return;
+                    if (!script.src.startsWith(location.origin + '/assets/')) return;
+                    try {
+                        if (sessionStorage.getItem('gesangbuch.neuGeladen')) return;
+                        sessionStorage.setItem('gesangbuch.neuGeladen', '1');
+                    } catch {
+                        return;
+                    }
+                    const forget = [];
+                    if ('caches' in window) {
+                        forget.push(
+                            caches
+                                .keys()
+                                .then((keys) =>
+                                    Promise.all(
+                                        keys
+                                            .filter((key) => key.startsWith('workbox-precache'))
+                                            .map((key) => caches.delete(key)),
+                                    ),
+                                ),
+                        );
+                    }
+                    if ('serviceWorker' in navigator) {
+                        forget.push(
+                            navigator.serviceWorker
+                                .getRegistrations()
+                                .then((all) => Promise.all(all.map((r) => r.unregister()))),
+                        );
+                    }
+                    Promise.allSettled(forget).then(() => location.reload());
+                },
+                // Capture: a script's load error does not bubble.
+                true,
+            );
+        </script>
     </head>
 
     <body>
