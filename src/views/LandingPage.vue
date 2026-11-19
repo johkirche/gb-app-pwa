@@ -7,22 +7,35 @@
          can do follow below. -->
     <div class="flex h-full flex-col bg-background">
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <!-- Sized for a phone in the hand, not for the drawing of one: the
+                 design's screen is some 350 px wide, a Pixel's 412, and the
+                 same rem looked a size smaller there with a hole under the
+                 psalm. So a fifth larger than drawn, the logo more than that.
+                 Still rem, so Größe moves it all, with caps where the screen
+                 runs out. On a short one (an iPhone SE's Safari leaves some
+                 550 px) the logo, the psalm and the space between give way to
+                 the height, so the button, its note and „Mehr erfahren" stay on
+                 the first screen. The title gives way to the width, because at
+                 Größe 200 % the one word has to fit a phone (Firefox sets it
+                 wider than Chromium, hence the 4.9 words to the width and the
+                 sides at 1.25rem, not 1.5). -->
             <section
-                class="mx-auto flex min-h-full w-full max-w-md flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.75rem,env(safe-area-inset-top))]"
+                class="mx-auto flex min-h-full w-full max-w-md flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(min(2.25rem,4svh),env(safe-area-inset-top))]"
             >
-                <GesangbuchLogo class="h-20 shrink-0 self-start" />
-                <p class="label-micro mt-9 text-flourish">Johannische Kirche</p>
-                <!-- 2.75rem, not 3, and the page's sides at 1.25rem, not 1.5:
-                     at Größe 200 % the one word has to fit a phone, and
-                     Firefox sets it wider than Chromium. -->
+                <GesangbuchLogo class="h-[min(6.5rem,13svh)] shrink-0 self-start" />
+                <p class="label-micro mt-[min(2.5rem,5svh)] text-xs text-flourish">
+                    Johannische Kirche
+                </p>
                 <h1
-                    class="mt-1 font-display text-[2.75rem] font-semibold leading-none tracking-tight"
+                    class="mt-1.5 font-display text-[length:min(3.5rem,calc((100vw_-_2.5rem)/4.9))] font-semibold leading-none tracking-tight"
                 >
                     Gesangbuch
                 </h1>
 
-                <figure class="mt-7 border-l-2 border-flourish pl-4">
-                    <blockquote class="font-display text-[1.45rem] font-medium leading-[1.3]">
+                <figure class="mt-[min(2rem,4svh)] border-l-2 border-flourish pl-5">
+                    <blockquote
+                        class="font-display text-[length:min(1.7rem,4.5svh)] font-medium leading-[1.3]"
+                    >
                         Jauchzet dem Herrn,
                         <br />
                         alle Welt;
@@ -31,14 +44,16 @@
                         <br />
                         rühmet und lobet!
                     </blockquote>
-                    <figcaption class="label-micro mt-2 text-flourish">Psalm 98</figcaption>
+                    <figcaption class="label-micro mt-3 text-xs text-flourish">Psalm 98</figcaption>
                 </figure>
 
-                <div class="mt-auto grid gap-1.5 pt-8">
-                    <Button size="lg" class="w-full" @click="useIt">{{ ctaLabel }}</Button>
+                <div class="mt-auto grid gap-2 pt-[min(2.5rem,5svh)]">
+                    <Button size="lg" class="h-14 w-full text-base" @click="useIt">
+                        {{ ctaLabel }}
+                    </Button>
                     <p
                         v-if="ctaNote"
-                        class="text-center text-sm leading-relaxed text-muted-foreground"
+                        class="text-center text-[0.9375rem] leading-relaxed text-muted-foreground"
                     >
                         {{ ctaNote }}
                     </p>
