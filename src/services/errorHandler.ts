@@ -15,6 +15,7 @@ import { forgetSessionCopy } from '@/services/sessionCopy';
 export type LogoutReason =
     | 'account_deleted'
     | 'session_expired'
+    | 'device_signed_out'
     | 'invalid_credentials'
     | 'registration_login_failed';
 
@@ -22,6 +23,8 @@ export type LogoutReason =
 export const LOGOUT_REASON_MESSAGES: Record<LogoutReason, string> = {
     account_deleted: 'Ihr Konto wurde gelöscht. Alle lokalen Daten wurden entfernt.',
     session_expired: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
+    device_signed_out:
+        'Dieses Gerät wurde in Ihrem Konto abgemeldet. Bitte melden Sie sich erneut an.',
     invalid_credentials: 'Ungültige Anmeldedaten. Bitte melden Sie sich erneut an.',
     registration_login_failed:
         'Ihr Konto wurde erfolgreich erstellt. Die automatische Anmeldung ist fehlgeschlagen – bitte melden Sie sich mit Ihrer E-Mail-Adresse und Ihrem Passwort an.',

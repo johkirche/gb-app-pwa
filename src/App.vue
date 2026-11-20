@@ -37,6 +37,7 @@ import { useTheme } from '@/composables/useTheme';
 import { ConfirmHost } from '@/components/ui/confirm';
 import { Toaster } from '@/components/ui/sonner';
 
+import { startDeviceCheck } from '@/services/deviceCheck';
 import { clearSessionData } from '@/services/errorHandler';
 import { startLibraryUpdates } from '@/services/libraryUpdates';
 import { fristHinweis, offlineFrist } from '@/services/offlineFrist';
@@ -169,6 +170,8 @@ onMounted(async () => {
     await Promise.all([songsStore.initPromise, router.isReady()]);
     // Whatever was corrected on the server since the last sync.
     startLibraryUpdates();
+    // Signed out from another device: noticed now, not a quarter of an hour on.
+    startDeviceCheck();
     // Asked on every start with a book to protect, not only when a download
     // runs: Chrome decides by how the app is used, and may say yes to an
     // installed, much-opened app it turned down on the first day. Without it, a

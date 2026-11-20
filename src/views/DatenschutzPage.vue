@@ -240,17 +240,19 @@
                                 <em>/directus-user-register-extension/&hellip;</em>
                                 &ndash; Anmeldung mit einem Code per E-Mail oder mit Passwort,
                                 Registrierung mit Aktivierungscode, Sitzungsverlängerung, die Liste
-                                Ihrer Geräte, das Festlegen eines Passworts und die Kontolöschung.
-                                Für den Code werden Ihre E-Mail-Adresse und der Code (nur als
-                                Prüfwert, nicht im Klartext) einen Tag lang gespeichert und eine
-                                E-Mail an Sie verschickt. Falsch eingegebene Aktivierungscodes
-                                werden mit der IP-Adresse, von der sie kamen, einen Tag lang
-                                gezählt, um das Durchprobieren zu verhindern. Ein Konto kann auf
-                                höchstens vier Geräten zugleich angemeldet sein; dafür werden je
-                                Gerät die zufällige Gerätekennung, eine Bezeichnung wie „iPhone ·
-                                Gesangbuch-App“ sowie der Zeitpunkt der Anmeldung und der letzten
-                                Verlängerung gespeichert. Sie stehen in den Einstellungen unter
-                                „Konto“ und werden gelöscht, wenn die Sitzung des Geräts endet
+                                Ihrer Geräte (auch beim Öffnen der App, damit ein anderswo
+                                abgemeldetes Gerät das bemerkt), das Festlegen eines Passworts und
+                                die Kontolöschung. Für den Code werden Ihre E-Mail-Adresse und der
+                                Code (nur als Prüfwert, nicht im Klartext) einen Tag lang
+                                gespeichert und eine E-Mail an Sie verschickt. Falsch eingegebene
+                                Aktivierungscodes werden mit der IP-Adresse, von der sie kamen,
+                                einen Tag lang gezählt, um das Durchprobieren zu verhindern. Ein
+                                Konto kann auf höchstens vier Geräten zugleich angemeldet sein;
+                                dafür werden je Gerät die zufällige Gerätekennung, eine Bezeichnung
+                                wie „iPhone · Gesangbuch-App“ sowie der Zeitpunkt der Anmeldung und
+                                der letzten Verlängerung gespeichert. Sie stehen in den
+                                Einstellungen unter „Konto“ und werden gelöscht, wenn die Sitzung
+                                des Geräts endet
                             </li>
                         </ul>
                         <p>
