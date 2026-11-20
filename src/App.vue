@@ -41,6 +41,7 @@ import { clearSessionData } from '@/services/errorHandler';
 import { startLibraryUpdates } from '@/services/libraryUpdates';
 import { fristHinweis, offlineFrist } from '@/services/offlineFrist';
 import { refreshAuthToken } from '@/services/session';
+import { requestPersistentStorage } from '@/services/storage';
 import { startUserDataSync } from '@/services/userData/sync';
 
 // Mobile-viewport preview. Always available in dev; a production build ships
@@ -168,6 +169,13 @@ onMounted(async () => {
     await Promise.all([songsStore.initPromise, router.isReady()]);
     // Whatever was corrected on the server since the last sync.
     startLibraryUpdates();
+    // Asked on every start with a book to protect, not only when a download
+    // runs: Chrome decides by how the app is used, and may say yes to an
+    // installed, much-opened app it turned down on the first day. Without it, a
+    // full phone empties IndexedDB. Not without a book: there is nothing to keep
+    // yet, the download asks when it runs, and headless Chromium hangs a second
+    // tab that asks at the same moment as the first (session.spec.ts).
+    if (songsStore.hasSongs) void requestPersistentStorage();
     void remindOfflineFrist();
     refreshDemo();
     // An installed app on a phone is rarely started cold: it comes back from

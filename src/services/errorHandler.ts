@@ -1,6 +1,7 @@
 import { useUserStore } from '@/stores/user';
 
 import { db } from '@/db';
+import { forgetSessionCopy } from '@/services/sessionCopy';
 
 /**
  * Error Handler Service
@@ -255,6 +256,7 @@ export function translateLoginError(error: unknown): string {
  * user's downloaded hymnal and their hand-made playlists must survive a re-login.
  */
 export async function clearSessionData(): Promise<void> {
+    forgetSessionCopy();
     try {
         await db.transaction('rw', [db.auth, db.users], async () => {
             await db.auth.clear();
@@ -281,6 +283,7 @@ export async function clearSessionData(): Promise<void> {
  * login; the caller warns before anything that had not.
  */
 export async function clearUserScopedData(): Promise<void> {
+    forgetSessionCopy();
     const tables = [
         db.auth,
         db.users,
@@ -327,6 +330,7 @@ export async function clearUserScopedData(): Promise<void> {
  * gone; for an ordinary expired session use {@link clearSessionData} instead.
  */
 export async function clearAllLocalData(): Promise<void> {
+    forgetSessionCopy();
     const tables = [
         db.auth,
         db.users,

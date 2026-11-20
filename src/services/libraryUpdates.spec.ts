@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * The stores are stand-ins: what is under test is the decision, not the sync.
  */
 
-const { songsStore, userStore, toast, mayUseMobileData } = await vi.hoisted(async () => {
+const { songsStore, userStore, toast, mayUseMobileData, restored } = await vi.hoisted(async () => {
     const { reactive } = await import('vue');
     return {
         songsStore: {
@@ -20,6 +20,7 @@ const { songsStore, userStore, toast, mayUseMobileData } = await vi.hoisted(asyn
         userStore: reactive({ isLoggedIn: true }),
         toast: { success: vi.fn(), info: vi.fn() },
         mayUseMobileData: vi.fn(() => false),
+        restored: { value: false },
     };
 });
 
@@ -27,6 +28,7 @@ vi.mock('@/stores/songs', () => ({ useSongsStore: () => songsStore }));
 vi.mock('@/stores/user', () => ({ useUserStore: () => userStore }));
 vi.mock('@/utils/mobileData', () => ({ mayUseMobileData }));
 vi.mock('vue-sonner', () => ({ toast }));
+vi.mock('@/services/sessionCopy', () => ({ wasRestoredFromCopy: () => restored.value }));
 
 type Module = typeof import('./libraryUpdates');
 let updates: Module;
@@ -44,6 +46,7 @@ beforeEach(async () => {
     toast.success.mockReset();
     toast.info.mockReset();
     mayUseMobileData.mockReset().mockReturnValue(false);
+    restored.value = false;
 });
 
 afterEach(() => {
@@ -200,5 +203,59 @@ describe('startLibraryUpdates', () => {
         document.dispatchEvent(new Event('visibilitychange'));
         await vi.runAllTimersAsync();
         expect(songsStore.countPendingUpdates).toHaveBeenCalledTimes(2);
+    });
+});
+
+// The browser emptied IndexedDB, the session came back from its copy in
+// localStorage, and the book has to come down again.
+describe('after the session came back from its copy', () => {
+    beforeEach(() => {
+        restored.value = true;
+        songsStore.hasSongs = false;
+        songsStore.syncAll.mockImplementation(async () => {
+            songsStore.hasSongs = true;
+        });
+    });
+
+    it('downloads the book at once where there is no data plan, and says so', async () => {
+        await updates.checkLibraryUpdates();
+
+        expect(songsStore.syncAll).toHaveBeenCalledWith({ quiet: true });
+        expect(songsStore.countPendingUpdates).not.toHaveBeenCalled();
+        expect(toast.success).toHaveBeenCalledWith(
+            'Das Gesangbuch ist wieder auf diesem Gerät.',
+            expect.anything(),
+        );
+    });
+
+    it('asks first on a phone that may be on mobile data, and only once', async () => {
+        mayUseMobileData.mockReturnValue(true);
+
+        await updates.checkLibraryUpdates();
+        await updates.checkLibraryUpdates();
+
+        expect(songsStore.syncAll).not.toHaveBeenCalled();
+        expect(toast.info).toHaveBeenCalledOnce();
+
+        const { action } = toast.info.mock.calls[0][1] as { action: { onClick: () => void } };
+        action.onClick();
+        await vi.waitFor(() => expect(songsStore.syncAll).toHaveBeenCalledOnce());
+    });
+
+    it('leaves a device that still has its book to the usual check', async () => {
+        songsStore.hasSongs = true;
+
+        await updates.checkLibraryUpdates();
+
+        expect(songsStore.countPendingUpdates).toHaveBeenCalledOnce();
+    });
+
+    it('does nothing without a session', async () => {
+        userStore.isLoggedIn = false;
+
+        await updates.checkLibraryUpdates();
+
+        expect(songsStore.syncAll).not.toHaveBeenCalled();
+        expect(toast.info).not.toHaveBeenCalled();
     });
 });

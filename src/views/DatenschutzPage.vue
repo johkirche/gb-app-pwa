@@ -129,8 +129,13 @@
                                 ), eine zufällige Kennung dieses Geräts, unter der es in der Liste
                                 Ihrer Geräte steht (
                                 <em>gesangbuch.geraet</em>
-                                ), sowie E-Mail-Adresse und Vorname des zuletzt angemeldeten Kontos
-                                (
+                                ), eine Kopie der Sitzung, also der Anmeldedaten und Ihres Profils
+                                ohne Symbolbild (
+                                <em>gesangbuch.sitzung</em>
+                                ), damit Sie angemeldet bleiben, wenn das Gerät bei Platzmangel die
+                                Datenbank leert; sie wird beim Abmelden und am Ende der Sitzung
+                                entfernt, sowie E-Mail-Adresse und Vorname des zuletzt angemeldeten
+                                Kontos (
                                 <em>gesangbuch.letztesKonto</em>
                                 ), damit die App Sie nach dem Ende einer Sitzung wiedererkennt und
                                 den Code an die bekannte Adresse schicken kann. Beim Abmelden werden

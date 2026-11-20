@@ -5,6 +5,7 @@ import { toast } from 'vue-sonner';
 import { useSongsStore } from '@/stores/songs';
 import { useUserStore } from '@/stores/user';
 
+import { wasRestoredFromCopy } from '@/services/sessionCopy';
 import { mayUseMobileData } from '@/utils/mobileData';
 
 /**
@@ -56,6 +57,7 @@ let checking = false;
 // the next return to the app, not a quarter of an hour later.
 let lastAnswered = 0;
 let asked = false;
+let restoring = false;
 
 async function bringUpToDate(): Promise<void> {
     const songsStore = useSongsStore();
@@ -74,12 +76,58 @@ async function bringUpToDate(): Promise<void> {
     }
 }
 
+/**
+ * The book again, after the browser took it (services/sessionCopy): the session
+ * came back from its copy, the songs did not. The same rule as an update and
+ * the first download: at once where there can be no data plan, and on a phone
+ * that may be on one, asked — once, with what it is about.
+ */
+async function restoreLibrary(): Promise<void> {
+    const songsStore = useSongsStore();
+    if (restoring) return;
+    restoring = true;
+
+    const download = async () => {
+        if (songsStore.isSyncing) return;
+        try {
+            await songsStore.syncAll({ quiet: true });
+        } catch {
+            // Logged by syncAll; the empty list offers the download itself.
+            return;
+        }
+        if (songsStore.hasSongs) {
+            toast.success('Das Gesangbuch ist wieder auf diesem Gerät.', { duration: 4000 });
+        }
+    };
+
+    if (!mayUseMobileData()) {
+        await download();
+        return;
+    }
+    toast.info('Die Lieder sind nicht mehr auf diesem Gerät', {
+        description:
+            'Das Handy hat Speicherplatz freigegeben. Jetzt neu laden, oder später im WLAN.',
+        duration: Infinity,
+        action: { label: 'Jetzt laden', onClick: () => void download() },
+    });
+}
+
 /** Ask the server whether anything moved, and act on the answer. */
 export async function checkLibraryUpdates(): Promise<void> {
     const songsStore = useSongsStore();
     const userStore = useUserStore();
 
     if (checking || songsStore.isSyncing) return;
+    if (
+        wasRestoredFromCopy() &&
+        userStore.isLoggedIn &&
+        !songsStore.isDemo &&
+        !songsStore.hasSongs &&
+        navigator.onLine !== false
+    ) {
+        await restoreLibrary();
+        return;
+    }
     if (!userStore.isLoggedIn || songsStore.isDemo || !songsStore.hasSongs) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     if (lastAnswered && Date.now() - lastAnswered < CHECK_INTERVAL_MS) return;

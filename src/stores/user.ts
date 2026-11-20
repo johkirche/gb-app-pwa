@@ -4,6 +4,12 @@ import { defineStore } from 'pinia';
 
 import { type AuthData, type UserData, db } from '@/db';
 import { offlineFrist } from '@/services/offlineFrist';
+import {
+    forgetSessionCopy,
+    keepSessionCopy,
+    noteRestoredFromCopy,
+    readSessionCopy,
+} from '@/services/sessionCopy';
 
 export const useUserStore = defineStore('user', () => {
     // State
@@ -72,6 +78,20 @@ export const useUserStore = defineStore('user', () => {
             if (userRecords.length > 0) {
                 user.value = userRecords[0];
             }
+
+            // Neither in the database, and a copy beside it: the browser emptied
+            // IndexedDB to make room, and left localStorage (services/sessionCopy).
+            // The session goes back where it was, and the book after it.
+            if (!authData.value && !user.value) {
+                const copy = readSessionCopy();
+                if (copy) {
+                    await db.users.put(copy.user);
+                    await db.auth.put(copy.auth);
+                    user.value = copy.user;
+                    authData.value = copy.auth;
+                    noteRestoredFromCopy();
+                }
+            }
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load user data';
             console.error('Error loading user from DB:', err);
@@ -85,6 +105,7 @@ export const useUserStore = defineStore('user', () => {
             await db.auth.clear();
             await db.auth.add(data);
             authData.value = data;
+            keepSessionCopy(user.value, data);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to save auth data';
             console.error('Error saving auth data:', err);
@@ -97,6 +118,7 @@ export const useUserStore = defineStore('user', () => {
             await db.users.clear();
             await db.users.add(data);
             user.value = data;
+            keepSessionCopy(data, authData.value);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to save user data';
             console.error('Error saving user data:', err);
@@ -219,7 +241,8 @@ export const useUserStore = defineStore('user', () => {
             isLoading.value = true;
             error.value = null;
 
-            // Clear IndexedDB
+            // Clear IndexedDB, and the copy beside it
+            forgetSessionCopy();
             await db.auth.clear();
             await db.users.clear();
 
