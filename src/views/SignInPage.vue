@@ -96,9 +96,13 @@
                     @submit.prevent="checkTheCode(code)"
                 >
                     <h1 class="font-display text-3xl font-semibold">Code eingeben</h1>
+                    <!-- overflow-wrap:anywhere, not break-all: the address moves to a line
+                         of its own whole, and is cut only where it cannot fit on one. -->
                     <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground">
                         Wir haben einen Code an
-                        <strong class="break-all font-medium text-foreground">{{ email }}</strong>
+                        <strong class="font-medium text-foreground [overflow-wrap:anywhere]">
+                            {{ email }}
+                        </strong>
                         geschickt. Er gilt 15&nbsp;Minuten.
                     </p>
 
@@ -159,7 +163,9 @@
                     <h1 class="font-display text-3xl font-semibold">Willkommen!</h1>
                     <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground">
                         Zu
-                        <strong class="break-all font-medium text-foreground">{{ email }}</strong>
+                        <strong class="font-medium text-foreground [overflow-wrap:anywhere]">
+                            {{ email }}
+                        </strong>
                         gibt es noch kein Konto. Mit Ihrem Aktivierungscode legen wir es jetzt an.
                     </p>
 
@@ -285,7 +291,9 @@
                     </p>
                     <div class="mt-8 space-y-2">
                         <p class="text-sm font-medium">E-Mail-Adresse</p>
-                        <p class="break-all rounded-lg bg-muted px-3 py-2 text-[0.9375rem]">
+                        <p
+                            class="rounded-lg bg-muted px-3 py-2 text-[0.9375rem] [overflow-wrap:anywhere]"
+                        >
                             {{ returning.email }}
                         </p>
                     </div>
